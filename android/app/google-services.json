@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "154643096382",
+    "project_id": "qurbani-284f5",
+    "storage_bucket": "qurbani-284f5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:154643096382:android:71019d7ec25ba15eb9426f",
+        "android_client_info": {
+          "package_name": "com.example.qurbani1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC54DhEANZMC3b8u7ds2oNiI_JYtvHqh88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
