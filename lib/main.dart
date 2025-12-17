@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'firebase_options.dart';
 import 'wrapper_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
-
-  // 🔐 REQUIRED: Activate Firebase App Check
-  await FirebaseAppCheck.instance.activate(
-    androidProvider: AndroidProvider.debug, // use debug for now
+  // ✅ Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ Activate Firebase App Check (DEBUG MODE)
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: AndroidDebugProvider(),
+  );
+
+  // ✅ Keep App Check token fresh (important)
+  await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
 
   runApp(const MyApp());
 }
@@ -27,41 +33,20 @@ class MyApp extends StatelessWidget {
       title: 'Qurbani App',
       theme: ThemeData(
         useMaterial3: false,
-
-        /// 🌿 PRIMARY COLOR
         primaryColor: Colors.green,
-
-        /// 🌿 APP BAR THEME
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.green,
           foregroundColor: Colors.white,
           centerTitle: true,
-          elevation: 2,
         ),
-
-        /// 🌿 ELEVATED BUTTON THEME
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.green,
             foregroundColor: Colors.white,
-            textStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
-        ),
-
-        /// 🌿 FLOATING BUTTON THEME
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-        ),
-
-        /// 🌿 ICON THEME
-        iconTheme: const IconThemeData(
-          color: Colors.green,
         ),
       ),
       home: const WrapperScreen(),

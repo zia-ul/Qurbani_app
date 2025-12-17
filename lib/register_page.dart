@@ -30,8 +30,11 @@ class _RegisterPageState extends State<RegisterPage> {
       MaterialPageRoute(builder: (_) => const TermsConditionsPage()),
     );
 
-    if (accepted == true) {
-      setState(() => termsAccepted = true);
+    // Only update if the value actually changed
+    if (accepted != null && accepted != termsAccepted) {
+      setState(() {
+        termsAccepted = accepted; // true or false based on user's choice
+      });
     }
   }
 
@@ -49,11 +52,11 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => isLoading = true);
 
     try {
-      UserCredential cred =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: emailController.text.trim(),
-        password: passController.text.trim(),
-      );
+      UserCredential cred = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passController.text.trim(),
+          );
 
       final user = cred.user!;
       await user.sendEmailVerification();
@@ -86,8 +89,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (e.code == 'weak-password') msg = "Password too weak";
       if (e.code == 'invalid-email') msg = "Invalid email";
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(msg)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -142,8 +144,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Center(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 40,
+                    ),
                     child: Form(
                       key: _formKey,
                       child: Column(
@@ -172,11 +176,22 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           // Fields with same style as login page
                           _field(nameController, "Full Name", Icons.person),
-                          _field(emailController, "Email", Icons.email_outlined),
-                          _field(passController, "Password", Icons.lock_outline,
-                              obscure: true),
-                          _field(addressController, "Address",
-                              Icons.location_on_outlined),
+                          _field(
+                            emailController,
+                            "Email",
+                            Icons.email_outlined,
+                          ),
+                          _field(
+                            passController,
+                            "Password",
+                            Icons.lock_outline,
+                            obscure: true,
+                          ),
+                          _field(
+                            addressController,
+                            "Address",
+                            Icons.location_on_outlined,
+                          ),
 
                           const SizedBox(height: 16),
 
@@ -184,11 +199,17 @@ class _RegisterPageState extends State<RegisterPage> {
                             value: selectedRole,
                             items: const [
                               DropdownMenuItem(
-                                  value: 'user', child: Text("User")),
+                                value: 'user',
+                                child: Text("User"),
+                              ),
                               DropdownMenuItem(
-                                  value: 'admin', child: Text("Admin")),
+                                value: 'admin',
+                                child: Text("Admin"),
+                              ),
                               DropdownMenuItem(
-                                  value: 'delivery', child: Text("Delivery")),
+                                value: 'delivery',
+                                child: Text("Delivery"),
+                              ),
                             ],
                             onChanged: (v) => setState(() => selectedRole = v!),
                             decoration: const InputDecoration(
@@ -196,8 +217,9 @@ class _RegisterPageState extends State<RegisterPage> {
                               fillColor: Colors.white,
                               labelText: "Role",
                               border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.all(Radius.circular(12)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
                               ),
                             ),
                           ),
@@ -240,8 +262,12 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                               child: isLoading
                                   ? const CircularProgressIndicator(
-                                      color: Colors.white)
-                                  : const Text("Register", style: TextStyle(fontSize: 18),),
+                                      color: Colors.white,
+                                    )
+                                  : const Text(
+                                      "Register",
+                                      style: TextStyle(fontSize: 18),
+                                    ),
                             ),
                           ),
 
@@ -253,7 +279,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (_) => const LoginScreen()),
+                                    builder: (_) => const LoginScreen(),
+                                  ),
                                 );
                               },
                               child: const Text(

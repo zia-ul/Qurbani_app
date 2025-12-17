@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
-import 'register_page.dart';
+import 'onboarding_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -23,24 +22,23 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const Spacer(),
 
-                // App Icon / Logo
-                const Icon(
-                  Icons.volunteer_activism,
-                  size: 120,
-                  color: Colors.white,
+                // App Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: MediaQuery.of(context).size.height * 0.25, // 25% of screen height
+                  fit: BoxFit.contain,
                 ),
 
                 const SizedBox(height: 24),
 
-                // App Title
+                // Title
                 const Text(
-                  'Welcome to Qurbani App',
+                  'Qurbani App',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 30,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                  textAlign: TextAlign.center,
                 ),
 
                 const SizedBox(height: 12),
@@ -57,10 +55,10 @@ class WelcomeScreen extends StatelessWidget {
 
                 const Spacer(),
 
-                // Login Button
+                // Get Started Button
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -70,39 +68,16 @@ class WelcomeScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
+                          builder: (_) => const OnboardingScreen(),
                         ),
                       );
                     },
                     child: const Text(
-                      'Login',
-                      style: TextStyle(fontSize: 18),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Register Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterPage(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Register',
-                      style: TextStyle(fontSize: 18),
+                      'Get Started',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),

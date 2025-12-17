@@ -55,7 +55,7 @@ class HomePage extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.all(20),
-                  height: 500,
+                  height: 400,
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -76,7 +76,7 @@ class HomePage extends StatelessWidget {
                         Text(
                           "Welcome Back, $name!",
                           style: const TextStyle(
-                            fontSize: 28,
+                            fontSize: 22,
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                           ),
@@ -85,7 +85,7 @@ class HomePage extends StatelessWidget {
                         const SizedBox(height: 20),
                         const Text(
                           "Book your Qurbani easily and conveniently. A dedicated platform for livestock traders, farmers, and hobbyists to buy, sell and share their animals online.",
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                          style: TextStyle(fontSize: 14, color: Colors.white),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -118,7 +118,7 @@ class HomePage extends StatelessWidget {
                         style: _outlinedGreenButton(),
                         child: const Text(
                           "Booked",
-                          style: TextStyle(fontSize: 21),
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
 
@@ -136,7 +136,7 @@ class HomePage extends StatelessWidget {
                         style: _outlinedGreenButton(),
                         child: const Text(
                           "New Booking",
-                          style: TextStyle(fontSize: 21),
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
 
@@ -154,7 +154,7 @@ class HomePage extends StatelessWidget {
                         ),
                         child: const Text(
                           "Logout",
-                          style: TextStyle(fontSize: 21),
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
                     ],

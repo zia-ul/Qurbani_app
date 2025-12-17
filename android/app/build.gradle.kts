@@ -29,6 +29,12 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        resValue(
+        "string",
+        "firebase_app_check_debug_token",
+        "ABB1D764-BE23-4856-9F7C-9FAC0A1D52A4"
+    )
     }
 
     buildTypes {

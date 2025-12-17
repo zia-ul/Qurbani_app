@@ -5,19 +5,25 @@ class TermsConditionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Terms & Conditions"),
-        backgroundColor: Colors.green,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: const Text(
-                  """
+    return WillPopScope(
+      // Prevent accidental back navigation without choosing Accept/Decline
+      onWillPop: () async => false,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text("Terms & Conditions"),
+          backgroundColor: Colors.green,
+          automaticallyImplyLeading: false, // removes default back button
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: const Text(
+                      """
 • You must be at least 18 years old to book a Qurbani through our App.
 • You must provide accurate and complete information when booking.
 • Payment must be made in full at the time of booking.
@@ -40,39 +46,47 @@ class TermsConditionsPage extends StatelessWidget {
 • We reserve the right to modify these terms anytime.
 
 I confirm that I have read, understood, and agree to the above terms and conditions.
-                  """,
-                  style: TextStyle(fontSize: 14, height: 1.5),
+                      """,
+                      style: TextStyle(fontSize: 14, height: 1.5),
+                    ),
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.pop(context, false);
-                    },
-                    child: const Text("Decline", style: TextStyle(color: Colors.green),),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.green),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context, false); // Decline
+                      },
+                      child: const Text(
+                        "Decline",
+                        style: TextStyle(color: Colors.green),
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.pop(context, true);
-                    },
-                    child: const Text("Accept"),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context, true); // Accept
+                      },
+                      child: const Text("Accept"),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

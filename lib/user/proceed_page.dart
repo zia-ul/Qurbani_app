@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani1/user/location_picker.dart';
 
 class ProceedPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
   final String userId;
 
-  const ProceedPage({
-    super.key,
-    required this.cartItems,
-    required this.userId,
-  });
+  const ProceedPage({super.key, required this.cartItems, required this.userId});
 
   @override
   State<ProceedPage> createState() => _ProceedPageState();
@@ -53,16 +50,13 @@ class _ProceedPageState extends State<ProceedPage> {
 
       /// 2️⃣ Fetch animals
       final animalDocs = await Future.wait(
-        animalIds.map(
-          (id) => _firestore.collection('animals').doc(id).get(),
-        ),
+        animalIds.map((id) => _firestore.collection('animals').doc(id).get()),
       );
 
       /// 3️⃣ Build animalId → type map
       for (var doc in animalDocs) {
         if (doc.exists) {
-          animalTypeMap[doc.id] =
-              (doc.data()?['type'] ?? 'Animal').toString();
+          animalTypeMap[doc.id] = (doc.data()?['type'] ?? 'Animal').toString();
         }
       }
 
@@ -73,10 +67,7 @@ class _ProceedPageState extends State<ProceedPage> {
         final animalType = animalTypeMap[animalId] ?? 'Animal';
 
         for (int i = 0; i < qty; i++) {
-          expandedCart.add({
-            'animalId': animalId,
-            'animalType': animalType,
-          });
+          expandedCart.add({'animalId': animalId, 'animalType': animalType});
 
           shareholders.add({
             'name': '',
@@ -87,9 +78,9 @@ class _ProceedPageState extends State<ProceedPage> {
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading animals: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading animals: $e')));
     } finally {
       setState(() => isLoading = false);
     }
@@ -133,17 +124,15 @@ class _ProceedPageState extends State<ProceedPage> {
 
     await orderRef.set(orderData);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Order placed successfully')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Order placed successfully')));
   }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -163,8 +152,7 @@ class _ProceedPageState extends State<ProceedPage> {
                 value: selectedDay,
                 items: ['I', 'II', 'III']
                     .map(
-                      (day) =>
-                          DropdownMenuItem(value: day, child: Text(day)),
+                      (day) => DropdownMenuItem(value: day, child: Text(day)),
                     )
                     .toList(),
                 onChanged: (val) => setState(() => selectedDay = val!),
@@ -199,8 +187,7 @@ class _ProceedPageState extends State<ProceedPage> {
                       ),
                       validator: (v) =>
                           v == null || v.isEmpty ? 'Required' : null,
-                      onChanged: (v) =>
-                          shareholders[index]['name'] = v,
+                      onChanged: (v) => shareholders[index]['name'] = v,
                     ),
                     const SizedBox(height: 8),
 
@@ -211,8 +198,7 @@ class _ProceedPageState extends State<ProceedPage> {
                       ),
                       validator: (v) =>
                           v == null || v.isEmpty ? 'Required' : null,
-                      onChanged: (v) =>
-                          shareholders[index]['parentName'] = v,
+                      onChanged: (v) => shareholders[index]['parentName'] = v,
                     ),
                     const SizedBox(height: 8),
 
@@ -238,21 +224,44 @@ class _ProceedPageState extends State<ProceedPage> {
                   labelText: 'Contact Details',
                   border: OutlineInputBorder(),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Required' : null,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 8),
 
               /// Address
+              // TextFormField(
+              //   controller: addressController,
+              //   maxLines: 2,
+              //   decoration: const InputDecoration(
+              //     labelText: 'Delivery Address',
+              //     border: OutlineInputBorder(),
+              //   ),
+              //   validator: (v) =>
+              //       v == null || v.isEmpty ? 'Required' : null,
+              // ),
               TextFormField(
                 controller: addressController,
-                maxLines: 2,
-                decoration: const InputDecoration(
+                readOnly: true,
+                decoration: InputDecoration(
                   labelText: 'Delivery Address',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.location_on),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LocationPickerPage(),
+                        ),
+                      );
+
+                      if (result != null) {
+                        addressController.text = result['address'];
+                      }
+                    },
+                  ),
                 ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? 'Required' : null,
+                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
 
               const SizedBox(height: 20),
