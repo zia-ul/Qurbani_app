@@ -4,7 +4,6 @@ import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:qurbani1/admin/admin_home_page.dart';
 import 'package:qurbani1/delivery/delivery_home_page.dart';
 import 'package:qurbani1/forgot_password.dart';
-import 'package:qurbani1/home_screen.dart';
 import 'package:qurbani1/register_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani1/user/user_home_screen.dart';
@@ -30,37 +29,46 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       UserCredential credential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
       final user = credential.user;
-      if (user == null) throw Exception("Authentication failed");
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'unknown',
+          message: 'Authentication failed',
+        );
+      }
 
+      // Email verification check
       if (!user.emailVerified) {
         await user.sendEmailVerification();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Please verify your email. Verification sent."),
+            content: Text(
+              "Please verify your email. Verification link has been sent.",
+            ),
           ),
         );
-        setState(() => _isLoading = false);
         return;
       }
 
+      // Fetch role from Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
 
-      if (!userDoc.exists) throw Exception("User record not found");
+      if (!userDoc.exists) {
+        throw Exception("User record not found in database");
+      }
 
       final data = userDoc.data()!;
-      final String role = (data['role'] ?? 'user').toString();
-      String name = (data['name']?.toString().isNotEmpty ?? false)
-          ? data['name']
-          : (role == 'admin' ? 'Admin' : 'User');
+      final String role = data['role'] ?? 'user';
+      final String name = data['name'] ?? 'User';
 
+      // Navigate based on role
       if (role == 'admin') {
         Navigator.pushReplacement(
           context,
@@ -72,29 +80,45 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => DeliveryHomePage(
-                deliveryId: user.uid, name: user.displayName ?? 'Delivery Person'),
+            builder: (_) => DeliveryHomePage(deliveryId: user.uid, name: name),
           ),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => HomePage(id: user.uid),
-          ),
+          MaterialPageRoute(builder: (_) => HomePage(id: user.uid)),
         );
       }
     } on FirebaseAuthException catch (e) {
-      String message = "Login failed";
-      if (e.code == 'user-not-found') message = "No user found with this email";
-      if (e.code == 'wrong-password') message = "Incorrect password";
-      if (e.code == 'invalid-email') message = "Invalid email address";
+      String message;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      switch (e.code) {
+        case 'user-not-found':
+          message = "No account found with this email";
+          break;
+        case 'wrong-password':
+          message = "Incorrect password";
+          break;
+        case 'invalid-email':
+          message = "Invalid email address";
+          break;
+        case 'user-disabled':
+          message = "This account has been disabled";
+          break;
+        case 'too-many-requests':
+          message = "Too many attempts. Please try again later";
+          break;
+        default:
+          message = "Login failed. Please try again";
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Something went wrong. Please try again")),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -122,7 +146,11 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const Text(
                   'Login',
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w500, color: Colors.green),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.green,
+                  ),
                 ),
                 const SizedBox(height: 15),
                 const Text(
@@ -175,7 +203,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordPage(),
+                        ),
                       );
                     },
                     child: const Text(
@@ -194,13 +224,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
                         : const Text("Log In", style: TextStyle(fontSize: 18)),
                   ),
@@ -225,11 +260,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 50,
                   child: SignInButton(
                     Buttons.Google,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     text: "Sign in with Google",
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Google Sign-In coming soon")),
+                        const SnackBar(
+                          content: Text("Google Sign-In coming soon"),
+                        ),
                       );
                     },
                   ),
@@ -244,10 +283,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterPage(),
+                          ),
                         );
                       },
-                      child: const Text("Sign up", style: TextStyle(color: Colors.green)),
+                      child: const Text(
+                        "Sign up",
+                        style: TextStyle(color: Colors.green),
+                      ),
                     ),
                   ],
                 ),

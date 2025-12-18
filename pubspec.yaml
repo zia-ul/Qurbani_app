@@ -50,6 +50,7 @@ dependencies:
   geocoding: ^4.0.0
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  google_sign_in: ^7.2.0
 
 flutter_launcher_icons:
   android: true

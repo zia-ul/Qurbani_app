@@ -5,7 +5,6 @@ import 'package:qurbani1/login_page.dart';
 import 'package:qurbani1/user/animal_grid_list.dart';
 import 'package:qurbani1/user/booked_page.dart';
 import 'package:qurbani1/user/cart_badge.dart';
-import 'package:qurbani1/user/cart_page.dart';
 import 'package:qurbani1/user/drawer_menu.dart';
 
 class HomePage extends StatelessWidget {
