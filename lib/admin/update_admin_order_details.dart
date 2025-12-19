@@ -21,15 +21,15 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   String? selectedDeliveryBoyId;
 
   final List<String> processingOptions = [
-    'Pending',
     'Qurbani Started',
     'Qurbani Done',
     'Meat Processing & Packaging',
-    'Completed',
-    'Cancelled',
   ];
 
-  final List<String> deliveryOptions = ['Sent for Delivery', 'Delivery Done'];
+  final List<String> deliveryOptions = [
+    'Sent for Delivery',
+    'Delivery Done',
+  ];
 
   List<Map<String, dynamic>> deliveryBoys = [];
   bool loadingDeliveryBoys = true;
@@ -37,9 +37,15 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   @override
   void initState() {
     super.initState();
-    processing = widget.orderData['processing_status'] ?? 'Pending';
-    delivery = widget.orderData['delivery_status'] ?? 'Pending';
 
+    // Initialize dropdown values
+    final p = widget.orderData['processing_status'] ?? processingOptions[0];
+    processing = processingOptions.contains(p) ? p : processingOptions[0];
+
+    final d = widget.orderData['delivery_status'] ?? deliveryOptions[0];
+    delivery = deliveryOptions.contains(d) ? d : deliveryOptions[0];
+
+    // Preselect assigned delivery boy
     selectedDeliveryBoyId = widget.orderData['delivery_person_id'];
 
     fetchDeliveryBoys();
@@ -64,15 +70,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         .collection('admin_orders')
         .doc(widget.orderId)
         .update({
-          'processing_status': processing,
-          'delivery_status': delivery,
-          'delivery_person_id': selectedDeliveryBoyId,
-        });
+      'processing_status': processing,
+      'delivery_status': delivery,
+      'delivery_person_id': selectedDeliveryBoyId,
+    });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Order updated')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Order updated')));
   }
 
   @override
@@ -131,7 +136,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
             // Assign Delivery Boy
             loadingDeliveryBoys
-                ? const LinearProgressIndicator()
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: LinearProgressIndicator(),
+                  )
                 : DropdownButtonFormField<String>(
                     value: selectedDeliveryBoyId,
                     decoration: const InputDecoration(
@@ -148,13 +156,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                         .toList(),
                     onChanged: (v) => setState(() => selectedDeliveryBoyId = v),
                   ),
+
             const SizedBox(height: 20),
 
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: save,
-                child: const Text('Save Changes'),
+                child: const Text('Save Changess'),
               ),
             ),
           ],

@@ -6,6 +6,7 @@ class CartService {
   static bool _isProcessing = false;
 
   /// Add an animal to the user's cart
+  /// Shares are not reduced here
   static Future<void> addAnimalToCart({
     required String animalId,
     required Map<String, dynamic> animalData,
@@ -20,37 +21,24 @@ class CartService {
       final firestore = FirebaseFirestore.instance;
       final animalRef = firestore.collection('animals').doc(animalId);
       final cartRef = firestore
-          .collection('carts') // top-level carts
+          .collection('carts')
           .doc(user.uid)
           .collection('items')
           .doc(animalId);
 
-      // Safe image URL
       final String imageUrl = _safeImageUrl(animalData['photoUrl']);
-
-      // Ensure price is numeric
-      final dynamic rawPrice = animalData['price'];
-      final double price = rawPrice is num
-          ? rawPrice.toDouble()
-          : double.tryParse(rawPrice?.toString() ?? '0') ?? 0;
+      final double price = _safePrice(animalData['price']);
 
       await firestore.runTransaction((transaction) async {
-        // Read animal and cart first
         final animalSnap = await transaction.get(animalRef);
         final cartSnap = await transaction.get(cartRef);
 
         if (!animalSnap.exists) throw Exception("Animal not found");
 
         final data = animalSnap.data()!;
-        final rawQty = data['qty'];
-        final int currentQty = rawQty is int
-            ? rawQty
-            : int.tryParse(rawQty?.toString() ?? '0') ?? 0;
+        final bool isAvailable = data['isAvailable'] ?? true;
 
-        if (currentQty <= 0) throw Exception("Out of stock");
-
-        // Decrement stock
-        transaction.update(animalRef, {'qty': currentQty - 1});
+        if (!isAvailable) throw Exception("Out of stock");
 
         // Add or update cart item
         if (cartSnap.exists) {
@@ -77,6 +65,36 @@ class CartService {
     }
   }
 
+  /// Remove an animal from the cart
+  static Future<void> removeAnimalFromCart({
+    required String animalId,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final cartRef = FirebaseFirestore.instance
+        .collection('carts')
+        .doc(user.uid)
+        .collection('items')
+        .doc(animalId);
+
+    await cartRef.delete();
+  }
+
+  /// Get current user's cart items
+  static Stream<QuerySnapshot> getCartItemsStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('carts')
+        .doc(user.uid)
+        .collection('items')
+        .snapshots();
+  }
+
   /// Safely validate image URL
   static String _safeImageUrl(dynamic url) {
     if (url == null) return '';
@@ -84,5 +102,12 @@ class CartService {
     if (url.trim().isEmpty) return '';
     if (!url.startsWith('http')) return '';
     return url;
+  }
+
+  /// Safely parse price
+  static double _safePrice(dynamic price) {
+    if (price == null) return 0;
+    if (price is num) return price.toDouble();
+    return double.tryParse(price.toString()) ?? 0;
   }
 }

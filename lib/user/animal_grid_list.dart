@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani1/user/animal_details.dart';
+import 'package:qurbani1/user/cart_badge.dart';
 import 'package:qurbani1/user/cart_service.dart';
 
 /// =======================
@@ -12,9 +14,10 @@ class Animal {
   final String adminName;
   final String type;
   final String? title;
-  final double price; // Changed to double
-  final int qty;
+  final double price;
+  final int shares;
   final String photoUrl;
+  final bool isAvailable;
 
   Animal({
     required this.id,
@@ -23,8 +26,9 @@ class Animal {
     required this.type,
     this.title,
     required this.price,
-    required this.qty,
+    required this.shares,
     required this.photoUrl,
+    required this.isAvailable,
   });
 
   static Animal fromFirestore(DocumentSnapshot doc) {
@@ -39,10 +43,11 @@ class Animal {
       price: data['price'] is num
           ? (data['price'] as num).toDouble()
           : double.tryParse(data['price']?.toString() ?? '0') ?? 0,
-      qty: data['qty'] is int
-          ? data['qty']
-          : int.tryParse(data['qty']?.toString() ?? '0') ?? 0,
+      shares: data['shares'] is int
+          ? data['shares']
+          : int.tryParse(data['shares']?.toString() ?? '0') ?? 0,
       photoUrl: data['photoUrl'] ?? '',
+      isAvailable: data['isAvailable'] ?? true,
     );
   }
 }
@@ -55,10 +60,19 @@ class AnimalGridPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Animals")),
+      appBar: AppBar(
+        title: const Text("Qurbani Marketplace"),
+        backgroundColor: Colors.green,
+        actions: [CartBadge(userId: userId)],
+      ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('animals').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('animals')
+            .where('isAvailable', isEqualTo: true) // Show only available animals
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -68,8 +82,9 @@ class AnimalGridPage extends StatelessWidget {
             return const Center(child: Text("No animals available"));
           }
 
-          final animals =
-              snapshot.data!.docs.map((e) => Animal.fromFirestore(e)).toList();
+          final animals = snapshot.data!.docs
+              .map((e) => Animal.fromFirestore(e))
+              .toList();
 
           return GridView.builder(
             padding: const EdgeInsets.all(10),
@@ -82,27 +97,33 @@ class AnimalGridPage extends StatelessWidget {
             itemCount: animals.length,
             itemBuilder: (context, index) {
               final animal = animals[index];
-              final isAvailable = animal.qty > 0;
-              final imageUrl =
-                  animal.photoUrl.startsWith('http') ? animal.photoUrl : '';
+              final imageUrl = animal.photoUrl.startsWith('http')
+                  ? animal.photoUrl
+                  : '';
 
               return Card(
                 elevation: 4,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Colors.green, width: 0.8),
                 ),
                 child: Column(
                   children: [
                     /// IMAGE
                     Expanded(
-                      child: imageUrl.isNotEmpty
-                          ? Image.network(
-                              imageUrl,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _imageFallback(),
-                            )
-                          : _imageFallback(),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: imageUrl.isNotEmpty
+                            ? Image.network(
+                                imageUrl,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _imageFallback(),
+                              )
+                            : _imageFallback(),
+                      ),
                     ),
 
                     const SizedBox(height: 6),
@@ -114,7 +135,7 @@ class AnimalGridPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            animal.type,
+                            animal.title ?? animal.type,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
@@ -129,12 +150,10 @@ class AnimalGridPage extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            isAvailable
-                                ? "In stock: ${animal.qty}"
-                                : "Out of stock",
-                            style: TextStyle(
-                              color: isAvailable ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
+                            "Shares: ${animal.shares}",
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -149,7 +168,6 @@ class AnimalGridPage extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          /// VIEW
                           IconButton(
                             icon: const Icon(Icons.remove_red_eye),
                             tooltip: "View",
@@ -164,47 +182,42 @@ class AnimalGridPage extends StatelessWidget {
                             },
                           ),
 
-                          /// ADD TO CART
                           ElevatedButton(
-                            onPressed: isAvailable
+                            onPressed: animal.isAvailable
                                 ? () async {
-                                    try {
-                                      await CartService.addAnimalToCart(
-                                        animalId: animal.id,
-                                        animalData: {
-                                          'type': animal.type,
-                                          'title': animal.title,
-                                          'price': animal.price,
-                                          'photoUrl': animal.photoUrl,
-                                          'adminId': animal.adminId,
-                                          'adminName': animal.adminName,
-                                        },
-                                      );
+                                    await CartService.addAnimalToCart(
+                                      animalId: animal.id,
+                                      animalData: {
+                                        'type': animal.type,
+                                        'title': animal.title,
+                                        'price': animal.price,
+                                        'shares': animal.shares,
+                                        'photoUrl': animal.photoUrl,
+                                        'adminId': animal.adminId,
+                                        'adminName': animal.adminName,
+                                      },
+                                    );
 
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text("Added to cart"),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                              "❌ Add to cart failed: $e"),
-                                        ),
-                                      );
-                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Added to cart"),
+                                      ),
+                                    );
                                   }
                                 : null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  isAvailable ? Colors.green : Colors.grey,
+                              backgroundColor: animal.isAvailable
+                                  ? Colors.green
+                                  : Colors.grey,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
                             ),
-                            child: const Text("Add"),
+                            child: Text(
+                              animal.isAvailable ? "Add" : "Out of stock",
+                              style: const TextStyle(fontSize: 14),
+                            ),
                           ),
                         ],
                       ),
@@ -224,13 +237,12 @@ class AnimalGridPage extends StatelessWidget {
   /// IMAGE FALLBACK
   Widget _imageFallback() {
     return Container(
-      color: Colors.grey.shade300,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      ),
       child: const Center(
-        child: Icon(
-          Icons.image_not_supported,
-          size: 60,
-          color: Colors.grey,
-        ),
+        child: Icon(Icons.image_not_supported, size: 60, color: Colors.grey),
       ),
     );
   }

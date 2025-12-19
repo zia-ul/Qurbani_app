@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani1/user/location_picker.dart';
+import 'package:qurbani1/user/payment_method_page.dart';
 
 class ProceedPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -19,69 +20,63 @@ class _ProceedPageState extends State<ProceedPage> {
   final addressController = TextEditingController();
 
   String selectedDay = 'I';
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Expanded based on qty
-  List<Map<String, dynamic>> expandedCart = [];
-
-  /// Final shareholders list
   List<Map<String, dynamic>> shareholders = [];
-
-  /// animalId → animalType
   Map<String, String> animalTypeMap = {};
 
   bool isLoading = true;
+  bool isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
-    _loadAnimalsAndPrepareShareholders();
+    _prepareShareholders();
   }
 
-  /// 🔥 JOIN cart → animals & prepare shareholders
-  Future<void> _loadAnimalsAndPrepareShareholders() async {
+  /// Prepare shareholders based on total shares
+  Future<void> _prepareShareholders() async {
     try {
-      /// 1️⃣ Collect unique animalIds from cart
       final animalIds = widget.cartItems
           .map((e) => e['animalId'].toString())
           .toSet()
           .toList();
 
-      /// 2️⃣ Fetch animals
       final animalDocs = await Future.wait(
         animalIds.map((id) => _firestore.collection('animals').doc(id).get()),
       );
 
-      /// 3️⃣ Build animalId → type map
       for (var doc in animalDocs) {
         if (doc.exists) {
           animalTypeMap[doc.id] = (doc.data()?['type'] ?? 'Animal').toString();
         }
       }
 
-      /// 4️⃣ Expand cart & create shareholders
+      List<Map<String, dynamic>> tempShareholders = [];
       for (var item in widget.cartItems) {
         final animalId = item['animalId'].toString();
-        final qty = int.tryParse(item['qty'].toString()) ?? 1;
+        final shares = int.tryParse(item['shares'].toString()) ?? 1;
         final animalType = animalTypeMap[animalId] ?? 'Animal';
 
-        for (int i = 0; i < qty; i++) {
-          expandedCart.add({'animalId': animalId, 'animalType': animalType});
-
-          shareholders.add({
+        for (int i = 0; i < shares; i++) {
+          tempShareholders.add({
             'name': '',
             'parentName': '',
+            'gender': null,
             'animalId': animalId,
             'animalType': animalType,
           });
         }
       }
+
+      setState(() {
+        shareholders = tempShareholders;
+        isLoading = false;
+      });
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error loading animals: $e')));
-    } finally {
       setState(() => isLoading = false);
     }
   }
@@ -93,40 +88,66 @@ class _ProceedPageState extends State<ProceedPage> {
     super.dispose();
   }
 
-  /// 🔥 Submit Order to Firestore
+  /// Submit order: passes full order data to payment page
   Future<void> submitOrder() async {
+    if (isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
 
-    final orderRef = _firestore.collection('orders').doc();
+    setState(() => isSubmitting = true);
 
-    final totalAmount = widget.cartItems.fold<double>(
-      0,
-      (sum, item) =>
-          sum +
-          (double.tryParse(item['price'].toString()) ?? 0) *
-              (int.tryParse(item['qty'].toString()) ?? 1),
-    );
+    try {
+      // Calculate total amount
+      final totalAmount = widget.cartItems.fold<double>(
+        0,
+        (sum, item) =>
+            sum +
+            (double.tryParse(item['price'].toString()) ?? 0) *
+                (int.tryParse(item['shares'].toString()) ?? 1),
+      );
 
-    final orderData = {
-      'orderId': orderRef.id,
-      'userId': widget.userId,
-      'qurbaniDay': selectedDay,
-      'contactDetails': contactController.text.trim(),
-      'deliveryAddress': addressController.text.trim(),
-      'shareholders': shareholders,
-      'cartItems': widget.cartItems,
-      'totalAmount': totalAmount,
-      'paymentStatus': 'pending',
-      'processingStatus': 'pending',
-      'deliveryStatus': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    };
+      // Build full order data
+      final orderData = {
+        'userId': widget.userId,
+        'qurbaniDay': selectedDay,
+        'contactDetails': contactController.text.trim(),
+        'deliveryAddress': addressController.text.trim(),
+        'shareholders': shareholders
+            .map(
+              (s) => {
+                'animalId': s['animalId'],
+                'animalType': s['animalType'],
+                'name': s['name'],
+                'parentName': s['parentName'],
+                'gender': s['gender'],
+              },
+            )
+            .toList(),
+        'cartItems': widget.cartItems,
+        'totalAmount': totalAmount,
+        'paymentStatus': 'pending',
+        'paymentMethod': null,
+        'processingStatus': 'pending',
+        'deliveryStatus': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-    await orderRef.set(orderData);
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Order placed successfully')));
+      // Navigate safely to PaymentMethodPage with required data
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentMethodPage(
+            orderData: orderData, // ✅ ALWAYS passes required parameter
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Order failed: $e')));
+      setState(() => isSubmitting = false);
+    }
   }
 
   @override
@@ -147,7 +168,7 @@ class _ProceedPageState extends State<ProceedPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// Qurbani Day
+              /// Preferred Qurbani Day
               DropdownButtonFormField<String>(
                 value: selectedDay,
                 items: ['I', 'II', 'III']
@@ -161,25 +182,22 @@ class _ProceedPageState extends State<ProceedPage> {
                   border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 20),
 
-              /// 🔥 Shareholders
+              /// Shareholders fields
               ...List.generate(shareholders.length, (index) {
-                final animalType = shareholders[index]['animalType'];
-
+                final s = shareholders[index];
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Shareholder ${index + 1} for $animalType',
+                      'Shareholder ${index + 1} for ${s['animalType']}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
-
                     TextFormField(
                       decoration: const InputDecoration(
                         labelText: 'Shareholder Name',
@@ -190,7 +208,6 @@ class _ProceedPageState extends State<ProceedPage> {
                       onChanged: (v) => shareholders[index]['name'] = v,
                     ),
                     const SizedBox(height: 8),
-
                     TextFormField(
                       decoration: const InputDecoration(
                         labelText: 'Father / Mother Name',
@@ -201,23 +218,38 @@ class _ProceedPageState extends State<ProceedPage> {
                       onChanged: (v) => shareholders[index]['parentName'] = v,
                     ),
                     const SizedBox(height: 8),
-
-                    /// 🔒 Locked Animal Type
+                    DropdownButtonFormField<String>(
+                      value: shareholders[index]['gender'],
+                      items: const [
+                        DropdownMenuItem(value: 'Male', child: Text('Male')),
+                        DropdownMenuItem(
+                          value: 'Female',
+                          child: Text('Female'),
+                        ),
+                      ],
+                      onChanged: (val) =>
+                          setState(() => shareholders[index]['gender'] = val),
+                      decoration: const InputDecoration(
+                        labelText: 'Gender',
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => v == null ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 8),
                     TextFormField(
-                      initialValue: animalType,
+                      initialValue: s['animalType'],
                       enabled: false,
                       decoration: const InputDecoration(
                         labelText: 'Animal Type',
                         border: OutlineInputBorder(),
                       ),
                     ),
-
                     const SizedBox(height: 20),
                   ],
                 );
               }),
 
-              /// Contact
+              /// Contact Details
               TextFormField(
                 controller: contactController,
                 decoration: const InputDecoration(
@@ -228,25 +260,22 @@ class _ProceedPageState extends State<ProceedPage> {
               ),
               const SizedBox(height: 8),
 
-              /// Address
-              // TextFormField(
-              //   controller: addressController,
-              //   maxLines: 2,
-              //   decoration: const InputDecoration(
-              //     labelText: 'Delivery Address',
-              //     border: OutlineInputBorder(),
-              //   ),
-              //   validator: (v) =>
-              //       v == null || v.isEmpty ? 'Required' : null,
-              // ),
+              /// Delivery Address
+              /// Delivery Address
               TextFormField(
                 controller: addressController,
-                readOnly: true,
+                readOnly: false, // allow manual typing
+                keyboardType: TextInputType.streetAddress,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
                   labelText: 'Delivery Address',
                   border: const OutlineInputBorder(),
                   suffixIcon: IconButton(
-                    icon: const Icon(Icons.location_on),
+                    icon: const Icon(
+                      Icons.location_on,
+                      color: Colors.green, // highlight icon
+                    ),
+                    tooltip: 'Use current location',
                     onPressed: () async {
                       final result = await Navigator.push(
                         context,
@@ -254,22 +283,31 @@ class _ProceedPageState extends State<ProceedPage> {
                           builder: (_) => const LocationPickerPage(),
                         ),
                       );
-
-                      if (result != null) {
-                        addressController.text = result['address'];
+                      if (result != null && result['address'] != null) {
+                        setState(() {
+                          addressController.text = result['address'];
+                        });
                       }
                     },
                   ),
                 ),
                 validator: (v) => v == null || v.isEmpty ? 'Required' : null,
               ),
-
               const SizedBox(height: 20),
 
               Center(
                 child: ElevatedButton(
-                  onPressed: submitOrder,
-                  child: const Text('Proceed to Payment'),
+                  onPressed: isSubmitting ? null : submitOrder,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Proceed to Payment'),
                 ),
               ),
             ],

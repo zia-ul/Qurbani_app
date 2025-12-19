@@ -32,40 +32,44 @@ class AdminHomePage extends StatelessWidget {
         elevation: 0,
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            DrawerHeader(
-              decoration: const BoxDecoration(color: Colors.green),
-              child: Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 22,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  DrawerHeader(
+                    decoration: const BoxDecoration(color: Colors.green),
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.inventory),
+                    title: const Text('Animal Management'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AnimalListingPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
+
+            // Logout always at bottom, in red text
             ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('Animal Management'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const AnimalListingPage()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.book_online),
-              title: const Text('Bookings'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text("Logout", style: TextStyle(color: Colors.red)),
               onTap: () => logout(context),
             ),
           ],
@@ -135,7 +139,7 @@ class AdminHomePage extends StatelessWidget {
                     },
                     style: _outlinedGreenButton(),
                     child: const Text(
-                      "Stock of Animals",
+                      "Add Animal",
                       style: TextStyle(fontSize: 16),
                     ),
                   ),
@@ -150,10 +154,7 @@ class AdminHomePage extends StatelessWidget {
                       );
                     },
                     style: _outlinedGreenButton(),
-                    child: const Text(
-                      "Bookings",
-                      style: TextStyle(fontSize: 16),
-                    ),
+                    child: const Text("Orders", style: TextStyle(fontSize: 16)),
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
@@ -184,7 +185,7 @@ class AdminHomePage extends StatelessWidget {
     return ElevatedButton.styleFrom(
       backgroundColor: Colors.white,
       foregroundColor: Colors.green,
-      side: const BorderSide(color: Colors.green, width: 2),
+      side: const BorderSide(color: Colors.green, width: 0.8),
       padding: const EdgeInsets.symmetric(vertical: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );

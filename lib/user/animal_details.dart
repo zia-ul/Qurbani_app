@@ -14,7 +14,7 @@ class AnimalDetailPage extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Animal Details")),
+      appBar: AppBar(title: const Text("Animal Details"), backgroundColor: Colors.green),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('animals')
@@ -31,18 +31,15 @@ class AnimalDetailPage extends StatelessWidget {
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
 
-          // ✅ SAFE qty parsing (int / string)
-          final rawQty = data['qty'];
-          final int qty = rawQty is int
+          final rawQty = data['shares'];
+          final int shares = rawQty is int
               ? rawQty
               : int.tryParse(rawQty?.toString() ?? '0') ?? 0;
 
-          final bool isAvailable = qty > 0;
+          final bool isAvailable = data['isAvailable'] ?? true;
 
-          // ✅ SAFE image URL
           final String imageUrl =
-              (data['photoUrl'] is String &&
-                      data['photoUrl'].toString().startsWith('http'))
+              (data['photoUrl'] is String && data['photoUrl'].toString().startsWith('http'))
                   ? data['photoUrl']
                   : '';
 
@@ -50,11 +47,11 @@ class AnimalDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🖼️ Image
+                // Photo
                 imageUrl.isNotEmpty
                     ? Image.network(
                         imageUrl,
-                        height: 220,
+                        height: 250,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _imageFallback(),
@@ -68,32 +65,69 @@ class AnimalDetailPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Barcode
                       Text(
-                        data['type'] ?? 'Animal',
+                        "Barcode: ${data['barcode'] ?? 'N/A'}",
                         style: const TextStyle(
-                          fontSize: 24,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
 
+                      // Title
                       Text(
-                        "₹ ${data['price'] ?? 0}",
-                        style: const TextStyle(fontSize: 18),
+                        data['title'] ?? data['type'] ?? 'Animal',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
 
+                      // Description
                       Text(
-                        isAvailable ? "In Stock: $qty" : "Out of Stock",
-                        style: TextStyle(
-                          color: isAvailable ? Colors.green : Colors.red,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        data['description'] ?? '',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Weight
+                      Text(
+                        "Weight: ${data['weight'] ?? 'N/A'} kg",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Price
+                      Text(
+                        "Price: ₹ ${data['price']?.toStringAsFixed(2) ?? '0.00'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Shares
+                      Text(
+                        "Shares: $shares",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Tags: Animal Type & Health Status
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          if (data['type'] != null)
+                            _tagWidget(data['type']),
+                          if (data['healthStatus'] != null)
+                            _tagWidget(data['healthStatus']),
+                        ],
                       ),
 
                       const SizedBox(height: 20),
 
+                      // Add to Cart Button
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -104,11 +138,8 @@ class AnimalDetailPage extends StatelessWidget {
                                       animalId: animalId,
                                       animalData: data,
                                     );
-
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Added to cart"),
-                                      ),
+                                      const SnackBar(content: Text("Added to cart")),
                                     );
                                   } catch (e) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -118,45 +149,44 @@ class AnimalDetailPage extends StatelessWidget {
                                 }
                               : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                isAvailable ? Colors.green : Colors.grey,
+                            backgroundColor: isAvailable ? Colors.green : Colors.grey,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text(
-                            "Add to Cart",
-                            style: TextStyle(fontSize: 16),
+                          child: Text(
+                            isAvailable ? "Add to Cart" : "Out of Stock",
+                            style: const TextStyle(fontSize: 16),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      // const SizedBox(height: 10),
 
-                      // ✅ Special Request Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: currentUser != null
-                              ? () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => SpecialRequestPage(
-                                        userId: currentUser.uid,
-                                        animalId: animalId,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text(
-                            "Special Request",
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
+                      // // Special Request Button
+                      // SizedBox(
+                      //   width: double.infinity,
+                      //   child: ElevatedButton(
+                      //     onPressed: currentUser != null
+                      //         ? () {
+                      //             Navigator.push(
+                      //               context,
+                      //               MaterialPageRoute(
+                      //                 builder: (_) => SpecialRequestPage(
+                      //                   userId: currentUser.uid,
+                      //                   animalId: animalId,
+                      //                 ),
+                      //               ),
+                      //             );
+                      //           }
+                      //         : null,
+                      //     style: ElevatedButton.styleFrom(
+                      //       backgroundColor: Colors.orange,
+                      //       padding: const EdgeInsets.symmetric(vertical: 14),
+                      //     ),
+                      //     child: const Text(
+                      //       "Special Request",
+                      //       style: TextStyle(fontSize: 16),
+                      //     ),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),
@@ -168,10 +198,29 @@ class AnimalDetailPage extends StatelessWidget {
     );
   }
 
-  /// ❌ Fallback when image is missing or invalid
+  /// Tag widget with light green background and green border
+  Widget _tagWidget(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.green.shade100,
+        border: Border.all(color: Colors.green),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.green,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  /// Fallback for invalid/missing image
   Widget _imageFallback() {
     return Container(
-      height: 220,
+      height: 250,
       width: double.infinity,
       color: Colors.grey.shade300,
       child: const Icon(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani1/login_page.dart';
-import 'package:qurbani1/user/apply_admin_page.dart';
 import 'package:qurbani1/user/profile_page.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -58,13 +57,13 @@ class AppDrawer extends StatelessWidget {
             leading: const Icon(Icons.person),
             title: const Text("Apply for Admin"),
             onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ApplyAdminIntroPage(),
-                ),
-              );
+              // Navigator.pop(context);
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (_) => ApplyAdminIntroPage(),
+              //   ),
+              // );
             },
           ),
           const Spacer(),

@@ -15,173 +15,200 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  bool _removing = false;
-  bool _updatingQty = false;
+  Stream<QuerySnapshot> get cartStream => _firestore
+      .collection('carts')
+      .doc(widget.userId)
+      .collection('items')
+      .snapshots();
 
-  Stream<QuerySnapshot> get cartStream {
-    return _firestore
+  Future<void> _updateShares(String animalId, int newShares) async {
+    if (newShares <= 0) {
+      await removeItem(animalId);
+      return;
+    }
+
+    await _firestore
         .collection('carts')
         .doc(widget.userId)
         .collection('items')
-        .snapshots();
+        .doc(animalId)
+        .update({'shares': newShares});
   }
 
-  /// 🗑 Remove item
   Future<void> removeItem(String animalId) async {
-    if (_removing) return;
-    _removing = true;
-
-    try {
-      await _firestore
-          .collection('carts')
-          .doc(widget.userId)
-          .collection('items')
-          .doc(animalId)
-          .delete();
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-
-    _removing = false;
+    await _firestore
+        .collection('carts')
+        .doc(widget.userId)
+        .collection('items')
+        .doc(animalId)
+        .delete();
   }
 
-  /// ➕➖ Update quantity
-  Future<void> updateCartQuantity(String animalId, int newQty) async {
-    if (_updatingQty) return;
-    _updatingQty = true;
-
-    try {
-      final ref = _firestore
-          .collection('carts')
-          .doc(widget.userId)
-          .collection('items')
-          .doc(animalId);
-
-      if (newQty <= 0) {
-        await ref.delete();
-      } else {
-        await ref.update({'qty': newQty});
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error: $e")));
-    }
-
-    _updatingQty = false;
-  }
-
-  /// ❌ Empty cart
   Future<void> emptyCart() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Empty Cart"),
-        content: const Text("Are you sure you want to remove all items?"),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Cancel")),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Confirm")),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    final batch = _firestore.batch();
-    final snapshot = await _firestore
+    final snap = await _firestore
         .collection('carts')
         .doc(widget.userId)
         .collection('items')
         .get();
-
-    for (var doc in snapshot.docs) {
-      batch.delete(doc.reference);
+    for (var doc in snap.docs) {
+      await doc.reference.delete();
     }
-
-    await batch.commit();
   }
 
-  /// 🛒 Cart Item UI
-  Widget buildCartItem(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  /// 🛒 CART ITEM WIDGET
+  Widget buildCartItem(DocumentSnapshot cartDoc) {
+    final cart = cartDoc.data() as Map<String, dynamic>;
+    final int cartShares = (cart['shares'] ?? 1).toInt();
 
-    final int qty = (data['qty'] ?? 1).toInt();
-    final double price = (data['price'] ?? 0).toDouble();
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestore.collection('animals').doc(cartDoc.id).snapshots(),
+      builder: (context, snapshot) {
+        bool available = false;
+        int availableShares = 0;
 
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: ListTile(
-        leading: Image.network(
-          data['imageUrl'] ?? '',
-          width: 60,
-          height: 60,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
-              const Icon(Icons.broken_image, size: 40),
-        ),
-        title: Text(
-          data['title'] ?? 'Animal',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.remove, color: Colors.red),
-              onPressed: () => updateCartQuantity(doc.id, qty - 1),
-            ),
-            Text(
-              "$qty",
-              style: const TextStyle(fontSize: 16),
-            ),
-            IconButton(
-              icon: const Icon(Icons.add, color: Colors.green),
-              onPressed: () => updateCartQuantity(doc.id, qty + 1),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              "₹ ${(price * qty).toStringAsFixed(2)}",
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final animal = snapshot.data!.data() as Map<String, dynamic>;
+          available =
+              animal['isAvailable'] == true && (animal['shares'] ?? 0) > 0;
+          availableShares = (animal['shares'] ?? 0).toInt();
 
-        /// ✅ FIXED OVERFLOW HERE
-        trailing: SizedBox(
-          width: 40,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.remove_red_eye,
-                    size: 20, color: Colors.blue),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AnimalDetailPage(animalId: doc.id),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.delete,
-                    size: 20, color: Colors.red),
-                onPressed: () => removeItem(doc.id),
-              ),
-            ],
+          // Auto-adjust cart shares if stock reduced
+          if (cartShares > availableShares) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _updateShares(cartDoc.id, availableShares);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    "${cart['title']} shares adjusted to $availableShares due to stock change",
+                  ),
+                ),
+              );
+            });
+          }
+        }
+
+        final bool isUnavailable =
+            !snapshot.hasData || !snapshot.data!.exists || !available;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: isUnavailable ? Colors.red : Colors.green),
           ),
-        ),
-      ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                /// 🔹 TOP ROW
+                Row(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.green),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          cart['imageUrl'] ?? '',
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.image_not_supported),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            cart['title'] ?? 'Animal',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            isUnavailable
+                                ? "Unavailable"
+                                : "Shares: $cartShares / $availableShares",
+                            style: TextStyle(
+                                color: isUnavailable ? Colors.red : Colors.green,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      "₹ ${(cart['price'] * cartShares).toStringAsFixed(0)}",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                /// ➕➖ SHARE CONTROLS
+                if (!isUnavailable)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove),
+                        onPressed: cartShares > 1
+                            ? () => _updateShares(cartDoc.id, cartShares - 1)
+                            : null,
+                      ),
+                      Text(
+                        "$cartShares",
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: cartShares < availableShares
+                            ? () => _updateShares(cartDoc.id, cartShares + 1)
+                            : null,
+                      ),
+                    ],
+                  ),
+
+                const Divider(color: Colors.grey),
+
+                /// 🔘 ACTIONS
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton.icon(
+                      icon: const Icon(Icons.remove_red_eye),
+                      label: const Text("View"),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  AnimalDetailPage(animalId: cartDoc.id)),
+                        );
+                      },
+                    ),
+                    TextButton.icon(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      label: const Text(
+                        "Remove",
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      onPressed: () => removeItem(cartDoc.id),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -189,7 +216,7 @@ class _CartPageState extends State<CartPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("My Cart"),
+        title: const Text("Shopping Cart"),
         backgroundColor: Colors.green,
         centerTitle: true,
       ),
@@ -202,116 +229,156 @@ class _CartPageState extends State<CartPage> {
 
           final docs = snapshot.data!.docs;
           if (docs.isEmpty) {
-            return const Center(child: Text("No items in cart"));
+            return const Center(
+              child: Text(
+                "Your cart is empty",
+                style: TextStyle(fontSize: 18),
+              ),
+            );
           }
 
-          /// 🧮 Totals
           int totalQty = 0;
           double totalAmount = 0;
 
-          for (var doc in docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            final int qty = (data['qty'] ?? 1).toInt();
+          for (var d in docs) {
+            final data = d.data() as Map<String, dynamic>;
+            final int shares = (data['shares'] ?? 0).toInt();
             final double price = (data['price'] ?? 0).toDouble();
 
-            totalQty += qty;
-            totalAmount += price * qty;
+            totalQty += shares;
+            totalAmount += price * shares;
           }
 
           return Column(
             children: [
-              /// 🧾 CART SUMMARY
-              Card(
-                margin: const EdgeInsets.all(12),
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Total Quantity"),
-                          Text(
-                            "$totalQty",
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text("Total Amount"),
-                          Text(
-                            "₹ ${totalAmount.toStringAsFixed(2)}",
-                            style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+              /// 🔝 TOTAL (fixed)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("Total Items"),
+                        Text(
+                          "$totalQty",
+                          style: const TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text("Total Amount"),
+                        Text(
+                          "₹ ${totalAmount.toStringAsFixed(2)}",
+                          style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
 
-              /// 🛒 ITEMS
+              /// 🏷 Scrollable cart items
               Expanded(
                 child: ListView.builder(
                   itemCount: docs.length,
                   itemBuilder: (_, i) => buildCartItem(docs[i]),
                 ),
               ),
-
-              /// 🔘 ACTION BUTTONS
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: emptyCart,
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red),
-                        child: const Text("Empty Cart"),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final cartItems = docs
-                              .map((doc) =>
-                                  (doc.data() as Map<String, dynamic>)
-                                    ..['animal_id'] = doc.id)
-                              .toList();
-
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProceedPage(
-                                cartItems: cartItems,
-                                userId: widget.userId,
-                              ),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green),
-                        child: const Text("Proceed"),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           );
         },
+      ),
+
+      /// 🟢 STICKY BOTTOM BUTTONS
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: Colors.grey, width: 0.3)),
+          ),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: cartStream,
+            builder: (context, snapshot) {
+              final docs = snapshot.data?.docs ?? [];
+              final bool hasInvalid = docs.any((d) {
+                final data = d.data() as Map<String, dynamic>;
+                return (data['shares'] ?? 0) == 0;
+              });
+              final bool isEmpty = docs.isEmpty;
+
+              return Row(
+                children: [
+                  /// 🗑 EMPTY CART
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: isEmpty ? null : emptyCart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "Empty Cart",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  /// ✅ PROCEED
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: hasInvalid || isEmpty
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ProceedPage(
+                                    userId: widget.userId,
+                                    cartItems: docs
+                                        .map((e) =>
+                                            e.data() as Map<String, dynamic>)
+                                        .toList(),
+                                  ),
+                                ),
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "Proceed",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
