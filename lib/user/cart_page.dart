@@ -15,14 +15,21 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// ✅ cache animal prices for total calculation
+  /// Cache animal prices for total calculation
   final Map<String, double> _priceCache = {};
 
-  Stream<QuerySnapshot> get cartStream => _firestore
-      .collection('carts')
-      .doc(widget.userId)
-      .collection('items')
-      .snapshots();
+  late Stream<QuerySnapshot> cartStream;
+
+  @override
+  void initState() {
+    super.initState();
+    // Stream listens to cart changes in real-time
+    cartStream = _firestore
+        .collection('carts')
+        .doc(widget.userId)
+        .collection('items')
+        .snapshots();
+  }
 
   Future<void> _updateShares(String animalId, int newShares) async {
     if (newShares <= 0) {
@@ -58,7 +65,6 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
-  /// 🛒 CART ITEM
   Widget buildCartItem(DocumentSnapshot cartDoc) {
     final cart = cartDoc.data() as Map<String, dynamic>;
     final int cartShares = (cart['shares'] ?? 1).toInt();
@@ -72,13 +78,10 @@ class _CartPageState extends State<CartPage> {
 
         if (snapshot.hasData && snapshot.data!.exists) {
           final animal = snapshot.data!.data() as Map<String, dynamic>;
-
           available =
               animal['isAvailable'] == true && (animal['shares'] ?? 0) > 0;
           availableShares = (animal['shares'] ?? 0).toInt();
           price = (animal['price'] as num?)?.toDouble() ?? 0.0;
-
-          /// ✅ cache price
           _priceCache[cartDoc.id] = price;
 
           if (cartShares > availableShares) {
@@ -108,7 +111,6 @@ class _CartPageState extends State<CartPage> {
             padding: const EdgeInsets.all(12),
             child: Column(
               children: [
-                /// 🔹 TOP ROW
                 Row(
                   children: [
                     Container(
@@ -159,10 +161,7 @@ class _CartPageState extends State<CartPage> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
-
-                /// ➕➖ CONTROLS
                 if (!isUnavailable)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -188,10 +187,7 @@ class _CartPageState extends State<CartPage> {
                       ),
                     ],
                   ),
-
                 const Divider(),
-
-                /// 🔘 ACTIONS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -242,7 +238,9 @@ class _CartPageState extends State<CartPage> {
           }
 
           final docs = snapshot.data!.docs;
+
           if (docs.isEmpty) {
+            // Automatically shows empty cart immediately after order finalization
             return const Center(
               child: Text("Your cart is empty", style: TextStyle(fontSize: 18)),
             );
@@ -253,8 +251,9 @@ class _CartPageState extends State<CartPage> {
 
           for (var d in docs) {
             final data = d.data() as Map<String, dynamic>;
-            final int shares = (data['shares'] ?? 0).toInt();
-            final double price = _priceCache[d.id] ?? 0.0;
+            final shares = (data['shares'] as num?)?.toInt() ?? 0;
+            final price =
+                _priceCache[d.id] ?? (data['price'] as num?)?.toDouble() ?? 0.0;
 
             totalQty += shares;
             totalAmount += price * shares;
@@ -262,7 +261,6 @@ class _CartPageState extends State<CartPage> {
 
           return Column(
             children: [
-              /// 🔝 TOTAL
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                 padding: const EdgeInsets.all(16),
@@ -303,7 +301,6 @@ class _CartPageState extends State<CartPage> {
                   ],
                 ),
               ),
-
               Expanded(
                 child: ListView.builder(
                   itemCount: docs.length,
@@ -314,8 +311,6 @@ class _CartPageState extends State<CartPage> {
           );
         },
       ),
-
-      /// 🟢 BOTTOM BUTTONS
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -349,8 +344,10 @@ class _CartPageState extends State<CartPage> {
                                   builder: (_) => ProceedPage(
                                     userId: widget.userId,
                                     cartItems: docs
-                                        .map((e) =>
-                                            e.data() as Map<String, dynamic>)
+                                        .map(
+                                          (e) =>
+                                              e.data() as Map<String, dynamic>,
+                                        )
                                         .toList(),
                                   ),
                                 ),

@@ -6,7 +6,7 @@ class CartService {
   static bool _isProcessing = false;
 
   /// Add an animal to the user's cart
-  /// Shares are not reduced here
+  /// Shares are NOT reduced here
   static Future<void> addAnimalToCart({
     required String animalId,
     required Map<String, dynamic> animalData,
@@ -26,30 +26,48 @@ class CartService {
           .collection('items')
           .doc(animalId);
 
-      final String imageUrl = _safeImageUrl(animalData['photoUrl']);
+      final String imageUrl = _safeImageUrl(
+        animalData['imageUrl'] ?? animalData['photoUrl'],
+      );
       final double price = _safePrice(animalData['price']);
 
       await firestore.runTransaction((transaction) async {
         final animalSnap = await transaction.get(animalRef);
         final cartSnap = await transaction.get(cartRef);
 
-        if (!animalSnap.exists) throw Exception("Animal not found");
+        if (!animalSnap.exists) {
+          throw Exception("Animal not found");
+        }
 
-        final data = animalSnap.data()!;
-        final bool isAvailable = data['isAvailable'] ?? true;
+        final animalDataDb = animalSnap.data()!;
+        final bool isAvailable = animalDataDb['isAvailable'] ?? true;
+        final int availableShares = (animalDataDb['shares'] ?? 0).toInt();
 
-        if (!isAvailable) throw Exception("Out of stock");
+        if (!isAvailable || availableShares <= 0) {
+          throw Exception("Out of stock");
+        }
 
-        // Add or update cart item
+        // 🛒 Add or update cart item
         if (cartSnap.exists) {
-          final int cartQty = (cartSnap.data()?['qty'] ?? 1) as int;
-          transaction.update(cartRef, {'qty': cartQty + 1});
+          final int currentShares =
+              (cartSnap.data()?['shares'] ?? 1).toInt();
+
+          if (currentShares + 1 > availableShares) {
+            throw Exception("Not enough shares available");
+          }
+
+          transaction.update(cartRef, {
+            'shares': currentShares + 1,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         } else {
           transaction.set(cartRef, {
             'animalId': animalId,
-            'title': animalData['title'] ?? animalData['type'] ?? 'Animal',
+            'title': animalData['title'] ??
+                animalData['type'] ??
+                'Animal',
             'price': price,
-            'qty': 1,
+            'shares': 1, // ✅ START WITH 1 SHARE
             'imageUrl': imageUrl,
             'adminId': animalData['adminId'],
             'adminName': animalData['adminName'] ?? 'Unknown',
@@ -81,7 +99,7 @@ class CartService {
     await cartRef.delete();
   }
 
-  /// Get current user's cart items
+  /// Get current user's cart items stream
   static Stream<QuerySnapshot> getCartItemsStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {

@@ -19,12 +19,22 @@ class CartBadge extends StatelessWidget {
         .collection('items')
         .snapshots()
         .map((snapshot) {
-      int total = 0;
+      int totalShares = 0;
+
       for (var doc in snapshot.docs) {
-        final qty = doc.data()['qty'];
-        total += (qty is int) ? qty : 1;
+        final data = doc.data();
+        final shares = data['shares'];
+
+        if (shares is int) {
+          totalShares += shares;
+        } else if (shares is num) {
+          totalShares += shares.toInt();
+        } else {
+          totalShares += 1; // safe fallback
+        }
       }
-      return total;
+
+      return totalShares;
     });
   }
 
