@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qurbani1/user/receipt_generator.dart';
+import 'package:qurbani1/user/special_request.dart';
 import 'package:qurbani1/user/user_home_screen.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
@@ -56,7 +56,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
         List<Map<String, dynamic>>.from(data['shareholders'] ?? []);
 
     try {
-      // 1️⃣ Update main orders collection
+      // 1️⃣ Create/update orders collection
       await _firestore.collection('orders').doc(orderId).set({
         ...data,
         'paymentStatus': paymentMethod == 'online' ? 'paid' : 'pending',
@@ -65,7 +65,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // 2️⃣ Update admin_orders collection
+      // 2️⃣ Create admin_orders collection (initial status set)
       await _firestore.collection('admin_orders').doc(orderId).set({
         'adminId': data['adminId'],
         'orderId': orderId,
@@ -76,7 +76,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
         'delivery_address': data['deliveryAddress'],
         'qurbani_day': data['qurbaniDay'],
         'payment_status': paymentMethod == 'online' ? 'Done' : 'Cash Pending',
-        'processing_status': 'Pending',
+        'processing_status': 'Pending', // initial status
         'delivery_status': 'Pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -85,7 +85,8 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
       Map<String, int> animalShareDeduction = {};
       for (var s in shareholders) {
         final animalId = s['animalId'] as String;
-        animalShareDeduction[animalId] = (animalShareDeduction[animalId] ?? 0) + 1;
+        animalShareDeduction[animalId] =
+            (animalShareDeduction[animalId] ?? 0) + 1;
       }
 
       for (var entry in animalShareDeduction.entries) {
@@ -107,7 +108,10 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
       }
 
       // 4️⃣ Clear user cart
-      final cartRef = _firestore.collection('carts').doc(userId).collection('items');
+      final cartRef = _firestore
+          .collection('carts')
+          .doc(userId)
+          .collection('items');
       final cartSnap = await cartRef.get();
       for (var doc in cartSnap.docs) {
         await doc.reference.delete();
@@ -135,22 +139,26 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
       return;
     }
 
-    await _firestore
-        .collection('ratings')
-        .doc(widget.orderData['orderId'])
-        .set({
-          'orderId': widget.orderData['orderId'],
-          'userId': widget.orderData['userId'],
-          'adminId': widget.orderData['adminId'],
-          'deliveryPersonId': widget.orderData['deliveryPersonId'],
-          'productRating': productRating,
-          'productReview': productReviewController.text.trim(),
-          'deliveryRating': deliveryRating,
-          'deliveryReview': deliveryReviewController.text.trim(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+    try {
+      await _firestore
+          .collection('ratings')
+          .doc(widget.orderData['orderId'])
+          .set({
+            'orderId': widget.orderData['orderId'],
+            'userId': widget.orderData['userId'],
+            'adminId': widget.orderData['adminId'],
+            'deliveryPersonId': widget.orderData['deliveryPersonId'],
+            'productRating': productRating,
+            'productReview': productReviewController.text.trim(),
+            'deliveryRating': deliveryRating,
+            'deliveryReview': deliveryReviewController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
-    setState(() => _ratingSubmitted = true);
+      setState(() => _ratingSubmitted = true);
+    } catch (e) {
+      debugPrint("Rating submission error: $e");
+    }
   }
 
   Widget _starRow(double value, Function(double) onUpdate) {
@@ -186,7 +194,10 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
               pw.Text('User: ${orderData['userId']}'),
               pw.Text('Amount: ₹${orderData['totalAmount']}'),
               pw.SizedBox(height: 10),
-              pw.Text('Items:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Items:',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
               pw.ListView.builder(
                 itemCount: shareholders.length,
                 itemBuilder: (context, index) {
@@ -232,7 +243,11 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_circle, size: 100, color: Colors.green),
+                  const Icon(
+                    Icons.check_circle,
+                    size: 100,
+                    color: Colors.green,
+                  ),
                   const SizedBox(height: 15),
                   const Text(
                     "Thank You for Your Order!",
@@ -244,15 +259,52 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                   Text("Amount: ₹$amount", textAlign: TextAlign.center),
                   Text("Payment: $paymentMethod", textAlign: TextAlign.center),
                   const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.download),
-                    label: const Text("Download Receipt"),
-                    onPressed: () async {
-                      final file = await generateReceiptPDF(widget.orderData);
-                      await OpenFilex.open(file.path);
-                      await Share.shareXFiles([XFile(file.path)]);
-                    },
+                  // ElevatedButton.icon(
+                  //   icon: const Icon(Icons.download),
+                  //   label: const Text("Download Receipt"),
+                  //   onPressed: () async {
+                  //     final file = await generateReceiptPDF(widget.orderData);
+                  //     await OpenFilex.open(file.path);
+                  //     await Share.shareXFiles([XFile(file.path)]);
+                  //   },
+                  // ),
+                  Row(
+                    children: [
+                      /// 📄 DOWNLOAD RECEIPT
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.download),
+                        label: const Text("Download Receipt"),
+                        onPressed: () async {
+                          final file = await generateReceiptPDF(
+                            widget.orderData,
+                          );
+                          await OpenFilex.open(file.path);
+                          await Share.shareXFiles([XFile(file.path)]);
+                        },
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      /// ✍️ SPECIAL REQUEST
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.edit_note),
+                          label: const Text("Special Request"),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SpecialRequestPage(
+                                  orderData: widget.orderData,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
+
                   const SizedBox(height: 15),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.home),

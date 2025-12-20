@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani1/login_page.dart';
 import 'package:qurbani1/user/profile_page.dart';
+import 'package:qurbani1/user/request_history.dart';
+import 'package:qurbani1/user/special_request.dart';
 
 class AppDrawer extends StatelessWidget {
   final String userName;
@@ -55,15 +57,15 @@ class AppDrawer extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.person),
-            title: const Text("Apply for Admin"),
+            title: const Text("Special Requests"),
             onTap: () {
-              // Navigator.pop(context);
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (_) => ApplyAdminIntroPage(),
-              //   ),
-              // );
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserRequestsPage(userId: userId),
+                ),
+              );
             },
           ),
           const Spacer(),

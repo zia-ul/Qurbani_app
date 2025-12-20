@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani1/user/user_home_screen.dart';
 
 class SpecialRequestPage extends StatefulWidget {
-  final String userId;
-  final String animalId;
+  final Map<String, dynamic> orderData;
 
-  const SpecialRequestPage({
-    super.key,
-    required this.userId,
-    required this.animalId,
-  });
+  const SpecialRequestPage({super.key, required this.orderData});
 
   @override
   State<SpecialRequestPage> createState() => _SpecialRequestPageState();
@@ -19,82 +15,46 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  bool _loading = false;
 
-  bool _isLoading = false;
-  String? _adminId;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchAdminId();
-  }
-
-  // Fetch adminId from the animals collection
-  Future<void> _fetchAdminId() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('animals')
-          .doc(widget.animalId)
-          .get();
-
-      if (doc.exists && doc.data()?['adminId'] != null) {
-        setState(() {
-          _adminId = doc.data()!['adminId'];
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin not found for this animal.')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching admin: $e')),
-      );
-    }
-  }
-
-  // Submit the special request
+  /// Submit special request
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_adminId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot submit without admin.')),
-      );
-      return;
-    }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _loading = true);
 
     try {
       await FirebaseFirestore.instance.collection('requests').add({
-        'userId': widget.userId,
-        'animalId': widget.animalId,
-        'adminId': _adminId,
+        'orderId': widget.orderData['orderId'],
+        'userId': widget.orderData['userId'],
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'status': 'Pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Request submitted successfully!')),
+        const SnackBar(content: Text('Special request submitted')),
       );
 
-      // Clear fields after submission
-      _titleController.clear();
-      _descriptionController.clear();
-      _phoneController.clear();
+      // Navigate back to Home page
+      final userId = widget.orderData['userId'] as String;
+      final userName = widget.orderData['userName']?.toString() ?? 'User';
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomePage(id: userId, name: userName),
+        ),
+        (_) => false,
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting request: $e')),
+        SnackBar(content: Text('Failed to submit request: $e')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
@@ -102,7 +62,6 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -114,79 +73,54 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
         backgroundColor: Colors.green,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: (_adminId == null)
-            ? const Center(child: CircularProgressIndicator())
-            : Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a title';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Description',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 4,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a description';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone Number',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your phone number';
-                        } else if (!RegExp(r'^\+?\d{7,15}$')
-                            .hasMatch(value.trim())) {
-                          return 'Please enter a valid phone number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _submitRequest,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              /// Title
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Request Title',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+
+              /// Description
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  labelText: 'Request Description',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 24),
+
+              /// Submit button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _loading ? null : _submitRequest,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Submit Request',
+                          style: TextStyle(fontSize: 16),
                         ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
-                            : const Text(
-                                'Submit Request',
-                                style: TextStyle(fontSize: 18),
-                              ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }

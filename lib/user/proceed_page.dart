@@ -124,11 +124,12 @@ class _ProceedPageState extends State<ProceedPage> {
             .toList(),
         'cartItems': widget.cartItems,
         'totalAmount': totalAmount,
-        'paymentStatus': 'pending',
+        'paymentStatus': 'Pending',
         'paymentMethod': null,
-        'processingStatus': 'pending',
-        'deliveryStatus': 'pending',
+        'processingStatus': 'Pending',
+        'deliveryStatus': 'Pending',
         'createdAt': FieldValue.serverTimestamp(),
+        'specialRequestUsed': false
       };
 
       if (!mounted) return;
