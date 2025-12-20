@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:qurbani1/user/cart_service.dart';
-import 'package:qurbani1/user/special_request.dart';
 
 class AnimalDetailPage extends StatelessWidget {
   final String animalId;
@@ -14,7 +13,10 @@ class AnimalDetailPage extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Animal Details"), backgroundColor: Colors.green),
+      appBar: AppBar(
+        title: const Text("Animal Details"),
+        backgroundColor: Colors.green,
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('animals')
@@ -39,7 +41,8 @@ class AnimalDetailPage extends StatelessWidget {
           final bool isAvailable = data['isAvailable'] ?? true;
 
           final String imageUrl =
-              (data['photoUrl'] is String && data['photoUrl'].toString().startsWith('http'))
+              (data['photoUrl'] is String &&
+                      data['photoUrl'].toString().startsWith('http'))
                   ? data['photoUrl']
                   : '';
 
@@ -47,7 +50,7 @@ class AnimalDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Photo
+                /// IMAGE
                 imageUrl.isNotEmpty
                     ? Image.network(
                         imageUrl,
@@ -65,7 +68,7 @@ class AnimalDetailPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Barcode
+                      /// BARCODE
                       Text(
                         "Barcode: ${data['barcode'] ?? 'N/A'}",
                         style: const TextStyle(
@@ -75,7 +78,7 @@ class AnimalDetailPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      // Title
+                      /// TITLE
                       Text(
                         data['title'] ?? data['type'] ?? 'Animal',
                         style: const TextStyle(
@@ -83,37 +86,43 @@ class AnimalDetailPage extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 8),
 
-                      // Description
+                      const SizedBox(height: 6),
+
+                      /// ⭐ AVERAGE RATING
+                      _averageRatingWidget(animalId),
+
+                      const SizedBox(height: 12),
+
+                      /// DESCRIPTION
                       Text(
                         data['description'] ?? '',
                         style: const TextStyle(fontSize: 16),
                       ),
                       const SizedBox(height: 12),
 
-                      // Weight
+                      /// WEIGHT
                       Text(
                         "Weight: ${data['weight'] ?? 'N/A'} kg",
                         style: const TextStyle(fontSize: 16),
                       ),
                       const SizedBox(height: 8),
 
-                      // Price
+                      /// PRICE
                       Text(
                         "Price: ₹ ${data['price']?.toStringAsFixed(2) ?? '0.00'}",
                         style: const TextStyle(fontSize: 16),
                       ),
                       const SizedBox(height: 8),
 
-                      // Shares
+                      /// SHARES
                       Text(
                         "Shares: $shares",
                         style: const TextStyle(fontSize: 16),
                       ),
                       const SizedBox(height: 12),
 
-                      // Tags: Animal Type & Health Status
+                      /// TAGS
                       Wrap(
                         spacing: 8,
                         runSpacing: 6,
@@ -127,7 +136,7 @@ class AnimalDetailPage extends StatelessWidget {
 
                       const SizedBox(height: 20),
 
-                      // Add to Cart Button
+                      /// ADD TO CART
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -139,7 +148,8 @@ class AnimalDetailPage extends StatelessWidget {
                                       animalData: data,
                                     );
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text("Added to cart")),
+                                      const SnackBar(
+                                          content: Text("Added to cart")),
                                     );
                                   } catch (e) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -149,8 +159,10 @@ class AnimalDetailPage extends StatelessWidget {
                                 }
                               : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isAvailable ? Colors.green : Colors.grey,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            backgroundColor:
+                                isAvailable ? Colors.green : Colors.grey,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                           ),
                           child: Text(
                             isAvailable ? "Add to Cart" : "Out of Stock",
@@ -158,35 +170,6 @@ class AnimalDetailPage extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // const SizedBox(height: 10),
-
-                      // // Special Request Button
-                      // SizedBox(
-                      //   width: double.infinity,
-                      //   child: ElevatedButton(
-                      //     onPressed: currentUser != null
-                      //         ? () {
-                      //             Navigator.push(
-                      //               context,
-                      //               MaterialPageRoute(
-                      //                 builder: (_) => SpecialRequestPage(
-                      //                   userId: currentUser.uid,
-                      //                   animalId: animalId,
-                      //                 ),
-                      //               ),
-                      //             );
-                      //           }
-                      //         : null,
-                      //     style: ElevatedButton.styleFrom(
-                      //       backgroundColor: Colors.orange,
-                      //       padding: const EdgeInsets.symmetric(vertical: 14),
-                      //     ),
-                      //     child: const Text(
-                      //       "Special Request",
-                      //       style: TextStyle(fontSize: 16),
-                      //     ),
-                      //   ),
-                      // ),
                     ],
                   ),
                 ),
@@ -198,7 +181,55 @@ class AnimalDetailPage extends StatelessWidget {
     );
   }
 
-  /// Tag widget with light green background and green border
+  /// ⭐ Average Rating Widget
+  Widget _averageRatingWidget(String animalId) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('animal_ratings')
+          .where('animalId', isEqualTo: animalId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+
+        final docs = snapshot.data!.docs;
+
+        if (docs.isEmpty) {
+          return const Text(
+            "No ratings yet",
+            style: TextStyle(color: Colors.grey),
+          );
+        }
+
+        double total = 0;
+        for (var d in docs) {
+          total += (d['rating'] ?? 0).toDouble();
+        }
+
+        final avg = total / docs.length;
+
+        return Row(
+          children: [
+            const Icon(Icons.star, color: Colors.amber),
+            const SizedBox(width: 4),
+            Text(
+              avg.toStringAsFixed(1),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              "(${docs.length} reviews)",
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// TAG WIDGET
   Widget _tagWidget(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -217,7 +248,7 @@ class AnimalDetailPage extends StatelessWidget {
     );
   }
 
-  /// Fallback for invalid/missing image
+  /// IMAGE FALLBACK
   Widget _imageFallback() {
     return Container(
       height: 250,

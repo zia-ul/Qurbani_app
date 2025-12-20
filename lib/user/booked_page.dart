@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani1/user/special_request.dart';
+import 'order_items_page.dart'; // 👈 ADD THIS IMPORT
 
 class BookedPage extends StatefulWidget {
   final String userId;
@@ -25,8 +26,10 @@ class _BookedPageState extends State<BookedPage> {
   Widget _buildOrderCard(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    final cartItems = List<Map<String, dynamic>>.from(data['cartItems'] ?? []);
-    final shareholders = List<Map<String, dynamic>>.from(data['shareholders'] ?? []);
+    final cartItems =
+        List<Map<String, dynamic>>.from(data['cartItems'] ?? []);
+    final shareholders =
+        List<Map<String, dynamic>>.from(data['shareholders'] ?? []);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -104,6 +107,29 @@ class _BookedPageState extends State<BookedPage> {
             ),
 
             const SizedBox(height: 16),
+
+            /// 🔹 VIEW ITEMS & RATE BUTTON ✅
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.star_rate),
+                label: const Text("View Items & Rate"),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderItemsPage(
+                        orderId: data['orderId'],
+                        userId: widget.userId,
+                        cartItems: cartItems,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 10),
 
             /// 🔹 SPECIAL REQUEST BUTTON
             SizedBox(

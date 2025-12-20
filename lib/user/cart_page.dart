@@ -15,6 +15,9 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  /// ✅ cache animal prices for total calculation
+  final Map<String, double> _priceCache = {};
+
   Stream<QuerySnapshot> get cartStream => _firestore
       .collection('carts')
       .doc(widget.userId)
@@ -55,7 +58,7 @@ class _CartPageState extends State<CartPage> {
     }
   }
 
-  /// 🛒 CART ITEM WIDGET
+  /// 🛒 CART ITEM
   Widget buildCartItem(DocumentSnapshot cartDoc) {
     final cart = cartDoc.data() as Map<String, dynamic>;
     final int cartShares = (cart['shares'] ?? 1).toInt();
@@ -65,14 +68,19 @@ class _CartPageState extends State<CartPage> {
       builder: (context, snapshot) {
         bool available = false;
         int availableShares = 0;
+        double price = 0.0;
 
         if (snapshot.hasData && snapshot.data!.exists) {
           final animal = snapshot.data!.data() as Map<String, dynamic>;
+
           available =
               animal['isAvailable'] == true && (animal['shares'] ?? 0) > 0;
           availableShares = (animal['shares'] ?? 0).toInt();
+          price = (animal['price'] as num?)?.toDouble() ?? 0.0;
 
-          // Auto-adjust cart shares if stock reduced
+          /// ✅ cache price
+          _priceCache[cartDoc.id] = price;
+
           if (cartShares > availableShares) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _updateShares(cartDoc.id, availableShares);
@@ -128,7 +136,9 @@ class _CartPageState extends State<CartPage> {
                           Text(
                             cart['title'] ?? 'Animal',
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -136,14 +146,15 @@ class _CartPageState extends State<CartPage> {
                                 ? "Unavailable"
                                 : "Shares: $cartShares / $availableShares",
                             style: TextStyle(
-                                color: isUnavailable ? Colors.red : Colors.green,
-                                fontWeight: FontWeight.w600),
+                              color: isUnavailable ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Text(
-                      "₹ ${(cart['price'] * cartShares).toStringAsFixed(0)}",
+                      "₹ ${(price * cartShares).toStringAsFixed(0)}",
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -151,7 +162,7 @@ class _CartPageState extends State<CartPage> {
 
                 const SizedBox(height: 10),
 
-                /// ➕➖ SHARE CONTROLS
+                /// ➕➖ CONTROLS
                 if (!isUnavailable)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -165,7 +176,9 @@ class _CartPageState extends State<CartPage> {
                       Text(
                         "$cartShares",
                         style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add),
@@ -176,7 +189,7 @@ class _CartPageState extends State<CartPage> {
                     ],
                   ),
 
-                const Divider(color: Colors.grey),
+                const Divider(),
 
                 /// 🔘 ACTIONS
                 Row(
@@ -189,8 +202,9 @@ class _CartPageState extends State<CartPage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) =>
-                                  AnimalDetailPage(animalId: cartDoc.id)),
+                            builder: (_) =>
+                                AnimalDetailPage(animalId: cartDoc.id),
+                          ),
                         );
                       },
                     ),
@@ -230,10 +244,7 @@ class _CartPageState extends State<CartPage> {
           final docs = snapshot.data!.docs;
           if (docs.isEmpty) {
             return const Center(
-              child: Text(
-                "Your cart is empty",
-                style: TextStyle(fontSize: 18),
-              ),
+              child: Text("Your cart is empty", style: TextStyle(fontSize: 18)),
             );
           }
 
@@ -243,7 +254,7 @@ class _CartPageState extends State<CartPage> {
           for (var d in docs) {
             final data = d.data() as Map<String, dynamic>;
             final int shares = (data['shares'] ?? 0).toInt();
-            final double price = (data['price'] ?? 0).toDouble();
+            final double price = _priceCache[d.id] ?? 0.0;
 
             totalQty += shares;
             totalAmount += price * shares;
@@ -251,7 +262,7 @@ class _CartPageState extends State<CartPage> {
 
           return Column(
             children: [
-              /// 🔝 TOTAL (fixed)
+              /// 🔝 TOTAL
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                 padding: const EdgeInsets.all(16),
@@ -269,7 +280,9 @@ class _CartPageState extends State<CartPage> {
                         Text(
                           "$totalQty",
                           style: const TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.bold),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
@@ -280,9 +293,10 @@ class _CartPageState extends State<CartPage> {
                         Text(
                           "₹ ${totalAmount.toStringAsFixed(2)}",
                           style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
                         ),
                       ],
                     ),
@@ -290,7 +304,6 @@ class _CartPageState extends State<CartPage> {
                 ),
               ),
 
-              /// 🏷 Scrollable cart items
               Expanded(
                 child: ListView.builder(
                   itemCount: docs.length,
@@ -302,50 +315,32 @@ class _CartPageState extends State<CartPage> {
         },
       ),
 
-      /// 🟢 STICKY BOTTOM BUTTONS
+      /// 🟢 BOTTOM BUTTONS
       bottomNavigationBar: SafeArea(
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(top: BorderSide(color: Colors.grey, width: 0.3)),
-          ),
+          padding: const EdgeInsets.all(12),
           child: StreamBuilder<QuerySnapshot>(
             stream: cartStream,
             builder: (context, snapshot) {
               final docs = snapshot.data?.docs ?? [];
-              final bool hasInvalid = docs.any((d) {
-                final data = d.data() as Map<String, dynamic>;
-                return (data['shares'] ?? 0) == 0;
-              });
               final bool isEmpty = docs.isEmpty;
 
               return Row(
                 children: [
-                  /// 🗑 EMPTY CART
                   Expanded(
                     child: ElevatedButton(
                       onPressed: isEmpty ? null : emptyCart,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
                       ),
-                      child: const Text(
-                        "Empty Cart",
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      child: const Text("Empty Cart"),
                     ),
                   ),
-
                   const SizedBox(width: 12),
-
-                  /// ✅ PROCEED
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: hasInvalid || isEmpty
+                      onPressed: isEmpty
                           ? null
                           : () {
                               Navigator.push(
@@ -364,14 +359,8 @@ class _CartPageState extends State<CartPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
                       ),
-                      child: const Text(
-                        "Proceed",
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      child: const Text("Proceed"),
                     ),
                   ),
                 ],

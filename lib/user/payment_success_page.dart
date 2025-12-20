@@ -52,11 +52,15 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
     final orderId = data['orderId'];
     final userId = data['userId'];
     final paymentMethod = data['paymentMethod'];
+
     final List<Map<String, dynamic>> shareholders =
         List<Map<String, dynamic>>.from(data['shareholders'] ?? []);
 
+    final List<Map<String, dynamic>> cartItems =
+        List<Map<String, dynamic>>.from(data['cartItems'] ?? []);
+
     try {
-      // 1️⃣ Create/update orders collection
+      /// 1️⃣ Save complete order
       await _firestore.collection('orders').doc(orderId).set({
         ...data,
         'paymentStatus': paymentMethod == 'online' ? 'paid' : 'pending',
@@ -65,59 +69,80 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // 2️⃣ Create admin_orders collection (initial status set)
-      await _firestore.collection('admin_orders').doc(orderId).set({
-        'adminId': data['adminId'],
-        'orderId': orderId,
-        'userId': userId,
-        'delivery_person_id': data['deliveryPersonId'],
-        'shareholders': shareholders,
-        'contact_details': data['contactDetails'],
-        'delivery_address': data['deliveryAddress'],
-        'qurbani_day': data['qurbaniDay'],
-        'payment_status': paymentMethod == 'online' ? 'Done' : 'Cash Pending',
-        'processing_status': 'Pending', // initial status
-        'delivery_status': 'Pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // 3️⃣ Deduct shares from animals
-      Map<String, int> animalShareDeduction = {};
+      /// 2️⃣ Assign adminId to shareholders from cartItems
       for (var s in shareholders) {
-        final animalId = s['animalId'] as String;
-        animalShareDeduction[animalId] =
-            (animalShareDeduction[animalId] ?? 0) + 1;
+        final cartItem = cartItems.firstWhere(
+          (c) => c['animalId'] == s['animalId'],
+          orElse: () => {},
+        );
+        s['adminId'] = cartItem['adminId'];
       }
 
-      for (var entry in animalShareDeduction.entries) {
-        final ref = _firestore.collection('animals').doc(entry.key);
-        final sharesToDeduct = entry.value;
+      /// 3️⃣ Group shareholders BY adminId
+      Map<String, List<Map<String, dynamic>>> ordersPerAdmin = {};
 
-        await _firestore.runTransaction((tx) async {
-          final snap = await tx.get(ref);
-          if (!snap.exists) return;
+      for (var s in shareholders) {
+        final adminId = s['adminId'];
+        if (adminId == null) continue;
 
-          final currentShares = snap['shares'] ?? 0;
-          final newShares = currentShares - sharesToDeduct;
+        ordersPerAdmin.putIfAbsent(adminId, () => []);
+        ordersPerAdmin[adminId]!.add(s);
+      }
 
-          tx.update(ref, {
-            'shares': newShares < 0 ? 0 : newShares,
-            'isAvailable': newShares > 0,
-          });
+      /// 4️⃣ Build admin_orders with ANIMAL SHARES
+      for (var entry in ordersPerAdmin.entries) {
+        final adminId = entry.key;
+        final adminShareholders = entry.value;
+        final adminOrderId = "$orderId-$adminId";
+
+        /// 🔹 Calculate animal-wise shares
+        Map<String, Map<String, dynamic>> animalMap = {};
+
+        for (var s in adminShareholders) {
+          final animalId = s['animalId'];
+
+          final cartItem = cartItems.firstWhere(
+            (c) => c['animalId'] == animalId,
+            orElse: () => {},
+          );
+
+          if (!animalMap.containsKey(animalId)) {
+            animalMap[animalId] = {
+              'animalId': animalId,
+              'title': cartItem['title'],
+              'adminId': adminId,
+              'price': cartItem['price'],
+              'sharesPurchased': 0,
+            };
+          }
+
+          animalMap[animalId]!['sharesPurchased'] += 1;
+        }
+
+        final animalItems = animalMap.values.toList();
+
+        /// 🔹 Save admin order
+        await _firestore.collection('admin_orders').doc(adminOrderId).set({
+          'adminId': adminId,
+          'orderId': orderId,
+          'userId': userId,
+          'delivery_person_id': data['deliveryPersonId'],
+          'shareholders': adminShareholders,
+          'animalItems': animalItems, // ✅ NEW
+          'contact_details': data['contactDetails'],
+          'delivery_address': data['deliveryAddress'],
+          'qurbani_day': data['qurbaniDay'],
+          'payment_status': paymentMethod == 'online' ? 'Done' : 'Cash Pending',
+          'processing_status': 'Pending',
+          'delivery_status': 'Pending',
+          'createdAt': FieldValue.serverTimestamp(),
         });
-      }
 
-      // 4️⃣ Clear user cart
-      final cartRef = _firestore
-          .collection('carts')
-          .doc(userId)
-          .collection('items');
-      final cartSnap = await cartRef.get();
-      for (var doc in cartSnap.docs) {
-        await doc.reference.delete();
+        debugPrint("✅ Admin order saved: $adminOrderId");
+        debugPrint("🦬 Animal items: $animalItems");
       }
     } catch (e) {
-      debugPrint("Finalize order error: $e");
+      debugPrint("❌ Finalize order error: $e");
     }
   }
 
@@ -131,50 +156,50 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
     } catch (_) {}
   }
 
-  Future<void> _submitRating() async {
-    if (_ratingSubmitted || productRating == 0 || deliveryRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please provide both ratings")),
-      );
-      return;
-    }
+  // Future<void> _submitRating() async {
+  //   if (_ratingSubmitted || productRating == 0 || deliveryRating == 0) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text("Please provide both ratings")),
+  //     );
+  //     return;
+  //   }
 
-    try {
-      await _firestore
-          .collection('ratings')
-          .doc(widget.orderData['orderId'])
-          .set({
-            'orderId': widget.orderData['orderId'],
-            'userId': widget.orderData['userId'],
-            'adminId': widget.orderData['adminId'],
-            'deliveryPersonId': widget.orderData['deliveryPersonId'],
-            'productRating': productRating,
-            'productReview': productReviewController.text.trim(),
-            'deliveryRating': deliveryRating,
-            'deliveryReview': deliveryReviewController.text.trim(),
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+  //   try {
+  //     await _firestore
+  //         .collection('ratings')
+  //         .doc(widget.orderData['orderId'])
+  //         .set({
+  //           'orderId': widget.orderData['orderId'],
+  //           'userId': widget.orderData['userId'],
+  //           'adminId': widget.orderData['adminId'],
+  //           'deliveryPersonId': widget.orderData['deliveryPersonId'],
+  //           'productRating': productRating,
+  //           'productReview': productReviewController.text.trim(),
+  //           'deliveryRating': deliveryRating,
+  //           'deliveryReview': deliveryReviewController.text.trim(),
+  //           'createdAt': FieldValue.serverTimestamp(),
+  //         });
 
-      setState(() => _ratingSubmitted = true);
-    } catch (e) {
-      debugPrint("Rating submission error: $e");
-    }
-  }
+  //     setState(() => _ratingSubmitted = true);
+  //   } catch (e) {
+  //     debugPrint("Rating submission error: $e");
+  //   }
+  // }
 
-  Widget _starRow(double value, Function(double) onUpdate) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(5, (i) {
-        return IconButton(
-          icon: Icon(
-            i < value ? Icons.star : Icons.star_border,
-            color: Colors.amber,
-          ),
-          onPressed: _ratingSubmitted ? null : () => onUpdate(i + 1.0),
-        );
-      }),
-    );
-  }
+  // Widget _starRow(double value, Function(double) onUpdate) {
+  //   return Row(
+  //     mainAxisAlignment: MainAxisAlignment.center,
+  //     children: List.generate(5, (i) {
+  //       return IconButton(
+  //         icon: Icon(
+  //           i < value ? Icons.star : Icons.star_border,
+  //           color: Colors.amber,
+  //         ),
+  //         onPressed: _ratingSubmitted ? null : () => onUpdate(i + 1.0),
+  //       );
+  //     }),
+  //   );
+  // }
 
   /// Generate PDF receipt from shareholders
   Future<File> generateReceiptPDF(Map<String, dynamic> orderData) async {
@@ -259,18 +284,8 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                   Text("Amount: ₹$amount", textAlign: TextAlign.center),
                   Text("Payment: $paymentMethod", textAlign: TextAlign.center),
                   const SizedBox(height: 20),
-                  // ElevatedButton.icon(
-                  //   icon: const Icon(Icons.download),
-                  //   label: const Text("Download Receipt"),
-                  //   onPressed: () async {
-                  //     final file = await generateReceiptPDF(widget.orderData);
-                  //     await OpenFilex.open(file.path);
-                  //     await Share.shareXFiles([XFile(file.path)]);
-                  //   },
-                  // ),
                   Row(
                     children: [
-                      /// 📄 DOWNLOAD RECEIPT
                       ElevatedButton.icon(
                         icon: const Icon(Icons.download),
                         label: const Text("Download Receipt"),
@@ -282,10 +297,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                           await Share.shareXFiles([XFile(file.path)]);
                         },
                       ),
-
                       const SizedBox(width: 12),
-
-                      /// ✍️ SPECIAL REQUEST
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.edit_note),
@@ -304,7 +316,6 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 15),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.home),
@@ -323,62 +334,62 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 30),
-                  if (!_ratingSubmitted) ...[
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            const Text("Rate Product / Qurbani Service"),
-                            _starRow(
-                              productRating,
-                              (v) => setState(() => productRating = v),
-                            ),
-                            TextField(
-                              controller: productReviewController,
-                              textAlign: TextAlign.center,
-                              decoration: const InputDecoration(
-                                hintText: "Write a review (optional)",
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            const Text("Rate Delivery Person"),
-                            _starRow(
-                              deliveryRating,
-                              (v) => setState(() => deliveryRating = v),
-                            ),
-                            TextField(
-                              controller: deliveryReviewController,
-                              textAlign: TextAlign.center,
-                              decoration: const InputDecoration(
-                                hintText: "Delivery feedback (optional)",
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _submitRating,
-                      child: const Text("Submit Rating"),
-                    ),
-                  ] else
-                    const Text(
-                      "⭐ You have already rated this order",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.green),
-                    ),
+                  // const SizedBox(height: 30),
+                  // if (!_ratingSubmitted) ...[
+                  //   Card(
+                  //     child: Padding(
+                  //       padding: const EdgeInsets.all(16),
+                  //       child: Column(
+                  //         children: [
+                  //           const Text("Rate Product / Qurbani Service"),
+                  //           _starRow(
+                  //             productRating,
+                  //             (v) => setState(() => productRating = v),
+                  //           ),
+                  //           TextField(
+                  //             controller: productReviewController,
+                  //             textAlign: TextAlign.center,
+                  //             decoration: const InputDecoration(
+                  //               hintText: "Write a review (optional)",
+                  //             ),
+                  //           ),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
+                  //   const SizedBox(height: 15),
+                  //   Card(
+                  //     child: Padding(
+                  //       padding: const EdgeInsets.all(16),
+                  //       child: Column(
+                  //         children: [
+                  //           const Text("Rate Delivery Person"),
+                  //           _starRow(
+                  //             deliveryRating,
+                  //             (v) => setState(() => deliveryRating = v),
+                  //           ),
+                  //           TextField(
+                  //             controller: deliveryReviewController,
+                  //             textAlign: TextAlign.center,
+                  //             decoration: const InputDecoration(
+                  //               hintText: "Delivery feedback (optional)",
+                  //             ),
+                  //           ),
+                  //         ],
+                  //       ),
+                  //     ),
+                  //   ),
+                  //   const SizedBox(height: 20),
+                  //   ElevatedButton(
+                  //     onPressed: _submitRating,
+                  //     child: const Text("Submit Rating"),
+                  //   ),
+                  // ] else
+                  //   const Text(
+                  //     "⭐ You have already rated this order",
+                  //     textAlign: TextAlign.center,
+                  //     style: TextStyle(color: Colors.green),
+                  //   ),
                 ],
               ),
             ),

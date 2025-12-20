@@ -29,7 +29,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     'Cancelled',
   ];
 
-  final List<String> deliveryOptions = ['Sent for Delivery', 'Delivery Done'];
+  final List<String> deliveryOptions = [
+    'Pending',
+    'Sent for Delivery',
+    'Delivery Done',
+  ];
 
   List<Map<String, dynamic>> deliveryBoys = [];
   bool loadingDeliveryBoys = true;
@@ -37,8 +41,15 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   @override
   void initState() {
     super.initState();
-    processing = widget.orderData['processing_status'] ?? 'Pending';
-    delivery = widget.orderData['delivery_status'] ?? 'Pending';
+
+    // Initialize status values safely
+    processing = processingOptions.contains(widget.orderData['processing_status'])
+        ? widget.orderData['processing_status']
+        : 'Pending';
+
+    delivery = deliveryOptions.contains(widget.orderData['delivery_status'])
+        ? widget.orderData['delivery_status']
+        : 'Pending';
 
     selectedDeliveryBoyId = widget.orderData['delivery_person_id'];
 
@@ -46,38 +57,58 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Future<void> fetchDeliveryBoys() async {
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'delivery')
-        .get();
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'delivery')
+          .get();
 
-    setState(() {
-      deliveryBoys = snap.docs
-          .map((doc) => {'id': doc.id, 'name': doc['name'] ?? 'No Name'})
-          .toList();
-      loadingDeliveryBoys = false;
-    });
+      if (!mounted) return;
+
+      setState(() {
+        deliveryBoys = snap.docs
+            .map((doc) => {'id': doc.id, 'name': doc['name'] ?? 'No Name'})
+            .toList();
+        loadingDeliveryBoys = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        deliveryBoys = [];
+        loadingDeliveryBoys = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load delivery boys: $e')),
+      );
+    }
   }
 
   Future<void> save() async {
-    await FirebaseFirestore.instance
-        .collection('admin_orders')
-        .doc(widget.orderId)
-        .update({
-          'processing_status': processing,
-          'delivery_status': delivery,
-          'delivery_person_id': selectedDeliveryBoyId,
-        });
+    try {
+      await FirebaseFirestore.instance
+          .collection('admin_orders')
+          .doc(widget.orderId)
+          .update({
+        'processing_status': processing,
+        'delivery_status': delivery,
+        'delivery_person_id': selectedDeliveryBoyId,
+      });
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Order updated')));
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Order updated')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update order: $e')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = widget.orderData;
+    final order = widget.orderData;
 
     return Scaffold(
       appBar: AppBar(
@@ -88,20 +119,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            _buildRow('Order ID', widget.orderId),
-            _buildRow('User Name', data['user_name'] ?? 'N/A'),
-            _buildRow('Animal Type', data['animal_type'] ?? 'N/A'),
+            _buildRow('Order ID', order['orderId'] ?? 'N/A'),
+            _buildRow('User Name', order['user_name'] ?? 'N/A'),
+            _buildRow('Animal Type', order['animal_type'] ?? order['title'] ?? 'N/A'),
             _buildRow(
               'Parts',
-              (data['parts'] as List<dynamic>?)?.join(', ') ?? 'N/A',
+              (order['parts'] as List<dynamic>?)?.join(', ') ?? 'N/A',
             ),
-            _buildRow('Price', data['total_amount']?.toString() ?? 'N/A'),
-            _buildRow('Payment Status', data['payment_status'] ?? 'N/A'),
-            _buildRow('Delivery Address', data['delivery_address'] ?? 'N/A'),
-            _buildRow('Contact', data['contact_no'] ?? 'N/A'),
+            _buildRow('Price', (order['total_amount'] ?? order['price'])?.toString() ?? 'N/A'),
+            _buildRow('Payment Status', order['payment_status'] ?? 'N/A'),
+            _buildRow('Delivery Address', order['delivery_address'] ?? 'N/A'),
+            _buildRow('Contact', order['contact_no'] ?? order['contactDetails'] ?? 'N/A'),
             const SizedBox(height: 16),
 
-            // Processing Status
             DropdownButtonFormField<String>(
               value: processing,
               decoration: const InputDecoration(
@@ -115,7 +145,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             ),
             const SizedBox(height: 12),
 
-            // Delivery Status
             DropdownButtonFormField<String>(
               value: delivery,
               decoration: const InputDecoration(
@@ -129,11 +158,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             ),
             const SizedBox(height: 12),
 
-            // Assign Delivery Boy
             loadingDeliveryBoys
                 ? const LinearProgressIndicator()
                 : DropdownButtonFormField<String>(
-                    value: selectedDeliveryBoyId,
+                    value: deliveryBoys.any((e) => e['id'] == selectedDeliveryBoyId)
+                        ? selectedDeliveryBoyId
+                        : null,
                     decoration: const InputDecoration(
                       labelText: 'Assign Delivery Boy',
                       border: OutlineInputBorder(),
