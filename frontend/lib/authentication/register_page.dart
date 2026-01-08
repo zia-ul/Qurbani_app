@@ -1,0 +1,648 @@
+import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:qurbani/authentication/login_page.dart';
+import 'package:qurbani/services/auth_service.dart';
+import 'package:qurbani/terms_condition_dialog.dart';
+import 'package:qurbani/verify_email.dart';
+
+class RegisterPage extends StatefulWidget {
+  const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
+
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final phoneController = TextEditingController();
+  final passController = TextEditingController();
+  final confirmPassController = TextEditingController();
+  final addressController = TextEditingController();
+
+  String selectedRole = 'user';
+  String? selectedGender;
+  bool termsAccepted = false;
+  bool isLoading = false;
+  String passwordStrength = "";
+  bool _obscureConfirmPassword = true;
+
+  String? completePhoneNumber;
+  String? countryISO;
+  String selectedCurrency = 'USD';
+
+  // ---------------- PASSWORD ----------------
+  String _checkPasswordStrength(String password) {
+    if (password.length < 8) return "Too short";
+    final hasUpper = password.contains(RegExp(r'[A-Z]'));
+    final hasLower = password.contains(RegExp(r'[a-z]'));
+    final hasDigit = password.contains(RegExp(r'[0-9]'));
+    final hasSpecial = password.contains(RegExp(r'[!@#\$&*~]'));
+    if (hasUpper && hasLower && hasDigit && hasSpecial) return "Strong";
+    if ((hasUpper || hasLower) && hasDigit) return "Medium";
+    return "Weak";
+  }
+
+  bool _isPasswordValid(String password) {
+    return password.length >= 8 &&
+        password.contains(RegExp(r'[A-Z]')) &&
+        password.contains(RegExp(r'[a-z]')) &&
+        password.contains(RegExp(r'[0-9]')) &&
+        password.contains(RegExp(r'[!@#\$&*~]'));
+  }
+
+  // ---------------- TERMS ----------------
+  Future<void> _openTerms() async {
+    final accepted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const TermsConditionsPage()),
+    );
+    if (accepted != null) setState(() => termsAccepted = accepted);
+  }
+
+  // ---------------- REGISTER ----------------
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (!termsAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please accept Terms & Conditions")),
+      );
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      await AuthService.register({
+        "name": nameController.text.trim(),
+        "email": emailController.text.trim(),
+        "password": passController.text.trim(),
+        "phone": completePhoneNumber,
+        "countryISO": countryISO,
+        "address": addressController.text.trim(),
+        "gender": selectedGender,
+        "role": selectedRole,
+        "currency": selectedCurrency,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Registration successful. Please verify your email."),
+        ),
+      );
+
+      // Navigator.pushReplacement(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (_) => VerifyEmailPage(emailController.text.trim()),
+      //   ),
+      // );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceAll('Exception:', '').trim(),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool obscure = false,
+    bool? isObscured,
+    VoidCallback? toggleObscure,
+    String? helperText,
+    Function(String)? onChanged,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: TextFormField(
+        controller: controller,
+        obscureText: isObscured ?? obscure,
+        onChanged: onChanged,
+        keyboardType: label == "Phone Number"
+            ? TextInputType.phone
+            : TextInputType.text,
+        validator:
+            validator ??
+            (v) => v == null || v.trim().isEmpty ? "$label is required" : null,
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: const Color.fromARGB(255, 255, 255, 255),
+          labelText: label,
+          helperText: helperText,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 10,
+          ),
+          prefixIcon: Icon(icon, color: Color(int.parse('0xff537D4F'))),
+          suffixIcon: toggleObscure != null
+              ? IconButton(
+                  icon: Icon(
+                    (isObscured ?? true)
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
+                  onPressed: toggleObscure,
+                )
+              : null,
+          border: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    passController.dispose();
+    confirmPassController.dispose();
+    addressController.dispose();
+    super.dispose();
+  }
+
+  // ---------------- UI ----------------
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // 1️⃣ Background image (same as login)
+          Container(
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/login.jpeg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+
+          // Optional semi-transparent overlay
+          // Container(color: Colors.black.withOpacity(0.3)),
+
+          // 2️⃣ Scrollable content
+          SingleChildScrollView(
+            child: SizedBox(
+              // height: MediaQuery.of(context).size.height,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Optional logo at top
+                  // SizedBox(
+                  //   height: 200,
+                  //   width: 200,
+                  //   child: Image.asset(
+                  //     'assets/images/app_app_logo.png',
+                  //     fit: BoxFit.contain,
+                  //   ),
+                  // ),
+                  const SizedBox(height: 15),
+
+                  // Form Card
+                  SingleChildScrollView(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FractionallySizedBox(
+                              widthFactor: 0.85,
+                              child: Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                elevation:
+                                    15, // Increase elevation for a bigger shadow
+                                shadowColor: const Color.fromARGB(255, 0, 0, 0),
+                                // color: Colors.white,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFFE8E6D1), // light beige
+                                        Color.fromARGB(
+                                          255,
+                                          219,
+                                          210,
+                                          153,
+                                        ), // dark green
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(20.0),
+                                  child: Theme(
+                                    data: Theme.of(context).copyWith(
+                                      textTheme: const TextTheme(
+                                        bodyMedium: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.black
+                                        ),
+                                        bodyLarge: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.black
+                                        ),
+                                      ),
+                                      inputDecorationTheme:
+                                          const InputDecorationTheme(
+                                            labelStyle: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black
+                                            ),
+                                            hintStyle: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black54
+                                            ),
+                                          ),
+                                    ),
+                                    child: Form(
+                                      key: _formKey,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          const Text(
+                                            "CREATE ACCOUNT",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xff537D4F),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          // const Text(
+                                          //   "Fresh Qurbani, Delivered to Your Doorstep",
+                                          //   textAlign: TextAlign.center,
+                                          // ),
+                                          // const SizedBox(height: 20),
+
+                                          // Name Field
+                                          _field(
+                                            nameController,
+                                            "Full Name",
+                                            Icons.person,
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Gender Dropdown
+                                          DropdownButtonFormField<String>(
+                                            initialValue: selectedGender,
+                                            items: const [
+                                              DropdownMenuItem(
+                                                value: 'Male',
+                                                child: Text(
+                                                  'Male',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 'Female',
+                                                child: Text(
+                                                  'Female',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            onChanged: (v) => setState(
+                                              () => selectedGender = v,
+                                            ),
+                                            decoration: const InputDecoration(
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                              labelText: "Gender",
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 12,
+                                                  ),
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.all(
+                                                  Radius.circular(12),
+                                                ),
+                                              ),
+                                            ),
+                                            validator: (v) => v == null
+                                                ? "Please select gender"
+                                                : null,
+                                          ),
+
+                                          const SizedBox(height: 8),
+
+                                          // Email Field
+                                          _field(
+                                            emailController,
+                                            "Email",
+                                            Icons.email_outlined,
+                                            validator: (v) => v!.contains("@")
+                                                ? null
+                                                : "Invalid email",
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Phone Field
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 8,
+                                            ),
+                                            child: IntlPhoneField(
+                                              controller: phoneController,
+                                              initialCountryCode: 'IN',
+                                              keyboardType: TextInputType.phone,
+                                              decoration: const InputDecoration(
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                                labelText: 'Phone Number',
+                                                contentPadding: EdgeInsets.symmetric(
+                                                  vertical:
+                                                      8, // ↓ reduce vertical padding
+                                                  horizontal:
+                                                      10, // ↓ reduce horizontal padding
+                                                ),
+                                                border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      BorderRadius.all(
+                                                        Radius.circular(12),
+                                                      ),
+                                                ),
+                                              ),
+                                              onChanged: (phone) {
+                                                completePhoneNumber =
+                                                    phone.completeNumber;
+                                                countryISO =
+                                                    phone.countryISOCode;
+                                              },
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black,
+                                              ),
+                                              validator: (phone) {
+                                                if (phone == null ||
+                                                    phone.number.isEmpty) {
+                                                  return 'Phone number is required';
+                                                }
+                                                if (!phone.isValidNumber()) {
+                                                  return 'Invalid phone number';
+                                                }
+                                                return null;
+                                              },
+                                            ),
+                                          ),
+
+                                          // Address
+                                          _field(
+                                            addressController,
+                                            "Address",
+                                            Icons.location_on,
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Password
+                                          _field(
+                                            passController,
+                                            "Password",
+                                            Icons.lock_outline,
+                                            helperText:
+                                                "Min 8 chars, 1 upper, 1 lower, 1 number, 1 special\nExample: Abc@1234",
+                                            onChanged: (v) {
+                                              setState(() {
+                                                passwordStrength =
+                                                    _checkPasswordStrength(v);
+                                              });
+                                            },
+                                            validator: (v) =>
+                                                _isPasswordValid(v!)
+                                                ? null
+                                                : "Invalid password",
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Confirm Password
+                                          _field(
+                                            confirmPassController,
+                                            "Confirm Password",
+                                            Icons.lock_outline,
+                                            isObscured: _obscureConfirmPassword,
+                                            toggleObscure: () {
+                                              setState(() {
+                                                _obscureConfirmPassword =
+                                                    !_obscureConfirmPassword;
+                                              });
+                                            },
+                                            validator: (v) =>
+                                                v != passController.text
+                                                ? "Passwords do not match"
+                                                : null,
+                                          ),
+
+                                          if (passwordStrength.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 6,
+                                              ),
+                                              child: Text(
+                                                "Password strength: $passwordStrength",
+                                                style: TextStyle(
+                                                  color:
+                                                      passwordStrength ==
+                                                          "Strong"
+                                                      ? Color(
+                                                          int.parse(
+                                                            '0xff537D4F',
+                                                          ),
+                                                        )
+                                                      : Colors.red,
+                                                ),
+                                              ),
+                                            ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Role Dropdown
+                                          DropdownButtonFormField<String>(
+                                            initialValue: selectedRole,
+                                            items: const [
+                                              DropdownMenuItem(
+                                                value: 'user',
+                                                child: Text(
+                                                  "User",
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 'admin',
+                                                child: Text(
+                                                  "Admin",
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 'delivery',
+                                                child: Text(
+                                                  "Delivery",
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            onChanged: (v) => setState(
+                                              () => selectedRole = v!,
+                                            ),
+                                            decoration: const InputDecoration(
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                              labelText: "Register As",
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.all(
+                                                  Radius.circular(12),
+                                                ),
+                                              ),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 12,
+                                                  ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Terms
+                                          Row(
+                                            children: [
+                                              Checkbox(
+                                                value: termsAccepted,
+                                                onChanged: (_) => _openTerms(),
+                                                activeColor: Color(
+                                                  int.parse('0xff537D4F'),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: GestureDetector(
+                                                  onTap: _openTerms,
+                                                  child: const Text(
+                                                    "I agree to the Terms & Conditions",
+                                                    style: TextStyle(
+                                                      decoration: TextDecoration
+                                                          .underline,
+                                                      color: Color(0xff537D4F),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Register button
+                                          ElevatedButton(
+                                            onPressed: isLoading
+                                                ? null
+                                                : _register,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Color(
+                                                int.parse('0xff537D4F'),
+                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 8,
+                                                  ),
+                                            ),
+                                            child: isLoading
+                                                ? const CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                  )
+                                                : const Text(
+                                                    "Register",
+                                                    style: TextStyle(
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          GestureDetector(
+                                            onTap: () =>
+                                                Navigator.pushReplacement(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const LoginScreen(),
+                                                  ),
+                                                ),
+                                            child: const Text(
+                                              "Already have an account? Login",
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Color(0xff537D4F),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // ),
+                              // ),),
+                              // const SizedBox(height: 50),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

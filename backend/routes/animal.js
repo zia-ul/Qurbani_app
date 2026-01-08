@@ -1,0 +1,35 @@
+const express = require("express");
+const { body } = require("express-validator");
+const auth = require("../controllers/auth");
+const isAdmin = require("../middleware/isAdmin");
+const { addAnimal } = require("../controllers/addAnimal");
+
+const router = express.Router();
+
+/**
+ * ADD ANIMAL (Admin only)
+ */
+router.post(
+  "/",
+  auth,
+  isAdmin,
+  [
+    body("animalType").notEmpty(),
+    body("breed").notEmpty(),
+    body("price").isNumeric(),
+    body("paymentMethods").isArray({ min: 1 }),
+  ],
+  async (req, res) => {
+    try {
+      const id = await addAnimal(req.user.id, req.body);
+      res.status(201).json({
+        message: "Animal added successfully",
+        animalId: id,
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+module.exports = router;

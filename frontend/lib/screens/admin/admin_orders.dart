@@ -1,0 +1,400 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani/screens/admin/admin_order_details.dart';
+
+class AdminOrdersPage extends StatefulWidget {
+  final String adminId;
+
+  const AdminOrdersPage({super.key, required this.adminId});
+
+  @override
+  State<AdminOrdersPage> createState() => _AdminOrdersPageState();
+}
+
+class _AdminOrdersPageState extends State<AdminOrdersPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  String _searchQuery = "";
+  final Color primaryGreen = const Color(0xFF3D6B4E);
+  final Color lightBg = const Color(0xFFF4F7F4);
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text(
+          "View Orders",
+          style: TextStyle(
+            color: Color(0xFF2D4F32),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Color(0xFF2D4F32)),
+      ),
+      body: Column(
+        children: [
+          // 1. TABS
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: primaryGreen,
+              unselectedLabelColor: Color(0xff537D4F),
+              indicatorColor: primaryGreen,
+              tabs: const [
+                Tab(text: "Active"),
+                Tab(text: "Completed"),
+              ],
+            ),
+          ),
+
+          // 2. SEARCH BAR
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: "Search ID or Phone...",
+                prefixIcon: const Icon(Icons.search),
+                fillColor: Colors.white,
+                filled: true,
+                isDense: true,
+                contentPadding: const EdgeInsets.all(12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          // 3. ORDER LISTS
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOrderList(isActive: true),
+                _buildOrderList(isActive: false),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderList({required bool isActive}) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('admin_orders')
+          .where('adminId', isEqualTo: widget.adminId)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError)
+          return Center(child: Text("Error: ${snapshot.error}"));
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
+
+        final docs = snapshot.data!.docs.where((d) {
+          final data = d.data();
+
+          // Filter by completion status - include delivered orders as completed
+          final isCompleted = data['isCompleted'] ?? false;
+          final deliveryStatus = data['deliveryStatus'] ?? 'pending';
+          final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
+
+          // Show in Active: not completed AND not delivered
+          // Show in Completed: completed OR delivered
+          final matchesStatus = isActive
+              ? (!isCompleted && !isDelivered)
+              : (isCompleted || isDelivered);
+
+          // Filter by search query
+          final orderId = (data['orderId'] ?? d.id).toString().toLowerCase();
+          final phone =
+              (data['contact'] is Map
+                      ? data['contact']['primary']
+                      : data['contact'] ?? '')
+                  .toString()
+                  .toLowerCase();
+          final matchesSearch =
+              orderId.contains(_searchQuery) || phone.contains(_searchQuery);
+
+          return matchesStatus && matchesSearch;
+        }).toList();
+
+        if (docs.isEmpty) return const Center(child: Text("No orders found"));
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data();
+            final orderId = data['orderId'] ?? docs[index].id;
+            final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
+            final processingStatus = data['processingStatus'] ?? 'Pending';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RichText(
+                            overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 14,
+                              ),
+                              children: [
+                                const TextSpan(
+                                  text: "ID: ",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                TextSpan(text: "#$orderId"),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        SizedBox(
+                          height: 30,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AdminOrderDetailPage(
+                                  orderId: docs[index].id,
+                                ),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryGreen,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                            child: const Text(
+                              "View >",
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text(
+                          "Status >",
+                          style: TextStyle(fontSize: 13, color: Colors.black87),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F2E8),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.local_shipping_outlined,
+                                  size: 14,
+                                  color: primaryGreen,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    deliveryStatus,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: primaryGreen,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Text(
+                          "Processing >",
+                          style: TextStyle(fontSize: 13, color: Colors.black87),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.settings,
+                                  size: 14,
+                                  color: Colors.orange[800],
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    processingStatus,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.orange[800],
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// Fixed FilterBar class outside of the main PageState
+class FilterBar extends StatelessWidget {
+  final List<String> processingOptions;
+  final List<String> deliveryOptions;
+  final String processingFilter;
+  final String deliveryFilter;
+  final Function(String) onProcessingChanged;
+  final Function(String) onDeliveryChanged;
+
+  const FilterBar({
+    super.key,
+    required this.processingOptions,
+    required this.deliveryOptions,
+    required this.processingFilter,
+    required this.deliveryFilter,
+    required this.onProcessingChanged,
+    required this.onDeliveryChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: processingFilter,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Processing',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
+                items: processingOptions
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e, style: const TextStyle(fontSize: 12)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => onProcessingChanged(v!),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: deliveryFilter,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
+                ),
+                items: deliveryOptions
+                    .map(
+                      (e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e, style: const TextStyle(fontSize: 12)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => onDeliveryChanged(v!),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

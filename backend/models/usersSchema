@@ -1,0 +1,30 @@
+CREATE TABLE users (
+    id CHAR(36) PRIMARY KEY,
+
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+
+    phone VARCHAR(30),
+    country_iso CHAR(5),
+    address TEXT,
+
+    gender ENUM('Male', 'Female'),
+
+    role ENUM('user', 'admin', 'delivery') NOT NULL DEFAULT 'user',
+    admin_status ENUM('pending', 'approved', 'rejected') DEFAULT NULL,
+
+    city VARCHAR(100),
+    currency CHAR(3) DEFAULT 'USD',
+
+    verification_token CHAR(36),
+    is_verified BOOLEAN DEFAULT FALSE,
+
+    is_active BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_role (role),
+    INDEX idx_city (city)
+);

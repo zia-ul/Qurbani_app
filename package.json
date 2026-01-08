@@ -1,0 +1,10 @@
+{
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  },
+  "dependencies": {
+    "express-validator": "^7.3.1",
+    "nodemailer": "^7.0.12",
+    "uuid": "^13.0.0"
+  }
+}
