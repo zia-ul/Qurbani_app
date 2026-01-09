@@ -80,12 +80,12 @@ class MyApp extends StatelessWidget {
       title: 'Qurbani App',
 
       /// Centralized Theme
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      // theme: AppTheme.lightTheme,
+      // darkTheme: AppTheme.darkTheme,
+      // themeMode: ThemeMode.system,
 
-      // home: const WrapperScreen(),
-      home: const WelcomeScreen(),
+      home: const WrapperScreen(),
+      // home: const WelcomeScreen(),
     );
   }
 }

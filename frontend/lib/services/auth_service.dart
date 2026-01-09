@@ -46,6 +46,7 @@ class AuthService {
 
    // LOGIN
   static Future<UserModel> login(Map<String, dynamic> data) async {
+    print(data);
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},

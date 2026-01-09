@@ -2,7 +2,7 @@ const express = require("express");
 const { body } = require("express-validator");
 const auth = require("../controllers/auth");
 const isAdmin = require("../middleware/isAdmin");
-const { addAnimal } = require("../controllers/addAnimal");
+const { addAnimal } = require("../controllers/add_animal_details");
 
 const router = express.Router();
 
@@ -27,6 +27,7 @@ router.post(
         animalId: id,
       });
     } catch (err) {
+      console.error("Error adding animal:", err);
       res.status(500).json({ message: err.message });
     }
   }

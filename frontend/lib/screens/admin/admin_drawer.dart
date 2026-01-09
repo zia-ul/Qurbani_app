@@ -147,12 +147,12 @@ class AdminDrawer extends StatelessWidget {
           //   title: "Reset Password",
           //   page: const ResetPasswordPage(),
           // ),
-          // _drawerItem(
-          //   context,
-          //   icon: Icons.assignment,
-          //   title: "Animal Inventory",
-          //   page: AnimalListingPage(),
-          // ),
+          _drawerItem(
+            context,
+            icon: Icons.assignment,
+            title: "Animal Inventory",
+            page: AnimalListingPage(),
+          ),
           _drawerItem(
             context,
             icon: Icons.assignment,

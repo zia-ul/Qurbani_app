@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:convert';
 
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -28,13 +27,13 @@ class AdminHomePage extends StatefulWidget {
 }
 
 class _AdminHomePageState extends State<AdminHomePage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   final Color primaryGreen = const Color(0xff3D6B4E);
   final Color scaffoldBg = const Color(0xffF4F7F4);
 
-  static const String _baseUrl = "https://your-api-url.com/api";
+  static const String _baseUrl = "http://192.168.1.6:3000/api";
 
   @override
   void initState() {
@@ -42,9 +41,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkPermissions();
       await _ensureLocationSelected();
-      _listenForNewOrders();
-      _listenForDeliveryUpdates();
-      _listenForRatings();
+      // _listenForNewOrders();
+      // _listenForDeliveryUpdates();
+      // _listenForRatings();
     });
   }
 
@@ -52,86 +51,86 @@ class _AdminHomePageState extends State<AdminHomePage> {
   // FIRESTORE LISTENERS (Realtime Notifications Only)
   // ---------------------------------------------------------
 
-  void _listenForNewOrders() {
-    _firestore
-        .collection('admin_orders')
-        .where('adminId', isEqualTo: widget.adminId)
-        .snapshots()
-        .listen((snapshot) {
-      for (var docChange in snapshot.docChanges) {
-        if (docChange.type == DocumentChangeType.added) {
-          final data = docChange.doc.data();
-          if (data == null) continue;
+  // void _listenForNewOrders() {
+  //   _firestore
+  //       .collection('admin_orders')
+  //       .where('adminId', isEqualTo: widget.adminId)
+  //       .snapshots()
+  //       .listen((snapshot) {
+  //     for (var docChange in snapshot.docChanges) {
+  //       if (docChange.type == DocumentChangeType.added) {
+  //         final data = docChange.doc.data();
+  //         if (data == null) continue;
 
-          if (data['newOrderPlacedNotified'] != true) {
-            _triggerAdminNotification(
-              title: "💰 New Order Received",
-              body: "Order #${docChange.doc.id} has been placed.",
-            );
+  //         if (data['newOrderPlacedNotified'] != true) {
+  //           _triggerAdminNotification(
+  //             title: "💰 New Order Received",
+  //             body: "Order #${docChange.doc.id} has been placed.",
+  //           );
 
-            docChange.doc.reference.update({
-              'newOrderPlacedNotified': true,
-            });
-          }
-        }
-      }
-    });
-  }
+  //           docChange.doc.reference.update({
+  //             'newOrderPlacedNotified': true,
+  //           });
+  //         }
+  //       }
+  //     }
+  //   });
+  // }
 
-  void _listenForDeliveryUpdates() {
-    _firestore
-        .collection('admin_orders')
-        .where('adminId', isEqualTo: widget.adminId)
-        .snapshots()
-        .listen((snapshot) {
-      for (var docChange in snapshot.docChanges) {
-        if (docChange.type == DocumentChangeType.modified) {
-          final data = docChange.doc.data();
-          if (data == null) continue;
+  // void _listenForDeliveryUpdates() {
+  //   _firestore
+  //       .collection('admin_orders')
+  //       .where('adminId', isEqualTo: widget.adminId)
+  //       .snapshots()
+  //       .listen((snapshot) {
+  //     for (var docChange in snapshot.docChanges) {
+  //       if (docChange.type == DocumentChangeType.modified) {
+  //         final data = docChange.doc.data();
+  //         if (data == null) continue;
 
-          final status = (data['deliveryStatus'] ?? '').toString().toLowerCase();
-          if ((status == 'sent' || status == 'delivered') &&
-              data['deliveryUpdateAdminNotified'] != true) {
-            _triggerAdminNotification(
-              title: "🚚 Delivery Update",
-              body: "Order #${docChange.doc.id} is now $status",
-            );
+  //         final status = (data['deliveryStatus'] ?? '').toString().toLowerCase();
+  //         if ((status == 'sent' || status == 'delivered') &&
+  //             data['deliveryUpdateAdminNotified'] != true) {
+  //           _triggerAdminNotification(
+  //             title: "🚚 Delivery Update",
+  //             body: "Order #${docChange.doc.id} is now $status",
+  //           );
 
-            docChange.doc.reference.update({
-              'deliveryUpdateAdminNotified': true,
-            });
-          }
-        }
-      }
-    });
-  }
+  //           docChange.doc.reference.update({
+  //             'deliveryUpdateAdminNotified': true,
+  //           });
+  //         }
+  //       }
+  //     }
+  //   });
+  // }
 
-  void _listenForRatings() {
-    _firestore
-        .collection('admin_orders')
-        .where('adminId', isEqualTo: widget.adminId)
-        .snapshots()
-        .listen((snapshot) {
-      for (var docChange in snapshot.docChanges) {
-        if (docChange.type == DocumentChangeType.modified) {
-          final data = docChange.doc.data();
-          if (data == null) continue;
+  // void _listenForRatings() {
+  //   _firestore
+  //       .collection('admin_orders')
+  //       .where('adminId', isEqualTo: widget.adminId)
+  //       .snapshots()
+  //       .listen((snapshot) {
+  //     for (var docChange in snapshot.docChanges) {
+  //       if (docChange.type == DocumentChangeType.modified) {
+  //         final data = docChange.doc.data();
+  //         if (data == null) continue;
 
-          if (data['rating'] != null &&
-              data['ratingAdminNotified'] != true) {
-            _triggerAdminNotification(
-              title: "⭐ New Rating",
-              body: "Order #${docChange.doc.id} received a rating",
-            );
+  //         if (data['rating'] != null &&
+  //             data['ratingAdminNotified'] != true) {
+  //           _triggerAdminNotification(
+  //             title: "⭐ New Rating",
+  //             body: "Order #${docChange.doc.id} received a rating",
+  //           );
 
-            docChange.doc.reference.update({
-              'ratingAdminNotified': true,
-            });
-          }
-        }
-      }
-    });
-  }
+  //           docChange.doc.reference.update({
+  //             'ratingAdminNotified': true,
+  //           });
+  //         }
+  //       }
+  //     }
+  //   });
+  // }
 
   // ---------------------------------------------------------
   // NOTIFICATIONS
@@ -231,7 +230,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildSlotSummary(),
+                  // _buildSlotSummary(),
                 ],
               ),
             ),
@@ -314,54 +313,54 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Widget _buildSlotSummary() {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _firestore.collection("eidSlots").doc(widget.adminId).snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Text("No slot data found");
-        }
+  // Widget _buildSlotSummary() {
+  //   return StreamBuilder<DocumentSnapshot>(
+  //     stream: _firestore.collection("eidSlots").doc(widget.adminId).snapshots(),
+  //     builder: (context, snapshot) {
+  //       if (!snapshot.hasData || !snapshot.data!.exists) {
+  //         return const Text("No slot data found");
+  //       }
 
-        final data = snapshot.data!.data() as Map<String, dynamic>;
-        final days = ["day 1", "day 2", "day 3"];
+  //       final data = snapshot.data!.data() as Map<String, dynamic>;
+  //       final days = ["day 1", "day 2", "day 3"];
 
-        return SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: days.length,
-            itemBuilder: (_, i) {
-              final slots = data[days[i]] ?? [];
-              final free = slots.where((s) => s["status"] == "Free").length;
+  //       return SizedBox(
+  //         height: 100,
+  //         child: ListView.builder(
+  //           scrollDirection: Axis.horizontal,
+  //           itemCount: days.length,
+  //           itemBuilder: (_, i) {
+  //             final slots = data[days[i]] ?? [];
+  //             final free = slots.where((s) => s["status"] == "Free").length;
 
-              return Container(
-                width: 160,
-                margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryGreen, const Color(0xff5A916E)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(days[i].toUpperCase(),
-                        style: const TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 6),
-                    Text("$free Free",
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
+  //             return Container(
+  //               width: 160,
+  //               margin: const EdgeInsets.only(right: 12),
+  //               padding: const EdgeInsets.all(12),
+  //               decoration: BoxDecoration(
+  //                 gradient: LinearGradient(
+  //                   colors: [primaryGreen, const Color(0xff5A916E)],
+  //                 ),
+  //                 borderRadius: BorderRadius.circular(12),
+  //               ),
+  //               child: Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   Text(days[i].toUpperCase(),
+  //                       style: const TextStyle(color: Colors.white70)),
+  //                   const SizedBox(height: 6),
+  //                   Text("$free Free",
+  //                       style: const TextStyle(
+  //                           color: Colors.white,
+  //                           fontSize: 18,
+  //                           fontWeight: FontWeight.bold)),
+  //                 ],
+  //               ),
+  //             );
+  //           },
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 }

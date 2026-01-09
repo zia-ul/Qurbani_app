@@ -32,87 +32,87 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkPermissions();
+      // _checkPermissions();
     });
     // Notification Listeners
-    _listenForStatusUpdates();
+    // _listenForStatusUpdates();
   }
 
   // --- Notification Logic ---
   // Consolidated listener to handle both processing and delivery updates efficiently
-  void _listenForStatusUpdates() {
-    FirebaseFirestore.instance
-        .collection('admin_orders')
-        .where('userId', isEqualTo: widget.id)
-        .snapshots()
-        .listen((snapshot) {
-          for (var docChange in snapshot.docChanges) {
-            if (docChange.type == DocumentChangeType.modified) {
-              final data = docChange.doc.data();
-              if (data == null) continue;
+  // void _listenForStatusUpdates() {
+  //   FirebaseFirestore.instance
+  //       .collection('admin_orders')
+  //       .where('userId', isEqualTo: widget.id)
+  //       .snapshots()
+  //       .listen((snapshot) {
+  //         for (var docChange in snapshot.docChanges) {
+  //           if (docChange.type == DocumentChangeType.modified) {
+  //             final data = docChange.doc.data();
+  //             if (data == null) continue;
 
-              final orderId = docChange.doc.id;
+  //             final orderId = docChange.doc.id;
 
-              // 1. Check Processing Status Change
-              final bool procNotified = data['userProcessingNotified'] ?? false;
-              final String procStatus = data['processingStatus'] ?? '';
-              if (procStatus.isNotEmpty && !procNotified) {
-                _triggerNotification(
-                  id: 100,
-                  title: '⚙️ Order Processing',
-                  body: 'Order #$orderId status: "$procStatus"',
-                );
-                _markAsNotified(docChange.doc.id, 'userProcessingNotified');
-              }
+  //             // 1. Check Processing Status Change
+  //             final bool procNotified = data['userProcessingNotified'] ?? false;
+  //             final String procStatus = data['processingStatus'] ?? '';
+  //             if (procStatus.isNotEmpty && !procNotified) {
+  //               _triggerNotification(
+  //                 id: 100,
+  //                 title: '⚙️ Order Processing',
+  //                 body: 'Order #$orderId status: "$procStatus"',
+  //               );
+  //               _markAsNotified(docChange.doc.id, 'userProcessingNotified');
+  //             }
 
-              // 2. Check Delivery Status Change
-              final bool delNotified = data['userDeliveryNotified'] ?? false;
-              final String delStatus = data['deliveryStatus'] ?? '';
-              if (delStatus.isNotEmpty && !delNotified) {
-                _triggerNotification(
-                  id: 200,
-                  title: '🚚 Delivery Update',
-                  body: 'Order #$orderId delivery: "$delStatus"',
-                );
-                _markAsNotified(docChange.doc.id, 'userDeliveryNotified');
-              }
-            }
-          }
-        });
-  }
+  //             // 2. Check Delivery Status Change
+  //             final bool delNotified = data['userDeliveryNotified'] ?? false;
+  //             final String delStatus = data['deliveryStatus'] ?? '';
+  //             if (delStatus.isNotEmpty && !delNotified) {
+  //               _triggerNotification(
+  //                 id: 200,
+  //                 title: '🚚 Delivery Update',
+  //                 body: 'Order #$orderId delivery: "$delStatus"',
+  //               );
+  //               _markAsNotified(docChange.doc.id, 'userDeliveryNotified');
+  //             }
+  //           }
+  //         }
+  //       });
+  // }
 
-  void _triggerNotification({
-    required int id,
-    required String title,
-    required String body,
-  }) {
-    AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: id + DateTime.now().millisecond,
-        channelKey: 'user_orders',
-        title: title,
-        body: body,
-        notificationLayout: NotificationLayout.Default,
-      ),
-    );
-  }
+  // void _triggerNotification({
+  //   required int id,
+  //   required String title,
+  //   required String body,
+  // }) {
+  //   AwesomeNotifications().createNotification(
+  //     content: NotificationContent(
+  //       id: id + DateTime.now().millisecond,
+  //       channelKey: 'user_orders',
+  //       title: title,
+  //       body: body,
+  //       notificationLayout: NotificationLayout.Default,
+  //     ),
+  //   );
+  // }
 
-  void _markAsNotified(String docId, String field) {
-    FirebaseFirestore.instance
-        .collection('admin_orders')
-        .doc(docId)
-        .update({field: true})
-        .catchError((e) => print("Notification flag update failed: $e"));
-  }
+  // void _markAsNotified(String docId, String field) {
+  //   FirebaseFirestore.instance
+  //       .collection('admin_orders')
+  //       .doc(docId)
+  //       .update({field: true})
+  //       .catchError((e) => print("Notification flag update failed: $e"));
+  // }
 
-  Future<void> _checkPermissions() async {
-    await [Permission.notification, Permission.location].request();
+  // Future<void> _checkPermissions() async {
+  //   await [Permission.notification, Permission.location].request();
 
-    bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
-    if (!isAllowed) {
-      AwesomeNotifications().requestPermissionToSendNotifications();
-    }
-  }
+  //   bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
+  //   if (!isAllowed) {
+  //     AwesomeNotifications().requestPermissionToSendNotifications();
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

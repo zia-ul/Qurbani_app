@@ -104,16 +104,12 @@ class _RegisterPageState extends State<RegisterPage> {
       // );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => LoginScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => LoginScreen()),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString().replaceAll('Exception:', '').trim(),
-          ),
+          content: Text(e.toString().replaceAll('Exception:', '').trim()),
         ),
       );
     } finally {
@@ -189,7 +185,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1️⃣ Background image (same as login)
+          // Background image (same as login)
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -202,7 +198,7 @@ class _RegisterPageState extends State<RegisterPage> {
           // Optional semi-transparent overlay
           // Container(color: Colors.black.withOpacity(0.3)),
 
-          // 2️⃣ Scrollable content
+          // Scrollable content
           SingleChildScrollView(
             child: SizedBox(
               // height: MediaQuery.of(context).size.height,
@@ -263,22 +259,22 @@ class _RegisterPageState extends State<RegisterPage> {
                                       textTheme: const TextTheme(
                                         bodyMedium: TextStyle(
                                           fontSize: 13,
-                                          color: Colors.black
+                                          color: Colors.black,
                                         ),
                                         bodyLarge: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.black
+                                          color: Colors.black,
                                         ),
                                       ),
                                       inputDecorationTheme:
                                           const InputDecorationTheme(
                                             labelStyle: TextStyle(
                                               fontSize: 13,
-                                              color: Colors.black
+                                              color: Colors.black,
                                             ),
                                             hintStyle: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.black54
+                                              color: Colors.black54,
                                             ),
                                           ),
                                     ),

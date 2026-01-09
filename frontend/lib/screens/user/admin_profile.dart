@@ -4,15 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qurbani/services/admin_service.dart';
 
-class ProfilePage extends StatefulWidget {
+class AdminProfile extends StatefulWidget {
   final String adminId;
-  const ProfilePage({super.key, required this.adminId});
+  const AdminProfile({super.key, required this.adminId});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<AdminProfile> createState() => _AdminProfileState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _AdminProfileState extends State<AdminProfile> {
   bool _isLoading = true;
   bool _isEditing = false;
 

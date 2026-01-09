@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/screens/user/admin_profile.dart';
-import 'cart_badge.dart';
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
@@ -24,10 +23,10 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
     _adminsFuture = fetchVerifiedAdmins();
   }
 
-  /// Fetch verified admins from Node + MySQL
+  /// Fetch verified admins from Node(backend), MySQL
   Future<List<dynamic>> fetchVerifiedAdmins() async {
     final res = await http.get(
-      Uri.parse("http://YOUR_SERVER_IP:3000/api/admins/verified"),
+      Uri.parse("http://192.168.1.6:3000/api/admins/verified"),
     );
 
     if (res.statusCode != 200) {
@@ -131,8 +130,8 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   Widget _buildAdminGridCard(Map<String, dynamic> admin) {
     final String name = admin['name'] ?? 'Unknown Admin';
     final String address = admin['address'] ?? 'No Address';
-    final double rating =
-        double.tryParse(admin['average_rating']?.toString() ?? '0') ?? 0.0;
+    // final double rating =
+        // double.tryParse(admin['average_rating']?.toString() ?? '0') ?? 0.0;
     final String adminId = admin['id'];
 
     return Container(
@@ -171,15 +170,15 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.star, size: 14, color: Colors.amber),
-                Text(
-                  " $rating",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 4),
+                // const Icon(Icons.star, size: 14, color: Colors.amber),
+                // Text(
+                //   " $rating",
+                //   style: const TextStyle(
+                //     fontSize: 12,
+                //     fontWeight: FontWeight.w500,
+                //   ),
+                // ),
+                // const SizedBox(width: 4),
                 const Icon(Icons.verified, size: 14, color: Colors.blue),
               ],
             ),
@@ -213,7 +212,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          AdminProfilePage(adminId: adminId),
+                          AdminProfile(adminId: adminId),
                     ),
                   );
                 },

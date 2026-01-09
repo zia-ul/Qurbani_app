@@ -3,17 +3,18 @@ const bcrypt = require("bcryptjs");
 const { body, validationResult } = require("express-validator");
 const db = require("../config/db");
 const { v4: uuidv4 } = require("uuid"); // For UUID
-const crypto = require("crypto");       // Optional if you want extra token randomness
+const crypto = require("crypto"); // Optional if you want extra token randomness
 const nodemailer = require("nodemailer"); // For sending verification emails
+const jwt = require("jsonwebtoken");
 
-const transporter = nodemailer.createTransport({
-  service: "Gmail",
-  auth: {
-    user: "your_email@gmail.com", // Replace with your email
-    pass: "your_email_password",  // Or app password
-  },
-});
-
+//email verification using nodemailer
+// const transporter = nodemailer.createTransport({
+//   service: "Gmail",
+//   auth: {
+//     user: "your_email@gmail.com",
+//     pass: "your_email_password",
+//   },
+// });
 
 const router = express.Router();
 
@@ -48,7 +49,7 @@ router.post(
     } = req.body;
 
     try {
-      // 1️⃣ Check email uniqueness
+      // Check email uniqueness
       const [existing] = await db.query(
         "SELECT id FROM users WHERE email = ?",
         [email]
@@ -58,36 +59,36 @@ router.post(
         return res.status(409).json({ message: "Email already registered" });
       }
 
-      // 2️⃣ Admin city uniqueness check
-      if (role === "admin") {
-        if (!city) {
-          return res
-            .status(400)
-            .json({ message: "City is required for admin" });
-        }
+      // Admin city uniqueness check
+      // if (role === "admin") {
+      //   if (!city) {
+      //     return res
+      //       .status(400)
+      //       .json({ message: "City is required for admin" });
+      //   }
 
-        const [adminExists] = await db.query(
-          `SELECT id FROM users 
-           WHERE role = 'admin' AND admin_status = 'approved' AND city = ?`,
-          [city]
-        );
+      //   const [adminExists] = await db.query(
+      //     `SELECT id FROM users 
+      //      WHERE role = 'admin' AND admin_status = 'approved' AND city = ?`,
+      //     [city]
+      //   );
 
-        if (adminExists.length > 0) {
-          return res.status(409).json({
-            message: "An admin already exists for this city",
-          });
-        }
-      }
+      //   if (adminExists.length > 0) {
+      //     return res.status(409).json({
+      //       message: "An admin already exists for this city",
+      //     });
+      //   }
+      // }
 
-      // 3️⃣ Hash password
+      // Hash password
       const passwordHash = await bcrypt.hash(password, 12);
 
-      // 4️⃣ Admin approval logic
+      // Admin approval logic
       const adminStatus = role === "admin" ? "pending" : null;
       const userId = uuidv4();
       const verificationToken = uuidv4();
 
-      // 5️⃣ Insert user
+      // Insert user
       await db.query(
         `INSERT INTO users
         (id, name, email, password_hash, phone, country_iso, address, gender, role,
@@ -126,25 +127,29 @@ router.post(
   }
 );
 
-
 //login verification API
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1️⃣ Validate input
+    // Validate input
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
-    // 2️⃣ Fetch user
+    const emailNormalized = email.toLowerCase();
+
+
+    // Fetch user
     const [users] = await db.query(
       `SELECT 
         id, name, email, password_hash, role, admin_status,
         is_verified, is_active, city, currency
        FROM users
        WHERE email = ?`,
-      [email]
+      [emailNormalized]
     );
 
     if (users.length === 0) {
@@ -153,34 +158,38 @@ router.post("/login", async (req, res) => {
 
     const user = users[0];
 
-    // 3️⃣ Check password
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // 4️⃣ Check email verification
+    // Check email verification
     if (!user.is_verified) {
       return res.status(403).json({
         message: "Please verify your email before logging in",
       });
     }
 
-    // 5️⃣ Check if account is active
+    // Check if account is active
     if (!user.is_active) {
       return res.status(403).json({
         message: "Account is deactivated. Contact support.",
       });
     }
 
-    // 6️⃣ Admin approval check
-    if (user.role === "admin" && user.admin_status !== "approved") {
-      return res.status(403).json({
-        message: "Admin approval pending",
-      });
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not defined in environment variables");
     }
 
-    // 7️⃣ Generate JWT
+    // Admin approval check
+    // if (user.role === "admin" && user.admin_status !== "approved") {
+    //   return res.status(403).json({
+    //     message: "Admin approval pending",
+    //   });
+    // }
+
+    // Generate JWT
     const token = jwt.sign(
       {
         id: user.id,
@@ -190,7 +199,7 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    // 8️⃣ Send response (Flutter expects this format)
+    // Send response to frontend
     return res.json({
       token,
       user: {
@@ -207,6 +216,5 @@ router.post("/login", async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 
 module.exports = router;

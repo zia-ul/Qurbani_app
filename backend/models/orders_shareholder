@@ -1,0 +1,36 @@
+-- Orders Table
+CREATE TABLE orders (
+  id CHAR(36) PRIMARY KEY,
+  user_id CHAR(36) NOT NULL,
+  admin_id CHAR(36) NOT NULL,
+  payment_method ENUM('Cash','Online') NOT NULL,
+  total_shares INT NOT NULL,
+  status ENUM('pending','confirmed','completed','cancelled') DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- Foreign keys
+  CONSTRAINT fk_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+
+  CONSTRAINT fk_admin
+    FOREIGN KEY (admin_id) REFERENCES users(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
+
+-- Shareholders Table
+CREATE TABLE shareholders (
+  id CHAR(36) PRIMARY KEY,
+  order_id CHAR(36) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  guardian_name VARCHAR(255) NOT NULL,
+  qurbani_day ENUM('Day 1','Day 2','Day 3') NOT NULL DEFAULT 'Day 1',
+
+  -- Foreign key
+  CONSTRAINT fk_order
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+);
