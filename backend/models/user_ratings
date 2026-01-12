@@ -1,0 +1,21 @@
+CREATE TABLE ratings (
+  id CHAR(36) PRIMARY KEY DEFAULT (UUID()),  -- Auto-generated UUID
+  order_id CHAR(36) NOT NULL,
+  user_id CHAR(36) NOT NULL,
+  admin_id CHAR(36) NOT NULL,
+  admin_rating DECIMAL(2,1) NOT NULL CHECK (admin_rating >= 1 AND admin_rating <= 5),  -- 1-5 stars
+  delivery_rating DECIMAL(2,1) NOT NULL CHECK (delivery_rating >= 1 AND delivery_rating <= 5),
+  feedback TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- Foreign keys
+  CONSTRAINT fk_rating_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rating_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rating_admin FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE CASCADE,
+
+  -- Unique constraint to prevent duplicate ratings per user/order/admin
+  UNIQUE KEY unique_rating (order_id, user_id, admin_id)
+);
+
+-- Index for faster queries
+CREATE INDEX idx_ratings_order_user ON ratings(order_id, user_id);

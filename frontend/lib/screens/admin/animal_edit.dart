@@ -11,6 +11,7 @@ import 'package:qurbani/widgets/common_card.dart';
 import 'package:qurbani/widgets/common_label.dart';
 import 'package:qurbani/widgets/common_input_decoration.dart';
 import 'package:qurbani/widgets/custom_toast.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AnimalEditPage extends StatefulWidget {
   final String animalId;
@@ -164,17 +165,20 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
 
       if (res.statusCode == 200) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Animal updated successfully")),
-        );
+
+        ToastUtils.showSuccess('Animal updated successfully');
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text("Animal updated successfully")),
+        // );
         Navigator.pop(context);
       } else {
         throw res.body;
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ToastUtils.showError("Error: ${e.toString()}");
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       setState(() => isUpdating = false);
     }

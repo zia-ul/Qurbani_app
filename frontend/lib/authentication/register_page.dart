@@ -4,6 +4,7 @@ import 'package:qurbani/authentication/login_page.dart';
 import 'package:qurbani/services/auth_service.dart';
 import 'package:qurbani/terms_condition_dialog.dart';
 import 'package:qurbani/verify_email.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -67,9 +68,10 @@ class _RegisterPageState extends State<RegisterPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (!termsAccepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please accept Terms & Conditions")),
-      );
+      ToastUtils.showError('Please accept Terms & Conditions');
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text("Please accept Terms & Conditions")),
+      // );
       return;
     }
 
@@ -90,11 +92,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Registration successful. Please verify your email."),
-        ),
-      );
+      ToastUtils.showSuccess('Registration successful. Please verify your email.');
 
       // Navigator.pushReplacement(
       //   context,
@@ -107,11 +105,12 @@ class _RegisterPageState extends State<RegisterPage> {
         MaterialPageRoute(builder: (_) => LoginScreen()),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception:', '').trim()),
-        ),
-      );
+      ToastUtils.showError("${e.toString().replaceAll('Exception:', '').trim()}");
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(
+      //     content: Text(e.toString().replaceAll('Exception:', '').trim()),
+      //   ),
+      // );
     } finally {
       if (mounted) setState(() => isLoading = false);
     }

@@ -1,32 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani/services/admin_order_service.dart'; // Adjust path
+import 'package:qurbani/services/ratings_service.dart';
+import 'package:qurbani/services/user_service.dart';
+import 'package:qurbani/widgets/success_error_popup.dart'; // Adjust path
 
 class AdminOrderDetailPage extends StatefulWidget {
   final String orderId;
-  final Map<String, dynamic> orderData;
 
-  const AdminOrderDetailPage({
-    super.key,
-    required this.orderId,
-    required this.orderData,
-  });
+  const AdminOrderDetailPage({super.key, required this.orderId});
 
   @override
   State<AdminOrderDetailPage> createState() => _AdminOrderDetailPageState();
 }
 
 class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
+  Map<String, dynamic>? orderData;
+  bool isLoading = true;
   late String processing;
   late String delivery;
   String? selectedDeliveryBoyId;
 
   final List<String> processingOptions = [
-    'Qurbani Started',
-    'Qurbani Done',
-    'Meat Processing & Packaging',
+    'pending', // Map to your schema's status
+    'confirmed',
+    'completed',
   ];
 
-  final List<String> deliveryOptions = ['Sent for Delivery', 'Delivery Done'];
+  final List<String> deliveryOptions = ['pending', 'sent', 'delivered'];
 
   List<Map<String, dynamic>> deliveryBoys = [];
   bool loadingDeliveryBoys = true;
@@ -34,58 +34,84 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   @override
   void initState() {
     super.initState();
-
-    // Initialize dropdown values
-    final p = widget.orderData['processing_status'] ?? processingOptions[0];
-    processing = processingOptions.contains(p) ? p : processingOptions[0];
-
-    final d = widget.orderData['delivery_status'] ?? deliveryOptions[0];
-    delivery = deliveryOptions.contains(d) ? d : deliveryOptions[0];
-
-    // Preselect assigned delivery boy
-    selectedDeliveryBoyId = widget.orderData['delivery_person_id'];
-
-    fetchDeliveryBoys();
+    _fetchOrderDetails();
+    _fetchDeliveryBoys();
   }
 
-  Future<void> fetchDeliveryBoys() async {
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
-        .where('role', isEqualTo: 'delivery')
-        .get();
+  // Future<void> _fetchOrderDetails() async {
+  //   try {
+  //     orderData = await AdminOrderService.getOrderById(widget.orderId);
+  //     print("Order Data: $orderData");
+  //     // Initialize dropdown values
+  //     final p = orderData!['processing_status'] ?? processingOptions[0];
+  //     processing = processingOptions.contains(p) ? p : processingOptions[0];
 
-    setState(() {
-      deliveryBoys = snap.docs
-          .map((doc) => {'id': doc.id, 'name': doc['name'] ?? 'No Name'})
-          .toList();
-      loadingDeliveryBoys = false;
-    });
+  //     final d = orderData!['delivery_status'] ?? deliveryOptions[0];
+  //     delivery = deliveryOptions.contains(d) ? d : deliveryOptions[0];
+
+  //     selectedDeliveryBoyId = orderData!['delivery_person_id'];
+  //   } catch (e) {
+  //     print("...............$e");
+  //     ToastUtils.showError('Failed to load order details: $e');
+  //   } finally {
+  //     setState(() => isLoading = false);
+  //   }
+  // }
+
+  Future<void> _fetchOrderDetails() async {
+  try {
+    print("Fetching order details for ID: ${widget.orderId}");  // Add this
+    orderData = await AdminOrderService.getOrderById(widget.orderId);
+    print("Order Data: $orderData");  // Existing print
+    // ... rest
+  } catch (e) {
+    print("Error fetching order: $e");  // Add this for full error details
+    ToastUtils.showError('Failed to load order details: $e');
+  } finally {
+    setState(() => isLoading = false);
+  }
+}
+
+  Future<void> _fetchDeliveryBoys() async {
+    try {
+      deliveryBoys =
+          await UserService.getDeliveryBoys(); // UPDATED: Use UserService
+    } catch (e) {
+      ToastUtils.showError('Failed to load delivery boys: $e');
+    } finally {
+      setState(() => loadingDeliveryBoys = false);
+    }
   }
 
   Future<void> save() async {
-    await FirebaseFirestore.instance
-        .collection('admin_orders')
-        .doc(widget.orderId)
-        .update({
-          'processing_status': processing,
-          'delivery_status': delivery,
-          'delivery_person_id': selectedDeliveryBoyId,
-        });
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Order updated')));
+    try {
+      await AdminOrderService.updateOrder(widget.orderId, {
+        'processingStatus': processing,
+        'deliveryStatus': delivery,
+        'deliveryPersonId': selectedDeliveryBoyId,
+      });
+      ToastUtils.showSuccess('Order updated successfully');
+    } catch (e) {
+      ToastUtils.showError('Failed to update order: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = widget.orderData;
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (orderData == null) {
+      return const Scaffold(body: Center(child: Text('Failed to load order')));
+    }
+
+    final data = orderData!;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Details'),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: const Color(0xff537D4F),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -94,10 +120,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             _buildRow('Order ID', widget.orderId),
             _buildRow('User Name', data['user_name'] ?? 'N/A'),
             _buildRow('Animal Type', data['animal_type'] ?? 'N/A'),
-            _buildRow(
-              'Parts',
-              (data['parts'] as List<dynamic>?)?.join(', ') ?? 'N/A',
-            ),
+            _buildRow('Parts', (data['parts'] as String?) ?? 'N/A'),
             _buildRow('Price', data['total_amount']?.toString() ?? 'N/A'),
             _buildRow('Payment Status', data['payment_status'] ?? 'N/A'),
             _buildRow('Delivery Address', data['delivery_address'] ?? 'N/A'),
@@ -106,7 +129,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
             // Processing Status
             DropdownButtonFormField<String>(
-              initialValue: processing,
+              value: processing,
               decoration: const InputDecoration(
                 labelText: 'Processing Status',
                 border: OutlineInputBorder(),
@@ -120,7 +143,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
             // Delivery Status
             DropdownButtonFormField<String>(
-              initialValue: delivery,
+              value: delivery,
               decoration: const InputDecoration(
                 labelText: 'Delivery Status',
                 border: OutlineInputBorder(),
@@ -139,7 +162,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                     child: LinearProgressIndicator(),
                   )
                 : DropdownButtonFormField<String>(
-                    initialValue: selectedDeliveryBoyId,
+                    value: selectedDeliveryBoyId,
                     decoration: const InputDecoration(
                       labelText: 'Assign Delivery Boy',
                       border: OutlineInputBorder(),
@@ -155,13 +178,19 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                     onChanged: (v) => setState(() => selectedDeliveryBoyId = v),
                   ),
 
+            // Delivery Boy Profile Card (shown if selected)
+            if (selectedDeliveryBoyId != null) ...[
+              const SizedBox(height: 16),
+              _buildDeliveryBoyCard(),
+            ],
+
             const SizedBox(height: 20),
 
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: save,
-                child: const Text('Save Changess'),
+                child: const Text('Save Changes'),
               ),
             ),
           ],
@@ -185,6 +214,34 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           ),
           Expanded(child: Text(value, overflow: TextOverflow.ellipsis)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryBoyCard() {
+    final deliveryBoy = deliveryBoys.firstWhere(
+      (boy) => boy['id'] == selectedDeliveryBoyId,
+      orElse: () => {'name': 'Unknown', 'phone': 'N/A', 'address': 'N/A'},
+    );
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Assigned Delivery Person',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _buildRow('Name', deliveryBoy['name']),
+            _buildRow('Phone', deliveryBoy['phone'] ?? 'N/A'),
+            _buildRow('Address', deliveryBoy['address'] ?? 'N/A'),
+          ],
+        ),
       ),
     );
   }

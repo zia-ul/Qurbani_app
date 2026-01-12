@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'generate_stickers.dart';
+import 'generate_barcode.dart';
 
 class ActiveShareholdersPage extends StatelessWidget {
   const ActiveShareholdersPage({super.key});

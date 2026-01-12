@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qurbani/screens/admin/admin_order_details.dart';
+import 'package:qurbani/screens/admin/update_admin_order_details.dart';
+import 'package:qurbani/services/admin_order_service.dart'; // Adjust path
 
 class AdminOrdersPage extends StatefulWidget {
   final String adminId;
@@ -15,6 +15,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = "";
+  List<Map<String, dynamic>> _allOrders = []; // Store fetched orders
+  bool _isLoading = true;
+
   final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color lightBg = const Color(0xFFF4F7F4);
 
@@ -22,12 +25,25 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchOrders();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchOrders() async {
+    setState(() => _isLoading = true);
+    try {
+      _allOrders = await AdminOrderService.getAdminOrders();
+    } catch (e) {
+      print('Error fetching orders: $e');
+      // Optionally show a SnackBar
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -87,13 +103,18 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
           // 3. ORDER LISTS
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOrderList(isActive: true),
-                _buildOrderList(isActive: false),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _fetchOrders,
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildOrderList(isActive: true),
+                        _buildOrderList(isActive: false),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -101,224 +122,209 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   Widget _buildOrderList({required bool isActive}) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('admin_orders')
-          .where('adminId', isEqualTo: widget.adminId)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError)
-          return Center(child: Text("Error: ${snapshot.error}"));
-        if (!snapshot.hasData)
-          return const Center(child: CircularProgressIndicator());
+    final filteredOrders = _allOrders.where((order) {
+      final data = order;
 
-        final docs = snapshot.data!.docs.where((d) {
-          final data = d.data();
+      // Filter by completion status - include delivered orders as completed
+      final isCompleted = data['isCompleted'] ?? false;
+      final deliveryStatus = data['deliveryStatus'] ?? 'pending';
+      final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
 
-          // Filter by completion status - include delivered orders as completed
-          final isCompleted = data['isCompleted'] ?? false;
-          final deliveryStatus = data['deliveryStatus'] ?? 'pending';
-          final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
+      // Show in Active: not completed AND not delivered
+      // Show in Completed: completed OR delivered
+      final matchesStatus = isActive
+          ? (!isCompleted && !isDelivered)
+          : (isCompleted || isDelivered);
 
-          // Show in Active: not completed AND not delivered
-          // Show in Completed: completed OR delivered
-          final matchesStatus = isActive
-              ? (!isCompleted && !isDelivered)
-              : (isCompleted || isDelivered);
+      // Filter by search query
+      final orderId = (data['orderId'] ?? '').toString().toLowerCase();
+      final phone = (data['contact'] is Map
+              ? data['contact']['primary']
+              : data['contact'] ?? '')
+          .toString()
+          .toLowerCase();
+      final matchesSearch =
+          orderId.contains(_searchQuery) || phone.contains(_searchQuery);
 
-          // Filter by search query
-          final orderId = (data['orderId'] ?? d.id).toString().toLowerCase();
-          final phone =
-              (data['contact'] is Map
-                      ? data['contact']['primary']
-                      : data['contact'] ?? '')
-                  .toString()
-                  .toLowerCase();
-          final matchesSearch =
-              orderId.contains(_searchQuery) || phone.contains(_searchQuery);
+      return matchesStatus && matchesSearch;
+    }).toList();
 
-          return matchesStatus && matchesSearch;
-        }).toList();
+    if (filteredOrders.isEmpty) return const Center(child: Text("No orders found"));
 
-        if (docs.isEmpty) return const Center(child: Text("No orders found"));
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: filteredOrders.length,
+      itemBuilder: (context, index) {
+        final data = filteredOrders[index];
+        final orderId = data['orderId'] ?? '';
+        final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
+        final processingStatus = data['processingStatus'] ?? 'Pending';
 
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: docs.length,
-          itemBuilder: (context, index) {
-            final data = docs[index].data();
-            final orderId = data['orderId'] ?? docs[index].id;
-            final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
-            final processingStatus = data['processingStatus'] ?? 'Pending';
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                  ),
-                ],
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: RichText(
-                            overflow: TextOverflow.ellipsis,
-                            text: TextSpan(
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 14,
-                              ),
-                              children: [
-                                const TextSpan(
-                                  text: "ID: ",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                TextSpan(text: "#$orderId"),
-                              ],
-                            ),
+                    Expanded(
+                      child: RichText(
+                        overflow: TextOverflow.ellipsis,
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 14,
                           ),
+                          children: [
+                            const TextSpan(
+                              text: "ID: ",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(text: "#$orderId"),
+                          ],
                         ),
-                        const SizedBox(width: 5),
-                        SizedBox(
-                          height: 30,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AdminOrderDetailPage(
-                                  orderId: docs[index].id,
-                                ),
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primaryGreen,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                            ),
-                            child: const Text(
-                              "View >",
-                              style: TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        const Text(
-                          "Status >",
-                          style: TextStyle(fontSize: 13, color: Colors.black87),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F2E8),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.local_shipping_outlined,
-                                  size: 14,
-                                  color: primaryGreen,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    deliveryStatus,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: primaryGreen,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                    const SizedBox(width: 5),
+                    SizedBox(
+                      height: 30,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AdminOrderDetailPage(
+                              orderId: orderId, // Pass orderId as string
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Text(
-                          "Processing >",
-                          style: TextStyle(fontSize: 13, color: Colors.black87),
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF3E0),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.settings,
-                                  size: 14,
-                                  color: Colors.orange[800],
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    processingStatus,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.orange[800],
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
                           ),
                         ),
-                      ],
+                        child: const Text(
+                          "View >",
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Text(
+                      "Status >",
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F2E8),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.local_shipping_outlined,
+                              size: 14,
+                              color: primaryGreen,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                deliveryStatus,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: primaryGreen,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text(
+                      "Processing >",
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.settings,
+                              size: 14,
+                              color: Colors.orange[800],
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                processingStatus,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.orange[800],
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 }
 
-// Fixed FilterBar class outside of the main PageState
+// Fixed FilterBar class outside of the main PageState (unchanged)
 class FilterBar extends StatelessWidget {
   final List<String> processingOptions;
   final List<String> deliveryOptions;

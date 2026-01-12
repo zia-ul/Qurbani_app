@@ -3,9 +3,7 @@ import 'package:qurbani/onboarding_screen.dart';
 import 'package:qurbani/screens/admin/admin_home_page.dart';
 import 'package:qurbani/screens/user/user_home_screen.dart';
 import 'package:qurbani/welcome_screen.dart';
-
 import 'services/auth_service.dart';
-import 'services/notification_service.dart';
 import 'models/user_model.dart';
 
 class WrapperScreen extends StatefulWidget {

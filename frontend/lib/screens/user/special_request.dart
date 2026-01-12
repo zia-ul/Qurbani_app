@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani/services/request_service.dart';
 import 'package:qurbani/screens/user/user_home_screen.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class SpecialRequestPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -18,12 +19,8 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
   bool _loading = false;
 
   // Constants to match the UI screenshot
-  static const Color primaryGreen = Color(
-    0xff3D6B4E,
-  ); // Darker green from the image
-  static const Color scaffoldBg = Color(
-    0xffF9F4F1,
-  ); // Soft off-white/beige background
+  static const Color primaryGreen = Color(0xff3D6B4E);
+  static const Color scaffoldBg = Color(0xffF9F4F1);
 
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
@@ -31,20 +28,14 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
     setState(() => _loading = true);
 
     try {
-      await FirebaseFirestore.instance.collection('requests').add({
-        'orderId': widget.orderData['orderId'],
-        'userId': widget.orderData['userId'],
-        'title': _titleController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'status': 'Pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Special request submitted successfully')),
+      await RequestService.submitRequest(
+        widget.orderData['orderId'],
+        widget.orderData['userId'],
+        _titleController.text.trim(),
+        _descriptionController.text.trim(),
       );
+
+      ToastUtils.showSuccess('Special request submitted successfully');
 
       final userId = widget.orderData['userId'] as String;
       final userName = widget.orderData['userName']?.toString() ?? 'User';
@@ -58,9 +49,7 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
         (_) => false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to submit request: $e')));
+      ToastUtils.showError('Failed to submit request: $e');
     } finally {
       setState(() => _loading = false);
     }

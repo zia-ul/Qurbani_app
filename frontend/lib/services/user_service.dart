@@ -42,4 +42,23 @@ class UserService {
       throw Exception(msg);
     }
   }
+
+  /// Fetch delivery boys (users with role 'delivery')
+  static Future<List<Map<String, dynamic>>> getDeliveryBoys() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/delivery-boys'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boys';
+      throw Exception(msg);
+    }
+
+    final List data = jsonDecode(res.body)['deliveryBoys'];
+    return List<Map<String, dynamic>>.from(data);
+  }
 }

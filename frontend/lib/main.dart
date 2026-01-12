@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-// import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:qurbani/services/currency_service.dart';
 import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/welcome_screen.dart';
 import 'wrapper_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -11,6 +10,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await currencyService.initialize();
 
   /// Load environment variables
   // await dotenv.load(fileName: "lib/user/.env");
@@ -19,8 +19,9 @@ void main() async {
   const AndroidInitializationSettings androidInit =
       AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  const InitializationSettings initSettings =
-      InitializationSettings(android: androidInit);
+  const InitializationSettings initSettings = InitializationSettings(
+    android: androidInit,
+  );
 
   await flutterLocalNotificationsPlugin.initialize(
     initSettings,
@@ -39,33 +40,30 @@ void main() async {
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+        AndroidFlutterLocalNotificationsPlugin
+      >()
       ?.createNotificationChannel(channel);
 
   /// Awesome Notifications (optional but fine)
-  AwesomeNotifications().initialize(
-    null,
-    [
-      NotificationChannel(
-        channelKey: 'basic_channel',
-        channelName: 'Basic Notifications',
-        channelDescription: 'General notifications',
-        defaultColor: AppTheme.primaryGreen,
-        importance: NotificationImportance.High,
-        channelShowBadge: true,
-      ),
-      NotificationChannel(
-        channelKey: 'order_updates',
-        channelName: 'Order Updates',
-        channelDescription: 'Order status updates',
-        defaultColor: AppTheme.primaryGreen,
-        importance: NotificationImportance.Max,
-        channelShowBadge: true,
-        enableVibration: true,
-      ),
-    ],
-    debug: true,
-  );
+  AwesomeNotifications().initialize(null, [
+    NotificationChannel(
+      channelKey: 'basic_channel',
+      channelName: 'Basic Notifications',
+      channelDescription: 'General notifications',
+      defaultColor: AppTheme.primaryGreen,
+      importance: NotificationImportance.High,
+      channelShowBadge: true,
+    ),
+    NotificationChannel(
+      channelKey: 'order_updates',
+      channelName: 'Order Updates',
+      channelDescription: 'Order status updates',
+      defaultColor: AppTheme.primaryGreen,
+      importance: NotificationImportance.Max,
+      channelShowBadge: true,
+      enableVibration: true,
+    ),
+  ], debug: true);
 
   runApp(const MyApp());
 }

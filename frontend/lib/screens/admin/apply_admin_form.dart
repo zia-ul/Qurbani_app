@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qurbani/services/admin_application.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class ApplyAdminFormPage extends StatefulWidget {
   const ApplyAdminFormPage({super.key});
@@ -44,8 +45,10 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
   if (!_formKey.currentState!.validate()) return;
 
   if ([govtIdFile, businessProofFile, bankProofFile, farmPhotoFile].contains(null)) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text("All documents required")));
+
+    ToastUtils.showError("All documents required");
+    // ScaffoldMessenger.of(context)
+    //     .showSnackBar(const SnackBar(content: Text("All documents required")));
     return;
   }
 
@@ -63,14 +66,17 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
       farmPhoto: farmPhotoFile!,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Application submitted for review")),
-    );
+    ToastUtils.showSuccess("Application submitted for review");
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   const SnackBar(content: Text("Application submitted for review")),
+    // );
 
     Navigator.pop(context);
   } catch (e) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(e.toString())));
+
+    ToastUtils.showError(e.toString());
+    // ScaffoldMessenger.of(context)
+    //     .showSnackBar(SnackBar(content: Text(e.toString())));
   } finally {
     setState(() => loading = false);
   }

@@ -7,6 +7,8 @@ const adminVerificationRoutes = require("../controllers/apply_admin_verification
 const animalRoutes = require("../routes/addanimal");
 const adminRoutes = require("../routes/marketplace");
 const adminProfileRoutes = require("../routes/adminprofile");
+const orderRoutes = require("../controllers/orders"); 
+const userRoutes = require("../routes/users"); 
 require('dotenv').config();
 
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
@@ -16,13 +18,17 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// Existing routes
 app.use('/api/auth', authRoutes);
 app.use("/api/auth/adminprofile", adminProfileRoutes);
 app.use("/api/admin-verification", adminVerificationRoutes);
 app.use("/api/animals", animalRoutes);
 app.use("/api/admins", adminRoutes);
-app.use("/api/orders", require("../controllers/orders"));
+app.use("/api/orders", orderRoutes); 
 app.use("/api/animals", animalListRoutes);
+
+// Mount the user-related routes (profile, ratings, requests, delivery-boys)
+app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys
 
 const PORT = 3000;
 

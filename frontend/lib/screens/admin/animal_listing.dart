@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/screens/admin/animal_edit.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AnimalListingPage extends StatefulWidget {
   const AnimalListingPage({super.key});
@@ -43,15 +44,20 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
         final data = json.decode(response.body);
         setState(() => animals = data['animals'] ?? []);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to fetch animals: ${response.body}")),
-        );
+
+        ToastUtils.showError("Failed to fetch animals: ${response.body}");
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text("Failed to fetch animals: ${response.body}")),
+        // );
       }
     } catch (e) {
       print(e);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
+
+        ToastUtils.showError("Something went wrong");
+
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
     } finally {
       setState(() => isLoading = false);
     }
@@ -93,20 +99,23 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
       );
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Animal deleted successfully")),
-        );
+        ToastUtils.showSuccess("Animal deleted successfully");
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text("Animal deleted successfully")),
+        // );
         fetchAnimals(); // Refresh list
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed to delete animal: ${response.body}")),
-        );
+        ToastUtils.showError("Failed to delete animal: ${response.body}");
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text("Failed to delete animal: ${response.body}")),
+        // );
       }
     } catch (e) {
       print(e);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
+      ToastUtils.showError("Something went wrong");
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
     }
   }
 

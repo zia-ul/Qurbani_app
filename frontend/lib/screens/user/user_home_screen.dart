@@ -188,20 +188,20 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         const SizedBox(width: 15),
-                        // Expanded(
-                        //   child: _buildActionCard(
-                        //     title: "My Bookings",
-                        //     subtitle: "Track your orders",
-                        //     icon: Icons.assignment_turned_in_outlined,
-                        //     color: const Color(0xff2196F3),
-                            // onTap: () => Navigator.push(
-                              // context,
-                              // MaterialPageRoute(
-                                // builder: (_) => BookedPage(userId: widget.id),
-                              // ),
-                            // ),
-                        //   ),
-                        // ),
+                        Expanded(
+                          child: _buildActionCard(
+                            title: "My Bookings",
+                            subtitle: "Track your orders",
+                            icon: Icons.assignment_turned_in_outlined,
+                            color: const Color(0xff2196F3),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BookedPage(userId: widget.id),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 40),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani/services/ratings_service.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class RateOrderPage extends StatefulWidget {
   final String orderId;
@@ -12,8 +13,8 @@ class RateOrderPage extends StatefulWidget {
 }
 
 class _RateOrderPageState extends State<RateOrderPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
+  Map<String, dynamic>? data;
+  bool isLoading = true;
   Map<String, double> adminRatings = {};
   Map<String, double> deliveryRatings = {};
   Map<String, TextEditingController> feedbackControllers = {};
@@ -22,66 +23,60 @@ class _RateOrderPageState extends State<RateOrderPage> {
   @override
   void initState() {
     super.initState();
-    fetchExistingRatings();
+    _fetchData();
   }
 
-  // Fetch existing ratings if already submitted
-  Future<void> fetchExistingRatings() async {
-    final snapshot = await _firestore
-        .collection('ratings')
-        .where('orderId', isEqualTo: widget.orderId)
-        .where('userId', isEqualTo: widget.userId)
-        .get();
+  Future<void> _fetchData() async {
+    try {
+      data = await RatingService.getRatings(widget.orderId, widget.userId);
+      submitted = data!['submitted'] ?? false;
 
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final adminId = data['adminId'] ?? 'unknown';
-      adminRatings[adminId] = (data['adminRating'] ?? 0).toDouble();
-      deliveryRatings[adminId] = (data['deliveryRating'] ?? 0).toDouble();
-      feedbackControllers[adminId] = TextEditingController(
-        text: data['feedback'] ?? '',
-      );
-    }
+      // Initialize ratings and controllers from fetched data
+      final orders = data!['orders'] as List<dynamic>;
+      final ratings = data!['ratings'] as Map<String, dynamic>;
 
-    if (snapshot.docs.isNotEmpty) {
-      setState(() {
-        submitted = true; // Already rated
-      });
+      for (var order in orders) {
+        final adminId = order['admin_id'];
+        adminRatings[adminId] = (ratings[adminId]?['adminRating'] ?? 0).toDouble();
+        deliveryRatings[adminId] = (ratings[adminId]?['deliveryRating'] ?? 0).toDouble();
+        feedbackControllers[adminId] = TextEditingController(
+          text: ratings[adminId]?['feedback'] ?? '',
+        );
+      }
+    } catch (e) {
+      ToastUtils.showError('Failed to load ratings: $e');
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
   Future<void> submitRatings() async {
     bool allRated = true;
-
     adminRatings.forEach((adminId, rating) {
-      if (rating == 0 || deliveryRatings[adminId] == 0) allRated = false;
+      if (rating == 0 || (deliveryRatings[adminId] ?? 0) == 0) allRated = false;
     });
 
     if (!allRated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please rate all admins and deliveries.")),
-      );
+      ToastUtils.showError("Please rate all admins and deliveries.");
       return;
     }
 
-    for (var adminId in adminRatings.keys) {
-      final docId = "${widget.orderId}_${widget.userId}_$adminId";
+    final ratingsList = adminRatings.keys.map((adminId) => {
+      'adminId': adminId,
+      'adminRating': adminRatings[adminId],
+      'deliveryRating': deliveryRatings[adminId],
+      'feedback': feedbackControllers[adminId]?.text.trim() ?? '',
+    }).toList();
 
-      await _firestore.collection('ratings').doc(docId).set({
-        "orderId": widget.orderId,
-        "userId": widget.userId,
-        "adminId": adminId,
-        "adminRating": adminRatings[adminId],
-        "deliveryRating": deliveryRatings[adminId],
-        "feedback": feedbackControllers[adminId]?.text.trim() ?? '',
-        "createdAt": FieldValue.serverTimestamp(),
-      });
+    try {
+      await RatingService.submitRatings(widget.orderId, widget.userId, ratingsList);
+      setState(() => submitted = true);
+      ToastUtils.showSuccess("Ratings submitted successfully!");
+    } catch (e) {
+      ToastUtils.showError("Failed to submit ratings: $e");
     }
-
-    setState(() => submitted = true);
   }
 
-  // Widget to display stars
   Widget starRow(double value, Function(double) onChanged) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -89,10 +84,10 @@ class _RateOrderPageState extends State<RateOrderPage> {
         return IconButton(
           icon: Icon(
             i < value ? Icons.star : Icons.star_border,
-            color: Color(0xff537D4F),
+            color: const Color(0xff537D4F),
             size: 32,
           ),
-          onPressed: submitted ? null : () => onChanged(i + 1),
+          onPressed: submitted ? null : () => onChanged(i + 1.0),
         );
       }),
     );
@@ -100,153 +95,131 @@ class _RateOrderPageState extends State<RateOrderPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (data == null) {
+      return const Scaffold(
+        body: Center(child: Text("Failed to load data.")),
+      );
+    }
+
+    final orders = data!['orders'] as List<dynamic>;
+
+    List<Widget> ratingCards = [];
+
+    for (var order in orders) {
+      final adminId = order['admin_id'];
+      final adminName = order['admin_name'] ?? 'Unknown';
+      final deliveryPersonName = order['delivery_person_name'] ?? 'Delivery';
+
+      ratingCards.add(
+        Card(
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                if (submitted) ...[
+                  Text(
+                    "Admin Rating: ${adminRatings[adminId]!.toStringAsFixed(1)}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    "Delivery Rating: ${deliveryRatings[adminId]!.toStringAsFixed(1)}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Text(
+                  "Admin: $adminName",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (!submitted) ...[
+                  const SizedBox(height: 8),
+                  const Text("⭐ Rate Admin"),
+                  starRow(
+                    adminRatings[adminId]!,
+                    (v) => setState(() => adminRatings[adminId] = v),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(
+                  "Delivery: $deliveryPersonName",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                if (!submitted) ...[
+                  const SizedBox(height: 8),
+                  const Text("⭐ Rate Delivery"),
+                  starRow(
+                    deliveryRatings[adminId]!,
+                    (v) => setState(() => deliveryRatings[adminId] = v),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: feedbackControllers[adminId],
+                  maxLines: 2,
+                  enabled: !submitted,
+                  decoration: const InputDecoration(
+                    hintText: "Feedback (optional)",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (submitted && (feedbackControllers[adminId]?.text.isNotEmpty ?? false)) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Feedback: ${feedbackControllers[adminId]?.text}",
+                      style: const TextStyle(fontStyle: FontStyle.italic),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Rate Your Order"),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: const Color(0xff537D4F),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('admin_orders')
-            .where('orderId', isEqualTo: widget.orderId)
-            .where('userId', isEqualTo: widget.userId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final adminOrders = snapshot.data!.docs;
-          if (adminOrders.isEmpty) {
-            return const Center(child: Text("No delivery information found."));
-          }
-
-          List<Widget> ratingCards = [];
-
-          for (var adminOrder in adminOrders) {
-            final aData = adminOrder.data() as Map<String, dynamic>;
-            final adminId = aData['adminId'] ?? 'unknown';
-            final adminName = aData['adminName'] ?? 'Unknown';
-            final deliveryPersonName =
-                aData['deliveryPersonName'] ?? 'Delivery';
-
-            adminRatings.putIfAbsent(adminId, () => 0);
-            deliveryRatings.putIfAbsent(adminId, () => 0);
-            feedbackControllers.putIfAbsent(
-              adminId,
-              () => TextEditingController(),
-            );
-
-            ratingCards.add(
-              Card(
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      // Show numeric ratings
-                      if (submitted) ...[
-                        Text(
-                          "Admin Rating: ${adminRatings[adminId]!.toStringAsFixed(1)}",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "Delivery Rating: ${deliveryRatings[adminId]!.toStringAsFixed(1)}",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-
-                      Text(
-                        "Admin: $adminName",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (!submitted) ...[
-                        const SizedBox(height: 8),
-                        const Text("⭐ Rate Admin"),
-                        starRow(
-                          adminRatings[adminId]!,
-                          (v) => setState(() => adminRatings[adminId] = v),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-
-                      Text(
-                        "Delivery: $deliveryPersonName",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (!submitted) ...[
-                        const SizedBox(height: 8),
-                        const Text("⭐ Rate Delivery"),
-                        starRow(
-                          deliveryRatings[adminId]!,
-                          (v) => setState(() => deliveryRatings[adminId] = v),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-
-                      // Feedback
-                      TextField(
-                        controller: feedbackControllers[adminId],
-                        maxLines: 2,
-                        enabled: !submitted,
-                        decoration: const InputDecoration(
-                          hintText: "Feedback (optional)",
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-
-                      // Show feedback read-only after submission
-                      if (submitted &&
-                          (feedbackControllers[adminId]?.text.isNotEmpty ??
-                              false)) ...[
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            "Feedback: ${feedbackControllers[adminId]?.text}",
-                            style: const TextStyle(fontStyle: FontStyle.italic),
-                          ),
-                        ),
-                      ],
-                    ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            ...ratingCards,
+            const SizedBox(height: 16),
+            if (!submitted)
+              ElevatedButton(
+                onPressed: submitRatings,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xff537D4F),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 12,
                   ),
                 ),
+                child: const Text("Submit All Ratings"),
               ),
-            );
-          }
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              children: [
-                ...ratingCards,
-                const SizedBox(height: 16),
-                if (!submitted)
-                  ElevatedButton(
-                    onPressed: submitRatings,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xff537D4F),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: const Text("Submit All Ratings"),
-                  ),
-                if (submitted)
-                  const Text(
-                    "Thanks for your ratings!",
-                    style: TextStyle(color: Color(0xff537D4F), fontSize: 18),
-                  ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        },
+            if (submitted)
+              const Text(
+                "Thanks for your ratings!",
+                style: TextStyle(color: Color(0xff537D4F), fontSize: 18),
+              ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

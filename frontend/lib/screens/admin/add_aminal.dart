@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AddAnimalPage extends StatefulWidget {
   const AddAnimalPage({super.key});
@@ -29,23 +29,18 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   final _storage = const FlutterSecureStorage();
 
   String? selectedAnimalType;
-  String? adminCurrency;
-  bool isCurrencyLoading = true;
   bool isLoading = false;
   bool isDeliveryPaid = false;
 
-  List<String> selectedPaymentMethods = ['cod', 'online'];
+  List<String> selectedPaymentMethods = [
+    'cod',
+    'online',
+  ]; // Default to both, but allow changes
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
 
   final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color lightBg = const Color(0xFFF9FBF9);
-
-  @override
-  void initState() {
-    super.initState();
-    // fetchAdminCurrency();
-  }
 
   @override
   void dispose() {
@@ -62,27 +57,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     super.dispose();
   }
 
-  // Future<void> fetchAdminCurrency() async {
-  //   final adminId = FirebaseAuth.instance.currentUser?.uid;
-  //   if (adminId == null) return;
-  //   try {
-  //     final doc = await FirebaseFirestore.instance
-  //         .collection('users')
-  //         .doc(adminId)
-  //         .get();
-  //     if (doc.exists) {
-  //       setState(() {
-  //         adminCurrency =
-  //             doc.data()?['currency']?.toString().replaceAll("'", "") ?? "INR";
-  //         isCurrencyLoading = false;
-  //       });
-  //     }
-  //   } catch (e) {
-  //     debugPrint("Error fetching currency: $e");
-  //   }
-  // }
-
-  /// Merged and fixed Image Picker
   Future<void> pickImages() async {
     final List<XFile> selectedImages = await _picker.pickMultiImage(
       imageQuality: 80,
@@ -118,16 +92,61 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   }
 
   Future<void> addAnimal() async {
-    if (!_formKey.currentState!.validate() || _images.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Complete all required fields")),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    // Additional validation for mandatory fields
+    if (selectedAnimalType == null) {
+      ToastUtils.showError('Animal Type is required');
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(const SnackBar(content: Text("Animal Type is required")));
+      return;
+    }
+    if (breedController.text.trim().isEmpty) {
+      ToastUtils.showError('Breed is required');
+
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(const SnackBar(content: Text("Breed is required")));
+      return;
+    }
+    if (priceController.text.trim().isEmpty) {
+      ToastUtils.showError('Price is required');
+
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(const SnackBar(content: Text("Price is required")));
+      return;
+    }
+    if (selectedPaymentMethods.isEmpty) {
+      ToastUtils.showError('At least one payment method is required');
+
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(
+      //     content: Text("At least one payment method is required"),
+      //   ),
+      // );
+      return;
+    }
+    // if (_images.isEmpty) {
+    //   ToastUtils.showError('At least one image is required');
+
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   const SnackBar(content: Text("At least one image is required")),
+    // );
+    // return;
+    // }
+
     final token = await _storage.read(key: "token");
     if (token == null) {
-      throw Exception("Not authenticated");
+      ToastUtils.showError('Not authenticated');
+
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(const SnackBar(content: Text("Not authenticated")));
+      return;
     }
 
     setState(() => isLoading = true);
@@ -140,18 +159,28 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             ? customAnimalTypeController.text.trim()
             : selectedAnimalType,
         "breed": breedController.text.trim(),
-        "description": descriptionController.text.trim(),
+        "description": descriptionController.text.trim().isNotEmpty
+            ? descriptionController.text.trim()
+            : null, // Optional
         "price": double.parse(priceController.text),
-        "age": ageController.text.trim(),
-        "height": heightController.text.trim(),
-        "weight": weightController.text.trim(),
+        "age": ageController.text.trim().isNotEmpty
+            ? ageController.text.trim()
+            : null, // Optional
+        "height": heightController.text.trim().isNotEmpty
+            ? heightController.text.trim()
+            : null, // Optional
+        "weight": weightController.text.trim().isNotEmpty
+            ? double.tryParse(weightController.text.trim())
+            : null, // Optional
         "shares": int.parse(sharesController.text),
         "paymentMethods": selectedPaymentMethods,
         "deliveryType": isDeliveryPaid ? "paid" : "free",
         "deliveryFee": isDeliveryPaid
             ? double.tryParse(deliveryFeeController.text) ?? 0
             : 0,
-        "deliveryThreshold": double.tryParse(deliveryThresholdController.text),
+        "deliveryThreshold":
+            double.tryParse(deliveryThresholdController.text) ??
+            null, // Optional
         "images": imageUrls,
       };
 
@@ -165,14 +194,24 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       );
 
       if (res.statusCode != 201) {
-        throw Exception(jsonDecode(res.body)["message"]);
+        throw Exception(
+          jsonDecode(res.body)["message"] ?? "Failed to add animal",
+        );
       }
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ToastUtils.showSuccess("Animal added successfully");
+
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text("Animal added successfully")),
+        // );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ToastUtils.showError("Failed to add animal: ${e.toString()}");
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -221,7 +260,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             "Enter Animal Type Name",
                           ),
                           validator: (v) =>
-                              (selectedAnimalType == "Others" && v!.isEmpty)
+                              (selectedAnimalType == "Others" &&
+                                  (v == null || v.isEmpty))
                               ? "Required"
                               : null,
                         ),
@@ -233,7 +273,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         decoration: _inputDecoration(
                           "Enter Breed (e.g. Beetal, Sahiwal)",
                         ),
-                        validator: (v) => v!.isEmpty ? "Required" : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? "Required" : null,
                       ),
                     ]),
 
@@ -246,12 +287,10 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLabel("Age", isRequired: true),
+                                _buildLabel("Age", isRequired: false),
                                 TextFormField(
                                   controller: ageController,
                                   decoration: _inputDecoration("e.g. 2 Years"),
-                                  validator: (v) =>
-                                      v!.isEmpty ? "Required" : null,
                                 ),
                               ],
                             ),
@@ -261,16 +300,14 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLabel(
-                                  "Price (${adminCurrency ?? ''})",
-                                  isRequired: true,
-                                ),
+                                _buildLabel("Price", isRequired: true),
                                 TextFormField(
                                   controller: priceController,
                                   keyboardType: TextInputType.number,
                                   decoration: _inputDecoration("Amount"),
-                                  validator: (v) =>
-                                      v!.isEmpty ? "Required" : null,
+                                  validator: (v) => (v == null || v.isEmpty)
+                                      ? "Required"
+                                      : null,
                                 ),
                               ],
                             ),
@@ -320,7 +357,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         decoration: _inputDecoration(
                           "Number of shares (1 for full animal)",
                         ),
-                        validator: (v) => v!.isEmpty ? "Required" : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? "Required" : null,
                       ),
                       const SizedBox(height: 15),
                       _buildLabel("Upload Gallery", isRequired: true),
@@ -363,16 +401,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Payment Method",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-
+                          _buildLabel("Payment Method", isRequired: true),
                           const SizedBox(height: 8),
-
                           CheckboxListTile(
                             value: selectedPaymentMethods.contains('cod'),
                             activeColor: Color(0xff537D4F),
@@ -388,7 +418,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                               });
                             },
                           ),
-
                           CheckboxListTile(
                             value: selectedPaymentMethods.contains('online'),
                             activeColor: Color(0xff537D4F),
@@ -404,7 +433,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                               });
                             },
                           ),
-
                           if (selectedPaymentMethods.isEmpty)
                             const Padding(
                               padding: EdgeInsets.only(left: 12, top: 4),
@@ -423,7 +451,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                     const SizedBox(height: 8),
 
                     _buildCardContainer([
-                      _buildLabel("Delivery Setup", isRequired: true),
+                      _buildLabel("Delivery Setup", isRequired: false),
                       Row(
                         children: [
                           Text(
@@ -456,8 +484,9 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                           controller: deliveryFeeController,
                           keyboardType: TextInputType.number,
                           decoration: _inputDecoration("Delivery Fee Amount"),
-                          validator: (v) => (isDeliveryPaid && v!.isEmpty)
-                              ? "Required"
+                          validator: (v) =>
+                              (isDeliveryPaid && (v == null || v.isEmpty))
+                              ? "Required for paid delivery"
                               : null,
                         ),
                         const SizedBox(height: 10),
@@ -537,7 +566,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   Widget _buildLabel(
     String text, {
     bool isSub = false,
-    bool isRequired = true,
+    bool isRequired = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, top: 4),
