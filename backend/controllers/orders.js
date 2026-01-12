@@ -58,6 +58,7 @@ router.get("/my", authMiddleware, async (req, res) => {
   }
 });
 
+
 // POST /api/orders
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id; // FROM JWT
@@ -106,6 +107,7 @@ router.post("/", authMiddleware, async (req, res) => {
     connection.release();
   }
 });
+
 
 // GET /api/orders/:orderId - Get a single order by ID for the authenticated user
 router.get("/:orderId", authMiddleware, async (req, res) => {
@@ -307,9 +309,6 @@ router.post("/ratings", authMiddleware, async (req, res) => {
     connection.release();
   }
 });
-
-// routes/orders.js (or routes/requests.js)
-// ... (existing imports)
 
 // POST /api/requests - Submit a special request
 router.post("/requests", authMiddleware, async (req, res) => {

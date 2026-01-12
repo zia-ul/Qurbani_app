@@ -5,7 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api'; // Adjust to your server URL
+  static const _baseUrl =
+      'http://192.168.1.6:3000/api'; // Adjust to your server URL
 
   /// GET ALL ORDERS FOR THE AUTHENTICATED ADMIN
   static Future<List<Map<String, dynamic>>> getAdminOrders() async {
@@ -26,60 +27,64 @@ class AdminOrderService {
     return List<Map<String, dynamic>>.from(data);
   }
 
-/// GET SINGLE ORDER DETAILS
-static Future<Map<String, dynamic>> getOrderById(String orderId) async {
-  final token = await _storage.read(key: 'token');
-  if (token == null) throw Exception('Not authenticated');
+  /// GET SINGLE ORDER DETAILS
+  static Future<Map<String, dynamic>> getAdminOrderById(String orderId) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
 
-  final res = await http.get(
-    Uri.parse('$_baseUrl/orders/$orderId'),
-    headers: {'Authorization': 'Bearer $token'},
-  );
+    final res = await http.get(
+      Uri.parse('$_baseUrl/orders/admin/$orderId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    print(res.body);
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
+      throw Exception(msg);
+    }
 
-  if (res.statusCode != 200) {
-    final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
-    throw Exception(msg);
+    return Map<String, dynamic>.from(jsonDecode(res.body)['order']);
   }
 
-  return Map<String, dynamic>.from(jsonDecode(res.body)['order']);
-}
+  /// GET DELIVERY BOYS
+  static Future<List<Map<String, dynamic>>> getDeliveryBoys() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
 
-/// GET DELIVERY BOYS
-static Future<List<Map<String, dynamic>>> getDeliveryBoys() async {
-  final token = await _storage.read(key: 'token');
-  if (token == null) throw Exception('Not authenticated');
+    final res = await http.get(
+      Uri.parse('$_baseUrl/delivery-boys'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-  final res = await http.get(
-    Uri.parse('$_baseUrl/delivery-boys'),
-    headers: {'Authorization': 'Bearer $token'},
-  );
+    if (res.statusCode != 200) {
+      final msg =
+          jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boys';
+      throw Exception(msg);
+    }
 
-  if (res.statusCode != 200) {
-    final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boys';
-    throw Exception(msg);
+    final List data = jsonDecode(res.body)['deliveryBoys'];
+    return List<Map<String, dynamic>>.from(data);
   }
 
-  final List data = jsonDecode(res.body)['deliveryBoys'];
-  return List<Map<String, dynamic>>.from(data);
-}
+  /// UPDATE ORDER
+  static Future<void> updateOrder(
+    String orderId,
+    Map<String, dynamic> updates,
+  ) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
 
-/// UPDATE ORDER
-static Future<void> updateOrder(String orderId, Map<String, dynamic> updates) async {
-  final token = await _storage.read(key: 'token');
-  if (token == null) throw Exception('Not authenticated');
+    final res = await http.put(
+      Uri.parse('$_baseUrl/orders/$orderId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(updates),
+    );
 
-  final res = await http.put(
-    Uri.parse('$_baseUrl/orders/$orderId'),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode(updates),
-  );
-
-  if (res.statusCode != 200) {
-    final msg = jsonDecode(res.body)['message'] ?? 'Failed to update order';
-    throw Exception(msg);
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to update order';
+      throw Exception(msg);
+    }
   }
-}
 }

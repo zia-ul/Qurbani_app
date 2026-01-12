@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/admin_order_service.dart'; // Adjust path
+import 'package:qurbani/services/admin_order_service.dart'; 
 import 'package:qurbani/services/ratings_service.dart';
 import 'package:qurbani/services/user_service.dart';
-import 'package:qurbani/widgets/success_error_popup.dart'; // Adjust path
+import 'package:qurbani/widgets/success_error_popup.dart'; 
 
 class AdminOrderDetailPage extends StatefulWidget {
   final String orderId;
@@ -38,39 +38,39 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     _fetchDeliveryBoys();
   }
 
+  Future<void> _fetchOrderDetails() async {
+    try {
+      orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
+      print("Order Data: $orderData");
+      // Initialize dropdown values
+      final p = orderData!['processing_status'] ?? processingOptions[0];
+      processing = processingOptions.contains(p) ? p : processingOptions[0];
+
+      final d = orderData!['delivery_status'] ?? deliveryOptions[0];
+      delivery = deliveryOptions.contains(d) ? d : deliveryOptions[0];
+
+      selectedDeliveryBoyId = orderData!['delivery_person_id'];
+    } catch (e) {
+      print("...............$e");
+      ToastUtils.showError('Failed to load order details: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
   // Future<void> _fetchOrderDetails() async {
   //   try {
-  //     orderData = await AdminOrderService.getOrderById(widget.orderId);
-  //     print("Order Data: $orderData");
-  //     // Initialize dropdown values
-  //     final p = orderData!['processing_status'] ?? processingOptions[0];
-  //     processing = processingOptions.contains(p) ? p : processingOptions[0];
-
-  //     final d = orderData!['delivery_status'] ?? deliveryOptions[0];
-  //     delivery = deliveryOptions.contains(d) ? d : deliveryOptions[0];
-
-  //     selectedDeliveryBoyId = orderData!['delivery_person_id'];
+  //     print("Fetching order details for ID: ${widget.orderId}"); // Add this
+  //     orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
+  //     print("Order Data: $orderData"); // Existing print
+  //     // ... rest
   //   } catch (e) {
-  //     print("...............$e");
+  //     print("Error fetching order: $e"); // Add this for full error details
   //     ToastUtils.showError('Failed to load order details: $e');
   //   } finally {
   //     setState(() => isLoading = false);
   //   }
   // }
-
-  Future<void> _fetchOrderDetails() async {
-  try {
-    print("Fetching order details for ID: ${widget.orderId}");  // Add this
-    orderData = await AdminOrderService.getOrderById(widget.orderId);
-    print("Order Data: $orderData");  // Existing print
-    // ... rest
-  } catch (e) {
-    print("Error fetching order: $e");  // Add this for full error details
-    ToastUtils.showError('Failed to load order details: $e');
-  } finally {
-    setState(() => isLoading = false);
-  }
-}
 
   Future<void> _fetchDeliveryBoys() async {
     try {

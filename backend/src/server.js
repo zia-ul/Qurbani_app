@@ -24,11 +24,17 @@ app.use("/api/auth/adminprofile", adminProfileRoutes);
 app.use("/api/admin-verification", adminVerificationRoutes);
 app.use("/api/animals", animalRoutes);
 app.use("/api/admins", adminRoutes);
-app.use("/api/orders", orderRoutes); 
+// app.use("/api/orders", orderRoutes); 
 app.use("/api/animals", animalListRoutes);
+
+app.use("/api/orders", require("../routes/orders"));
+app.use("/api/ratings", require("../routes/rating_routes"));
+app.use("/api/requests", require("../routes/requests_routes"));
+
 
 // Mount the user-related routes (profile, ratings, requests, delivery-boys)
 app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys
+
 
 const PORT = 3000;
 
