@@ -82,7 +82,7 @@ class MyApp extends StatelessWidget {
       /// Centralized Theme
       // theme: AppTheme.lightTheme,
       // darkTheme: AppTheme.darkTheme,
-      // themeMode: ThemeMode.system,
+      themeMode: ThemeMode.system,
 
       home: const WrapperScreen(),
       // home: const WelcomeScreen(),

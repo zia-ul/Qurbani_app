@@ -9,23 +9,44 @@ class AuthService {
 
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) return null;
+  print("AuthService: getCurrentUser called");
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/auth/me'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-    );
+  final token = await _storage.read(key: 'token');
+  print("AuthService: token = $token");
 
-    if (res.statusCode != 200) {
-      await _storage.delete(key: 'token');
-      return null;
-    }
+  
 
-    return UserModel.fromJson(jsonDecode(res.body));
+  if (token == null) {
+    print("AuthService: No token found");
+    return null;
   }
+
+  final res = await http.get(
+    Uri.parse('$_baseUrl/auth/me'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  print("AuthService: /auth/me status = ${res.statusCode}");
+  print("AuthService: /auth/me body = ${res.body}");
+
+  if (res.statusCode != 200) {
+    print("AuthService: Invalid token, deleting it");
+    await _storage.delete(key: 'token');
+    return null;
+  }
+
+  final decoded = jsonDecode(res.body);
+
+  if (decoded['user'] == null) {
+    print("AuthService: user key missing in response");
+    return null;
+  }
+
+  return UserModel.fromJson(decoded['user']);
+}
+
 
   // REGISTER
   static Future<void> register(Map<String, dynamic> data) async {
@@ -44,7 +65,7 @@ class AuthService {
     }
   }
 
-   // LOGIN
+  // LOGIN
   static Future<UserModel> login(Map<String, dynamic> data) async {
     print(data);
     final res = await http.post(

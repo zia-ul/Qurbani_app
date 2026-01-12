@@ -6,6 +6,7 @@ const animalListRoutes = require('../routes/animallist');
 const adminVerificationRoutes = require("../controllers/apply_admin_verification");
 const animalRoutes = require("../routes/addanimal");
 const adminRoutes = require("../routes/marketplace");
+const adminProfileRoutes = require("../routes/adminprofile");
 require('dotenv').config();
 
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
@@ -16,11 +17,11 @@ app.use(cors());
 app.use(bodyParser.json());
 
 app.use('/api/auth', authRoutes);
+app.use("/api/auth/adminprofile", adminProfileRoutes);
 app.use("/api/admin-verification", adminVerificationRoutes);
 app.use("/api/animals", animalRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/orders", require("../controllers/orders"));
-// app.use("/api/animals", animalList);
 app.use("/api/animals", animalListRoutes);
 
 const PORT = 3000;

@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid"); // For UUID
 const crypto = require("crypto"); // Optional if you want extra token randomness
 const nodemailer = require("nodemailer"); // For sending verification emails
 const jwt = require("jsonwebtoken");
+const authMiddleware = require("../middleware/authmiddleware");
 
 //email verification using nodemailer
 // const transporter = nodemailer.createTransport({
@@ -214,6 +215,44 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error("Login error:", err);
     return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// // JWT middleware
+// const authMiddleware = (req, res, next) => {
+//   const authHeader = req.headers.authorization;
+
+//   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+//     return res.status(401).json({ message: "No token provided" });
+//   }
+
+//   const token = authHeader.split(" ")[1];
+
+//   try {
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+//     req.user = decoded;
+//     next();
+//   } catch (err) {
+//     return res.status(401).json({ message: "Invalid token" });
+//   }
+// };
+
+// GET CURRENT USER
+router.get("/me", authMiddleware, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT id, name, email, role FROM users WHERE id = ?",
+      [req.user.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ user: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 

@@ -212,7 +212,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          AdminProfile(adminId: adminId),
+                          AdminProfilePage(adminId: adminId),
                     ),
                   );
                 },

@@ -6,6 +6,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:qurbani/exchange_rates.dart';
+import 'package:qurbani/widgets/primary_btn.dart';
+import 'package:qurbani/widgets/common_card.dart';
+import 'package:qurbani/widgets/common_label.dart';
+import 'package:qurbani/widgets/common_input_decoration.dart';
+import 'package:qurbani/widgets/custom_toast.dart';
 
 class AnimalEditPage extends StatefulWidget {
   final String animalId;
@@ -344,28 +349,10 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                 ),
               ]),
               const SizedBox(height: 30),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: isUpdating ? null : updateAnimal,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: isUpdating
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Update Animal",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
+              PrimaryButton(
+                text: "Update Animal",
+                isLoading: isUpdating,
+                onPressed: updateAnimal,
               ),
               const SizedBox(height: 40),
             ],

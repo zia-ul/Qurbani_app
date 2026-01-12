@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
-import '../models/user_model.dart';
 import 'register_page.dart';
-import '../screens/admin/admin_home_page.dart';
-import '../screens/superadmin/superadmin_welcome_page.dart';
-import '../screens/user/user_home_screen.dart';
-// import 'forgot_password.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,16 +28,22 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
-      // Call backend API
-      final user = await AuthService.login({
-        'email': email,
-        'password': password,
-      });
+      // 🔑 Login (JWT saved inside AuthService)
+      await AuthService.login({'email': email, 'password': password});
 
-      // Routing based on role
-      _routeByRole(user);
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const WrapperScreen()),
+        (route) => false,
+      );
+
+      // Go to WrapperScreen
+      // Navigator.of(context).pushNamedAndRemoveUntil(
+      //   '/wrapper',
+      //   (route) => false,
+      // );
     } catch (e) {
-      // Show error
       if (!mounted) return;
       showDialog(
         context: context,
@@ -58,39 +60,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _routeByRole(UserModel user) {
-    if (!mounted) return;
-
-    switch (user.role) {
-      case 'superadmin':
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => SuperAdminDashboard()),
-        );
-        break;
-      case 'admin':
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                AdminHomePage(adminId: user.id.toString(), name: user.name),
-          ),
-        );
-        break;
-      default:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => HomePage(
-              id: user.id.toString(),
-              name: user.name,
-              role: user.role,
-            ),
-          ),
-        );
     }
   }
 
@@ -198,24 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? null
                                 : 'Password must be at least 6 chars',
                           ),
-                          const SizedBox(height: 12),
-
-                          // Forgot password
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {},
-                              // onPressed: () => Navigator.push(
-                              // context,
-                              // MaterialPageRoute(
-                              //     builder: (_) =>
-                              //         const ForgotPasswordPage())),
-                              child: const Text(
-                                "Forgot password?",
-                                style: TextStyle(color: Color(0xff537D4F)),
-                              ),
-                            ),
-                          ),
+                          const SizedBox(height: 20),
 
                           // Login button
                           SizedBox(
@@ -243,9 +195,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : const Text("Log In"),
                             ),
                           ),
+
                           const SizedBox(height: 12),
 
-                          // Sign up
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
