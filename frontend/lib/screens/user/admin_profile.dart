@@ -3,6 +3,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:qurbani/screens/user/order_form.dart';
+
 class AdminProfilePage extends StatefulWidget {
   final String adminId;
 
@@ -186,21 +188,21 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                           child: Stack(
                             alignment: Alignment.center,
                             children: [
-                              Image.network(
-                                "https://maps.googleapis.com/maps/api/staticmap?center=$city&zoom=13&size=600x300&key=YOUR_KEY_HERE",
-                                height: 150,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Container(
-                                  height: 150,
-                                  color: Colors.grey[300],
-                                  child: const Icon(
-                                    Icons.map_outlined,
-                                    size: 50,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
+                              // Image.network(
+                              //   "https://maps.googleapis.com/maps/api/staticmap?center=$city&zoom=13&size=600x300&key=YOUR_KEY_HERE",
+                              //   height: 150,
+                              //   width: double.infinity,
+                              //   fit: BoxFit.cover,
+                              //   errorBuilder: (c, e, s) => Container(
+                              //     height: 150,
+                              //     color: Colors.grey[300],
+                              //     child: const Icon(
+                              //       Icons.map_outlined,
+                              //       size: 50,
+                              //       color: Colors.grey,
+                              //     ),
+                              //   ),
+                              // ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -240,7 +242,13 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Place order action
+                          // Place order 
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => QurbaniOrderPage(adminId: widget.adminId)),
+                            
+                          );
                         },
                         child: Text(
                           "Place Order",

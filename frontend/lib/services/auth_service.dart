@@ -34,6 +34,7 @@ class AuthService {
   if (res.statusCode != 200) {
     print("AuthService: Invalid token, deleting it");
     await _storage.delete(key: 'token');
+    await _storage.delete(key: 'userId');
     return null;
   }
 
@@ -83,16 +84,20 @@ class AuthService {
 
     // Save JWT token securely
     final token = body['token'];
+    final user = body['user'];
     if (token != null) {
       await _storage.write(key: 'token', value: token);
+      await _storage.write(key: 'userId', value: user['id']);
     }
 
     // Return user data
-    return UserModel.fromJson(body['user']);
+    return UserModel.fromJson(user);
   }
 
   // LOGOUT
   static Future<void> logout() async {
-    await _storage.delete(key: 'token');
-  }
+  await _storage.delete(key: 'token');
+  await _storage.delete(key: 'userId');
+}
+
 }
