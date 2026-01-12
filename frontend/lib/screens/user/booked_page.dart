@@ -56,9 +56,10 @@ class _BookedPageState extends State<BookedPage> {
       print('Exception fetching orders: $e');
       // Optionally show a snackbar or dialog for errors
     } finally {
-      if (mounted) setState(() {
-        isLoading = false;
-      });
+      if (mounted)
+        setState(() {
+          isLoading = false;
+        });
     }
   }
 
@@ -102,13 +103,17 @@ class _BookedPageState extends State<BookedPage> {
                     child: CircularProgressIndicator(color: primaryGreen),
                   )
                 : filteredOrders.isEmpty
-                    ? const Center(child: Text("You have not placed any orders yet."))
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        itemCount: filteredOrders.length,
-                        itemBuilder: (_, i) =>
-                            _buildOrderCard(filteredOrders[i], {}), // adminMap still empty; access admin data from order if needed
-                      ),
+                ? const Center(
+                    child: Text("You have not placed any orders yet."),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    itemCount: filteredOrders.length,
+                    itemBuilder: (_, i) => _buildOrderCard(
+                      filteredOrders[i],
+                      {},
+                    ), // adminMap still empty; access admin data from order if needed
+                  ),
           ),
         ],
       ),
@@ -160,10 +165,18 @@ class _BookedPageState extends State<BookedPage> {
 
   //ui for each order cards
   Widget _buildOrderCard(
-      Map<String, dynamic> order, Map<String, Map<String, dynamic>> adminMap) {
+    Map<String, dynamic> order,
+    Map<String, Map<String, dynamic>> adminMap,
+  ) {
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['createdAt'] ?? '');
     final String pStatus = order['processingStatus'] ?? 'Pending';
+    // print(order);
+    // Safely handle orderId for display
+    String orderIdStr = (order['id'] ?? '').toString();
+    String displayId = orderIdStr.length >= 5
+        ? orderIdStr.substring(0, 5).toUpperCase()
+        : orderIdStr.toUpperCase();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -190,7 +203,7 @@ class _BookedPageState extends State<BookedPage> {
                   children: [
                     Flexible(
                       child: Text(
-                        "ID: QB-${(order['orderId'] ?? '').toString().substring(0, 5).toUpperCase()}",
+                        "ID: QB-${displayId}",
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
@@ -204,7 +217,11 @@ class _BookedPageState extends State<BookedPage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                    const Icon(
+                      Icons.check_circle,
+                      size: 14,
+                      color: Colors.green,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -213,7 +230,11 @@ class _BookedPageState extends State<BookedPage> {
                         style: const TextStyle(fontSize: 11),
                       ),
                     ),
-                    const Icon(Icons.access_time, size: 14, color: Colors.brown),
+                    const Icon(
+                      Icons.access_time,
+                      size: 14,
+                      color: Colors.brown,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       orderDate != null
@@ -226,8 +247,11 @@ class _BookedPageState extends State<BookedPage> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.local_shipping_outlined,
-                        size: 14, color: Colors.blue),
+                    const Icon(
+                      Icons.local_shipping_outlined,
+                      size: 14,
+                      color: Colors.blue,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
@@ -236,7 +260,8 @@ class _BookedPageState extends State<BookedPage> {
                         style: TextStyle(
                           fontSize: 11,
                           color: _getDeliveryStatusColor(
-                              order['deliveryStatus'] ?? 'Pending'),
+                            order['deliveryStatus'] ?? 'Pending',
+                          ),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -245,7 +270,11 @@ class _BookedPageState extends State<BookedPage> {
                         order['deliveryCode'] != null)
                       Row(
                         children: [
-                          const Icon(Icons.vpn_key, size: 14, color: Colors.orange),
+                          const Icon(
+                            Icons.vpn_key,
+                            size: 14,
+                            color: Colors.orange,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             "Code: ${order['deliveryCode']}",
@@ -288,7 +317,10 @@ class _BookedPageState extends State<BookedPage> {
   }
 
   Widget _buildItemRow(
-      Map<String, dynamic> item, Map<String, dynamic> admin, Map<String, dynamic> orderData) {
+    Map<String, dynamic> item,
+    Map<String, dynamic> admin,
+    Map<String, dynamic> orderData,
+  ) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Row(

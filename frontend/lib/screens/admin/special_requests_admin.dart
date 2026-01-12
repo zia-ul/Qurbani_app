@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_email_sender/flutter_email_sender.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 
 class AdminSpecialRequestsPage extends StatefulWidget {
@@ -12,48 +13,69 @@ class AdminSpecialRequestsPage extends StatefulWidget {
 }
 
 class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
-  String activeFilter = 'All'; // 'Pending', 'Replied', 'Closed'
+  String activeFilter = 'All';
   final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color scaffoldBg = const Color(0xFFF4F7F4);
+  final _storage = const FlutterSecureStorage();
+  static const _baseUrl = 'http://192.168.1.6:3000/api'; // Adjust your IP/port
 
-  // Helper to get status color for badges
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Replied':
-        return Colors.blue;
-      case 'Closed':
-        return Colors.green;
-      case 'Pending':
-        return Colors.orange;
-      default:
-        return Color(0xff537D4F);
+  List<Map<String, dynamic>> requests = [];
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRequests();
+  }
+
+  Future<void> _fetchRequests() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final token = await _storage.read(key: 'token');
+      if (token == null) throw Exception('Not authenticated');
+
+      final statusParam = activeFilter != 'All' ? '?status=$activeFilter' : '';
+      final res = await http.get(
+        Uri.parse('$_baseUrl/requests/admin$statusParam'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          requests = List<Map<String, dynamic>>.from(data['requests']);
+        });
+      } else {
+        throw Exception(jsonDecode(res.body)['message'] ?? 'Failed to fetch requests');
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
-  Future<void> _replyToRequest(
-    BuildContext context,
-    DocumentSnapshot requestDoc,
-  ) async {
+  void _onFilterChanged(String filter) {
+    setState(() {
+      activeFilter = filter;
+    });
+    _fetchRequests();
+  }
+
+  Future<void> _replyToRequest(Map<String, dynamic> request) async {
     final TextEditingController replyController = TextEditingController();
-    final data = requestDoc.data() as Map<String, dynamic>;
-    final userId = data['userId'];
-
-    // Pre-fill if editing an existing reply
-    if (data['replyMessage'] != null) {
-      replyController.text = data['replyMessage'];
+    if (request['reply_message'] != null) {
+      replyController.text = request['reply_message'];
     }
-
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .get();
-    if (!userDoc.exists) return;
-
-    final userData = userDoc.data()!;
-    final userEmail = userData['email'] ?? "";
-    final userName = userData['name'] ?? "Customer";
-
-    if (!context.mounted) return;
 
     await showDialog(
       context: context,
@@ -79,45 +101,57 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
               final reply = replyController.text.trim();
               if (reply.isEmpty) return;
 
-              await FirebaseFirestore.instance
-                  .collection('requests')
-                  .doc(requestDoc.id)
-                  .update({
-                    'replyMessage': reply,
-                    'status': 'Replied',
-                    'repliedAt': FieldValue.serverTimestamp(),
-                  });
-
-              final Email email = Email(
-                body:
-                    "Hello $userName,\n\nRegarding: ${data['title']}\nAdmin reply: $reply",
-                subject: "Update on Special Request",
-                recipients: [userEmail],
-              );
-
-              try {
-                await FlutterEmailSender.send(email);
-              } catch (e) {
-                debugPrint("Email failed: $e");
-              }
-
-              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              await _updateRequest(request['id'], 'reply', replyMessage: reply);
+              Navigator.pop(dialogContext);
+              _fetchRequests(); // Refresh
             },
-            child: const Text(
-              'Send Reply',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Text('Send Reply', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _closeRequest(BuildContext context, String docId) async {
-    await FirebaseFirestore.instance.collection('requests').doc(docId).update({
-      'status': 'Closed',
-      'closedAt': FieldValue.serverTimestamp(),
-    });
+  Future<void> _closeRequest(String requestId) async {
+    await _updateRequest(requestId, 'close');
+    _fetchRequests(); // Refresh
+  }
+
+  Future<void> _updateRequest(String requestId, String action, {String? replyMessage}) async {
+    try {
+      final token = await _storage.read(key: 'token');
+      if (token == null) throw Exception('Not authenticated');
+
+      final res = await http.put(
+        Uri.parse('$_baseUrl/requests/admin/$requestId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'action': action, 'replyMessage': replyMessage}),
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception(jsonDecode(res.body)['message']);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Replied':
+        return Colors.blue;
+      case 'Closed':
+        return Colors.green;
+      case 'Pending':
+        return Colors.orange;
+      default:
+        return const Color(0xff537D4F);
+    }
   }
 
   @override
@@ -139,7 +173,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       ),
       body: Column(
         children: [
-          // 1. FILTER TABS
+          // Filter Tabs
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
@@ -151,12 +185,10 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                   child: ChoiceChip(
                     label: Text(status),
                     selected: isSelected,
-                    onSelected: (val) => setState(() => activeFilter = status),
+                    onSelected: (val) => _onFilterChanged(status),
                     selectedColor: _getStatusColor(status).withOpacity(0.2),
                     labelStyle: TextStyle(
-                      color: isSelected
-                          ? _getStatusColor(status)
-                          : Color(0xff537D4F),
+                      color: isSelected ? _getStatusColor(status) : const Color(0xff537D4F),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -165,232 +197,179 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
             ),
           ),
 
-          // 2. REQUEST LIST
+          // Request List
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('requests')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No requests found."));
-                }
-
-                var docs = snapshot.data!.docs;
-                if (activeFilter != 'All') {
-                  docs = docs
-                      .where((d) => (d.data() as Map)['status'] == activeFilter)
-                      .toList();
-                }
-
-                if (docs.isEmpty)
-                  return const Center(
-                    child: Text("No requests found for this filter."),
-                  );
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final status = data['status'] ?? 'Pending';
-                    final date = (data['createdAt'] as Timestamp?)?.toDate();
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 10,
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Card Header
-                          ListTile(
-                            title: Text(
-                              data['title'] ?? 'Urgent Request',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            subtitle: Text(
-                              DateFormat(
-                                'dd MMM yyyy, hh:mm a',
-                              ).format(date ?? DateTime.now()),
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(status),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                status,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const Divider(height: 1),
-                          Padding(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                    ? Center(child: Text('Error: $errorMessage'))
+                    : requests.isEmpty
+                        ? const Center(child: Text("No requests found."))
+                        : ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Request Details:",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xff537D4F),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  data['description'] ??
-                                      'No instructions provided.',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                const SizedBox(height: 15),
+                            itemCount: requests.length,
+                            itemBuilder: (context, index) {
+                              final request = requests[index];
+                              final status = request['status'] ?? 'Pending';
+                              final date = DateTime.tryParse(request['created_at'] ?? '');
 
-                                // User Info Box
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      _infoRow(
-                                        Icons.person,
-                                        "Customer: ${data['userName'] ?? 'User'}",
-                                      ),
-                                      _infoRow(
-                                        Icons.confirmation_number,
-                                        "Order ID: ${data['orderId'] ?? 'N/A'}",
-                                      ),
-                                    ],
-                                  ),
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
                                 ),
-
-                                // Admin Response (if exists)
-                                if (data['replyMessage'] != null) ...[
-                                  const SizedBox(height: 15),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: Colors.green.shade100,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ListTile(
+                                      title: Text(
+                                        request['title'] ?? 'Urgent Request',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      subtitle: Text(
+                                        DateFormat('dd MMM yyyy, hh:mm a').format(date ?? DateTime.now()),
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: _getStatusColor(status),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.check_circle,
-                                              size: 16,
-                                              color: primaryGreen,
+                                    const Divider(height: 1),
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Request Details:",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xff537D4F),
+                                              fontSize: 12,
                                             ),
-                                            const SizedBox(width: 5),
-                                            const Text(
-                                              "Confirmed Response",
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            request['description'] ?? 'No instructions provided.',
+                                            style: const TextStyle(fontSize: 14),
+                                          ),
+                                          const SizedBox(height: 15),
+
+                                          // User Info
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade50,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                _infoRow(Icons.person, "Customer: ${request['user_name'] ?? 'User'}"),
+                                                _infoRow(Icons.confirmation_number, "Order ID: ${request['order_id'] ?? 'N/A'}"),
+                                              ],
+                                            ),
+                                          ),
+
+                                          // Admin Response
+                                          if (request['reply_message'] != null) ...[
+                                            const SizedBox(height: 15),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.shade50,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(color: Colors.green.shade100),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(Icons.check_circle, size: 16, color: primaryGreen),
+                                                      const SizedBox(width: 5),
+                                                      const Text(
+                                                        "Confirmed Response",
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    request['reply_message'],
+                                                    style: const TextStyle(fontSize: 13),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          data['replyMessage'],
-                                          style: const TextStyle(fontSize: 13),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
 
-                                // Action Buttons
-                                if (status != 'Closed') ...[
-                                  const SizedBox(height: 15),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: () =>
-                                              _replyToRequest(context, doc),
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            size: 16,
-                                          ),
-                                          label: Text(
-                                            status == 'Replied'
-                                                ? "Edit Reply"
-                                                : "Reply",
-                                          ),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor: primaryGreen,
-                                          ),
-                                        ),
+                                          // Action Buttons
+                                          if (status != 'Closed') ...[
+                                            const SizedBox(height: 15),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: OutlinedButton.icon(
+                                                    onPressed: () => _replyToRequest(request),
+                                                    icon: const Icon(Icons.edit, size: 16),
+                                                    label: Text(
+                                                      status == 'Replied' ? "Edit Reply" : "Reply",
+                                                    ),
+                                                    style: OutlinedButton.styleFrom(
+                                                      foregroundColor: primaryGreen,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: ElevatedButton.icon(
+                                                    onPressed: () => _closeRequest(request['id']),
+                                                    icon: const Icon(Icons.close, size: 16),
+                                                    label: const Text("Close"),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: Colors.red.shade400,
+                                                      foregroundColor: Colors.white,
+                                                      elevation: 0,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: ElevatedButton.icon(
-                                          onPressed: () =>
-                                              _closeRequest(context, doc.id),
-                                          icon: const Icon(
-                                            Icons.close,
-                                            size: 16,
-                                          ),
-                                          label: const Text("Close"),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor:
-                                                Colors.red.shade400,
-                                            foregroundColor: Colors.white,
-                                            elevation: 0,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -402,7 +381,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: Color(0xff537D4F)),
+          Icon(icon, size: 14, color: const Color(0xff537D4F)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:qurbani/screens/superadmin/admin_details.dart';
 import 'package:qurbani/screens/superadmin/superadmin_drawer.dart';
 
-enum RoleFilter { all, user, admin, pending }
+enum RoleFilter { all, user, admin, pending, delivery }
 
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
@@ -16,40 +16,43 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   static const Color primaryGreen = Color(0xff537D4F);
 
   RoleFilter _selectedFilter = RoleFilter.all;
+  List<Map<String, dynamic>> _users = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  /// ================= FIRESTORE QUERY =================
-  Stream<QuerySnapshot> get _usersStream {
-    final usersRef = FirebaseFirestore.instance.collection('users');
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+  }
 
-    switch (_selectedFilter) {
-      case RoleFilter.user:
-        return usersRef
-            .where('role', isEqualTo: 'user')
-            .orderBy('createdAt', descending: true)
-            .snapshots();
+  Future<void> _fetchUsers() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-      case RoleFilter.admin:
-        return usersRef
-            .where('role', isEqualTo: 'admin')
-            .orderBy('createdAt', descending: true)
-            .snapshots();
-
-      case RoleFilter.pending:
-        return usersRef
-            .where('role', isEqualTo: 'pending')
-            .orderBy('createdAt', descending: true)
-            .snapshots();
-
-      case RoleFilter.all:
-      default:
-        return usersRef
-            .where('role', whereIn: ['admin', 'pending', 'user'])
-            .orderBy('createdAt', descending: true)
-            .snapshots();
+    try {
+      final role = _selectedFilter == RoleFilter.all ? 'all' : _selectedFilter.name;
+      _users = await SuperAdminService.getUsers(role);
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  /// ================= UI =================
+  void _onFilterChanged(RoleFilter filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    _fetchUsers();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,33 +62,22 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         actions: [_filterDropdown()],
       ),
       drawer: SuperadminDrawer(),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _usersStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No users found'));
-          }
-
-          final users = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: users.length,
-            itemBuilder: (_, i) {
-              final doc = users[i];
-              final data = doc.data() as Map<String, dynamic>;
-              return _userCard(context, doc.id, data);
-            },
-          );
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(child: Text('Error: $_errorMessage'))
+              : _users.isEmpty
+                  ? const Center(child: Text('No users found'))
+                  : ListView.builder(
+                      itemCount: _users.length,
+                      itemBuilder: (_, i) {
+                        final user = _users[i];
+                        return _userCard(context, user['id'], user);
+                      },
+                    ),
     );
   }
 
-  /// ================= FILTER DROPDOWN =================
   Widget _filterDropdown() {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
@@ -98,24 +90,15 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           DropdownMenuItem(value: RoleFilter.all, child: Text('All')),
           DropdownMenuItem(value: RoleFilter.user, child: Text('Users')),
           DropdownMenuItem(value: RoleFilter.admin, child: Text('Admins')),
-          DropdownMenuItem(
-            value: RoleFilter.pending,
-            child: Text('Pending Admins'),
-          ),
+          DropdownMenuItem(value: RoleFilter.pending, child: Text('Pending Admins')),
+          DropdownMenuItem(value: RoleFilter.delivery, child: Text('Delivery Boys')),
         ],
-        onChanged: (value) {
-          setState(() => _selectedFilter = value!);
-        },
+        onChanged: (value) => _onFilterChanged(value!),
       ),
     );
   }
 
-  /// ================= USER CARD =================
-  Widget _userCard(
-    BuildContext context,
-    String userId,
-    Map<String, dynamic> data,
-  ) {
+  Widget _userCard(BuildContext context, String userId, Map<String, dynamic> data) {
     final role = data['role'];
 
     return Card(
@@ -146,8 +129,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              AdminVerificationDetailsPage(adminId: userId),
+                          builder: (_) => AdminVerificationDetailsPage(adminId: userId),
                         ),
                       );
                     },
@@ -160,8 +142,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
               backgroundColor: role == 'pending'
                   ? Colors.orange[100]
                   : role == 'admin'
-                  ? Colors.green[100]
-                  : Colors.blue[100],
+                      ? Colors.green[100]
+                      : Colors.blue[100],
             ),
             const SizedBox(height: 8),
             Row(
@@ -186,7 +168,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  /// ================= ACTION BUTTON =================
   Widget _actionButton({
     required String label,
     required Color color,
@@ -202,21 +183,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  /// ================= ACTIONS =================
   Future<void> _approveAdmin(BuildContext context, String adminId) async {
-    await FirebaseFirestore.instance.collection('users').doc(adminId).update({
-      'role': 'admin',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    await FirebaseFirestore.instance
-        .collection('adminVerifications')
-        .doc(adminId)
-        .update({'status': 'verified'});
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Admin Approved')));
+    try {
+      await SuperAdminService.updateUser(adminId, 'approve');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Admin Approved')));
+      _fetchUsers();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Future<void> _deleteAdmin(BuildContext context, String adminId) async {
@@ -240,10 +214,13 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
 
     if (confirm == true) {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(adminId)
-          .delete();
+      try {
+        await SuperAdminService.updateUser(adminId, 'reject');
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account Deleted')));
+        _fetchUsers();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 }
