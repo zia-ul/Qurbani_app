@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-// ignore: unused_element
 class _SummaryRow extends StatelessWidget {
   final int total, pending, processing, delivered;
 

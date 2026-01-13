@@ -171,7 +171,7 @@ class _BookedPageState extends State<BookedPage> {
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['createdAt'] ?? '');
     final String pStatus = order['processingStatus'] ?? 'Pending';
-    // print(order);
+    print(cartItems);
     // Safely handle orderId for display
     String orderIdStr = (order['id'] ?? '').toString();
     String displayId = orderIdStr.length >= 5
@@ -292,6 +292,26 @@ class _BookedPageState extends State<BookedPage> {
             ),
           ),
           const Divider(height: 1, color: Color(0xffD1C4A9)),
+          const Divider(height: 1, color: Color(0xffD1C4A9)),
+
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _actionBtn(() {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProductDetailsPage(
+                      orderId: order['id'],
+                      userId: widget.userId,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+
           ...cartItems.map((item) => _buildItemRow(item, {}, order)).toList(),
         ],
       ),
@@ -362,19 +382,17 @@ class _BookedPageState extends State<BookedPage> {
               ],
             ),
           ),
-          // _actionBtn(() {
-          //   Navigator.push(
-          //     context,
-          //     MaterialPageRoute(
-          //       builder: (_) => ProductDetailsPage(
-          //         orderData: orderData,
-          //         productData: item,
-          //         adminData: admin, // Still empty; pass order['admin_name'] etc. if needed
-          //         userId: widget.userId,
-          //       ),
-          //     ),
-          //   );
-          // }),
+          _actionBtn(() {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProductDetailsPage(
+                  orderId: orderData['id'],
+                  userId: widget.userId,
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );

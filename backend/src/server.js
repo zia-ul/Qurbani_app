@@ -7,7 +7,7 @@ const adminVerificationRoutes = require("../controllers/apply_admin_verification
 const animalRoutes = require("../routes/addanimal");
 const adminRoutes = require("../routes/marketplace");
 const adminProfileRoutes = require("../routes/adminprofile");
-const orderRoutes = require("../controllers/orders"); 
+// const orderRoutes = require("../controllers/orders"); 
 const userRoutes = require("../routes/users"); 
 require('dotenv').config();
 
@@ -27,14 +27,17 @@ app.use("/api/admins", adminRoutes);
 // app.use("/api/orders", orderRoutes); 
 app.use("/api/animals", animalListRoutes);
 
+// Orders
 app.use("/api/orders", require("../routes/orders"));
+// Rating Routes
 app.use("/api/ratings", require("../routes/rating_routes"));
+// Special Requests Routes
 app.use("/api/requests", require("../routes/requests_routes"));
 
+app.use("/api/slots", require("../routes/slots")); // Mount the slots routes
 
-// Mount the user-related routes (profile, ratings, requests, delivery-boys)
+// user-related routes (profile, ratings, requests, delivery-boys)
 app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys
-
 
 const PORT = 3000;
 

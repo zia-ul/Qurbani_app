@@ -69,7 +69,7 @@ router.get('/profile', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   try {
     const [users] = await pool.execute(
-      'SELECT name, email, phone, address, description, photo_url, role, order_deadline FROM users WHERE id = ?',
+      'SELECT name, email, phone, address, description, role, order_deadline FROM users WHERE id = ?',
       [userId]
     );
     if (users.length === 0) {
@@ -105,8 +105,8 @@ router.put('/profile', authMiddleware, async (req, res) => {
 
   try {
     await pool.execute(
-      'UPDATE users SET name = ?, phone = ?, address = ?, description = ?, photo_url = ?, order_deadline = ? WHERE id = ?',
-      [name.trim(), phone?.trim(), address?.trim(), description?.trim(), photoUrl, orderDeadline, userId]
+      'UPDATE users SET name = ?, phone = ?, address = ?, description = ?, order_deadline = ? WHERE id = ?',
+      [name.trim(), phone?.trim(), address?.trim(), description?.trim(), orderDeadline, userId]
     );
     res.json({ message: 'Profile updated successfully' });
   } catch (err) {
@@ -256,6 +256,86 @@ router.get("/superadmin/verifications/:adminId", authMiddleware, async (req, res
     res.json({ verification: verifications[0] });
   } catch (err) {
     console.error("Error fetching verification:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+// GET /api/delivery/orders - Fetch orders for delivery person
+router.get("/delivery/orders", authMiddleware, async (req, res) => {
+  const deliveryPersonId = req.user.id;
+  try {
+    const [orders] = await pool.execute(
+      `SELECT id, user_id, admin_id, delivery_status, delivery_code, items, customer_name, delivery_address, admin_name, admin_contact, created_at
+       FROM orders WHERE delivery_person_id = ? ORDER BY created_at DESC`,
+      [deliveryPersonId]
+    );
+
+    printf("Fetched %d orders for delivery person %d\n", orders.length, deliveryPersonId);
+    res.json({ orders });
+  } catch (err) {
+    console.error("Error fetching delivery orders:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// PUT /api/delivery/orders/:id/status - Update delivery status
+router.put("/delivery/orders/:id/status", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const deliveryPersonId = req.user.id;
+
+  try {
+    let updateQuery = `UPDATE orders SET delivery_status = ?`;
+    let params = [status];
+
+    if (status === 'sent') {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      updateQuery += `, delivery_code = ?`;
+      params.push(code);
+      // Notify user (e.g., send SMS/email with code)
+      // Implement notification logic here
+    } else if (status === 'delivered') {
+      updateQuery += `, delivered_at = NOW(), delivery_code = NULL`;
+    }
+
+    updateQuery += ` WHERE id = ? AND delivery_person_id = ?`;
+    params.push(id, deliveryPersonId);
+
+    const [result] = await pool.execute(updateQuery, params);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Order not found or not assigned" });
+    }
+
+    res.json({ message: "Status updated", code: status === 'sent' ? params[1] : null });
+  } catch (err) {
+    console.error("Error updating status:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// PUT /api/delivery/orders/:id/verify - Verify delivery code
+router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { code } = req.body;
+  const deliveryPersonId = req.user.id;
+
+  try {
+    const [orders] = await pool.execute(
+      `SELECT delivery_code FROM orders WHERE id = ? AND delivery_person_id = ?`,
+      [id, deliveryPersonId]
+    );
+    if (orders.length === 0 || orders[0].delivery_code !== code) {
+      return res.status(400).json({ message: "Invalid code" });
+    }
+
+    await pool.execute(
+      `UPDATE orders SET delivery_status = 'delivered', delivered_at = NOW(), delivery_code = NULL WHERE id = ?`,
+      [id]
+    );
+    res.json({ message: "Order delivered" });
+  } catch (err) {
+    console.error("Error verifying code:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });

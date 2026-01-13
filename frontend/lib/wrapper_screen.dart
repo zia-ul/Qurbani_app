@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/onboarding_screen.dart';
 import 'package:qurbani/screens/admin/admin_home_page.dart';
+import 'package:qurbani/screens/admin/pending_admin.dart';
+import 'package:qurbani/screens/delivery/delivery_home_page.dart';
+import 'package:qurbani/screens/superadmin/superadmin_welcome_page.dart';
 import 'package:qurbani/screens/user/user_home_screen.dart';
 import 'package:qurbani/welcome_screen.dart';
 import 'services/auth_service.dart';
@@ -44,7 +47,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
         }
 
         if (!snapshot.hasData) {
-          // No user logged in → show onboarding
+          // No user logged in, then show onboarding
           return const OnboardingScreen();
         }
 
@@ -55,6 +58,10 @@ class _WrapperScreenState extends State<WrapperScreen> {
         switch (user.role) {
           case 'admin':
             return AdminHomePage(adminId: user.id.toString(), name: user.name);
+          
+          case 'delivery':
+            return DeliveryHomePage(deliveryId: user.id.toString(), name: user.name);
+          
           case 'user':
             print("WrapperScreen: Logged in as ${user.role} (${user.name})");
 
@@ -63,8 +70,15 @@ class _WrapperScreenState extends State<WrapperScreen> {
               name: user.name,
               role: user.role,
             );
+          
+          case 'super_admin':
+              print("WrapperScreen: Logged in as ${user.role} (${user.name})");
+              return SuperAdminDashboard();
+
+          //show pending screen for pending admins
           case 'pending_admin':
-            return const WelcomeScreen();
+            return const PendingAdminScreen();
+          
           default:
             return const WelcomeScreen();
         }

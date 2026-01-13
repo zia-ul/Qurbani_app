@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:qurbani/screens/superadmin/services/super_admin_services.dart'; // Adjust path to your SuperAdminService
 import 'package:intl/intl.dart';
 
-class AdminVerificationDetailsPage extends StatelessWidget {
+class AdminVerificationDetailsPage extends StatefulWidget {
   final String adminId;
 
   const AdminVerificationDetailsPage({
@@ -12,49 +12,68 @@ class AdminVerificationDetailsPage extends StatelessWidget {
 
   static const Color primaryGreen = Color(0xff537D4F);
 
+  @override
+  State<AdminVerificationDetailsPage> createState() => _AdminVerificationDetailsPageState();
+}
+
+class _AdminVerificationDetailsPageState extends State<AdminVerificationDetailsPage> {
+  Future<Map<String, dynamic>>? _verificationFuture;
 
   @override
+  void initState() {
+    super.initState();
+    _loadVerification();
+  }
 
+  void _loadVerification() {
+    setState(() {
+      _verificationFuture = SuperAdminService.getVerification(widget.adminId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Verification Details'),
-        backgroundColor: primaryGreen,
+        backgroundColor: AdminVerificationDetailsPage.primaryGreen,
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('adminVerifications')
-            .doc(adminId)
-            .snapshots(),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _verificationFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!snapshot.hasData || !snapshot.data!.exists) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('No verification data found'));
           }
 
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-
-          final submittedAt = (data['submittedAt'] as Timestamp?)?.toDate();
+          final data = snapshot.data!;
+          final documents = data['documents'] as Map<String, dynamic>? ?? {};
+          final status = data['status'] as String?;
+          final submittedAt = data['created_at']; // Assuming backend returns this; adjust if not
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _infoTile('Name', data['name']),
-              _infoTile('Email', data['email']),
-              _infoTile('Phone', data['phone']),
-              _infoTile('Address', data['address']),
-              _infoTile('Government ID', data['governmentId']),
-              _statusTile(data['status']),
+              _infoTile('Name', documents['name']),
+              _infoTile('Email', documents['email']),
+              _infoTile('Phone', documents['phone']),
+              _infoTile('Address', documents['address']),
+              _infoTile('Government ID', documents['governmentId']),
+              _statusTile(status),
               if (submittedAt != null)
                 _infoTile(
                   'Submitted On',
-                  DateFormat('dd MMM yyyy').format(submittedAt),
+                  DateFormat('dd MMM yyyy').format(DateTime.parse(submittedAt)),
                 ),
               const SizedBox(height: 20),
-              _documentsSection(data['documentUrls']),
+              _documentsSection(documents['documentUrls']),
             ],
           );
         },

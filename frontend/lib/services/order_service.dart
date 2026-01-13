@@ -74,8 +74,46 @@ class OrderService {
 
     return Map<String, dynamic>.from(jsonDecode(res.body)['order']);
   }
+
+   static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/orders/$orderId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
+      throw Exception(msg);
+    }
+
+    final data = jsonDecode(res.body);
+    return Map<String, dynamic>.from(data['order']);
+  }
+
+  static Future<void> cancelOrder(String orderId) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.put(
+      Uri.parse('$_baseUrl/orders/$orderId/cancel'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to cancel order';
+      throw Exception(msg);
+    }
+  }
 }
 
+
+// ADMIN ORDER SERVICE
 
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
@@ -137,4 +175,5 @@ class AdminOrderService {
     final List data = jsonDecode(res.body)['orders'];
     return List<Map<String, dynamic>>.from(data);
   }
+
 }

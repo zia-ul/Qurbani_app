@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/services/admin_order_service.dart'; 
-import 'package:qurbani/services/ratings_service.dart';
 import 'package:qurbani/services/user_service.dart';
 import 'package:qurbani/widgets/success_error_popup.dart'; 
 
