@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:qurbani/services/order_service.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class PaymentProcessingPage extends StatefulWidget {
-  final Map<String, dynamic> orderData;
-  const PaymentProcessingPage({super.key, required this.orderData});
+  final String orderId;
+  final double totalAmount; // In INR
+
+  const PaymentProcessingPage({
+    super.key,
+    required this.orderId,
+    required this.totalAmount,
+  });
 
   @override
   State<PaymentProcessingPage> createState() => _PaymentProcessingPageState();
@@ -12,8 +19,6 @@ class PaymentProcessingPage extends StatefulWidget {
 
 class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
   late Razorpay _razorpay;
-  int finalAmountPaise = 0;
-  bool loading = true;
 
   @override
   void initState() {
@@ -22,78 +27,75 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handleSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handleError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
-
-    _prepareAmount();
   }
 
-  /// 💰 Directly use INR amount
-  void _prepareAmount() {
-    double total = (widget.orderData['totalAmount'] ?? 0).toDouble();
-    finalAmountPaise = (total * 100).round(); // INR → Paise
-    widget.orderData['amountINR'] = total;
-
-    setState(() => loading = false);
-  }
-
-  /// 🚀 Open Razorpay
-  void _openGateway() {
+  void _startPayment() {
     var options = {
-      'key': 'rzp_test_RvnWCRmWH17BYb',
-      'amount': finalAmountPaise,
+      'key': 'rzp_test_RvnWCRmWH17BYb', // Replace with your key
+      'amount': (widget.totalAmount * 100).round(), // Paise
       'currency': 'INR',
       'name': 'Qurbani',
-      'description': "Order Payment",
+      'description': 'Order Payment',
       'prefill': {
-        'contact': widget.orderData['phone'] ?? '',
-        'email': widget.orderData['email'] ?? '',
+        'contact': '', // Add user contact if available
+        'email': '', // Add user email if available
       },
     };
     _razorpay.open(options);
   }
 
-  /// 🎉 Success
   void _handleSuccess(PaymentSuccessResponse res) async {
-    await FirebaseFirestore.instance
-        .collection("orders")
-        .doc(widget.orderData['orderId'])
-        .update({
-          "paymentStatus": "Paid",
-          "paymentId": res.paymentId,
-          "paymentDate": DateTime.now(),
-          "method": "Razorpay",
-        });
-
-    Navigator.pop(context); // Back to previous page
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("🎉 Payment Successful")));
+    try {
+      await OrderService.updatePaymentSuccess(widget.orderId, res.paymentId!);
+      Fluttertoast.showToast(
+        msg: "Payment Successful!",
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+      );
+      Navigator.pop(context); // Back to order page or home
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: "Payment recorded, but error updating: $e",
+        backgroundColor: Colors.orange,
+        textColor: Colors.white,
+      );
+    }
   }
 
-  /// ❌ Failure
   void _handleError(PaymentFailureResponse res) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("❌ Payment Failed: ${res.message}")));
+    Fluttertoast.showToast(
+      msg: "Payment Failed: ${res.message}",
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+    );
   }
 
-  /// 👛 Wallet used
   void _handleExternalWallet(ExternalWalletResponse res) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Wallet Selected: ${res.walletName}")),
+    Fluttertoast.showToast(
+      msg: "Wallet Selected: ${res.walletName}",
+      backgroundColor: Colors.blue,
+      textColor: Colors.white,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Payment Checkout")),
+      appBar: AppBar(
+        title: const Text("Payment Checkout"),
+        backgroundColor: const Color(0xff3D6B4E),
+      ),
       body: Center(
-        child: loading
-            ? const CircularProgressIndicator()
-            : ElevatedButton(
-                onPressed: _openGateway,
-                child: const Text("Pay Now"),
-              ),
+        child: ElevatedButton(
+          onPressed: _startPayment,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+          ),
+          child: const Text(
+            "Pay Now",
+            style: TextStyle(fontSize: 18),
+          ),
+        ),
       ),
     );
   }

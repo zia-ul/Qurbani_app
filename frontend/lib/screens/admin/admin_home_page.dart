@@ -13,7 +13,7 @@ import 'package:qurbani/screens/admin/admin_orders.dart';
 import 'package:qurbani/screens/admin/special_requests_admin.dart';
 
 class AdminHomePage extends StatefulWidget {
-  final String adminId; // UUID from MySQL
+  final String adminId;
   final String name;
 
   const AdminHomePage({

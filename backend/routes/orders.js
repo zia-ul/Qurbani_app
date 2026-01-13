@@ -95,5 +95,23 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/orders/:orderId/payment-success - Update payment status after online payment
+router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { paymentId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    await pool.execute(
+      `UPDATE orders SET payment_status = 'paid', payment_id = ? WHERE id = ? AND user_id = ?`,
+      [paymentId, orderId, userId]
+    );
+    res.json({ message: "Payment updated" });
+  } catch (err) {
+    console.error("Error updating payment:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 
 module.exports = router;

@@ -9,14 +9,43 @@ class OrderService {
   /// PLACE ORDER
   /// Expects:
   /// userId, adminId, paymentMethod ('Cash'/'Online'), shareholders (List<Map<String,dynamic>>)
-  static Future<void> placeOrder({
+  // static Future<void> placeOrder({
+  //   required String userId,
+  //   required String adminId,
+  //   required String paymentMethod,
+  //   required List<Map<String, dynamic>> shareholders,
+  // }) async {
+  //   final token = await _storage.read(key: 'token');
+  //   if (token == null) throw Exception('User not authenticated');
+
+  //   final res = await http.post(
+  //     Uri.parse('$_baseUrl/orders'),
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       'Authorization': 'Bearer $token',
+  //     },
+  //     body: jsonEncode({
+  //       'userId': userId,
+  //       'adminId': adminId,
+  //       'paymentMethod': paymentMethod,
+  //       'shareholders': shareholders,
+  //     }),
+  //   );
+
+  //   if (res.statusCode != 201) {
+  //     final msg = jsonDecode(res.body)['message'] ?? 'Failed to place order';
+  //     throw Exception(msg);
+  //   }
+  // }
+
+  static Future<Map<String, dynamic>> placeOrder({
     required String userId,
     required String adminId,
     required String paymentMethod,
     required List<Map<String, dynamic>> shareholders,
   }) async {
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('User not authenticated');
+    if (token == null) throw Exception('Not authenticated');
 
     final res = await http.post(
       Uri.parse('$_baseUrl/orders'),
@@ -25,7 +54,6 @@ class OrderService {
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode({
-        'userId': userId,
         'adminId': adminId,
         'paymentMethod': paymentMethod,
         'shareholders': shareholders,
@@ -34,6 +62,30 @@ class OrderService {
 
     if (res.statusCode != 201) {
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to place order';
+      throw Exception(msg);
+    }
+
+    return Map<String, dynamic>.from(jsonDecode(res.body));
+  }
+
+  static Future<void> updatePaymentSuccess(
+    String orderId,
+    String paymentId,
+  ) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.put(
+      Uri.parse('$_baseUrl/orders/$orderId/payment-success'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'paymentId': paymentId}),
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to update payment';
       throw Exception(msg);
     }
   }
@@ -75,7 +127,7 @@ class OrderService {
     return Map<String, dynamic>.from(jsonDecode(res.body)['order']);
   }
 
-   static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
+  static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -110,7 +162,29 @@ class OrderService {
       throw Exception(msg);
     }
   }
+
+   static Future<List<Map<String, dynamic>>> getAnimalOrders(
+    String animalId,
+  ) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/animals/$animalId/orders'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch orders';
+      throw Exception(msg);
+    }
+
+    final data = jsonDecode(res.body);
+    return List<Map<String, dynamic>>.from(data['orders']);
+  }
 }
+
+
 
 
 // ADMIN ORDER SERVICE
@@ -125,7 +199,7 @@ class AdminOrderService {
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.get(
-      Uri.parse('$_baseUrl/orders/admin/$orderId'), 
+      Uri.parse('$_baseUrl/orders/admin/$orderId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
@@ -138,12 +212,17 @@ class AdminOrderService {
   }
 
   /// UPDATE ORDER (for admin)
-  static Future<void> updateOrder(String orderId, Map<String, dynamic> updates) async {
+  static Future<void> updateOrder(
+    String orderId,
+    Map<String, dynamic> updates,
+  ) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.put(
-      Uri.parse('$_baseUrl/orders/admin/$orderId'),  // Add this route if needed (see below)
+      Uri.parse(
+        '$_baseUrl/orders/admin/$orderId',
+      ), // Add this route if needed (see below)
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -176,4 +255,6 @@ class AdminOrderService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+
+  
 }

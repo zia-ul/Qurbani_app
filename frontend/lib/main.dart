@@ -77,13 +77,39 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Qurbani App',
 
-      /// Centralized Theme
-      // theme: AppTheme.lightTheme,
+      /// Centralized Theme (Now Active)
+      theme: AppTheme.lightTheme,
       // darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      // themeMode: ThemeMode.system,
 
       home: const WrapperScreen(),
       // home: const WelcomeScreen(),
+
+      /// Global Gradient Wrapper for All Screens
+      builder: (context, child) {
+        return GlobalGradientWrapper(child: child!);
+      },
+    );
+  }
+}
+
+// Global Gradient Wrapper Widget
+class GlobalGradientWrapper extends StatelessWidget {
+  final Widget child;
+
+  const GlobalGradientWrapper({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    // Dynamically select gradient based on theme
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gradient = isDark
+        ? AppTheme.darkBackgroundGradient
+        : AppTheme.lightBackgroundGradient;
+
+    return Container(
+      decoration: BoxDecoration(gradient: gradient),
+      child: child, // Wraps the entire app/screen
     );
   }
 }

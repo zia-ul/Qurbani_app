@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/screens/admin/animal_edit.dart';
+import 'package:qurbani/screens/admin/animal_orders_page.dart'; // New page
 import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AnimalListingPage extends StatefulWidget {
@@ -44,20 +45,11 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
         final data = json.decode(response.body);
         setState(() => animals = data['animals'] ?? []);
       } else {
-
         ToastUtils.showError("Failed to fetch animals: ${response.body}");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text("Failed to fetch animals: ${response.body}")),
-        // );
       }
     } catch (e) {
       print(e);
-
-        ToastUtils.showError("Something went wrong");
-
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
+      ToastUtils.showError("Something went wrong");
     } finally {
       setState(() => isLoading = false);
     }
@@ -100,88 +92,154 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
       if (response.statusCode == 200) {
         ToastUtils.showSuccess("Animal deleted successfully");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   const SnackBar(content: Text("Animal deleted successfully")),
-        // );
         fetchAnimals(); // Refresh list
       } else {
         ToastUtils.showError("Failed to delete animal: ${response.body}");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text("Failed to delete animal: ${response.body}")),
-        // );
       }
     } catch (e) {
       print(e);
       ToastUtils.showError("Something went wrong");
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(const SnackBar(content: Text("Something went wrong")));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final Color primaryGreen = const Color(0xff3D6B4E);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Animal Management")),
+      backgroundColor: Colors.transparent, // For gradient
+      appBar: AppBar(
+        title: const Text("Animal Management"),
+        backgroundColor: primaryGreen,
+      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : animals.isEmpty
           ? const Center(child: Text("No animals found."))
           : ListView.builder(
+              padding: const EdgeInsets.all(16),
               itemCount: animals.length,
               itemBuilder: (context, index) {
                 final animal = animals[index];
-                return Card(
-                  margin: const EdgeInsets.all(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "${animal['breed'] ?? ''} (${animal['animal_type'] ?? ''})",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text("ID: ${animal['id']}"),
-                        Text("Price: ${animal['price'] ?? 0}"),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => AnimalEditPage(
-                                      animalId: animal['id'].toString(),
-                                    ),
-                                  ),
-                                );
-                              },
-                              icon: const Icon(Icons.edit, size: 16),
-                              label: const Text("Edit"),
-                            ),
-
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
-                              onPressed: () => deleteAnimal(animal['id']),
-                              icon: const Icon(Icons.delete, size: 16),
-                              label: const Text("Delete"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildAnimalCard(animal, primaryGreen),
                 );
               },
             ),
+    );
+  }
+
+  Widget _buildAnimalCard(Map<String, dynamic> animal, Color primaryGreen) {
+    return GestureDetector(
+      onTap: () {
+        // Make card clickable to view orders
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AnimalOrdersPage(
+              animalId: animal['id'],
+              animalName:
+                  "${animal['breed'] ?? ''} (${animal['animal_type'] ?? ''})",
+            ),
+          ),
+        );
+      },
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image placeholder or actual image
+              Container(
+                height: 80,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: animal['image_url'] != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          animal['image_url'],
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : const Icon(Icons.pets, size: 40, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "${animal['breed'] ?? ''} (${animal['animal_type'] ?? ''})",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                "ID: ${animal['id']}",
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              Text(
+                "Price: ${animal['price'] ?? 0}",
+                style: const TextStyle(fontSize: 12),
+              ),
+              // const Spacer(),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AnimalOrdersPage(
+                              animalId: animal['id'],
+                              animalName:
+                                  "${animal['breed'] ?? ''} (${animal['animal_type'] ?? ''})",
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.visibility, size: 16),
+                      label: const Text("View"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              AnimalEditPage(animalId: animal['id'].toString()),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit, size: 20),
+                    color: primaryGreen,
+                  ),
+                  IconButton(
+                    onPressed: () => deleteAnimal(animal['id']),
+                    icon: const Icon(Icons.delete, size: 20),
+                    color: Colors.red,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

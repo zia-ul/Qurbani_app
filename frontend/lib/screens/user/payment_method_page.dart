@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani/screens/user/api_services.dart';
-import 'package:qurbani/screens/user/cod_payment.dart';
 import 'package:qurbani/screens/user/review_order.dart';
-import 'payment_processing2.dart';
 
 class PaymentMethodPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
