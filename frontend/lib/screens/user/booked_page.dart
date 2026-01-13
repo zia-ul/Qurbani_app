@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qurbani/screens/user/product_details_page.dart';
-import 'package:qurbani/exchange_rates.dart';
 import 'package:qurbani/screens/user/currency_notifier.dart';
 import 'package:qurbani/services/order_service.dart';
 

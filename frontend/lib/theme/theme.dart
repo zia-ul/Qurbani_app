@@ -1,35 +1,45 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // 🌿 Core Colors
-  static const Color primaryGreen = Color(0xff3D6B4E);
-  static const Color accentGreen = Color(0xff4CAF50);
+  // 🌿 Core Colors (Balanced)
+  static const Color primaryGreen = Color(0xff3D6B4E); // Main brand green
+  static const Color accentGreen = Color(0xff6B8E5A); // Softer accent for harmony
+  static const Color warningRed = Color(0xffD32F2F); // Softened red for warnings
 
-  static const Color bgGradientStart = Color(0xffF2E8D5); // parchment
-  static const Color bgGradientEnd = Color(0xffFFFFFF);
+  // 🏺 Parchment Gradient (Inspired by AboutUsPage)
+  static const Color bgGradientStart = Color(0xffF2E8D5); // Warm parchment
+  static const Color bgGradientEnd = Color(0xffFFFFFF); // Soft white fade
 
-  static const Color warningRed = Color(0xffE53935);
+  // 🌙 Dark Mode Variants
+  static const Color darkBgGradientStart = Color(0xff2A2A2A); // Dark parchment
+  static const Color darkBgGradientEnd = Color(0xff1E1E1E); // Deep gray fade
 
-  // 🌞 LIGHT THEME
+  // 🌞 LIGHT THEME (Parchment Gradient Background)
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
 
-    scaffoldBackgroundColor: bgGradientEnd,
+    // Transparent scaffold for gradient overlay
+    scaffoldBackgroundColor: Colors.transparent,
 
     colorScheme: ColorScheme.light(
       primary: primaryGreen,
       secondary: accentGreen,
       error: warningRed,
-      background: bgGradientEnd,
-      surface: Colors.white,
+      background: bgGradientEnd, // Base for surfaces
+      surface: Colors.white.withOpacity(0.9), // Semi-transparent for depth
+      onPrimary: Colors.white, // Text on primary
+      onSecondary: Colors.white,
+      onSurface: Colors.black87, // Dark text on light BG
+      onBackground: Colors.black87,
     ),
 
-    appBarTheme: const AppBarTheme(
-      backgroundColor: primaryGreen,
+    appBarTheme: AppBarTheme(
+      backgroundColor: primaryGreen.withOpacity(0.9), // Semi-transparent for gradient feel
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
+      surfaceTintColor: Colors.transparent, // Avoid overlay issues
     ),
 
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -40,13 +50,14 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.symmetric(vertical: 14),
+        elevation: 2,
       ),
     ),
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: primaryGreen,
-        side: const BorderSide(color: primaryGreen),
+        side: const BorderSide(color: primaryGreen, width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -55,55 +66,74 @@ class AppTheme {
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white,
+      fillColor: Colors.white.withOpacity(0.8), // Subtle on parchment
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderSide: const BorderSide(color: primaryGreen, width: 2),
         borderRadius: BorderRadius.circular(12),
       ),
       labelStyle: const TextStyle(color: primaryGreen),
+      hintStyle: const TextStyle(color: Colors.black54),
     ),
 
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       backgroundColor: primaryGreen,
-      contentTextStyle: TextStyle(color: Colors.white),
+      contentTextStyle: const TextStyle(color: Colors.white),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
     ),
 
     cardTheme: CardThemeData(
-      color: Colors.white,
-      elevation: 2,
+      color: Colors.white.withOpacity(0.95), // Semi-transparent for parchment
+      elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      shadowColor: primaryGreen.withOpacity(0.1),
     ),
 
     dividerTheme: const DividerThemeData(
       color: Colors.black12,
+      thickness: 1,
+    ),
+
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Colors.black87), // Default dark text
+      bodyMedium: TextStyle(color: Colors.black87),
+      headlineSmall: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold),
     ),
   );
 
-  // 🌙 DARK THEME
+  // 🌙 DARK THEME (Subtle Dark Gradient)
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
 
-    scaffoldBackgroundColor: const Color(0xff121212),
+    // Transparent scaffold for gradient overlay
+    scaffoldBackgroundColor: Colors.transparent,
 
     colorScheme: ColorScheme.dark(
       primary: accentGreen,
       secondary: primaryGreen,
       error: warningRed,
-      background: const Color(0xff121212),
-      surface: const Color(0xff1E1E1E),
+      background: darkBgGradientEnd, // Base for surfaces
+      surface: darkBgGradientStart.withOpacity(0.9), // Semi-transparent
+      onPrimary: Colors.black, // Text on primary
+      onSecondary: Colors.black,
+      onSurface: Colors.white70, // Light text on dark BG
+      onBackground: Colors.white70,
     ),
 
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Color(0xff1E1E1E),
+    appBarTheme: AppBarTheme(
+      backgroundColor: darkBgGradientStart.withOpacity(0.9),
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
+      surfaceTintColor: Colors.transparent,
     ),
 
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -114,13 +144,14 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.symmetric(vertical: 14),
+        elevation: 2,
       ),
     ),
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: accentGreen,
-        side: const BorderSide(color: accentGreen),
+        side: const BorderSide(color: accentGreen, width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -129,42 +160,58 @@ class AppTheme {
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xff1E1E1E),
+      fillColor: darkBgGradientStart.withOpacity(0.8),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderSide: const BorderSide(color: accentGreen, width: 2),
         borderRadius: BorderRadius.circular(12),
       ),
       labelStyle: const TextStyle(color: accentGreen),
+      hintStyle: const TextStyle(color: Colors.white54),
     ),
 
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       backgroundColor: accentGreen,
-      contentTextStyle: TextStyle(color: Colors.black),
+      contentTextStyle: const TextStyle(color: Colors.black),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
     ),
 
     cardTheme: CardThemeData(
-      color: const Color(0xff1E1E1E),
-      elevation: 2,
+      color: darkBgGradientStart.withOpacity(0.95),
+      elevation: 3,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
+      shadowColor: accentGreen.withOpacity(0.1),
     ),
 
     dividerTheme: const DividerThemeData(
       color: Colors.white12,
+      thickness: 1,
+    ),
+
+    textTheme: const TextTheme(
+      bodyLarge: TextStyle(color: Colors.white70), // Default light text
+      bodyMedium: TextStyle(color: Colors.white70),
+      headlineSmall: TextStyle(color: accentGreen, fontWeight: FontWeight.bold),
     ),
   );
 
-  // 🌈 Background Gradient (Reusable)
-  static const LinearGradient backgroundGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      bgGradientStart,
-      bgGradientEnd,
-    ],
+  // 🌈 Background Gradients (Reusable)
+  static const LinearGradient lightBackgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [bgGradientStart, bgGradientEnd],
+  );
+
+  static const LinearGradient darkBackgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [darkBgGradientStart, darkBgGradientEnd],
   );
 }

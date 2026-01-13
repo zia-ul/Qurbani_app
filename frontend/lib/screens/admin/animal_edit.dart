@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:qurbani/exchange_rates.dart';
 import 'package:qurbani/widgets/primary_btn.dart';
 import 'package:qurbani/widgets/common_card.dart';
 import 'package:qurbani/widgets/common_label.dart';
