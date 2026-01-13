@@ -5,13 +5,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class RequestService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api'; // Adjust to your server
+  static const _baseUrl = 'http://192.168.1.6:3000/api';
 
   /// SUBMIT SPECIAL REQUEST
-  static Future<void> submitRequest(String orderId, String userId, String title, String description) async {
+  static Future<void> submitRequest(
+    String orderId,
+    String userId,
+    String title,
+    String description,
+  ) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
-print("...........$orderId, $userId, $title, $description");
+    print("requests.........$orderId, $userId, $title, $description");
     final res = await http.post(
       Uri.parse('$_baseUrl/requests'),
       headers: {
@@ -30,5 +35,24 @@ print("...........$orderId, $userId, $title, $description");
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to submit request';
       throw Exception(msg);
     }
+  }
+
+  static Future<List<Map<String, dynamic>>> getUserRequests() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/special-requests'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch requests';
+      throw Exception(msg);
+    }
+
+    final data = jsonDecode(res.body);
+    print(data);
+    return List<Map<String, dynamic>>.from(data['requests']);
   }
 }

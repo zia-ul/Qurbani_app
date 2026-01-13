@@ -145,39 +145,39 @@ class UserDrawer extends StatelessWidget {
               );
             },
           ),
-          // ListTile(
-          //   leading: const Icon(Icons.settings),
-          //   title: const Text("Settings"),
-          //   onTap: () {
-          //     Navigator.pop(context);
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (_) => const SettingsPage()),
-          //     );
-          //   },
-          // ),
-          // ListTile(
-          //   leading: const Icon(Icons.lock_reset, color: Color(0xff537D4F)),
-          //   title: const Text("Reset Password"),
-          //   onTap: () {
-          //     Navigator.pop(context);
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
-          //     );
-          //   },
-          // ),
-          // ListTile(
-          //   leading: const Icon(Icons.assignment),
-          //   title: const Text("Special Requests"),
-          //   onTap: () {
-          //     Navigator.pop(context);
-          //     Navigator.push(
-          //       context,
-          //       MaterialPageRoute(builder: (_) => MySpecialRequestsPage()),
-          //     );
-          //   },
-          // ),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text("Settings"),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock_reset, color: Color(0xff537D4F)),
+            title: const Text("Reset Password"),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.assignment),
+            title: const Text("Special Requests"),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => MySpecialRequestsPage()),
+              );
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.person_add, color: Color(0xff537D4F)),
             title: const Text("Invite Friend"),

@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
   static const _baseUrl =
-      'http://192.168.1.6:3000/api'; // Adjust to your server URL
+      'http://192.168.1.6:3000/api';
 
   /// GET ALL ORDERS FOR THE AUTHENTICATED ADMIN
   static Future<List<Map<String, dynamic>>> getAdminOrders() async {

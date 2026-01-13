@@ -256,4 +256,28 @@ router.get("/me", authMiddleware, async (req, res) => {
   }
 });
 
+// PUT /api/auth/change-password
+router.put("/change-password", authMiddleware, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Fetch user and verify current password
+    const [users] = await pool.execute(`SELECT password FROM users WHERE id = ?`, [userId]);
+    if (users.length === 0) return res.status(404).json({ message: "User not found" });
+
+    const isValid = await bcrypt.compare(currentPassword, users[0].password);
+    if (!isValid) return res.status(400).json({ message: "Current password is incorrect" });
+
+    // Hash new password and update
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.execute(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId]);
+
+    res.json({ message: "Password changed successfully" });
+  } catch (err) {
+    console.error("Error changing password:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 module.exports = router;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/screens/superadmin/services/super_admin_services.dart'; // Adjust path to your SuperAdminService
+import 'package:qurbani/screens/superadmin/services/super_admin_services.dart'; 
 import 'package:intl/intl.dart';
 
 class AdminVerificationDetailsPage extends StatefulWidget {

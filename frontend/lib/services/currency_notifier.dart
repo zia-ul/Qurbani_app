@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/currency_service.dart'; // Adjust path
+import 'package:qurbani/services/currency_service.dart'; 
 
 class CurrencyNotifier extends ChangeNotifier {
   String _userCurrency = 'USD'; // Default; set from user profile

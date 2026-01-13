@@ -29,17 +29,18 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
 
     try {
       await RequestService.submitRequest(
-        widget.orderData['orderId'],
-        widget.orderData['userId'],
+        widget.orderData['id'],
+        widget.orderData['user_id'],
         _titleController.text.trim(),
         _descriptionController.text.trim(),
       );
 
       ToastUtils.showSuccess('Special request submitted successfully');
-
-      final userId = widget.orderData['userId'] as String;
+print(widget.orderData);
+      final userId = widget.orderData['user_id'] as String;
       final userName = widget.orderData['userName']?.toString() ?? 'User';
       final String role = widget.orderData['role']?.toString() ?? 'user';
+      // print('Navigating to HomePage with role: $role');
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -82,19 +83,7 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
             fontSize: 18,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.shopping_cart_outlined,
-              color: Colors.black54,
-            ),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black54),
-            onPressed: () {},
-          ),
-        ],
+        
       ),
       body: SingleChildScrollView(
         child: Padding(

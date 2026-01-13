@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:qurbani/screens/user/product_details_page.dart';
 import 'package:qurbani/exchange_rates.dart';
 import 'package:qurbani/screens/user/currency_notifier.dart';
-import 'package:qurbani/services/order_service.dart'; // Adjust path to your OrderService file
+import 'package:qurbani/services/order_service.dart';
 
 class BookedPage extends StatefulWidget {
   final String userId;

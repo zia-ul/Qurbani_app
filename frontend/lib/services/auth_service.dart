@@ -9,45 +9,40 @@ class AuthService {
 
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {
-  print("AuthService: getCurrentUser called");
+    print("AuthService: getCurrentUser called");
 
-  final token = await _storage.read(key: 'token');
-  print("AuthService: token = $token");
+    final token = await _storage.read(key: 'token');
+    print("AuthService: token = $token");
 
-  
+    if (token == null) {
+      print("AuthService: No token found");
+      return null;
+    }
 
-  if (token == null) {
-    print("AuthService: No token found");
-    return null;
+    final res = await http.get(
+      Uri.parse('$_baseUrl/auth/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    print("AuthService: /auth/me status = ${res.statusCode}");
+    print("AuthService: /auth/me body = ${res.body}");
+
+    if (res.statusCode != 200) {
+      print("AuthService: Invalid token, deleting it");
+      await _storage.delete(key: 'token');
+      await _storage.delete(key: 'userId');
+      return null;
+    }
+
+    final decoded = jsonDecode(res.body);
+
+    if (decoded['user'] == null) {
+      print("AuthService: user key missing in response");
+      return null;
+    }
+
+    return UserModel.fromJson(decoded['user']);
   }
-
-  final res = await http.get(
-    Uri.parse('$_baseUrl/auth/me'),
-    headers: {
-      'Authorization': 'Bearer $token',
-    },
-  );
-
-  print("AuthService: /auth/me status = ${res.statusCode}");
-  print("AuthService: /auth/me body = ${res.body}");
-
-  if (res.statusCode != 200) {
-    print("AuthService: Invalid token, deleting it");
-    await _storage.delete(key: 'token');
-    await _storage.delete(key: 'userId');
-    return null;
-  }
-
-  final decoded = jsonDecode(res.body);
-
-  if (decoded['user'] == null) {
-    print("AuthService: user key missing in response");
-    return null;
-  }
-
-  return UserModel.fromJson(decoded['user']);
-}
-
 
   // REGISTER
   static Future<void> register(Map<String, dynamic> data) async {
@@ -96,8 +91,33 @@ class AuthService {
 
   // LOGOUT
   static Future<void> logout() async {
-  await _storage.delete(key: 'token');
-  await _storage.delete(key: 'userId');
-}
+    await _storage.delete(key: 'token');
+    await _storage.delete(key: 'userId');
+  }
 
+  static Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.put(
+      Uri.parse('$_baseUrl/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      final msg =
+          jsonDecode(res.body)['message'] ?? 'Failed to change password';
+      throw Exception(msg);
+    }
+  }
 }
