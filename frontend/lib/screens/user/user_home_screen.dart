@@ -2,10 +2,11 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:qurbani/drawer.dart';
 import 'package:qurbani/screens/user/marketplace.dart';
 import 'package:qurbani/screens/user/booked_page.dart';
-import 'package:qurbani/screens/user/drawer_menu.dart';
 import 'package:qurbani/screens/user/currency_notifier.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class HomePage extends StatefulWidget {
   final String id;
@@ -24,7 +25,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final Color primaryGreen = const Color(0xff3D6B4E);
   final Color bgGradientStart = const Color(0xffF2E8D5); // Parchment style
   final Color bgGradientEnd = const Color(0xffFFFFFF);
 
@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: UserDrawer(userName: widget.name, userId: widget.id),
+      drawer: MasterDrawer(name: widget.name, id: widget.id, role: widget.role),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -132,9 +132,9 @@ class _HomePageState extends State<HomePage> {
               floating: true,
               backgroundColor: Colors.transparent,
               elevation: 0,
-              iconTheme: IconThemeData(color: primaryGreen),
+              iconTheme: IconThemeData(color: AppTheme.primaryGreen),
               // title: Text("QURBANI MARKETPLACE",
-              //   style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold, fontSize: 16)),
+              //   style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 16)),
               // actions: [
               //   CartBadge(userId: widget.id),
               //   const SizedBox(width: 15),
@@ -148,7 +148,10 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                       "Assalamu Alaikum,",
-                      style: TextStyle(fontSize: 16, color: primaryGreen),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.primaryGreen,
+                      ),
                     ),
                     Text(
                       "${widget.name}!",
@@ -222,7 +225,7 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: primaryGreen.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
         ],
@@ -241,7 +244,7 @@ class _HomePageState extends State<HomePage> {
   Widget _featureItem(IconData icon, String label) {
     return Column(
       children: [
-        Icon(icon, color: primaryGreen, size: 22),
+        Icon(icon, color: AppTheme.primaryGreen, size: 22),
         const SizedBox(height: 4),
         Text(
           label,

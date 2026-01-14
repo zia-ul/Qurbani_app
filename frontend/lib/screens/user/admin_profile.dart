@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:qurbani/theme/theme.dart';
 import 'package:qurbani/screens/user/order_form.dart';
 
 class AdminProfilePage extends StatefulWidget {
@@ -16,7 +16,7 @@ class AdminProfilePage extends StatefulWidget {
 
 class _AdminProfilePageState extends State<AdminProfilePage> {
   bool isRateLoading = true;
-  final Color primaryGreen = const Color(0xff537D4F);
+  final Color primaryGreen = AppTheme.primaryGreen;
   final Color backgroundGrey = const Color(0xffF8F9FA);
   final _storage = const FlutterSecureStorage();
   late Future<Map<String, dynamic>> _adminFuture;
@@ -242,12 +242,13 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: () {
-                          // Place order 
+                          // Place order
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => QurbaniOrderPage(adminId: widget.adminId)),
-                            
+                              builder: (context) =>
+                                  QurbaniOrderPage(adminId: widget.adminId),
+                            ),
                           );
                         },
                         child: Text(
@@ -292,7 +293,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         children: [
           Row(
             children: [
-              Icon(icon, color: primaryGreen, size: 20),
+              Icon(icon, color: AppTheme.primaryGreen, size: 20),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -327,7 +328,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
             icon: Icons.receipt_long,
             label: "Orders Received",
             value: totalOrders.toString(),
-            color: primaryGreen,
+            color: AppTheme.primaryGreen,
           ),
           Container(height: 30, width: 1, color: Colors.grey.shade300),
           _statItem(

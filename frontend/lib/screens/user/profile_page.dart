@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/services/service_profile.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:qurbani/theme/theme.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
 import 'package:intl/intl.dart';
 
@@ -37,8 +38,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String? _photoUrl;
   File? _selectedImage;
-
-  final Color primaryGreen = const Color(0xff3D6B4E);
 
   final LinearGradient bgGradient = const LinearGradient(
     colors: [Color(0xFFE8E6D1), Color.fromARGB(255, 219, 210, 153)],
@@ -118,7 +117,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> selectDeadline() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _orderDeadline ?? DateTime.now().add(const Duration(days: 1)),
+      initialDate:
+          _orderDeadline ?? DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -155,7 +155,9 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    if (_isAdmin && _orderDeadline != null && _orderDeadline!.isBefore(DateTime.now())) {
+    if (_isAdmin &&
+        _orderDeadline != null &&
+        _orderDeadline!.isBefore(DateTime.now())) {
       ToastUtils.showError("Deadline must be in the future");
       return;
     }
@@ -178,7 +180,9 @@ class _ProfilePageState extends State<ProfilePage> {
         'address': addressController.text.trim(),
         'description': descriptionController.text.trim(),
         'photoUrl': imageUrl,
-        'orderDeadline': _orderDeadline?.toIso8601String().split('T')[0], // YYYY-MM-DD
+        'orderDeadline': _orderDeadline?.toIso8601String().split(
+          'T',
+        )[0], // YYYY-MM-DD
       });
 
       setState(() {
@@ -204,7 +208,9 @@ class _ProfilePageState extends State<ProfilePage> {
         width: double.infinity,
         decoration: BoxDecoration(gradient: bgGradient),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: primaryGreen))
+            ? Center(
+                child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+              )
             : SingleChildScrollView(
                 child: Column(
                   children: [
@@ -285,11 +291,16 @@ class _ProfilePageState extends State<ProfilePage> {
                                 decoration: _cardDecoration(),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.calendar_today, color: Color(0xff537D4F), size: 24),
+                                    const Icon(
+                                      Icons.calendar_today,
+                                      color: AppTheme.primaryGreen,
+                                      size: 24,
+                                    ),
                                     const SizedBox(width: 15),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           const Text(
                                             "Order Deadline",
@@ -304,25 +315,42 @@ class _ProfilePageState extends State<ProfilePage> {
                                             GestureDetector(
                                               onTap: selectDeadline,
                                               child: Container(
-                                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 12,
+                                                      horizontal: 8,
+                                                    ),
                                                 decoration: BoxDecoration(
-                                                  border: Border.all(color: Colors.grey),
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: Colors.grey,
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
                                                   _orderDeadline != null
-                                                      ? DateFormat('yyyy-MM-dd').format(_orderDeadline!)
+                                                      ? DateFormat(
+                                                          'yyyy-MM-dd',
+                                                        ).format(
+                                                          _orderDeadline!,
+                                                        )
                                                       : 'Select Deadline',
-                                                  style: const TextStyle(color: Colors.black87),
+                                                  style: const TextStyle(
+                                                    color: Colors.black87,
+                                                  ),
                                                 ),
                                               ),
                                             )
                                           else
                                             Text(
                                               _orderDeadline != null
-                                                  ? DateFormat('yyyy-MM-dd').format(_orderDeadline!)
+                                                  ? DateFormat(
+                                                      'yyyy-MM-dd',
+                                                    ).format(_orderDeadline!)
                                                   : "No deadline set",
-                                              style: const TextStyle(color: Colors.black54),
+                                              style: const TextStyle(
+                                                color: Colors.black54,
+                                              ),
                                             ),
                                         ],
                                       ),
@@ -354,7 +382,7 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.description, color: Color(0xff537D4F), size: 24),
+          const Icon(Icons.description, color: AppTheme.primaryGreen, size: 24),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
@@ -410,7 +438,7 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: _cardDecoration(),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xff537D4F), size: 24),
+          Icon(icon, color: AppTheme.primaryGreen, size: 24),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
@@ -521,12 +549,12 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: Icon(
                 _isEditing ? Icons.close : Icons.edit,
                 size: 20,
-                color: _isEditing ? Colors.white : primaryGreen,
+                color: _isEditing ? Colors.white : AppTheme.primaryGreen,
               ),
               label: Text(
                 _isEditing ? "Cancel" : "Edit Profile",
                 style: TextStyle(
-                  color: _isEditing ? Colors.white : primaryGreen,
+                  color: _isEditing ? Colors.white : AppTheme.primaryGreen,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -549,7 +577,7 @@ class _ProfilePageState extends State<ProfilePage> {
             child: ElevatedButton(
               onPressed: _isEditing ? saveProfile : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xff537D4F),
+                backgroundColor: AppTheme.primaryGreen,
                 disabledBackgroundColor: Colors.grey.shade400,
                 elevation: 2,
                 shape: RoundedRectangleBorder(

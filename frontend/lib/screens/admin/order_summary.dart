@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class _SummaryRow extends StatelessWidget {
   final int total, pending, processing, delivered;
@@ -35,10 +36,10 @@ class _SummaryRow extends StatelessWidget {
 
     return Row(
       children: [
-        tile('Total', total, Color(0xff537D4F)),
+        tile('Total', total, AppTheme.primaryGreen),
         tile('Pending', pending, Colors.orange),
         tile('Processing', processing, Colors.purple),
-        tile('Delivered', delivered, Color(0xff537D4F)),
+        tile('Delivered', delivered, AppTheme.primaryGreen),
       ],
     );
   }

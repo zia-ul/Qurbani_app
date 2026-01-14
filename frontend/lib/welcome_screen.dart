@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/theme/theme.dart';
 import 'onboarding_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -9,9 +10,7 @@ class WelcomeScreen extends StatelessWidget {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          
           image: DecorationImage(
-            
             image: AssetImage('assets/images/welcome.jpeg'),
             fit: BoxFit.cover,
           ),
@@ -62,7 +61,7 @@ class WelcomeScreen extends StatelessWidget {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: Color(0xff537D4F),
+                      foregroundColor: AppTheme.primaryGreen,
                     ),
                     onPressed: () {
                       Navigator.push(

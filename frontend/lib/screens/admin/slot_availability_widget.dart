@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'slot_management.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class SlotAvailabilityWidget extends StatelessWidget {
   final String adminId;
@@ -32,7 +33,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                 ),
               ),
             ),
@@ -57,7 +58,10 @@ class SlotAvailabilityWidget extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Color(0xff537D4F), width: 1),
+                      border: Border.all(
+                        color: AppTheme.primaryGreen,
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black12,
@@ -74,7 +78,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xff537D4F),
+                            color: AppTheme.primaryGreen,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -82,7 +86,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                         _buildStatRow(
                           "Available",
                           free.toString(),
-                          color: const Color(0xff537D4F),
+                          color: AppTheme.primaryGreen,
                         ),
                         _buildStatRow(
                           "Booked",
@@ -94,7 +98,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                           LinearProgressIndicator(
                             value: total > 0 ? booked / total : 0,
                             backgroundColor: Colors.grey.shade200,
-                            color: Color(0xff537D4F),
+                            color: AppTheme.primaryGreen,
                             minHeight: 6,
                           ),
                       ],
@@ -117,7 +121,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 14, color: Color(0xff537D4F)),
+            style: const TextStyle(fontSize: 14, color: AppTheme.primaryGreen),
           ),
           Text(
             value,
@@ -139,7 +143,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
         color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
-          side: const BorderSide(color: Color(0xff537D4F), width: 1),
+          side: const BorderSide(color: AppTheme.primaryGreen, width: 1),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -151,13 +155,13 @@ class SlotAvailabilityWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
                 "No slots configured yet. Please set up your Eid slots to start accepting bookings.",
-                style: TextStyle(fontSize: 14, color: Color(0xff537D4F)),
+                style: TextStyle(fontSize: 14, color: AppTheme.primaryGreen),
               ),
               const SizedBox(height: 12),
               Align(
@@ -173,7 +177,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xff537D4F),
+                    backgroundColor: AppTheme.primaryGreen,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   child: const Text("Set Up Slots"),

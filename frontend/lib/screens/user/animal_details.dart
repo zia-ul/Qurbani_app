@@ -41,7 +41,7 @@
 //           "Animal Details",
 //           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
 //         ),
-//         backgroundColor: const Color(0xff537D4F),
+//         backgroundColor: AppTheme.primaryGreen,
 //         elevation: 0,
 //         centerTitle: true,
 //       ),
@@ -264,14 +264,14 @@
 //         children: [
 //           Row(
 //             children: [
-//               Icon(icon, color: const Color(0xff537D4F), size: 20),
+//               Icon(icon, color: AppTheme.primaryGreen, size: 20),
 //               const SizedBox(width: 8),
 //               Text(
 //                 title,
 //                 style: const TextStyle(
 //                   fontSize: 16,
 //                   fontWeight: FontWeight.bold,
-//                   color: Color(0xff537D4F),
+//                   color: AppTheme.primaryGreen,
 //                 ),
 //               ),
 //             ],
@@ -294,7 +294,7 @@
 //             child: Text(
 //               label,
 //               style: const TextStyle(
-//                 color: Color(0xff537D4F),
+//                 color: AppTheme.primaryGreen,
 //                 fontWeight: FontWeight.w500,
 //               ),
 //             ),
@@ -362,14 +362,14 @@
 //                           children: [
 //                             const Icon(
 //                               Icons.star,
-//                               color: Color(0xff537D4F),
+//                               color: AppTheme.primaryGreen,
 //                               size: 16,
 //                             ),
 //                             Text(
 //                               " ${(userData['averageRating'] ?? 0).toDouble().toStringAsFixed(1)} (Verified Seller)",
 //                               style: const TextStyle(
 //                                 fontSize: 12,
-//                                 color: Color(0xff537D4F),
+//                                 color: AppTheme.primaryGreen,
 //                               ),
 //                             ),
 //                           ],
@@ -381,7 +381,7 @@
 //                   const Icon(
 //                     Icons.arrow_forward_ios,
 //                     size: 16,
-//                     color: Color(0xff537D4F),
+//                     color: AppTheme.primaryGreen,
 //                   ),
 //                 ],
 //               ),
@@ -399,8 +399,8 @@
 //       icon: Icon(icon, size: 16),
 //       label: Text(label, style: const TextStyle(fontSize: 12)),
 //       style: OutlinedButton.styleFrom(
-//         foregroundColor: const Color(0xff537D4F),
-//         side: const BorderSide(color: Color(0xff537D4F)),
+//         foregroundColor: AppTheme.primaryGreen,
+//         side: const BorderSide(color: AppTheme.primaryGreen),
 //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
 //       ),
 //     );
@@ -447,14 +447,14 @@
 //               children: [
 //                 const Text(
 //                   "Total Payable:",
-//                   style: TextStyle(color: Color(0xff537D4F), fontSize: 12),
+//                   style: TextStyle(color: AppTheme.primaryGreen, fontSize: 12),
 //                 ),
 //                 // Text(
 //                   // "${UserCurrency.currency} ${(priceConverted * selectedShares).toStringAsFixed(2)}",
 //                   // style: const TextStyle(
 //                   //   fontSize: 20,
 //                   //   fontWeight: FontWeight.bold,
-//                   //   color: Color(0xff537D4F),
+//                   //   color: AppTheme.primaryGreen,
 //                   // ),
 //                 // ),
 //               ],
@@ -491,7 +491,7 @@
 //                     }
 //                   : null,
 //               style: ElevatedButton.styleFrom(
-//                 backgroundColor: const Color(0xff537D4F),
+//                 backgroundColor: AppTheme.primaryGreen,
 //                 shape: RoundedRectangleBorder(
 //                   borderRadius: BorderRadius.circular(12),
 //                 ),
@@ -518,7 +518,7 @@
 //       child: const Icon(
 //         Icons.image_not_supported,
 //         size: 80,
-//         color: Color(0xff537D4F),
+//         color: AppTheme.primaryGreen,
 //       ),
 //     );
 //   }

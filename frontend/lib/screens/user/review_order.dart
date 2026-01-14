@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani/screens/user/payment_success_page.dart';
+import 'package:qurbani/theme/theme.dart';
 import 'razorpay_integration.dart'; // Ensure this path is correct
 
 class ReviewOrderPage extends StatefulWidget {
@@ -16,7 +17,6 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool isPlacingOrder = false;
 
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color parchmentBg = const Color(0xFFF4F7F4);
 
   // 1. Declare the Razorpay Handler
@@ -298,7 +298,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
                           : "Online Payment",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: primaryGreen,
+                        color: AppTheme.primaryGreen,
                       ),
                     ),
                   ),
@@ -339,8 +339,8 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
         CircleAvatar(
           radius: 12,
           backgroundColor: completed
-              ? primaryGreen
-              : (active ? primaryGreen : Colors.grey[300]),
+              ? AppTheme.primaryGreen
+              : (active ? AppTheme.primaryGreen : Colors.grey[300]),
           child: completed
               ? const Icon(Icons.check, size: 14, color: Colors.white)
               : Text(
@@ -353,7 +353,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
           label,
           style: TextStyle(
             fontSize: 10,
-            color: active ? primaryGreen : Colors.grey,
+            color: active ? AppTheme.primaryGreen : Colors.grey,
           ),
         ),
       ],
@@ -363,7 +363,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
   Widget _stepLine(bool active) => Expanded(
     child: Container(
       height: 2,
-      color: active ? primaryGreen : Colors.grey[300],
+      color: active ? AppTheme.primaryGreen : Colors.grey[300],
       margin: const EdgeInsets.only(bottom: 15),
     ),
   );
@@ -387,7 +387,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: primaryGreen),
+              Icon(icon, size: 18, color: AppTheme.primaryGreen),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -409,7 +409,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: primaryGreen,
+        color: AppTheme.primaryGreen,
         borderRadius: BorderRadius.circular(15),
       ),
       child: Row(
@@ -456,7 +456,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
                     }
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: primaryGreen,
+              backgroundColor: AppTheme.primaryGreen,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),

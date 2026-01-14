@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/theme/theme.dart';
 
 /// ===============================================================
 /// ABOUT US & FEATURES PAGE (Card-based Design)
@@ -69,7 +70,7 @@ class AboutUsPage extends StatelessWidget {
       backgroundColor: const Color(0xFFF4F9F4),
       appBar: AppBar(
         title: const Text("About Qurbani App"),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
         centerTitle: true,
       ),
       body: ListView(
@@ -81,7 +82,7 @@ class AboutUsPage extends StatelessWidget {
           //   style: TextStyle(
           //     fontSize: 20,
           //     fontWeight: FontWeight.bold,
-          //     color: Color(0xff537D4F),
+          //     color: AppTheme.primaryGreen,
           //   ),
           // ),
           // const SizedBox(height: 8),
@@ -120,7 +121,7 @@ class AboutUsPage extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: Color(0xff537D4F),
+                      backgroundColor: AppTheme.primaryGreen,
                       child: Icon(
                         feature.icon,
                         color: Color.fromARGB(255, 255, 255, 255),
@@ -163,7 +164,7 @@ class AboutUsPage extends StatelessWidget {
           const Center(
             child: Text(
               "App Version v1.0.0",
-              style: TextStyle(fontSize: 12, color: Color(0xff537D4F)),
+              style: TextStyle(fontSize: 12, color: AppTheme.primaryGreen),
             ),
           ),
           const SizedBox(height: 10),

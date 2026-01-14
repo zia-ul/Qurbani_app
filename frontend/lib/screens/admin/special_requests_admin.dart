@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminSpecialRequestsPage extends StatefulWidget {
   const AdminSpecialRequestsPage({super.key});
@@ -14,7 +15,6 @@ class AdminSpecialRequestsPage extends StatefulWidget {
 
 class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   String activeFilter = 'All';
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color scaffoldBg = const Color(0xFFF4F7F4);
   final _storage = const FlutterSecureStorage();
   static const _baseUrl = 'http://192.168.1.6:3000/api';
@@ -51,7 +51,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
           requests = List<Map<String, dynamic>>.from(data['requests']);
         });
       } else {
-        throw Exception(jsonDecode(res.body)['message'] ?? 'Failed to fetch requests');
+        throw Exception(
+          jsonDecode(res.body)['message'] ?? 'Failed to fetch requests',
+        );
       }
     } catch (e) {
       setState(() {
@@ -96,7 +98,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+            ),
             onPressed: () async {
               final reply = replyController.text.trim();
               if (reply.isEmpty) return;
@@ -105,7 +109,10 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
               Navigator.pop(dialogContext);
               _fetchRequests(); // Refresh
             },
-            child: const Text('Send Reply', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Send Reply',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -117,7 +124,11 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
     _fetchRequests(); // Refresh
   }
 
-  Future<void> _updateRequest(String requestId, String action, {String? replyMessage}) async {
+  Future<void> _updateRequest(
+    String requestId,
+    String action, {
+    String? replyMessage,
+  }) async {
     try {
       final token = await _storage.read(key: 'token');
       if (token == null) throw Exception('Not authenticated');
@@ -135,9 +146,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
         throw Exception(jsonDecode(res.body)['message']);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -150,7 +161,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       case 'Pending':
         return Colors.orange;
       default:
-        return const Color(0xff537D4F);
+        return AppTheme.primaryGreen;
     }
   }
 
@@ -188,7 +199,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                     onSelected: (val) => _onFilterChanged(status),
                     selectedColor: _getStatusColor(status).withOpacity(0.2),
                     labelStyle: TextStyle(
-                      color: isSelected ? _getStatusColor(status) : const Color(0xff537D4F),
+                      color: isSelected
+                          ? _getStatusColor(status)
+                          : AppTheme.primaryGreen,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -202,174 +215,209 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : errorMessage != null
-                    ? Center(child: Text('Error: $errorMessage'))
-                    : requests.isEmpty
-                        ? const Center(child: Text("No requests found."))
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: requests.length,
-                            itemBuilder: (context, index) {
-                              final request = requests[index];
-                              final status = request['status'] ?? 'Pending';
-                              final date = DateTime.tryParse(request['created_at'] ?? '');
+                ? Center(child: Text('Error: $errorMessage'))
+                : requests.isEmpty
+                ? const Center(child: Text("No requests found."))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: requests.length,
+                    itemBuilder: (context, index) {
+                      final request = requests[index];
+                      final status = request['status'] ?? 'Pending';
+                      final date = DateTime.tryParse(
+                        request['created_at'] ?? '',
+                      );
 
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(15),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 10,
-                                    ),
-                                  ],
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              title: Text(
+                                request['title'] ?? 'Urgent Request',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ListTile(
-                                      title: Text(
-                                        request['title'] ?? 'Urgent Request',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        DateFormat('dd MMM yyyy, hh:mm a').format(date ?? DateTime.now()),
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                      trailing: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: _getStatusColor(status),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          status,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
+                              ),
+                              subtitle: Text(
+                                DateFormat(
+                                  'dd MMM yyyy, hh:mm a',
+                                ).format(date ?? DateTime.now()),
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getStatusColor(status),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  status,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Divider(height: 1),
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Request Details:",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primaryGreen,
+                                      fontSize: 12,
                                     ),
-                                    const Divider(height: 1),
-                                    Padding(
-                                      padding: const EdgeInsets.all(16),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    request['description'] ??
+                                        'No instructions provided.',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 15),
+
+                                  // User Info
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        _infoRow(
+                                          Icons.person,
+                                          "Customer: ${request['user_name'] ?? 'User'}",
+                                        ),
+                                        _infoRow(
+                                          Icons.confirmation_number,
+                                          "Order ID: ${request['order_id'] ?? 'N/A'}",
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Admin Response
+                                  if (request['reply_message'] != null) ...[
+                                    const SizedBox(height: 15),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade50,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.green.shade100,
+                                        ),
+                                      ),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            "Request Details:",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xff537D4F),
-                                              fontSize: 12,
-                                            ),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.check_circle,
+                                                size: 16,
+                                                color: AppTheme.primaryGreen,
+                                              ),
+                                              const SizedBox(width: 5),
+                                              const Text(
+                                                "Confirmed Response",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            request['description'] ?? 'No instructions provided.',
-                                            style: const TextStyle(fontSize: 14),
-                                          ),
-                                          const SizedBox(height: 15),
-
-                                          // User Info
-                                          Container(
-                                            padding: const EdgeInsets.all(10),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.shade50,
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                _infoRow(Icons.person, "Customer: ${request['user_name'] ?? 'User'}"),
-                                                _infoRow(Icons.confirmation_number, "Order ID: ${request['order_id'] ?? 'N/A'}"),
-                                              ],
+                                            request['reply_message'],
+                                            style: const TextStyle(
+                                              fontSize: 13,
                                             ),
                                           ),
-
-                                          // Admin Response
-                                          if (request['reply_message'] != null) ...[
-                                            const SizedBox(height: 15),
-                                            Container(
-                                              width: double.infinity,
-                                              padding: const EdgeInsets.all(12),
-                                              decoration: BoxDecoration(
-                                                color: Colors.green.shade50,
-                                                borderRadius: BorderRadius.circular(8),
-                                                border: Border.all(color: Colors.green.shade100),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Icon(Icons.check_circle, size: 16, color: primaryGreen),
-                                                      const SizedBox(width: 5),
-                                                      const Text(
-                                                        "Confirmed Response",
-                                                        style: TextStyle(
-                                                          fontWeight: FontWeight.bold,
-                                                          fontSize: 13,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    request['reply_message'],
-                                                    style: const TextStyle(fontSize: 13),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-
-                                          // Action Buttons
-                                          if (status != 'Closed') ...[
-                                            const SizedBox(height: 15),
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: OutlinedButton.icon(
-                                                    onPressed: () => _replyToRequest(request),
-                                                    icon: const Icon(Icons.edit, size: 16),
-                                                    label: Text(
-                                                      status == 'Replied' ? "Edit Reply" : "Reply",
-                                                    ),
-                                                    style: OutlinedButton.styleFrom(
-                                                      foregroundColor: primaryGreen,
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Expanded(
-                                                  child: ElevatedButton.icon(
-                                                    onPressed: () => _closeRequest(request['id']),
-                                                    icon: const Icon(Icons.close, size: 16),
-                                                    label: const Text("Close"),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: Colors.red.shade400,
-                                                      foregroundColor: Colors.white,
-                                                      elevation: 0,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
                                         ],
                                       ),
                                     ),
                                   ],
-                                ),
-                              );
-                            },
-                          ),
+
+                                  // Action Buttons
+                                  if (status != 'Closed') ...[
+                                    const SizedBox(height: 15),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () =>
+                                                _replyToRequest(request),
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              size: 16,
+                                            ),
+                                            label: Text(
+                                              status == 'Replied'
+                                                  ? "Edit Reply"
+                                                  : "Reply",
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor:
+                                                  AppTheme.primaryGreen,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () =>
+                                                _closeRequest(request['id']),
+                                            icon: const Icon(
+                                              Icons.close,
+                                              size: 16,
+                                            ),
+                                            label: const Text("Close"),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Colors.red.shade400,
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -381,7 +429,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: const Color(0xff537D4F)),
+          Icon(icon, size: 14, color: AppTheme.primaryGreen),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

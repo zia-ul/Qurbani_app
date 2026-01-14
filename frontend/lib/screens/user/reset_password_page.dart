@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/services/auth_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
@@ -36,7 +37,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         msg: "Password changed successfully!",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
         textColor: Colors.white,
       );
 
@@ -56,7 +57,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       } else if (e.toString().contains("User not found")) {
         errorMessage = "User not authenticated. Please login again.";
       } else if (e.toString().contains("weak")) {
-        errorMessage = "New password is too weak. Please use a stronger password";
+        errorMessage =
+            "New password is too weak. Please use a stronger password";
       } else {
         errorMessage = e.toString();
       }
@@ -85,7 +87,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
         title: const Text(
           "Change Password",
           style: TextStyle(color: Colors.white),
@@ -104,7 +106,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             children: [
               const Text(
                 "Enter your current password and new password to update your account.",
-                style: TextStyle(fontSize: 16, color: Color(0xff537D4F)),
+                style: TextStyle(fontSize: 16, color: AppTheme.primaryGreen),
               ),
               const SizedBox(height: 30),
 
@@ -117,24 +119,24 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   fillColor: Colors.white,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
-                    color: Color(0xff537D4F),
+                    color: AppTheme.primaryGreen,
                   ),
                   labelText: 'Current Password',
-                  labelStyle: const TextStyle(color: Color(0xff537D4F)),
+                  labelStyle: const TextStyle(color: AppTheme.primaryGreen),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Color(0xff537D4F)),
+                    borderSide: BorderSide(color: AppTheme.primaryGreen),
                   ),
                   focusedBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Color(0xff537D4F)),
+                    borderSide: BorderSide(color: AppTheme.primaryGreen),
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureCurrentPassword
                           ? Icons.visibility_off
                           : Icons.visibility,
-                      color: Color(0xff537D4F),
+                      color: AppTheme.primaryGreen,
                     ),
                     onPressed: () {
                       setState(
@@ -163,23 +165,26 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white,
-                  prefixIcon: const Icon(Icons.lock, color: Color(0xff537D4F)),
+                  prefixIcon: const Icon(
+                    Icons.lock,
+                    color: AppTheme.primaryGreen,
+                  ),
                   labelText: 'New Password',
-                  labelStyle: const TextStyle(color: Color(0xff537D4F)),
+                  labelStyle: const TextStyle(color: AppTheme.primaryGreen),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Color(0xff537D4F)),
+                    borderSide: BorderSide(color: AppTheme.primaryGreen),
                   ),
                   focusedBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Color(0xff537D4F)),
+                    borderSide: BorderSide(color: AppTheme.primaryGreen),
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureNewPassword
                           ? Icons.visibility_off
                           : Icons.visibility,
-                      color: Color(0xff537D4F),
+                      color: AppTheme.primaryGreen,
                     ),
                     onPressed: () {
                       setState(
@@ -212,24 +217,24 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   fillColor: Colors.white,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
-                    color: Color(0xff537D4F),
+                    color: AppTheme.primaryGreen,
                   ),
                   labelText: 'Confirm New Password',
-                  labelStyle: const TextStyle(color: Color(0xff537D4F)),
+                  labelStyle: const TextStyle(color: AppTheme.primaryGreen),
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Color(0xff537D4F)),
+                    borderSide: BorderSide(color: AppTheme.primaryGreen),
                   ),
                   focusedBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
-                    borderSide: BorderSide(color: Color(0xff537D4F)),
+                    borderSide: BorderSide(color: AppTheme.primaryGreen),
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscureConfirmPassword
                           ? Icons.visibility_off
                           : Icons.visibility,
-                      color: Color(0xff537D4F),
+                      color: AppTheme.primaryGreen,
                     ),
                     onPressed: () {
                       setState(
@@ -257,7 +262,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   onPressed: _isLoading ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 15),
-                    backgroundColor: const Color(0xff537D4F),
+                    backgroundColor: AppTheme.primaryGreen,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -280,7 +285,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 "Note: Your password must be at least 6 characters long.",
                 style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                   fontStyle: FontStyle.italic,
                 ),
                 textAlign: TextAlign.center,

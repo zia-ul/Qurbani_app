@@ -143,5 +143,39 @@ const { orderId } = req.params;
   }
 });
 
+// GET /api/admin/notifications - Fetch pending notifications for admin
+router.get("/notifications", auth, async (req, res) => {
+  const adminId = req.user.id;
+
+  try {
+    // Assuming a 'notifications' table with columns: id, type, order_id, admin_id, is_notified, created_at
+    const [notifications] = await pool.execute(
+      `SELECT id, type, order_id FROM notifications WHERE admin_id = ? AND is_notified = FALSE ORDER BY created_at DESC`,
+      [adminId]
+    );
+
+    res.json({ notifications });
+  } catch (err) {
+    console.error("Error fetching notifications:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// PUT /api/admin/notifications/:id/mark-notified - Mark notification as notified
+router.put("/notifications/:id/mark-notified", auth, async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.user.id;
+
+  try {
+    await pool.execute(
+      `UPDATE notifications SET is_notified = TRUE WHERE id = ? AND admin_id = ?`,
+      [id, adminId]
+    );
+    res.json({ message: "Notification marked as notified" });
+  } catch (err) {
+    console.error("Error updating notification:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 module.exports = router;

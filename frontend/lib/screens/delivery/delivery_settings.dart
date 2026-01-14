@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -100,7 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Settings"),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -137,7 +138,6 @@ class _SettingsPageState extends State<SettingsPage> {
           //   ),
           // ),
           // const Divider(height: 32),
-
           _sectionHeader("Help & Support"),
           ListTile(
             leading: const Icon(Icons.help_outline),

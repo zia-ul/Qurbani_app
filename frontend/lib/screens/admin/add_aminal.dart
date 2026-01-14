@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AddAnimalPage extends StatefulWidget {
   const AddAnimalPage({super.key});
@@ -39,7 +40,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
 
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color lightBg = const Color(0xFFF9FBF9);
 
   @override
@@ -224,15 +224,20 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       appBar: AppBar(
         title: Text(
           "Add Animal",
-          style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppTheme.primaryGreen,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: primaryGreen),
+        iconTheme: IconThemeData(color: AppTheme.primaryGreen),
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator(color: primaryGreen))
+          ? Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryGreen),
+            )
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Form(
@@ -367,7 +372,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         child: Container(
                           height: 50,
                           decoration: BoxDecoration(
-                            color: primaryGreen,
+                            color: AppTheme.primaryGreen,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Row(
@@ -396,7 +401,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Color(0xff537D4F)),
+                        border: Border.all(color: AppTheme.primaryGreen),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,7 +410,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                           const SizedBox(height: 8),
                           CheckboxListTile(
                             value: selectedPaymentMethods.contains('cod'),
-                            activeColor: Color(0xff537D4F),
+                            activeColor: AppTheme.primaryGreen,
                             title: const Text("Cash on Delivery"),
                             controlAffinity: ListTileControlAffinity.leading,
                             onChanged: (checked) {
@@ -420,7 +425,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                           ),
                           CheckboxListTile(
                             value: selectedPaymentMethods.contains('online'),
-                            activeColor: Color(0xff537D4F),
+                            activeColor: AppTheme.primaryGreen,
                             title: const Text("Online Payment"),
                             controlAffinity: ListTileControlAffinity.leading,
                             onChanged: (checked) {
@@ -458,13 +463,13 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             "Free Delivery",
                             style: TextStyle(
                               color: !isDeliveryPaid
-                                  ? primaryGreen
+                                  ? AppTheme.primaryGreen
                                   : Colors.black54,
                             ),
                           ),
                           Switch(
                             value: isDeliveryPaid,
-                            activeColor: primaryGreen,
+                            activeColor: AppTheme.primaryGreen,
                             onChanged: (val) =>
                                 setState(() => isDeliveryPaid = val),
                           ),
@@ -472,7 +477,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             "Paid Delivery",
                             style: TextStyle(
                               color: isDeliveryPaid
-                                  ? primaryGreen
+                                  ? AppTheme.primaryGreen
                                   : Colors.black54,
                             ),
                           ),
@@ -513,7 +518,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           gradient: LinearGradient(
-                            colors: [primaryGreen, const Color(0xFF5A916E)],
+                            colors: [AppTheme.primaryGreen, const Color(0xFF5A916E)],
                           ),
                         ),
                         child: ElevatedButton(
@@ -594,7 +599,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xff537D4F), fontSize: 13),
+      hintStyle: const TextStyle(color: AppTheme.primaryGreen, fontSize: 13),
       filled: true,
       fillColor: Colors.grey[50],
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -604,7 +609,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: primaryGreen, width: 1.5),
+        borderSide: BorderSide(color: AppTheme.primaryGreen, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),

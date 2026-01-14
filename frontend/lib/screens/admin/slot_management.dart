@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminSlotPage extends StatefulWidget {
   final String adminId;
@@ -17,7 +18,6 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
   bool isSaving = false;
 
   // Theme Constants
-  final Color primaryGreen = const Color(0xff3D6B4E);
   final Color scaffoldBg = const Color(0xffF4F7F4);
   final Color accentGold = const Color(0xffD1C4A9);
 
@@ -143,7 +143,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
         msg: "Saved slots for $selectedDay",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
         textColor: Colors.white,
       );
     } catch (e) {
@@ -181,7 +181,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
           "Manage Eid Slots",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -200,7 +200,9 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
             Expanded(
               child: isLoading
                   ? Center(
-                      child: CircularProgressIndicator(color: primaryGreen),
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryGreen,
+                      ),
                     )
                   : slots.isEmpty
                   ? _buildEmptyState()
@@ -232,7 +234,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
               value: selectedDay,
               isDense: true,
               style: TextStyle(
-                color: primaryGreen,
+                color: AppTheme.primaryGreen,
                 fontWeight: FontWeight.bold,
               ),
               decoration: InputDecoration(
@@ -265,7 +267,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
             Icons.save,
             "Save",
             () => saveSlots(),
-            primaryGreen,
+            AppTheme.primaryGreen,
             isLoading: isSaving,
           ),
         ],
@@ -325,7 +327,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
-          backgroundColor: isBooked ? Colors.red : primaryGreen,
+          backgroundColor: isBooked ? Colors.red : AppTheme.primaryGreen,
           child: Text(
             "${index + 1}",
             style: const TextStyle(
@@ -351,14 +353,14 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: slot["time"].isEmpty
-                        ? Color(0xff537D4F)
+                        ? AppTheme.primaryGreen
                         : Colors.black,
                   ),
                 ),
                 const Icon(
                   Icons.access_time,
                   size: 18,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                 ),
               ],
             ),
@@ -369,7 +371,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
           child: Text(
             slot["status"].toUpperCase(),
             style: TextStyle(
-              color: isBooked ? Colors.red : primaryGreen,
+              color: isBooked ? Colors.red : AppTheme.primaryGreen,
               fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
@@ -397,13 +399,13 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Color(0xff537D4F),
+              color: AppTheme.primaryGreen,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
             "Click 'Add' to create your first Qurbani slot",
-            style: TextStyle(color: Color(0xff537D4F)),
+            style: TextStyle(color: AppTheme.primaryGreen),
           ),
         ],
       ),

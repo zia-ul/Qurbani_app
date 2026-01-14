@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:showcaseview/showcaseview.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class DeliveryHomePage extends StatefulWidget {
   final String deliveryId;
@@ -176,7 +177,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      selectedColor: Color(0xff537D4F),
+      selectedColor: AppTheme.primaryGreen,
       onSelected: (_) => setState(() => _statusFilter = value),
       labelStyle: TextStyle(color: selected ? Colors.white : Colors.black),
     );
@@ -192,7 +193,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
           child: Column(
             children: [
               UserAccountsDrawerHeader(
-                decoration: const BoxDecoration(color: Color(0xff537D4F)),
+                decoration: const BoxDecoration(color: AppTheme.primaryGreen),
                 accountName: Text(widget.name),
                 accountEmail: const Text("Delivery Partner"),
               ),
@@ -221,7 +222,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             child: const Text("SKIP", style: TextStyle(color: Colors.white)),
           ),
         ],
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: Column(
         children: [

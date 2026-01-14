@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class TermsConditionsPage extends StatelessWidget {
   const TermsConditionsPage({super.key});
@@ -11,7 +12,7 @@ class TermsConditionsPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Terms & Conditions"),
-          backgroundColor: Color(0xff537D4F),
+          backgroundColor: AppTheme.primaryGreen,
           automaticallyImplyLeading: false, // removes default back button
         ),
         body: Padding(
@@ -57,14 +58,14 @@ I confirm that I have read, understood, and agree to the above terms and conditi
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xff537D4F)),
+                        side: const BorderSide(color: AppTheme.primaryGreen),
                       ),
                       onPressed: () {
                         Navigator.pop(context, false); // Decline
                       },
                       child: const Text(
                         "Decline",
-                        style: TextStyle(color: Color(0xff537D4F)),
+                        style: TextStyle(color: AppTheme.primaryGreen),
                       ),
                     ),
                   ),
@@ -72,7 +73,7 @@ I confirm that I have read, understood, and agree to the above terms and conditi
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xff537D4F),
+                        backgroundColor: AppTheme.primaryGreen,
                       ),
                       onPressed: () {
                         Navigator.pop(context, true); // Accept

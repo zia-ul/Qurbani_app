@@ -3,6 +3,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:qurbani/services/order_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:qurbani/screens/user/payment_processing_page.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class Shareholder {
   final TextEditingController nameController = TextEditingController();
@@ -26,8 +27,7 @@ class QurbaniOrderPage extends StatefulWidget {
 
 class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   // Theme Colors from HomePage
-  final Color primaryGreen = const Color(0xff3D6B4E);
-  final Color bgGradientStart = const Color(0xffF2E8D5); 
+  final Color bgGradientStart = const Color(0xffF2E8D5);
   final Color bgGradientEnd = const Color(0xffFFFFFF);
 
   final List<Shareholder> _shareholders = [];
@@ -42,12 +42,16 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   @override
   void dispose() {
-    for (var s in _shareholders) { s.dispose(); }
+    for (var s in _shareholders) {
+      s.dispose();
+    }
     super.dispose();
   }
 
   void _addShareholder() {
-    setState(() { _shareholders.add(Shareholder()); });
+    setState(() {
+      _shareholders.add(Shareholder());
+    });
   }
 
   void _removeShareholder(int index) {
@@ -62,9 +66,11 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     return Scaffold(
       extendBodyBehindAppBar: false,
       appBar: AppBar(
-        title: const Text("Order Details", 
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        backgroundColor: primaryGreen,
+        title: const Text(
+          "Order Details",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         centerTitle: true,
       ),
@@ -84,39 +90,59 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Shareholder Information", 
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryGreen)),
+                  Text(
+                    "Shareholder Information",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  
-                  ...List.generate(_shareholders.length, (index) => _shareholderCard(index)),
+
+                  ...List.generate(
+                    _shareholders.length,
+                    (index) => _shareholderCard(index),
+                  ),
 
                   // Add Person Button
                   Center(
                     child: TextButton.icon(
                       onPressed: _addShareholder,
-                      icon: Icon(Icons.add_circle_outline, color: primaryGreen),
-                      label: Text("Add Another Shareholder", 
-                        style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold)),
+                      icon: Icon(
+                        Icons.add_circle_outline,
+                        color: AppTheme.primaryGreen,
+                      ),
+                      label: Text(
+                        "Add Another Shareholder",
+                        style: TextStyle(
+                          color: AppTheme.primaryGreen,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 30),
-                  Text("Payment Summary", 
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryGreen)),
+                  Text(
+                    "Payment Summary",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryGreen,
+                    ),
+                  ),
                   const SizedBox(height: 16),
-                  
+
                   _paymentSection(),
 
                   const SizedBox(height: 100), // Space for bottom button
                 ],
               ),
             ),
-            
+
             // Bottom Sticky Confirm Button
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: _buildBottomBar(),
-            ),
+            Align(alignment: Alignment.bottomCenter, child: _buildBottomBar()),
 
             if (_isLoading)
               Container(
@@ -137,9 +163,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primaryGreen.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -149,13 +179,22 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               CircleAvatar(
-                backgroundColor: primaryGreen.withOpacity(0.1),
+                backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
                 radius: 18,
-                child: Text("${index + 1}", style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold)),
+                child: Text(
+                  "${index + 1}",
+                  style: TextStyle(
+                    color: AppTheme.primaryGreen,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               if (_shareholders.length > 1)
                 IconButton(
-                  icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                  icon: const Icon(
+                    Icons.remove_circle_outline,
+                    color: Colors.redAccent,
+                  ),
                   onPressed: () => _removeShareholder(index),
                 ),
             ],
@@ -173,7 +212,14 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             icon: Icons.family_restroom_outlined,
           ),
           const SizedBox(height: 20),
-          const Text("Select Qurbani Day", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+          const Text(
+            "Select Qurbani Day",
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
+          ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -182,11 +228,15 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               return ChoiceChip(
                 label: Text(day),
                 selected: isSelected,
-                selectedColor: primaryGreen,
+                selectedColor: AppTheme.primaryGreen,
                 onSelected: (_) => setState(() => shareholder.qurbaniDay = day),
-                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black,
+                ),
                 backgroundColor: Colors.grey[100],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               );
             }).toList(),
           ),
@@ -201,25 +251,42 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: primaryGreen.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
       ),
       child: Column(
         children: [
           _paymentOption("Cash on Delivery", "Cash", Icons.money),
           const Divider(),
-          _paymentOption("Online Payment", "Online", Icons.account_balance_wallet_outlined),
+          _paymentOption(
+            "Online Payment",
+            "Online",
+            Icons.account_balance_wallet_outlined,
+          ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: bgGradientStart.withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+              color: bgGradientStart.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Total Shares", style: TextStyle(fontWeight: FontWeight.bold)),
-                Text("${_shareholders.length}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: primaryGreen)),
+                const Text(
+                  "Total Shares",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  "${_shareholders.length}",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryGreen,
+                  ),
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -227,26 +294,39 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   Widget _paymentOption(String title, String value, IconData icon) {
     return RadioListTile<String>(
-      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-      secondary: Icon(icon, color: primaryGreen),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      ),
+      secondary: Icon(icon, color: AppTheme.primaryGreen),
       value: value,
       groupValue: _paymentMethod,
       onChanged: (val) => setState(() => _paymentMethod = val!),
-      activeColor: primaryGreen,
+      activeColor: AppTheme.primaryGreen,
       contentPadding: EdgeInsets.zero,
     );
   }
 
-  Widget _customTextField({required TextEditingController controller, required String label, required IconData icon}) {
+  Widget _customTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+  }) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: primaryGreen, size: 20),
+        prefixIcon: Icon(icon, color: AppTheme.primaryGreen, size: 20),
         filled: true,
         fillColor: const Color(0xffF8F9FA),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: primaryGreen)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppTheme.primaryGreen),
+        ),
       ),
     );
   }
@@ -256,17 +336,28 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
         child: ElevatedButton(
           onPressed: _isLoading ? null : _submitOrder,
           style: ElevatedButton.styleFrom(
-            backgroundColor: primaryGreen,
+            backgroundColor: AppTheme.primaryGreen,
             minimumSize: const Size(double.infinity, 55),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
           ),
-          child: const Text("Confirm & Place Order", style: TextStyle(fontSize: 18, color: Colors.white)),
+          child: const Text(
+            "Confirm & Place Order",
+            style: TextStyle(fontSize: 18, color: Colors.white),
+          ),
         ),
       ),
     );
@@ -275,18 +366,26 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   // --- Logic remains the same as your snippet ---
   Future<void> _submitOrder() async {
     for (var s in _shareholders) {
-      if (s.nameController.text.trim().isEmpty || s.guardianController.text.trim().isEmpty) {
-        Fluttertoast.showToast(msg: "Please fill all fields", backgroundColor: Colors.red);
+      if (s.nameController.text.trim().isEmpty ||
+          s.guardianController.text.trim().isEmpty) {
+        Fluttertoast.showToast(
+          msg: "Please fill all fields",
+          backgroundColor: Colors.red,
+        );
         return;
       }
     }
     setState(() => _isLoading = true);
     try {
-      final shareholdersData = _shareholders.map((s) => {
-        'name': s.nameController.text.trim(),
-        'guardianName': s.guardianController.text.trim(),
-        'qurbaniDay': s.qurbaniDay,
-      }).toList();
+      final shareholdersData = _shareholders
+          .map(
+            (s) => {
+              'name': s.nameController.text.trim(),
+              'guardianName': s.guardianController.text.trim(),
+              'qurbaniDay': s.qurbaniDay,
+            },
+          )
+          .toList();
 
       if (_paymentMethod == 'Cash') {
         final confirm = await showDialog<bool>(
@@ -295,12 +394,21 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             title: const Text("Confirm Order"),
             content: const Text("Place order with Cash on Delivery?"),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Confirm")),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text("Confirm"),
+              ),
             ],
           ),
         );
-        if (confirm != true) { setState(() => _isLoading = false); return; }
+        if (confirm != true) {
+          setState(() => _isLoading = false);
+          return;
+        }
       }
 
       final result = await OrderService.placeOrder(
@@ -311,12 +419,20 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       );
 
       if (_paymentMethod == 'Online') {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentProcessingPage(
-          orderId: result['orderId'],
-          totalAmount: 1000.0 * _shareholders.length, 
-        )));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentProcessingPage(
+              orderId: result['orderId'],
+              totalAmount: 1000.0 * _shareholders.length,
+            ),
+          ),
+        );
       } else {
-        Fluttertoast.showToast(msg: "Order placed successfully!", backgroundColor: Colors.green);
+        Fluttertoast.showToast(
+          msg: "Order placed successfully!",
+          backgroundColor: Colors.green,
+        );
         Navigator.pop(context);
       }
     } catch (e) {

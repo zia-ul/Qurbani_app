@@ -6,6 +6,7 @@ import 'package:qurbani/services/order_service.dart';
 import 'package:qurbani/screens/user/receipt_generator.dart';
 import 'package:qurbani/screens/user/special_request.dart';
 import 'package:qurbani/screens/user/rate_order.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final String orderId;
@@ -26,7 +27,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  final Color primaryGreen = const Color(0xff3D6B4E);
   final Color bgParchment = const Color(0xffF2E8D5);
 
   @override
@@ -87,9 +87,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       );
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
   }
 
@@ -125,14 +125,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ),
             child: Row(
               children: [
-                Icon(icon, size: 18, color: primaryGreen),
+                Icon(icon, size: 18, color: AppTheme.primaryGreen),
                 const SizedBox(width: 8),
                 Text(
                   title,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: primaryGreen,
+                    color: AppTheme.primaryGreen,
                   ),
                 ),
               ],
@@ -171,9 +171,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               icon: const Icon(Icons.copy, size: 16, color: Colors.blue),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: value));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("ID Copied!")),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text("ID Copied!")));
               },
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
@@ -233,7 +233,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('Error: $_errorMessage'),
-              ElevatedButton(onPressed: _fetchOrderDetails, child: const Text('Retry')),
+              ElevatedButton(
+                onPressed: _fetchOrderDetails,
+                child: const Text('Retry'),
+              ),
             ],
           ),
         ),
@@ -241,14 +244,19 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
 
     final order = _orderData!;
-    final deliveryStatus = (order['delivery_status'] ?? 'pending').toString().toLowerCase();
+    final deliveryStatus = (order['delivery_status'] ?? 'pending')
+        .toString()
+        .toLowerCase();
     final orderDate = DateTime.tryParse(order['created_at'] ?? '');
     final bool isDelivered = deliveryStatus == 'delivered';
     final bool isCancelled = deliveryStatus == 'cancelled';
 
     bool canCancel = false;
     if (orderDate != null) {
-      canCancel = DateTime.now().difference(orderDate).inHours < 24 && !isDelivered && !isCancelled;
+      canCancel =
+          DateTime.now().difference(orderDate).inHours < 24 &&
+          !isDelivered &&
+          !isCancelled;
     }
 
     return Scaffold(
@@ -398,15 +406,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   child: _buildActionBtn(
                     label: "Special Request",
                     icon: Icons.edit_note,
-                    color: primaryGreen,
+                    color: AppTheme.primaryGreen,
                     onPressed: (isCancelled || isDelivered)
                         ? null
                         : () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => SpecialRequestPage(
-                                orderData: order,
-                              ),
+                              builder: (_) =>
+                                  SpecialRequestPage(orderData: order),
                             ),
                           ),
                   ),

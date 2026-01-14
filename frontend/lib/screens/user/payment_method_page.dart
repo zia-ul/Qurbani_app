@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani/screens/user/api_services.dart';
 import 'package:qurbani/screens/user/review_order.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class PaymentMethodPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -20,7 +21,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   bool loadingMethods = true;
   bool isSubmitting = false;
 
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color parchmentBg = const Color(0xFFF4F7F4);
 
   // Map of method IDs to UI details
@@ -226,7 +226,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: isSelected ? primaryGreen : Colors.transparent,
+            color: isSelected ? AppTheme.primaryGreen : Colors.transparent,
             width: 2,
           ),
           boxShadow: [
@@ -243,13 +243,13 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? primaryGreen.withOpacity(0.1)
+                    ? AppTheme.primaryGreen.withOpacity(0.1)
                     : Colors.grey[100],
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 ui['icon'],
-                color: isSelected ? primaryGreen : Color(0xff537D4F),
+                color: isSelected ? AppTheme.primaryGreen : AppTheme.primaryGreen,
               ),
             ),
             const SizedBox(width: 15),
@@ -274,7 +274,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
             Radio<String>(
               value: methodId,
               groupValue: selectedMethod,
-              activeColor: primaryGreen,
+              activeColor: AppTheme.primaryGreen,
               onChanged: (v) => setState(() => selectedMethod = v),
             ),
           ],
@@ -306,8 +306,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
         CircleAvatar(
           radius: 12,
           backgroundColor: completed
-              ? primaryGreen
-              : (active ? primaryGreen : Colors.grey[300]),
+              ? AppTheme.primaryGreen
+              : (active ? AppTheme.primaryGreen : Colors.grey[300]),
           child: completed
               ? const Icon(Icons.check, size: 14, color: Colors.white)
               : Text(
@@ -320,7 +320,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
           label,
           style: TextStyle(
             fontSize: 10,
-            color: active ? primaryGreen : Color(0xff537D4F),
+            color: active ? AppTheme.primaryGreen : AppTheme.primaryGreen,
           ),
         ),
       ],
@@ -330,7 +330,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   Widget _stepLine(bool active) => Expanded(
     child: Container(
       height: 2,
-      color: active ? primaryGreen : Colors.grey[300],
+      color: active ? AppTheme.primaryGreen : Colors.grey[300],
       margin: const EdgeInsets.only(bottom: 15),
     ),
   );
@@ -339,9 +339,9 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryGreen.withOpacity(0.05),
+        color: AppTheme.primaryGreen.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primaryGreen.withOpacity(0.1)),
+        border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
       ),
       child: Row(
         children: [
@@ -377,7 +377,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(10),
               gradient: LinearGradient(
-                colors: [primaryGreen, const Color(0xFF5A916E)],
+                colors: [AppTheme.primaryGreen, const Color(0xFF5A916E)],
               ),
             ),
             child: ElevatedButton(

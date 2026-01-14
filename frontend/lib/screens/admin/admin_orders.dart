@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/screens/admin/update_admin_order_details.dart';
-import 'package:qurbani/services/admin_order_service.dart'; 
+import 'package:qurbani/services/admin_order_service.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminOrdersPage extends StatefulWidget {
   final String adminId;
@@ -18,7 +19,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   List<Map<String, dynamic>> _allOrders = []; // Store fetched orders
   bool _isLoading = true;
 
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color lightBg = const Color(0xFFF4F7F4);
 
   @override
@@ -70,9 +70,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
             color: Colors.white,
             child: TabBar(
               controller: _tabController,
-              labelColor: primaryGreen,
-              unselectedLabelColor: Color(0xff537D4F),
-              indicatorColor: primaryGreen,
+              labelColor: AppTheme.primaryGreen,
+              unselectedLabelColor: AppTheme.primaryGreen,
+              indicatorColor: AppTheme.primaryGreen,
               tabs: const [
                 Tab(text: "Active"),
                 Tab(text: "Completed"),
@@ -138,18 +138,20 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
       // Filter by search query
       final orderId = (data['orderId'] ?? '').toString().toLowerCase();
-      final phone = (data['contact'] is Map
-              ? data['contact']['primary']
-              : data['contact'] ?? '')
-          .toString()
-          .toLowerCase();
+      final phone =
+          (data['contact'] is Map
+                  ? data['contact']['primary']
+                  : data['contact'] ?? '')
+              .toString()
+              .toLowerCase();
       final matchesSearch =
           orderId.contains(_searchQuery) || phone.contains(_searchQuery);
 
       return matchesStatus && matchesSearch;
     }).toList();
 
-    if (filteredOrders.isEmpty) return const Center(child: Text("No orders found"));
+    if (filteredOrders.isEmpty)
+      return const Center(child: Text("No orders found"));
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -166,10 +168,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-              ),
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
             ],
           ),
           child: Padding(
@@ -209,12 +208,10 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryGreen,
+                          backgroundColor: AppTheme.primaryGreen,
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(6),
                           ),
@@ -251,7 +248,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                             Icon(
                               Icons.local_shipping_outlined,
                               size: 14,
-                              color: primaryGreen,
+                              color: AppTheme.primaryGreen,
                             ),
                             const SizedBox(width: 4),
                             Flexible(
@@ -259,7 +256,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                                 deliveryStatus,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: primaryGreen,
+                                  color: AppTheme.primaryGreen,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),

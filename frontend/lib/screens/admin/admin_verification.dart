@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:qurbani/services/admin_verification_service.dart';
 import 'package:qurbani/screens/admin/admin_home_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminVerificationPage extends StatefulWidget {
   const AdminVerificationPage({super.key});
@@ -55,9 +56,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       phoneController.text = profile['phone'] ?? '';
       addressController.text = profile['address'] ?? '';
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
     }
   }
 
@@ -81,7 +82,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<void> _onVerified() async {
     // Optionally update role locally or fetch updated profile
     final profile = await AdminVerificationService.getProfile();
-    final adminId = await _storage.read(key: 'userId'); // Assuming you store userId
+    final adminId = await _storage.read(
+      key: 'userId',
+    ); // Assuming you store userId
     final name = profile['name'] ?? 'Admin';
 
     if (!mounted) return;
@@ -157,9 +160,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
         const SnackBar(content: Text("Verification submitted successfully")),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     } finally {
       setState(() => isLoading = false);
     }
@@ -181,7 +184,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       return Scaffold(
         appBar: AppBar(
           title: const Text("Admin Verification"),
-          backgroundColor: const Color(0xff537D4F),
+          backgroundColor: AppTheme.primaryGreen,
         ),
         body: const Center(
           child: Padding(
@@ -192,15 +195,12 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 Icon(
                   Icons.check_circle,
                   size: 80,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                 ),
                 SizedBox(height: 20),
                 Text(
                   "Thanks for submitting!",
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 12),
@@ -219,7 +219,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Register as Admin"),
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -258,9 +258,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: _inputDecoration("Phone Number"),
-                validator: (v) => v == null || v.isEmpty
-                    ? "Phone number is required"
-                    : null,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Phone number is required" : null,
               ),
               const SizedBox(height: 12),
 
@@ -269,9 +268,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 decoration: _inputDecoration(
                   "Government ID (e.g., Aadhaar, Passport)",
                 ),
-                validator: (v) => v == null || v.isEmpty
-                    ? "Government ID is required"
-                    : null,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Government ID is required" : null,
               ),
               const SizedBox(height: 12),
 
@@ -292,7 +290,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 ),
                 onPressed: _pickImages,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff537D4F),
+                  backgroundColor: AppTheme.primaryGreen,
                 ),
               ),
               const SizedBox(height: 24),
@@ -302,7 +300,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 child: ElevatedButton(
                   onPressed: isLoading ? null : _submitVerification,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff537D4F),
+                    backgroundColor: AppTheme.primaryGreen,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: isLoading

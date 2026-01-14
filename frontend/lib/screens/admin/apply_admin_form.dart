@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qurbani/services/admin_application.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class ApplyAdminFormPage extends StatefulWidget {
   const ApplyAdminFormPage({super.key});
@@ -42,46 +43,48 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
   // }
 
   Future<void> submitApplication() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  if ([govtIdFile, businessProofFile, bankProofFile, farmPhotoFile].contains(null)) {
+    if ([
+      govtIdFile,
+      businessProofFile,
+      bankProofFile,
+      farmPhotoFile,
+    ].contains(null)) {
+      ToastUtils.showError("All documents required");
+      // ScaffoldMessenger.of(context)
+      //     .showSnackBar(const SnackBar(content: Text("All documents required")));
+      return;
+    }
 
-    ToastUtils.showError("All documents required");
-    // ScaffoldMessenger.of(context)
-    //     .showSnackBar(const SnackBar(content: Text("All documents required")));
-    return;
+    setState(() => loading = true);
+
+    try {
+      await AdminApplicationService.apply(
+        organizationName: orgController.text.trim(),
+        phone: phoneController.text.trim(),
+        experience: experienceController.text.trim(),
+        address: addressController.text.trim(),
+        govtId: govtIdFile!,
+        businessProof: businessProofFile!,
+        bankProof: bankProofFile!,
+        farmPhoto: farmPhotoFile!,
+      );
+
+      ToastUtils.showSuccess("Application submitted for review");
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   const SnackBar(content: Text("Application submitted for review")),
+      // );
+
+      Navigator.pop(context);
+    } catch (e) {
+      ToastUtils.showError(e.toString());
+      // ScaffoldMessenger.of(context)
+      //     .showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      setState(() => loading = false);
+    }
   }
-
-  setState(() => loading = true);
-
-  try {
-    await AdminApplicationService.apply(
-      organizationName: orgController.text.trim(),
-      phone: phoneController.text.trim(),
-      experience: experienceController.text.trim(),
-      address: addressController.text.trim(),
-      govtId: govtIdFile!,
-      businessProof: businessProofFile!,
-      bankProof: bankProofFile!,
-      farmPhoto: farmPhotoFile!,
-    );
-
-    ToastUtils.showSuccess("Application submitted for review");
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   const SnackBar(content: Text("Application submitted for review")),
-    // );
-
-    Navigator.pop(context);
-  } catch (e) {
-
-    ToastUtils.showError(e.toString());
-    // ScaffoldMessenger.of(context)
-    //     .showSnackBar(SnackBar(content: Text(e.toString())));
-  } finally {
-    setState(() => loading = false);
-  }
-}
-
 
   Widget documentPicker(String title, File? file, Function(File) onPick) {
     return Column(
@@ -115,7 +118,7 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Admin Application"),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -182,7 +185,7 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
                   : ElevatedButton(
                       onPressed: submitApplication,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xff537D4F),
+                        backgroundColor: AppTheme.primaryGreen,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: const Text("Submit Application"),

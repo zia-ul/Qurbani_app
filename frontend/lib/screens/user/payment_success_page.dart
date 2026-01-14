@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:qurbani/theme/theme.dart';
 
 class PaymentSuccessPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -222,7 +223,10 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
               const SizedBox(height: 10),
               Text(
                 "Order ID: ${widget.orderData['orderId']}",
-                style: const TextStyle(fontSize: 16, color: Color(0xff537D4F)),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.primaryGreen,
+                ),
               ),
               const SizedBox(height: 40),
 

@@ -4,11 +4,10 @@ import 'package:qurbani/screens/user/qurbani_feature_page.dart';
 import 'package:qurbani/screens/user/invite_friend_page.dart';
 import 'package:qurbani/screens/user/reset_password_page.dart';
 import 'package:qurbani/services/auth_service.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class SuperadminDrawer extends StatelessWidget {
-  const SuperadminDrawer({
-    super.key,
-  });
+  const SuperadminDrawer({super.key});
 
   Future<void> _logout(BuildContext context) async {
     await AuthService.logout(); // clears JWT token
@@ -27,7 +26,7 @@ class SuperadminDrawer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xff537D4F)),
+            decoration: const BoxDecoration(color: AppTheme.primaryGreen),
             child: Row(
               children: [
                 // Profile Picture
@@ -39,7 +38,7 @@ class SuperadminDrawer extends StatelessWidget {
                 //         radius: 35,
                 //         backgroundColor: Colors.white,
                 //         child: CircularProgressIndicator(
-                //           color: Color(0xff537D4F),
+                //           color: AppTheme.primaryGreen,
                 //           strokeWidth: 2,
                 //         ),
                 //       );
@@ -56,7 +55,7 @@ class SuperadminDrawer extends StatelessWidget {
                 //             ? const Icon(
                 //                 Icons.person,
                 //                 size: 40,
-                //                 color: Color(0xff537D4F),
+                //                 color: AppTheme.primaryGreen,
                 //               )
                 //             : null,
                 //       );
@@ -67,7 +66,7 @@ class SuperadminDrawer extends StatelessWidget {
                 //         child: const Icon(
                 //           Icons.person,
                 //           size: 40,
-                //           color: Color(0xff537D4F),
+                //           color: AppTheme.primaryGreen,
                 //         ),
                 //       );
                 //     }
@@ -90,7 +89,6 @@ class SuperadminDrawer extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-
                     ],
                   ),
                 ),
@@ -98,7 +96,7 @@ class SuperadminDrawer extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.lock_reset, color: Color(0xff537D4F)),
+            leading: const Icon(Icons.lock_reset, color: AppTheme.primaryGreen),
             title: const Text("Reset Password"),
             onTap: () {
               Navigator.pop(context);
@@ -109,7 +107,7 @@ class SuperadminDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.person_add, color: Color(0xff537D4F)),
+            leading: const Icon(Icons.person_add, color: AppTheme.primaryGreen),
             title: const Text("Invite Friend"),
             onTap: () {
               Navigator.pop(context);
@@ -120,7 +118,7 @@ class SuperadminDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.star, color: Color(0xff537D4F)),
+            leading: const Icon(Icons.star, color: AppTheme.primaryGreen),
             title: const Text("Qurbani Features"),
             onTap: () {
               Navigator.pop(context);

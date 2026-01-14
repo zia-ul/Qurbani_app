@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // 🌿 Core Colors (Balanced)
+  // Core Colors
   static const Color primaryGreen = Color(0xff3D6B4E); // Main brand green
-  static const Color accentGreen = Color(0xff6B8E5A); // Softer accent for harmony
-  static const Color warningRed = Color(0xffD32F2F); // Softened red for warnings
+  static const Color accentGreen = Color(
+    0xff6B8E5A,
+  ); // Softer accent for harmony
+  static const Color warningRed = Color(
+    0xffD32F2F,
+  ); // Softened red for warnings
 
-  // 🏺 Parchment Gradient (Inspired by AboutUsPage)
+  // Parchment Gradient
   static const Color bgGradientStart = Color(0xffF2E8D5); // Warm parchment
   static const Color bgGradientEnd = Color(0xffFFFFFF); // Soft white fade
 
-  // 🌙 Dark Mode Variants
+  // Dark Mode Variants
   static const Color darkBgGradientStart = Color(0xff2A2A2A); // Dark parchment
   static const Color darkBgGradientEnd = Color(0xff1E1E1E); // Deep gray fade
 
-  // 🌞 LIGHT THEME (Parchment Gradient Background)
+  // LIGHT THEME
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
@@ -35,7 +39,9 @@ class AppTheme {
     ),
 
     appBarTheme: AppBarTheme(
-      backgroundColor: primaryGreen.withOpacity(0.9), // Semi-transparent for gradient feel
+      backgroundColor: AppTheme.primaryGreen.withOpacity(
+        0.9,
+      ), // Semi-transparent for gradient feel
       foregroundColor: Colors.white,
       elevation: 0,
       centerTitle: true,
@@ -44,11 +50,9 @@ class AppTheme {
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(vertical: 14),
         elevation: 2,
       ),
@@ -56,11 +60,9 @@ class AppTheme {
 
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: primaryGreen,
-        side: const BorderSide(color: primaryGreen, width: 1.5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        foregroundColor: AppTheme.primaryGreen,
+        side: const BorderSide(color: AppTheme.primaryGreen, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
 
@@ -72,43 +74,39 @@ class AppTheme {
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderSide: const BorderSide(color: primaryGreen, width: 2),
+        borderSide: const BorderSide(color: AppTheme.primaryGreen, width: 2),
         borderRadius: BorderRadius.circular(12),
       ),
-      labelStyle: const TextStyle(color: primaryGreen),
+      labelStyle: const TextStyle(color: AppTheme.primaryGreen),
       hintStyle: const TextStyle(color: Colors.black54),
     ),
 
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: primaryGreen,
+      backgroundColor: AppTheme.primaryGreen,
       contentTextStyle: const TextStyle(color: Colors.white),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
 
     cardTheme: CardThemeData(
       color: Colors.white.withOpacity(0.95), // Semi-transparent for parchment
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      shadowColor: primaryGreen.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shadowColor: AppTheme.primaryGreen.withOpacity(0.1),
     ),
 
-    dividerTheme: const DividerThemeData(
-      color: Colors.black12,
-      thickness: 1,
-    ),
+    dividerTheme: const DividerThemeData(color: Colors.black12, thickness: 1),
 
     textTheme: const TextTheme(
       bodyLarge: TextStyle(color: Colors.black87), // Default dark text
       bodyMedium: TextStyle(color: Colors.black87),
-      headlineSmall: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold),
+      headlineSmall: TextStyle(
+        color: AppTheme.primaryGreen,
+        fontWeight: FontWeight.bold,
+      ),
     ),
   );
 
-  // 🌙 DARK THEME (Subtle Dark Gradient)
+  // DARK THEME
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
@@ -140,9 +138,7 @@ class AppTheme {
       style: ElevatedButton.styleFrom(
         backgroundColor: accentGreen,
         foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(vertical: 14),
         elevation: 2,
       ),
@@ -152,9 +148,7 @@ class AppTheme {
       style: OutlinedButton.styleFrom(
         foregroundColor: accentGreen,
         side: const BorderSide(color: accentGreen, width: 1.5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     ),
 
@@ -176,24 +170,17 @@ class AppTheme {
     snackBarTheme: SnackBarThemeData(
       backgroundColor: accentGreen,
       contentTextStyle: const TextStyle(color: Colors.black),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
 
     cardTheme: CardThemeData(
       color: darkBgGradientStart.withOpacity(0.95),
       elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       shadowColor: accentGreen.withOpacity(0.1),
     ),
 
-    dividerTheme: const DividerThemeData(
-      color: Colors.white12,
-      thickness: 1,
-    ),
+    dividerTheme: const DividerThemeData(color: Colors.white12, thickness: 1),
 
     textTheme: const TextTheme(
       bodyLarge: TextStyle(color: Colors.white70), // Default light text

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:qurbani/screens/superadmin/admin_details.dart';
 import 'package:qurbani/screens/superadmin/superadmin_drawer.dart';
+import 'package:qurbani/theme/theme.dart';
 
 enum RoleFilter { all, user, admin, pending, delivery }
 
@@ -13,7 +14,7 @@ class SuperAdminDashboard extends StatefulWidget {
 }
 
 class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
-  static const Color primaryGreen = Color(0xff537D4F);
+  static const Color primaryGreen = AppTheme.primaryGreen;
 
   RoleFilter _selectedFilter = RoleFilter.all;
   List<Map<String, dynamic>> _users = [];
@@ -33,7 +34,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     });
 
     try {
-      final role = _selectedFilter == RoleFilter.all ? 'all' : _selectedFilter.name;
+      final role = _selectedFilter == RoleFilter.all
+          ? 'all'
+          : _selectedFilter.name;
       _users = await SuperAdminService.getUsers(role);
     } catch (e) {
       setState(() {
@@ -58,23 +61,23 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Super Admin Panel'),
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
         actions: [_filterDropdown()],
       ),
       drawer: SuperadminDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(child: Text('Error: $_errorMessage'))
-              : _users.isEmpty
-                  ? const Center(child: Text('No users found'))
-                  : ListView.builder(
-                      itemCount: _users.length,
-                      itemBuilder: (_, i) {
-                        final user = _users[i];
-                        return _userCard(context, user['id'], user);
-                      },
-                    ),
+          ? Center(child: Text('Error: $_errorMessage'))
+          : _users.isEmpty
+          ? const Center(child: Text('No users found'))
+          : ListView.builder(
+              itemCount: _users.length,
+              itemBuilder: (_, i) {
+                final user = _users[i];
+                return _userCard(context, user['id'], user);
+              },
+            ),
     );
   }
 
@@ -90,15 +93,25 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           DropdownMenuItem(value: RoleFilter.all, child: Text('All')),
           DropdownMenuItem(value: RoleFilter.user, child: Text('Users')),
           DropdownMenuItem(value: RoleFilter.admin, child: Text('Admins')),
-          DropdownMenuItem(value: RoleFilter.pending, child: Text('Pending Admins')),
-          DropdownMenuItem(value: RoleFilter.delivery, child: Text('Delivery Boys')),
+          DropdownMenuItem(
+            value: RoleFilter.pending,
+            child: Text('Pending Admins'),
+          ),
+          DropdownMenuItem(
+            value: RoleFilter.delivery,
+            child: Text('Delivery Boys'),
+          ),
         ],
         onChanged: (value) => _onFilterChanged(value!),
       ),
     );
   }
 
-  Widget _userCard(BuildContext context, String userId, Map<String, dynamic> data) {
+  Widget _userCard(
+    BuildContext context,
+    String userId,
+    Map<String, dynamic> data,
+  ) {
     final role = data['role'];
 
     return Card(
@@ -129,7 +142,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => AdminVerificationDetailsPage(adminId: userId),
+                          builder: (_) =>
+                              AdminVerificationDetailsPage(adminId: userId),
                         ),
                       );
                     },
@@ -142,8 +156,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
               backgroundColor: role == 'pending'
                   ? Colors.orange[100]
                   : role == 'admin'
-                      ? Colors.green[100]
-                      : Colors.blue[100],
+                  ? Colors.green[100]
+                  : Colors.blue[100],
             ),
             const SizedBox(height: 8),
             Row(
@@ -186,10 +200,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   Future<void> _approveAdmin(BuildContext context, String adminId) async {
     try {
       await SuperAdminService.updateUser(adminId, 'approve');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Admin Approved')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Admin Approved')));
       _fetchUsers();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -216,10 +234,14 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     if (confirm == true) {
       try {
         await SuperAdminService.updateUser(adminId, 'reject');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account Deleted')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Account Deleted')));
         _fetchUsers();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }

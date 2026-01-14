@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui;
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class BarcodePage extends StatefulWidget {
   final String barcodeValue;
@@ -20,7 +21,6 @@ class _BarcodePageState extends State<BarcodePage> {
   final GlobalKey _globalKey = GlobalKey();
 
   // Theme Colors from reference
-  final Color primaryGreen = const Color(0xff3D6B4E);
   final Color bgParchment = const Color(0xffF2E8D5);
 
   Future<void> _printBarcode() async {
@@ -77,7 +77,7 @@ class _BarcodePageState extends State<BarcodePage> {
           "Animal Identification",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -106,7 +106,7 @@ class _BarcodePageState extends State<BarcodePage> {
                     const Icon(
                       Icons.qr_code_scanner,
                       size: 50,
-                      color: Color(0xff537D4F),
+                      color: AppTheme.primaryGreen,
                     ),
                     const SizedBox(height: 15),
                     const Text(
@@ -142,7 +142,7 @@ class _BarcodePageState extends State<BarcodePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: primaryGreen.withOpacity(0.2),
+                      color: AppTheme.primaryGreen.withOpacity(0.2),
                       width: 2,
                     ),
                   ),
@@ -170,7 +170,7 @@ class _BarcodePageState extends State<BarcodePage> {
                         "OFFICIAL ANIMAL ID",
                         style: TextStyle(
                           fontSize: 10,
-                          color: Color(0xff537D4F),
+                          color: AppTheme.primaryGreen,
                           letterSpacing: 1.5,
                         ),
                       ),
@@ -184,7 +184,7 @@ class _BarcodePageState extends State<BarcodePage> {
               _buildActionButton(
                 label: "Print Identification Tag",
                 icon: Icons.print_rounded,
-                color: primaryGreen,
+                color: AppTheme.primaryGreen,
                 onTap: _printBarcode,
               ),
               const SizedBox(height: 12),

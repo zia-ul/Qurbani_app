@@ -1,20 +1,35 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani/authentication/login_page.dart';
+import 'package:qurbani/services/auth_service.dart';
+
+// Admin Pages
+import 'package:qurbani/screens/admin/animal_listing.dart';
+import 'package:qurbani/screens/admin/slot_management.dart';
+
+// User Pages
 import 'package:qurbani/screens/user/profile_page.dart';
-import 'package:qurbani/screens/user/qurbani_feature_page.dart';
-import 'package:qurbani/screens/user/invite_friend_page.dart';
 import 'package:qurbani/screens/user/settings_page.dart';
 import 'package:qurbani/screens/user/reset_password_page.dart';
 import 'package:qurbani/screens/user/user_special_request.dart';
-import '../../services/auth_service.dart';
+import 'package:qurbani/screens/user/invite_friend_page.dart';
+import 'package:qurbani/screens/user/qurbani_feature_page.dart'; // Assuming AboutUsPage is here
 
-class UserDrawer extends StatelessWidget {
-  final String userName;
-  final String userId;
+// Delivery Pages
+// import 'package:qurbani/screens/delivery/delivery_settings.dart';
+import 'package:qurbani/services/service_profile.dart';
 
-  const UserDrawer({super.key, required this.userName, required this.userId});
+class MasterDrawer extends StatelessWidget {
+  final String name;
+  final String id;
+  final String role; // 'admin', 'delivery', 'user'
+
+  const MasterDrawer({
+    super.key,
+    required this.name,
+    required this.id,
+    required this.role,
+  });
 
   Future<void> _logout(BuildContext context) async {
     await AuthService.logout();
@@ -27,17 +42,19 @@ class UserDrawer extends StatelessWidget {
     }
   }
 
-  Future<String?> _getUserProfilePicture() async {
+  Future<String?> _getProfilePicture() async {
     try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-
-      if (userDoc.exists) {
-        final data = userDoc.data();
-        if (data != null) {
-          // Check for various possible field names for flexibility
+      if (role == 'delivery') {
+        final profile = await ProfileService.getProfile();
+        return profile['photoUrl'];
+      } else {
+        // Admin or User: Use Firestore
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(id)
+            .get();
+        if (doc.exists) {
+          final data = doc.data()!;
           return data['photoUrl'] ??
               data['profilePicture'] ??
               data['profileImageUrl'] ??
@@ -50,19 +67,32 @@ class UserDrawer extends StatelessWidget {
     return null;
   }
 
+  String _getWelcomeText() {
+    switch (role) {
+      case 'admin':
+        return "Welcome Admin";
+      case 'delivery':
+        return "Welcome Delivery";
+      case 'user':
+        return "Welcome";
+      default:
+        return "Welcome";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           DrawerHeader(
             decoration: const BoxDecoration(color: Color(0xff537D4F)),
             child: Row(
               children: [
-                // Profile Picture Section
                 FutureBuilder<String?>(
-                  future: _getUserProfilePicture(),
+                  future: _getProfilePicture(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const CircleAvatar(
@@ -75,16 +105,14 @@ class UserDrawer extends StatelessWidget {
                       );
                     }
 
-                    final profilePicture = snapshot.data;
-
+                    final img = snapshot.data;
                     return CircleAvatar(
                       radius: 35,
                       backgroundColor: Colors.white,
-                      backgroundImage:
-                          (profilePicture != null && profilePicture.isNotEmpty)
-                          ? NetworkImage(profilePicture)
+                      backgroundImage: (img != null && img.isNotEmpty)
+                          ? NetworkImage(img)
                           : null,
-                      child: (profilePicture == null || profilePicture.isEmpty)
+                      child: (img == null || img.isEmpty)
                           ? const Icon(
                               Icons.person,
                               size: 40,
@@ -95,35 +123,34 @@ class UserDrawer extends StatelessWidget {
                   },
                 ),
                 const SizedBox(width: 15),
-
-                // User Info Section
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Welcome",
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                      Text(
+                        _getWelcomeText(),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        userName,
+                        name,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        userId.length > 8
-                            ? "${userId.substring(0, 8)}..."
-                            : userId,
+                        id.length > 8 ? "${id.substring(0, 8)}..." : id,
                         style: const TextStyle(
                           color: Colors.white60,
-                          fontSize: 11,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -133,78 +160,27 @@ class UserDrawer extends StatelessWidget {
             ),
           ),
 
-          // Navigation List
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text("Profile"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfilePage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text("Settings"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.lock_reset, color: Color(0xff537D4F)),
-            title: const Text("Reset Password"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ResetPasswordPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.assignment),
-            title: const Text("Special Requests"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => MySpecialRequestsPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.person_add, color: Color(0xff537D4F)),
-            title: const Text("Invite Friend"),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const InviteFriendPage()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.star, color: Color(0xff537D4F)),
-            title: const Text("Qurbani Features"),
-            onTap: () {
-              Navigator.pop(context);
-              // Note: Ensure AboutUsPage is the correct class name in qurbani_feature_page.dart
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AboutUsPage()),
-              );
-            },
-          ),
+          // Menu Items (Conditional)
+          if (role == 'admin') ...[
+            _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
+            _drawerItem(context, Icons.assignment, "Animal Inventory", AnimalListingPage()),
+            _drawerItem(context, Icons.schedule, "Slot Management", AdminSlotPage(adminId: id)),
+            _drawerItem(context, Icons.person_add, "Invite Friend", const InviteFriendPage()),
+            _drawerItem(context, Icons.star, "Qurbani Features", const AboutUsPage()),
+          ] else if (role == 'delivery') ...[
+            // _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
+          ] else if (role == 'user') ...[
+            _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
+            _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
+            _drawerItem(context, Icons.lock_reset, "Reset Password", const ResetPasswordPage()),
+            _drawerItem(context, Icons.assignment, "Special Requests", MySpecialRequestsPage()),
+            _drawerItem(context, Icons.person_add, "Invite Friend", const InviteFriendPage()),
+            _drawerItem(context, Icons.star, "Qurbani Features", const AboutUsPage()),
+          ],
 
           const Spacer(),
 
-          // Logout Section
+          // Logout
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -222,10 +198,7 @@ class UserDrawer extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text(
-                        "Logout",
-                        style: TextStyle(color: Colors.red),
-                      ),
+                      child: const Text("Logout"),
                     ),
                   ],
                 ),
@@ -238,6 +211,20 @@ class UserDrawer extends StatelessWidget {
           const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+
+  Widget _drawerItem(BuildContext context, IconData icon, String title, Widget page) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => page),
+        );
+      },
     );
   }
 }

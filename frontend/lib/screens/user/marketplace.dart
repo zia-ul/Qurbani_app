@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/screens/user/admin_profile.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
@@ -14,7 +15,6 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   String searchText = '';
   late Future<List<dynamic>> _adminsFuture;
 
-  final Color primaryGreen = const Color(0xff3D6B4E);
   final Color parchmentBg = const Color(0xffF2E8D5);
 
   @override
@@ -45,7 +45,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
           "Verified Admins",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         actions: const [
           // CartBadge(),
@@ -64,30 +64,24 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text("Error: ${snapshot.error}"),
-                  );
+                  return Center(child: Text("Error: ${snapshot.error}"));
                 }
 
                 final admins = snapshot.data ?? [];
 
                 // Search filter
                 final filteredAdmins = admins.where((admin) {
-                  final name =
-                      (admin['name'] ?? '').toString().toLowerCase();
+                  final name = (admin['name'] ?? '').toString().toLowerCase();
                   return name.contains(searchText.toLowerCase());
                 }).toList();
 
                 if (filteredAdmins.isEmpty) {
-                  return const Center(
-                    child: Text("No verified admins found"),
-                  );
+                  return const Center(child: Text("No verified admins found"));
                 }
 
                 return GridView.builder(
                   padding: const EdgeInsets.all(12),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     childAspectRatio: 0.85,
                     crossAxisSpacing: 12,
@@ -131,7 +125,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
     final String name = admin['name'] ?? 'Unknown Admin';
     final String address = admin['address'] ?? 'No Address';
     // final double rating =
-        // double.tryParse(admin['average_rating']?.toString() ?? '0') ?? 0.0;
+    // double.tryParse(admin['average_rating']?.toString() ?? '0') ?? 0.0;
     final String adminId = admin['id'];
 
     return Container(
@@ -152,8 +146,8 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
           children: [
             CircleAvatar(
               radius: 30,
-              backgroundColor: primaryGreen.withOpacity(0.1),
-              child: Icon(Icons.person, size: 35, color: primaryGreen),
+              backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+              child: Icon(Icons.person, size: 35, color: AppTheme.primaryGreen),
             ),
             const SizedBox(height: 10),
             Text(
@@ -161,10 +155,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 4),
             Row(
@@ -186,18 +177,14 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.location_on,
-                    size: 14, color: Colors.grey[600]),
+                Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     address,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                   ),
                 ),
               ],
@@ -211,13 +198,12 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          AdminProfilePage(adminId: adminId),
+                      builder: (_) => AdminProfilePage(adminId: adminId),
                     ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryGreen,
+                  backgroundColor: AppTheme.primaryGreen,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(

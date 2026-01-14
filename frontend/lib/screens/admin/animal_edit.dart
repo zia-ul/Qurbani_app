@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:qurbani/theme/theme.dart';
 import 'dart:convert';
 import 'package:qurbani/widgets/primary_btn.dart';
 import 'package:qurbani/widgets/common_card.dart';
@@ -45,7 +46,6 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   List<String> selectedPaymentMethods = [];
   String? selectedAnimalType;
 
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color lightBg = const Color(0xFFF9FBF9);
 
   @override
@@ -194,12 +194,15 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       appBar: AppBar(
         title: Text(
           "Edit Animal Details",
-          style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppTheme.primaryGreen,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: primaryGreen),
+        iconTheme: IconThemeData(color: AppTheme.primaryGreen),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -335,7 +338,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                   icon: const Icon(Icons.add_a_photo),
                   label: const Text("Add More Photos"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryGreen,
+                    backgroundColor: AppTheme.primaryGreen,
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 45),
                   ),
@@ -423,7 +426,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: primaryGreen),
+        borderSide: BorderSide(color: AppTheme.primaryGreen),
       ),
     );
   }
@@ -434,7 +437,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       children: [
         Checkbox(
           value: selectedPaymentMethods.contains(key),
-          activeColor: primaryGreen,
+          activeColor: AppTheme.primaryGreen,
           onChanged: (val) {
             setState(() {
               if (val!) {

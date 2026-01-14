@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/services/ratings_service.dart';
+import 'package:qurbani/theme/theme.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
 
 class RateOrderPage extends StatefulWidget {
@@ -37,8 +38,10 @@ class _RateOrderPageState extends State<RateOrderPage> {
 
       for (var order in orders) {
         final adminId = order['admin_id'];
-        adminRatings[adminId] = (ratings[adminId]?['adminRating'] ?? 0).toDouble();
-        deliveryRatings[adminId] = (ratings[adminId]?['deliveryRating'] ?? 0).toDouble();
+        adminRatings[adminId] = (ratings[adminId]?['adminRating'] ?? 0)
+            .toDouble();
+        deliveryRatings[adminId] = (ratings[adminId]?['deliveryRating'] ?? 0)
+            .toDouble();
         feedbackControllers[adminId] = TextEditingController(
           text: ratings[adminId]?['feedback'] ?? '',
         );
@@ -61,15 +64,23 @@ class _RateOrderPageState extends State<RateOrderPage> {
       return;
     }
 
-    final ratingsList = adminRatings.keys.map((adminId) => {
-      'adminId': adminId,
-      'adminRating': adminRatings[adminId],
-      'deliveryRating': deliveryRatings[adminId],
-      'feedback': feedbackControllers[adminId]?.text.trim() ?? '',
-    }).toList();
+    final ratingsList = adminRatings.keys
+        .map(
+          (adminId) => {
+            'adminId': adminId,
+            'adminRating': adminRatings[adminId],
+            'deliveryRating': deliveryRatings[adminId],
+            'feedback': feedbackControllers[adminId]?.text.trim() ?? '',
+          },
+        )
+        .toList();
 
     try {
-      await RatingService.submitRatings(widget.orderId, widget.userId, ratingsList);
+      await RatingService.submitRatings(
+        widget.orderId,
+        widget.userId,
+        ratingsList,
+      );
       setState(() => submitted = true);
       ToastUtils.showSuccess("Ratings submitted successfully!");
     } catch (e) {
@@ -84,7 +95,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
         return IconButton(
           icon: Icon(
             i < value ? Icons.star : Icons.star_border,
-            color: const Color(0xff537D4F),
+            color: AppTheme.primaryGreen,
             size: 32,
           ),
           onPressed: submitted ? null : () => onChanged(i + 1.0),
@@ -96,15 +107,11 @@ class _RateOrderPageState extends State<RateOrderPage> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (data == null) {
-      return const Scaffold(
-        body: Center(child: Text("Failed to load data.")),
-      );
+      return const Scaffold(body: Center(child: Text("Failed to load data.")));
     }
 
     final orders = data!['orders'] as List<dynamic>;
@@ -172,7 +179,9 @@ class _RateOrderPageState extends State<RateOrderPage> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                if (submitted && (feedbackControllers[adminId]?.text.isNotEmpty ?? false)) ...[
+                if (submitted &&
+                    (feedbackControllers[adminId]?.text.isNotEmpty ??
+                        false)) ...[
                   const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -192,7 +201,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Rate Your Order"),
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -204,7 +213,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
               ElevatedButton(
                 onPressed: submitRatings,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xff537D4F),
+                  backgroundColor: AppTheme.primaryGreen,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 40,
                     vertical: 12,
@@ -215,7 +224,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
             if (submitted)
               const Text(
                 "Thanks for your ratings!",
-                style: TextStyle(color: Color(0xff537D4F), fontSize: 18),
+                style: TextStyle(color: AppTheme.primaryGreen, fontSize: 18),
               ),
             const SizedBox(height: 20),
           ],

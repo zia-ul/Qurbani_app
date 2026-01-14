@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:qurbani/screens/admin/animal_edit.dart';
 import 'package:qurbani/screens/admin/animal_orders_page.dart'; // New page
+import 'package:qurbani/theme/theme.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AnimalListingPage extends StatefulWidget {
@@ -104,13 +105,11 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryGreen = const Color(0xff3D6B4E);
-
     return Scaffold(
       backgroundColor: Colors.transparent, // For gradient
       appBar: AppBar(
         title: const Text("Animal Management"),
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -123,7 +122,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                 final animal = animals[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildAnimalCard(animal, primaryGreen),
+                  child: _buildAnimalCard(animal, AppTheme.primaryGreen),
                 );
               },
             ),
@@ -209,7 +208,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                       icon: const Icon(Icons.visibility, size: 16),
                       label: const Text("View"),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryGreen,
+                        backgroundColor: AppTheme.primaryGreen,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 6),
                       ),
@@ -227,7 +226,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                       );
                     },
                     icon: const Icon(Icons.edit, size: 20),
-                    color: primaryGreen,
+                    color: AppTheme.primaryGreen,
                   ),
                   IconButton(
                     onPressed: () => deleteAnimal(animal['id']),

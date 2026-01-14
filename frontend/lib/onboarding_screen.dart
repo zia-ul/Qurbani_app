@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/theme/theme.dart';
 import 'authentication/login_page.dart';
 import 'authentication/register_page.dart';
 
@@ -10,8 +11,6 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  // Define the primary color for the buttons based on your theme
-  final Color primaryGreen = const Color(0xff3D6B4E);
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 55,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryGreen,
+                          backgroundColor: AppTheme.primaryGreen,
                           foregroundColor: Colors.white,
                           elevation: 3,
                           shape: RoundedRectangleBorder(
@@ -117,8 +116,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 55,
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: primaryGreen, width: 2),
-                          foregroundColor: primaryGreen,
+                          side: BorderSide(color: AppTheme.primaryGreen, width: 2),
+                          foregroundColor: AppTheme.primaryGreen,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),

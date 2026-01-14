@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:qurbani/screens/user/product_details_page.dart';
 import 'package:qurbani/screens/user/currency_notifier.dart';
 import 'package:qurbani/services/order_service.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class BookedPage extends StatefulWidget {
   final String userId;
@@ -23,7 +24,7 @@ class _BookedPageState extends State<BookedPage> {
   String searchQuery = "";
   String selectedStatus = "All";
 
-  static const Color primaryGreen = Color(0xff537D4F);
+  static const Color primaryGreen = AppTheme.primaryGreen;
   static const Color parchmentBg = Color(0xffF2E8D5);
 
   @override
@@ -99,7 +100,9 @@ class _BookedPageState extends State<BookedPage> {
           Expanded(
             child: isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(color: primaryGreen),
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryGreen,
+                    ),
                   )
                 : filteredOrders.isEmpty
                 ? const Center(
@@ -321,7 +324,7 @@ class _BookedPageState extends State<BookedPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: primaryGreen,
+        color: AppTheme.primaryGreen,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -412,7 +415,7 @@ class _BookedPageState extends State<BookedPage> {
           "View >",
           style: TextStyle(
             fontSize: 10,
-            color: primaryGreen,
+            color: AppTheme.primaryGreen,
             fontWeight: FontWeight.bold,
           ),
         ),

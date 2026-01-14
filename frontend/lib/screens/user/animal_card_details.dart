@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AnimalDetailsCard extends StatelessWidget {
   final String type;
@@ -20,7 +21,7 @@ class AnimalDetailsCard extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(14, 2.5, 14, 2.5),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xff537D4F)),
+        side: const BorderSide(color: AppTheme.primaryGreen),
       ),
       elevation: 3,
       child: Padding(
@@ -31,20 +32,20 @@ class AnimalDetailsCard extends StatelessWidget {
             // Title
             Row(
               children: const [
-                Icon(Icons.circle, color: Color(0xff537D4F)),
+                Icon(Icons.circle, color: AppTheme.primaryGreen),
                 SizedBox(width: 8),
                 Text(
                   "Animal Details",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xff537D4F),
+                    color: AppTheme.primaryGreen,
                   ),
                 ),
               ],
             ),
             const Divider(thickness: 1, height: 20),
-            
+
             // Type
             Row(
               children: [

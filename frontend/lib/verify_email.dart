@@ -76,7 +76,7 @@
 //       backgroundColor: const Color(0xFFEEF7EF),
 //       appBar: AppBar(
 //         title: const Text("Verify Email"),
-//         backgroundColor: Color(0xff537D4F),
+//         backgroundColor: AppTheme.primaryGreen,
 //       ),
 //       body: Padding(
 //         padding: const EdgeInsets.all(24),
@@ -86,7 +86,7 @@
 //             Icon(
 //               Icons.email_outlined,
 //               size: 100,
-//               color: Color(0xff537D4F),
+//               color: AppTheme.primaryGreen,
 //             ),
 //             const SizedBox(height: 20),
 //             const Text(
@@ -102,7 +102,7 @@
 //             ElevatedButton(
 //               onPressed: isLoading ? null : _sendVerificationEmail,
 //               style: ElevatedButton.styleFrom(
-//                 backgroundColor: Color(0xff537D4F),
+//                 backgroundColor: AppTheme.primaryGreen,
 //                 padding: const EdgeInsets.symmetric(
 //                   vertical: 14,
 //                   horizontal: 20,
@@ -134,7 +134,7 @@
 //               },
 //               child: const Text(
 //                 "Back to Login",
-//                 style: TextStyle(color: Color(0xff537D4F)),
+//                 style: TextStyle(color: AppTheme.primaryGreen),
 //               ),
 //             ),
 //           ],

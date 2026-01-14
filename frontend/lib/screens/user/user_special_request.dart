@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/services/request_service.dart';
 import 'package:intl/intl.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class MySpecialRequestsPage extends StatefulWidget {
   const MySpecialRequestsPage({super.key});
@@ -29,7 +30,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Special Requests"),
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -132,7 +133,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
                           "Created: ${DateFormat('dd MMM yyyy, hh:mm a').format(createdAt)}",
                           style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xff537D4F),
+                            color: AppTheme.primaryGreen,
                           ),
                         ),
 
@@ -165,7 +166,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
                                   "Replied: ${DateFormat('dd MMM yyyy, hh:mm a').format(repliedAt)}",
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xff537D4F),
+                                    color: AppTheme.primaryGreen,
                                   ),
                                 ),
                             ],
@@ -193,7 +194,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
       case 'closed':
         return Colors.green;
       default:
-        return const Color(0xff537D4F);
+        return AppTheme.primaryGreen;
     }
   }
 }

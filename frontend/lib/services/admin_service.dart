@@ -25,4 +25,57 @@ class AdminService {
       throw Exception(msg);
     }
   }
+
+  static Future<List<Map<String, dynamic>>> getNotifications() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/notifications'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg =
+          jsonDecode(res.body)['message'] ?? 'Failed to fetch notifications';
+      throw Exception(msg);
+    }
+
+    final data = jsonDecode(res.body);
+    return List<Map<String, dynamic>>.from(data['notifications']);
+  }
+
+  static Future<void> markNotificationNotified(String notificationId) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.put(
+      Uri.parse('$_baseUrl/admin/notifications/$notificationId/mark-notified'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg =
+          jsonDecode(res.body)['message'] ?? 'Failed to mark notification';
+      throw Exception(msg);
+    }
+  }
+
+  // Fetch dashboard stats (animals, orders, requests)
+  static Future<Map<String, dynamic>> getDashboardStats() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admin/dashboard-stats'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch stats';
+      throw Exception(msg);
+    }
+
+    return Map<String, dynamic>.from(jsonDecode(res.body));
+  }
 }

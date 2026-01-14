@@ -57,7 +57,7 @@
 //     return Scaffold(
 //       appBar: AppBar(
 //         title: const Text('Forgot Password'),
-//         backgroundColor: Color(0xff537D4F),
+//         backgroundColor: AppTheme.primaryGreen,
 //       ),
 //       body: Padding(
 //         padding: const EdgeInsets.all(24.0),
@@ -89,7 +89,7 @@
 //                 child: ElevatedButton(
 //                   onPressed: _isLoading ? null : _resetPassword,
 //                   style: ElevatedButton.styleFrom(
-//                     backgroundColor: Color(0xff537D4F),
+//                     backgroundColor: AppTheme.primaryGreen,
 //                     padding: const EdgeInsets.symmetric(vertical: 16),
 //                   ),
 //                   child: _isLoading

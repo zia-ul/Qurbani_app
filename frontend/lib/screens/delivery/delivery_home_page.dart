@@ -3,8 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:qurbani/screens/delivery/delivery_drawer.dart';
+import 'package:qurbani/drawer.dart';
 import 'package:qurbani/services/delivery_service.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class DeliveryHomePage extends StatefulWidget {
   final String deliveryId;
@@ -27,7 +28,6 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  final Color primaryGreen = const Color(0xff3D6B4E);
   final Color lightBg = const Color(0xffF4F7F4);
 
   @override
@@ -91,9 +91,9 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       }
       _fetchOrders(); // Refresh list
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -116,20 +116,24 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: lightBg,
-      drawer: DeliveryDrawer(deliveryName: widget.name, deliveryId: widget.deliveryId),
+      drawer: MasterDrawer(
+        name: widget.name,
+        id: widget.deliveryId,
+        role: 'delivery',
+      ),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        iconTheme: IconThemeData(color: primaryGreen),
+        iconTheme: IconThemeData(color: AppTheme.primaryGreen),
         title: Text(
           "Delivery Dashboard",
-          style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: AppTheme.primaryGreen,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchOrders,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchOrders),
         ],
       ),
       body: Column(
@@ -155,7 +159,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
           ),
           const Text(
             "Your Delivery Tasks",
-            style: TextStyle(color: Color(0xff537D4F)),
+            style: TextStyle(color: AppTheme.primaryGreen),
           ),
           const SizedBox(height: 15),
           TextField(
@@ -196,7 +200,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
               ),
               selected: selected,
               onSelected: (v) => setState(() => _statusFilter = s),
-              selectedColor: primaryGreen,
+              selectedColor: AppTheme.primaryGreen,
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -283,7 +287,10 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             ],
           ),
           const SizedBox(height: 8),
-          _infoRow(Icons.location_on, order['delivery_address'] ?? 'No Address'),
+          _infoRow(
+            Icons.location_on,
+            order['delivery_address'] ?? 'No Address',
+          ),
           _infoRow(Icons.person, order['customer_name'] ?? "Customer"),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 10),
@@ -294,12 +301,15 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Color(0xff537D4F),
+              color: AppTheme.primaryGreen,
             ),
           ),
           const SizedBox(height: 5),
           _infoRow(Icons.store, order['admin_name'] ?? 'Unknown Admin'),
-          _infoRow(Icons.phone_android, order['admin_contact'] ?? 'No Contact Info'),
+          _infoRow(
+            Icons.phone_android,
+            order['admin_contact'] ?? 'No Contact Info',
+          ),
           const SizedBox(height: 15),
           Row(
             children: [
@@ -309,7 +319,8 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
                     "Start Delivery",
                     Icons.play_arrow,
                     () async {
-                      final hasPermissions = await _requestPermissionsIfNeeded();
+                      final hasPermissions =
+                          await _requestPermissionsIfNeeded();
                       if (hasPermissions) _updateStatus(order['id'], 'sent');
                     },
                     isMain: true,
@@ -367,7 +378,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: const Color(0xff537D4F)),
+          Icon(icon, size: 14, color: AppTheme.primaryGreen),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -382,23 +393,24 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     );
   }
 
-  Widget _actionBtn(String label, IconData icon, VoidCallback onTap, {bool isMain = false}) {
+  Widget _actionBtn(
+    String label,
+    IconData icon,
+    VoidCallback onTap, {
+    bool isMain = false,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
         decoration: BoxDecoration(
-          color: isMain ? primaryGreen : Colors.grey.shade100,
+          color: isMain ? AppTheme.primaryGreen : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: isMain ? Colors.white : Colors.black87,
-            ),
+            Icon(icon, size: 14, color: isMain ? Colors.white : Colors.black87),
             const SizedBox(width: 4),
             Text(
               label,
@@ -443,7 +455,9 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: primaryGreen),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGreen,
+            ),
             onPressed: () => _verifyCode(orderId, ctrl.text),
             child: const Text(
               "Verify & Deliver",

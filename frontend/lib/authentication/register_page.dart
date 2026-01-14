@@ -5,6 +5,7 @@ import 'package:qurbani/services/auth_service.dart';
 import 'package:qurbani/terms_condition_dialog.dart';
 import 'package:qurbani/verify_email.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -92,7 +93,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (!mounted) return;
 
-      ToastUtils.showSuccess('Registration successful. Please verify your email.');
+      ToastUtils.showSuccess(
+        'Registration successful. Please verify your email.',
+      );
 
       // Navigator.pushReplacement(
       //   context,
@@ -105,7 +108,9 @@ class _RegisterPageState extends State<RegisterPage> {
         MaterialPageRoute(builder: (_) => LoginScreen()),
       );
     } catch (e) {
-      ToastUtils.showError("${e.toString().replaceAll('Exception:', '').trim()}");
+      ToastUtils.showError(
+        "${e.toString().replaceAll('Exception:', '').trim()}",
+      );
       // ScaffoldMessenger.of(context).showSnackBar(
       //   SnackBar(
       //     content: Text(e.toString().replaceAll('Exception:', '').trim()),
@@ -290,7 +295,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w600,
-                                              color: Color(0xff537D4F),
+                                              color: AppTheme.primaryGreen,
                                             ),
                                           ),
                                           const SizedBox(height: 5),
@@ -561,7 +566,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                                     style: TextStyle(
                                                       decoration: TextDecoration
                                                           .underline,
-                                                      color: Color(0xff537D4F),
+                                                      color:
+                                                          AppTheme.primaryGreen,
                                                     ),
                                                   ),
                                                 ),
@@ -612,7 +618,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                               "Already have an account? Login",
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
-                                                color: Color(0xff537D4F),
+                                                color: AppTheme.primaryGreen,
                                               ),
                                             ),
                                           ),

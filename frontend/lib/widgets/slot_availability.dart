@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/screens/admin/slot_management.dart';
 import 'package:qurbani/services/slot_service.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class SlotAvailabilityWidget extends StatefulWidget {
   final String adminId;
@@ -42,7 +43,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
               color: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
-                side: const BorderSide(color: Color(0xff537D4F), width: 1),
+                side: const BorderSide(color: AppTheme.primaryGreen, width: 1),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -54,7 +55,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xff537D4F),
+                        color: AppTheme.primaryGreen,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -68,7 +69,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                       child: ElevatedButton(
                         onPressed: _loadSlots,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff537D4F),
+                          backgroundColor: AppTheme.primaryGreen,
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
                         child: const Text("Retry"),
@@ -98,7 +99,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                 ),
               ),
             ),
@@ -123,7 +124,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Color(0xff537D4F), width: 1),
+                      border: Border.all(color: AppTheme.primaryGreen, width: 1),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black12,
@@ -140,7 +141,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xff537D4F),
+                            color: AppTheme.primaryGreen,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -148,7 +149,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                         _buildStatRow(
                           "Available",
                           free.toString(),
-                          color: const Color(0xff537D4F),
+                          color: AppTheme.primaryGreen,
                         ),
                         _buildStatRow(
                           "Booked",
@@ -160,7 +161,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                           LinearProgressIndicator(
                             value: total > 0 ? booked / total : 0,
                             backgroundColor: Colors.grey.shade200,
-                            color: Color(0xff537D4F),
+                            color: AppTheme.primaryGreen,
                             minHeight: 6,
                           ),
                       ],
@@ -183,7 +184,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 14, color: Color(0xff537D4F)),
+            style: const TextStyle(fontSize: 14, color: AppTheme.primaryGreen),
           ),
           Text(
             value,
@@ -205,7 +206,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
         color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
-          side: const BorderSide(color: Color(0xff537D4F), width: 1),
+          side: const BorderSide(color: AppTheme.primaryGreen, width: 1),
         ),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -217,13 +218,13 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xff537D4F),
+                  color: AppTheme.primaryGreen,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
                 "No slots configured yet. Please set up your Eid slots to start accepting bookings.",
-                style: TextStyle(fontSize: 14, color: Color(0xff537D4F)),
+                style: TextStyle(fontSize: 14, color: AppTheme.primaryGreen),
               ),
               const SizedBox(height: 12),
               Align(
@@ -239,7 +240,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xff537D4F),
+                    backgroundColor: AppTheme.primaryGreen,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),
                   child: const Text("Set Up Slots"),

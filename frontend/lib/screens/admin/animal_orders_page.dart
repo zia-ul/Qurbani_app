@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/services/order_service.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AnimalOrdersPage extends StatefulWidget {
   final String animalId;
@@ -26,13 +27,11 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
 
   @override
   Widget build(BuildContext context) {
-    final Color primaryGreen = const Color(0xff3D6B4E);
-
     return Scaffold(
       backgroundColor: Colors.transparent, // For gradient
       appBar: AppBar(
         title: Text("Orders for ${widget.animalName}"),
-        backgroundColor: primaryGreen,
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _ordersFuture,
@@ -47,7 +46,10 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('Error: ${snapshot.error}'),
-                  ElevatedButton(onPressed: () => setState(() {}), child: const Text('Retry')),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
                 ],
               ),
             );
@@ -55,7 +57,9 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
 
           final orders = snapshot.data ?? [];
           if (orders.isEmpty) {
-            return const Center(child: Text("No orders found for this animal."));
+            return const Center(
+              child: Text("No orders found for this animal."),
+            );
           }
 
           return ListView.builder(

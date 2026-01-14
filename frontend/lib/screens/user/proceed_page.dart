@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:qurbani/screens/user/payment_method_page.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class ProceedPage extends StatefulWidget {
   final String adminId;
@@ -39,7 +40,6 @@ class _ProceedPageState extends State<ProceedPage> {
   final List<String> countryCodes = ["+971", "+91", "+92", "+1", "+44"];
   final List<String> qurbaniDays = ["Day 1", "Day 2", "Day 3"];
 
-  final Color primaryGreen = const Color(0xFF3D6B4E);
   final Color parchmentBg = const Color(0xFFF4F7F4);
 
   @override
@@ -159,7 +159,7 @@ class _ProceedPageState extends State<ProceedPage> {
           const SizedBox(height: 4),
           const Text(
             "Please fill in the details below for each share.",
-            style: TextStyle(fontSize: 12, color: Color(0xff537D4F)),
+            style: TextStyle(fontSize: 12, color: AppTheme.primaryGreen),
           ),
           const SizedBox(height: 20),
           Row(
@@ -182,7 +182,7 @@ class _ProceedPageState extends State<ProceedPage> {
       children: [
         CircleAvatar(
           radius: 12,
-          backgroundColor: active ? primaryGreen : Colors.grey[300],
+          backgroundColor: active ? AppTheme.primaryGreen : Colors.grey[300],
           child: Text(
             num,
             style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -193,7 +193,7 @@ class _ProceedPageState extends State<ProceedPage> {
           label,
           style: TextStyle(
             fontSize: 10,
-            color: active ? primaryGreen : Color(0xff537D4F),
+            color: active ? AppTheme.primaryGreen : AppTheme.primaryGreen,
           ),
         ),
       ],
@@ -203,7 +203,7 @@ class _ProceedPageState extends State<ProceedPage> {
   Widget _stepLine(bool active) => Expanded(
     child: Container(
       height: 2,
-      color: active ? primaryGreen : Colors.grey[300],
+      color: active ? AppTheme.primaryGreen : Colors.grey[300],
       margin: const EdgeInsets.only(bottom: 15),
     ),
   );
@@ -380,7 +380,11 @@ class _ProceedPageState extends State<ProceedPage> {
             decoration: _inputDecoration("Complete Address").copyWith(
               suffixIcon: IconButton(
                 onPressed: detectCurrentLocation,
-                icon: Icon(Icons.my_location, color: primaryGreen, size: 20),
+                icon: Icon(
+                  Icons.my_location,
+                  color: AppTheme.primaryGreen,
+                  size: 20,
+                ),
               ),
             ),
             validator: (v) => v!.isEmpty ? "Required" : null,
@@ -415,7 +419,7 @@ class _ProceedPageState extends State<ProceedPage> {
       child: ElevatedButton(
         onPressed: submitOrder,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
+          backgroundColor: AppTheme.primaryGreen,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -443,7 +447,7 @@ class _ProceedPageState extends State<ProceedPage> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(fontSize: 13, color: Color(0xff537D4F)),
+      hintStyle: const TextStyle(fontSize: 13, color: AppTheme.primaryGreen),
       filled: true,
       fillColor: const Color(0xFFF9F9F9),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -453,7 +457,7 @@ class _ProceedPageState extends State<ProceedPage> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: primaryGreen),
+        borderSide: BorderSide(color: AppTheme.primaryGreen),
       ),
     );
   }

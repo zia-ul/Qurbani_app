@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:qurbani/theme/theme.dart';
 
 class LocationPickerPage extends StatefulWidget {
   const LocationPickerPage({super.key});
@@ -126,7 +127,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Delivery Location'),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: Stack(
         children: [

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/admin_order_service.dart'; 
+import 'package:qurbani/services/admin_order_service.dart';
 import 'package:qurbani/services/user_service.dart';
-import 'package:qurbani/widgets/success_error_popup.dart'; 
+import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminOrderDetailPage extends StatefulWidget {
   final String orderId;
@@ -20,7 +21,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   String? selectedDeliveryBoyId;
 
   final List<String> processingOptions = [
-    'pending', // Map to your schema's status
+    'pending',
     'confirmed',
     'completed',
   ];
@@ -110,7 +111,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Order Details'),
-        backgroundColor: const Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),

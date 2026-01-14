@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -175,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _signIn,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xff537D4F),
+                                backgroundColor: AppTheme.primaryGreen,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 10,
                                 ),
@@ -211,7 +212,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 child: const Text(
                                   "Sign up",
-                                  style: TextStyle(color: Color(0xff537D4F)),
+                                  style: TextStyle(
+                                    color: AppTheme.primaryGreen,
+                                  ),
                                 ),
                               ),
                             ],

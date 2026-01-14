@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class InviteFriendPage extends StatelessWidget {
   const InviteFriendPage({super.key});
@@ -17,7 +18,7 @@ class InviteFriendPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Invite Friends"),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -28,7 +29,7 @@ class InviteFriendPage extends StatelessWidget {
             const Icon(
               Icons.person_add_alt_1,
               size: 90,
-              color: Color(0xff537D4F),
+              color: AppTheme.primaryGreen,
             ),
 
             const SizedBox(height: 20),
@@ -46,7 +47,7 @@ class InviteFriendPage extends StatelessWidget {
               "Help your friends perform Qurbani easily.\n"
               "Share the app and make their experience smooth and trusted.",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: Color(0xff537D4F)),
+              style: TextStyle(fontSize: 15, color: AppTheme.primaryGreen),
             ),
 
             const SizedBox(height: 30),
@@ -66,7 +67,7 @@ class InviteFriendPage extends StatelessWidget {
                 icon: const Icon(Icons.share),
                 label: const Text("Invite Friend"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xff537D4F),
+                  backgroundColor: AppTheme.primaryGreen,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
@@ -85,7 +86,11 @@ class InviteFriendPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          const Icon(Icons.check_circle, color: Color(0xff537D4F), size: 20),
+          const Icon(
+            Icons.check_circle,
+            color: AppTheme.primaryGreen,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Text(text, style: const TextStyle(fontSize: 15)),
         ],

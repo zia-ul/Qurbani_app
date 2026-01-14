@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/screens/superadmin/services/super_admin_services.dart'; 
+import 'package:qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:intl/intl.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class AdminVerificationDetailsPage extends StatefulWidget {
   final String adminId;
 
-  const AdminVerificationDetailsPage({
-    super.key,
-    required this.adminId,
-  });
+  const AdminVerificationDetailsPage({super.key, required this.adminId});
 
-  static const Color primaryGreen = Color(0xff537D4F);
+  static const Color primaryGreen = AppTheme.primaryGreen;
 
   @override
-  State<AdminVerificationDetailsPage> createState() => _AdminVerificationDetailsPageState();
+  State<AdminVerificationDetailsPage> createState() =>
+      _AdminVerificationDetailsPageState();
 }
 
-class _AdminVerificationDetailsPageState extends State<AdminVerificationDetailsPage> {
+class _AdminVerificationDetailsPageState
+    extends State<AdminVerificationDetailsPage> {
   Future<Map<String, dynamic>>? _verificationFuture;
 
   @override
@@ -56,7 +56,8 @@ class _AdminVerificationDetailsPageState extends State<AdminVerificationDetailsP
           final data = snapshot.data!;
           final documents = data['documents'] as Map<String, dynamic>? ?? {};
           final status = data['status'] as String?;
-          final submittedAt = data['created_at']; // Assuming backend returns this; adjust if not
+          final submittedAt =
+              data['created_at']; // Assuming backend returns this; adjust if not
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -89,17 +90,11 @@ class _AdminVerificationDetailsPageState extends State<AdminVerificationDetailsP
       child: ListTile(
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.black54,
-          ),
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
         ),
         subtitle: Text(
           value?.toString() ?? 'N/A',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
       ),
     );
@@ -130,10 +125,7 @@ class _AdminVerificationDetailsPageState extends State<AdminVerificationDetailsP
         ),
         subtitle: Text(
           status?.toUpperCase() ?? 'UNKNOWN',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: color),
         ),
         trailing: Icon(Icons.verified, color: color),
       ),
