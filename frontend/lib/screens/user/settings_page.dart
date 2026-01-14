@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:qurbani/screens/user/profile_page.dart';
 import 'package:qurbani/services/currency_notifier.dart';
 import 'package:qurbani/services/service_profile.dart';
-import 'package:qurbani/theme/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:qurbani/services/currency_service.dart';
@@ -103,7 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Settings"),
-        backgroundColor: AppTheme.primaryGreen,
+        backgroundColor: Color(0xff537D4F),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

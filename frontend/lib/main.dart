@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:provider/provider.dart';
+import 'package:qurbani/services/currency_notifier.dart';
 import 'package:qurbani/services/currency_service.dart';
 import 'package:qurbani/theme/theme.dart';
 import 'wrapper_screen.dart';
@@ -10,10 +12,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await currencyService.initialize();
-
-  /// Load environment variables
-  // await dotenv.load(fileName: "lib/user/.env");
+  await currencyService.initialize(); // Fetch rates and load cached data
 
   /// Local notifications initialization
   const AndroidInitializationSettings androidInit =
@@ -65,7 +64,12 @@ void main() async {
     ),
   ], debug: true);
 
-  runApp(const MyApp());
+   runApp(
+    ChangeNotifierProvider(
+      create: (_) => CurrencyNotifier(), 
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -82,7 +86,7 @@ class MyApp extends StatelessWidget {
       // darkTheme: AppTheme.darkTheme,
       // themeMode: ThemeMode.system,
 
-      home: const WrapperScreen(),
+      home: WrapperScreen(),
       // home: const WelcomeScreen(),
 
       /// Global Gradient Wrapper for All Screens

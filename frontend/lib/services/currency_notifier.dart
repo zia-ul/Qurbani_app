@@ -1,27 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/currency_service.dart'; 
+import 'package:qurbani/services/currency_service.dart';
 
 class CurrencyNotifier extends ChangeNotifier {
-  String _userCurrency = 'USD'; // Default; set from user profile
+  String _currency = 'USD';
+  final CurrencyService _currencyService = currencyService;
 
   CurrencyNotifier() {
-    currencyService.initialize(); // Initialize service on creation
+    _currencyService.initialize();
   }
 
-  String get userCurrency => _userCurrency;
-  set userCurrency(String currency) {
-    _userCurrency = currency;
+  String get currency => _currency;
+
+  void setCurrency(String value) {
+    if (_currency == value) return;
+    _currency = value;
     notifyListeners();
   }
 
-  // Conversion method (centralized)
   double convert(double amount) {
-    return currencyService.convert(amount, _userCurrency);
+    return _currencyService.convert(amount, _currency);
   }
 
-  // Access rates if needed
-  Map<String, double>? get rates => currencyService.rates;
+  Map<String, double>? get rates => _currencyService.rates;
 }
-
-// Global notifier (ensure it's initialized in main.dart or app root)
-final currencyNotifier = CurrencyNotifier();
