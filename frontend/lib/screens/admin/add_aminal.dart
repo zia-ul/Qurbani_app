@@ -33,17 +33,17 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   bool isLoading = false;
   bool isDeliveryPaid = false;
 
-  List<String> selectedPaymentMethods = [
-    'cod',
-    'online',
-  ]; // Default to both, but allow changes
+  List<String> selectedPaymentMethods = ['cod', 'online'];
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
+  DateTime? lastBookedDate;
+  final lastBookedDateController = TextEditingController();
 
   final Color lightBg = const Color(0xFFF9FBF9);
 
   @override
   void dispose() {
+    lastBookedDateController.dispose();
     descriptionController.dispose();
     breedController.dispose();
     priceController.dispose();
@@ -55,6 +55,23 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     deliveryFeeController.dispose();
     deliveryThresholdController.dispose();
     super.dispose();
+  }
+
+  Future<void> pickLastBookedDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      setState(() {
+        lastBookedDate = picked;
+        lastBookedDateController.text =
+            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
   }
 
   Future<void> pickImages() async {
@@ -99,35 +116,21 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     // Additional validation for mandatory fields
     if (selectedAnimalType == null) {
       ToastUtils.showError('Animal Type is required');
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(const SnackBar(content: Text("Animal Type is required")));
-      return;
-    }
-    if (breedController.text.trim().isEmpty) {
-      ToastUtils.showError('Breed is required');
 
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(const SnackBar(content: Text("Breed is required")));
       return;
     }
+    if (lastBookedDate == null) {
+      ToastUtils.showError('Last booked date is required');
+      return;
+    }
+
     if (priceController.text.trim().isEmpty) {
       ToastUtils.showError('Price is required');
-
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(const SnackBar(content: Text("Price is required")));
       return;
     }
     if (selectedPaymentMethods.isEmpty) {
       ToastUtils.showError('At least one payment method is required');
 
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   const SnackBar(
-      //     content: Text("At least one payment method is required"),
-      //   ),
-      // );
       return;
     }
     // if (_images.isEmpty) {
@@ -143,9 +146,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     if (token == null) {
       ToastUtils.showError('Not authenticated');
 
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(const SnackBar(content: Text("Not authenticated")));
       return;
     }
 
@@ -158,7 +158,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
         "animalType": selectedAnimalType == "Others"
             ? customAnimalTypeController.text.trim()
             : selectedAnimalType,
-        "breed": breedController.text.trim(),
+        "breed": breedController.text.trim(), //Optional
         "description": descriptionController.text.trim().isNotEmpty
             ? descriptionController.text.trim()
             : null, // Optional
@@ -182,6 +182,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             double.tryParse(deliveryThresholdController.text) ??
             null, // Optional
         "images": imageUrls,
+        "lastBookedDate": lastBookedDate!.toIso8601String(),
       };
 
       final res = await http.post(
@@ -202,16 +203,10 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       if (mounted) {
         ToastUtils.showSuccess("Animal added successfully");
 
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   const SnackBar(content: Text("Animal added successfully")),
-        // );
         Navigator.pop(context);
       }
     } catch (e) {
       ToastUtils.showError("Failed to add animal: ${e.toString()}");
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -272,14 +267,14 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         ),
                       ],
                       const SizedBox(height: 15),
-                      _buildLabel("Animal Breed", isRequired: true),
+                      _buildLabel("Animal Breed", isRequired: false),
                       TextFormField(
                         controller: breedController,
                         decoration: _inputDecoration(
                           "Enter Breed (e.g. Beetal, Sahiwal)",
                         ),
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? "Required" : null,
+                        // validator: (v) =>
+                        //     (v == null || v.isEmpty) ? "Required" : null,
                       ),
                     ]),
 
@@ -365,8 +360,21 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         validator: (v) =>
                             (v == null || v.isEmpty) ? "Required" : null,
                       ),
+
                       const SizedBox(height: 15),
-                      _buildLabel("Upload Gallery", isRequired: true),
+
+                      _buildLabel("Last Booking Date", isRequired: true),
+                      TextFormField(
+                        controller: lastBookedDateController,
+                        readOnly: true,
+                        decoration: _inputDecoration("Select date").copyWith(
+                          suffixIcon: const Icon(Icons.calendar_today),
+                        ),
+                        onTap: pickLastBookedDate,
+                      ),
+
+                      const SizedBox(height: 20),
+                      _buildLabel("Upload Gallery", isRequired: false),
                       GestureDetector(
                         onTap: pickImages,
                         child: Container(
@@ -518,7 +526,10 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           gradient: LinearGradient(
-                            colors: [AppTheme.primaryGreen, const Color(0xFF5A916E)],
+                            colors: [
+                              AppTheme.primaryGreen,
+                              const Color(0xFF5A916E),
+                            ],
                           ),
                         ),
                         child: ElevatedButton(

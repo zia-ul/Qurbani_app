@@ -18,6 +18,10 @@ router.post(
     body("breed").notEmpty(),
     body("price").isNumeric(),
     body("paymentMethods").isArray({ min: 1 }),
+    body("lastBookedDate")
+      .notEmpty()
+      .isISO8601()
+      .withMessage("lastBookedDate is required and must be a valid date"),
   ],
   async (req, res) => {
     try {

@@ -4,14 +4,20 @@ const db = require("../config/db");
 exports.addAnimal = async (adminId, data) => {
   const id = uuidv4();
 
+  console.log("Adding animal with data:", data);
+  const lastBookedDate = data.lastBookedDate
+  ? new Date(data.lastBookedDate).toISOString().split("T")[0]
+  : null;
+
+
   await db.query(
     `INSERT INTO animals (
       id, admin_id,
       animal_type, breed, price,
       description, age, height, weight, shares,
       photo_urls, payment_methods,
-      delivery_type, delivery_fee, delivery_threshold
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      delivery_type, delivery_fee, delivery_threshold, last_booked_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       adminId,
@@ -32,6 +38,7 @@ exports.addAnimal = async (adminId, data) => {
       data.deliveryType || "Free",
       data.deliveryFee || 0,
       data.deliveryThreshold || 0,
+      lastBookedDate,
     ]
   );
 

@@ -31,18 +31,16 @@ class AdminService {
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.get(
-      Uri.parse('$_baseUrl/admin/notifications'),
-      headers: {'Authorization': 'Bearer $token'},
+      Uri.parse('$_baseUrl/orders/admins/notifications'),
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to fetch notifications';
-      throw Exception(msg);
+      throw Exception('Failed to fetch notifications');
     }
 
     final data = jsonDecode(res.body);
-    return List<Map<String, dynamic>>.from(data['notifications']);
+    return List<Map<String, dynamic>>.from(data['notifications'] ?? []);
   }
 
   static Future<void> markNotificationNotified(String notificationId) async {
@@ -50,14 +48,14 @@ class AdminService {
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.put(
-      Uri.parse('$_baseUrl/admin/notifications/$notificationId/mark-notified'),
+      Uri.parse(
+        '$_baseUrl/orders/admin/notifications/$notificationId/mark-notified',
+      ),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to mark notification';
-      throw Exception(msg);
+      throw Exception('Failed to mark notification');
     }
   }
 
@@ -67,7 +65,7 @@ class AdminService {
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.get(
-      Uri.parse('$_baseUrl/admin/dashboard-stats'),
+      Uri.parse('$_baseUrl/admins/dashboard-stats'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
