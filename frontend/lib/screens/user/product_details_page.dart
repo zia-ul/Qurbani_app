@@ -292,9 +292,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text("Price: ${animal['price']}"),
-                          Text(
-                            "Age: ${animal['age']}, Weight: ${animal['weight']}",
-                          ),
+                          // Text(
+                          //   "Age: ${animal['age']}, Weight: ${animal['weight']}",
+                          // ),
                           Divider(),
                         ],
                       ),
@@ -314,21 +314,24 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          order['admin_name'] ?? 'Admin',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          order['admin_phone'] ?? '+91 9876543210',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        Text(
-                          order['admin_address'] ?? 'Address',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
-                        ),
+                        // Text(
+                        //   order['admin_name'] ?? 'Admin',
+                        //   style: const TextStyle(fontWeight: FontWeight.bold),
+                        // ),
+                        // Text(
+                        //   order['admin_phone'] ?? '+91 9876543210',
+                        //   style: const TextStyle(fontSize: 12),
+                        // ),
+                        // Text(
+                        //   order['admin_address'] ?? 'Address',
+                        //   style: const TextStyle(
+                        //     fontSize: 12,
+                        //     color: Colors.grey,
+                        //   ),
+                        // ),
+                        Text(order['admin_name'] ?? 'Admin'),
+                        Text(order['admin_phone'] ?? 'N/A'),
+                        Text(order['admin_address'] ?? 'N/A'),
                       ],
                     ),
                   ),
@@ -354,19 +357,27 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     order['payment_status'],
                   ),
                   _buildInfoRow(
+                    Icons.check_circle,
+                    "Payment Status",
+                    order['payment_status'] ?? 'pending',
+                  ),
+
+                  _buildInfoRow(
                     Icons.timer,
                     "Processing Status",
-                    order['processing_status'] ,
+                    order['processing_status'] ?? 'pending',
                   ),
+
                   _buildInfoRow(
                     Icons.local_shipping,
                     "Delivery Status",
                     deliveryStatus,
                   ),
+
                   _buildInfoRow(
                     Icons.code,
                     "Delivery Code",
-                    order['delivery_code'],
+                    order['delivery_code'] ?? 'Not assigned',
                   ),
                   if (orderDate != null)
                     _buildInfoRow(
