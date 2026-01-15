@@ -17,7 +17,9 @@ class AdminService {
     );
 
     if (res.statusCode != 200) {
-      throw Exception(jsonDecode(res.body)['message'] ?? 'Failed to fetch admin');
+      throw Exception(
+        jsonDecode(res.body)['message'] ?? 'Failed to fetch admin',
+      );
     }
 
     return Map<String, dynamic>.from(jsonDecode(res.body));
@@ -70,7 +72,9 @@ class AdminService {
     );
 
     if (res.statusCode != 200) {
-      throw Exception(jsonDecode(res.body)['message'] ?? 'Failed to fetch stats');
+      throw Exception(
+        jsonDecode(res.body)['message'] ?? 'Failed to fetch stats',
+      );
     }
 
     return Map<String, dynamic>.from(jsonDecode(res.body));

@@ -33,7 +33,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   bool isLoading = false;
   bool isDeliveryPaid = false;
 
-  List<String> selectedPaymentMethods = ['cod', 'online'];
+  // List<String> selectedPaymentMethods = ['cod', 'online'];
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
   DateTime? lastBookedDate;
@@ -128,11 +128,11 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       ToastUtils.showError('Price is required');
       return;
     }
-    if (selectedPaymentMethods.isEmpty) {
-      ToastUtils.showError('At least one payment method is required');
+    // if (selectedPaymentMethods.isEmpty) {
+    //   ToastUtils.showError('At least one payment method is required');
 
-      return;
-    }
+    //   return;
+    // }
     // if (_images.isEmpty) {
     //   ToastUtils.showError('At least one image is required');
 
@@ -173,7 +173,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             ? double.tryParse(weightController.text.trim())
             : null, // Optional
         "shares": int.parse(sharesController.text),
-        "paymentMethods": selectedPaymentMethods,
+        // "paymentMethods": selectedPaymentMethods,
         "deliveryType": isDeliveryPaid ? "paid" : "free",
         "deliveryFee": isDeliveryPaid
             ? double.tryParse(deliveryFeeController.text) ?? 0
@@ -182,7 +182,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             double.tryParse(deliveryThresholdController.text) ??
             null, // Optional
         "images": imageUrls,
-        "lastBookedDate": lastBookedDate!.toIso8601String(),
+        // "lastBookedDate": lastBookedDate!.toIso8601String(),
       };
 
       final res = await http.post(
@@ -402,65 +402,64 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                       if (_images.isNotEmpty) _buildImagePreview(),
                     ]),
 
-                    const SizedBox(height: 20),
+                    // const SizedBox(height: 20),
 
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.primaryGreen),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLabel("Payment Method", isRequired: true),
-                          const SizedBox(height: 8),
-                          CheckboxListTile(
-                            value: selectedPaymentMethods.contains('cod'),
-                            activeColor: AppTheme.primaryGreen,
-                            title: const Text("Cash on Delivery"),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            onChanged: (checked) {
-                              setState(() {
-                                if (checked == true) {
-                                  selectedPaymentMethods.add('cod');
-                                } else {
-                                  selectedPaymentMethods.remove('cod');
-                                }
-                              });
-                            },
-                          ),
-                          CheckboxListTile(
-                            value: selectedPaymentMethods.contains('online'),
-                            activeColor: AppTheme.primaryGreen,
-                            title: const Text("Online Payment"),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            onChanged: (checked) {
-                              setState(() {
-                                if (checked == true) {
-                                  selectedPaymentMethods.add('online');
-                                } else {
-                                  selectedPaymentMethods.remove('online');
-                                }
-                              });
-                            },
-                          ),
-                          if (selectedPaymentMethods.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 12, top: 4),
-                              child: Text(
-                                "⚠ Select at least one payment method",
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-
+                    // Container(
+                    //   padding: const EdgeInsets.all(12),
+                    //   decoration: BoxDecoration(
+                    //     color: Colors.white,
+                    //     borderRadius: BorderRadius.circular(12),
+                    //     border: Border.all(color: AppTheme.primaryGreen),
+                    //   ),
+                    //   child: Column(
+                    //     crossAxisAlignment: CrossAxisAlignment.start,
+                    //     children: [
+                    //       _buildLabel("Payment Method", isRequired: true),
+                    //       const SizedBox(height: 8),
+                    // CheckboxListTile(
+                    //   value: selectedPaymentMethods.contains('cod'),
+                    //   activeColor: AppTheme.primaryGreen,
+                    //   title: const Text("Cash on Delivery"),
+                    //   controlAffinity: ListTileControlAffinity.leading,
+                    //   onChanged: (checked) {
+                    //     setState(() {
+                    //       if (checked == true) {
+                    //         selectedPaymentMethods.add('cod');
+                    //       } else {
+                    //         selectedPaymentMethods.remove('cod');
+                    //       }
+                    //     });
+                    //   },
+                    // ),
+                    // CheckboxListTile(
+                    //   value: selectedPaymentMethods.contains('online'),
+                    //   activeColor: AppTheme.primaryGreen,
+                    //   title: const Text("Online Payment"),
+                    //   controlAffinity: ListTileControlAffinity.leading,
+                    //   onChanged: (checked) {
+                    //     setState(() {
+                    //       if (checked == true) {
+                    //         selectedPaymentMethods.add('online');
+                    //       } else {
+                    //         selectedPaymentMethods.remove('online');
+                    //       }
+                    //     });
+                    //   },
+                    // ),
+                    // if (selectedPaymentMethods.isEmpty)
+                    //   const Padding(
+                    //     padding: EdgeInsets.only(left: 12, top: 4),
+                    //     child: Text(
+                    //       "⚠ Select at least one payment method",
+                    //       style: TextStyle(
+                    //         color: Colors.red,
+                    //         fontSize: 12,
+                    //       ),
+                    //     ),
+                    //   ),
+                    //     ],
+                    //   ),
+                    // ),
                     const SizedBox(height: 8),
 
                     _buildCardContainer([

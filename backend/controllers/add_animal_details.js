@@ -15,9 +15,9 @@ exports.addAnimal = async (adminId, data) => {
       id, admin_id,
       animal_type, breed, price,
       description, age, height, weight, shares,
-      photo_urls, payment_methods,
+      photo_urls,
       delivery_type, delivery_fee, delivery_threshold, last_booked_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       adminId,
@@ -33,7 +33,7 @@ exports.addAnimal = async (adminId, data) => {
       data.shares || 1,
 
       JSON.stringify(data.photoUrls || []),
-      JSON.stringify(data.paymentMethods),
+      // JSON.stringify(data.paymentMethods),
 
       data.deliveryType || "Free",
       data.deliveryFee || 0,

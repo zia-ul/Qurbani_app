@@ -4,6 +4,7 @@ import 'dart:async'; // For Timer
 
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -165,7 +166,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: MasterDrawer(name: widget.name, id: widget.adminId, role: 'admin'),
+      drawer: MasterDrawer(
+        name: widget.name,
+        id: widget.adminId,
+        role: 'admin',
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -184,8 +189,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
               title: Text(
                 "Admin Dashboard",
                 style: TextStyle(
-                  color: AppTheme.primaryGreen,
-                  fontWeight: FontWeight.bold,
+                  color: AppTheme.darkBgGradientStart,
+                  fontWeight: FontWeight.w400,
                   fontSize: 16,
                 ),
               ),
@@ -200,7 +205,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       "Assalamu Alaikum,",
                       style: TextStyle(
                         fontSize: 16,
-                        color: AppTheme.primaryGreen,
+                        color: AppTheme.darkBgGradientStart,
                       ),
                     ),
                     Text(
@@ -233,7 +238,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             color: const Color(0xff4CAF50),
                             onTap: () => Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const AddAnimalPage()),
+                              MaterialPageRoute(
+                                builder: (_) => const AddAnimalPage(),
+                              ),
                             ),
                           ),
                         ),
@@ -247,7 +254,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => AdminOrdersPage(adminId: widget.adminId),
+                                builder: (_) =>
+                                    AdminOrdersPage(adminId: widget.adminId),
                               ),
                             ),
                           ),
@@ -266,7 +274,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const AdminSpecialRequestsPage(),
+                                builder: (_) =>
+                                    const AdminSpecialRequestsPage(),
                               ),
                             ),
                           ),
@@ -318,9 +327,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _featureItem(Icons.pets, "Animals", _stats!['animals'] ?? 0),
-          _featureItem(Icons.shopping_cart, "Orders", _stats!['orders'] ?? 0),
-          _featureItem(Icons.message, "Requests", _stats!['requests'] ?? 0),
+          _featureItem(FontAwesomeIcons.rectangleList, "Animals", _stats!['animals'] ?? 0),
+          _featureItem(FontAwesomeIcons.cartFlatbed, "Orders", _stats!['orders'] ?? 0),
+          _featureItem(FontAwesomeIcons.message, "Requests", _stats!['requests'] ?? 0),
         ],
       ),
     );

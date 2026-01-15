@@ -20,11 +20,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   late String delivery;
   String? selectedDeliveryBoyId;
 
-  final List<String> processingOptions = [
-    'pending',
-    'confirmed',
-    'completed',
-  ];
+  final List<String> processingOptions = ['pending', 'confirmed', 'completed'];
 
   final List<String> deliveryOptions = ['pending', 'sent', 'delivered'];
 
@@ -41,6 +37,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   Future<void> _fetchOrderDetails() async {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
+      print("Order Data Admin: $orderData");
       print("Order Data: $orderData");
       // Initialize dropdown values
       final p = orderData!['processing_status'] ?? processingOptions[0];
@@ -86,10 +83,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   Future<void> save() async {
     try {
       await AdminOrderService.updateOrder(widget.orderId, {
-        'processingStatus': processing,
-        'deliveryStatus': delivery,
-        'deliveryPersonId': selectedDeliveryBoyId,
+        'processing_status': processing,
+        'delivery_status': delivery,
+        'delivery_person_id': selectedDeliveryBoyId,
       });
+
       ToastUtils.showSuccess('Order updated successfully');
     } catch (e) {
       ToastUtils.showError('Failed to update order: $e');

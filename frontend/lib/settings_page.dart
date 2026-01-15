@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qurbani/services/admin_payment_service.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart'; // For date formatting
 
 import 'package:qurbani/services/currency_notifier.dart';
 import 'package:qurbani/services/service_profile.dart';
@@ -24,20 +26,44 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _selectedCurrency;
   final List<String> _currencyOptions = ["USD", "EUR", "GBP", "AED", "INR"];
 
+  // Payment methods for admins
+  List<String> _selectedPaymentMethods = [];
+  DateTime? _codDeadline;
+
   @override
   void initState() {
     super.initState();
     _loadSettings();
     _loadUserCurrency();
+    if (widget.role == 'admin') {
+      _loadPaymentSettings(); // Load admin-specific settings
+    }
   }
 
-  /// Load notification & language settings
+  /// Load notification, language, and payment settings
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _notificationSound = prefs.getBool('notificationSound') ?? true;
       _selectedLanguage = prefs.getString('language') ?? "English";
     });
+  }
+
+  /// Load payment settings for admins
+  Future<void> _loadPaymentSettings() async {
+    try {
+      final data = await PaymentService.getPaymentSettings();
+      setState(() {
+        _selectedPaymentMethods = [];
+        if (data['allow_cod'] == 1) _selectedPaymentMethods.add('cod');
+        if (data['allow_online'] == 1) _selectedPaymentMethods.add('online');
+        _codDeadline = data['cod_deadline'] != null
+            ? DateTime.parse(data['cod_deadline'])
+            : null;
+      });
+    } catch (e) {
+      ToastUtils.showError("Failed to load payment settings: $e");
+    }
   }
 
   /// Load user-specific currency from backend or local storage
@@ -67,6 +93,35 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _notificationSound = val);
   }
 
+  /// Update payment methods for admins
+  Future<void> _updatePaymentMethods(List<String> methods) async {
+    try {
+      await PaymentService.updatePaymentSettings(
+        allowCod: methods.contains('cod'),
+        allowOnline: methods.contains('online'),
+        codDeadline: _codDeadline?.toIso8601String(),
+      );
+      setState(() => _selectedPaymentMethods = methods);
+      ToastUtils.showSuccess("Payment methods updated");
+    } catch (e) {
+      ToastUtils.showError("Failed to update payment methods: $e");
+    }
+  }
+
+  /// Update COD deadline for admins
+  Future<void> _updateCodDeadline(DateTime? deadline) async {
+    try {
+      await PaymentService.updatePaymentSettings(
+        allowCod: _selectedPaymentMethods.contains('cod'),
+        allowOnline: _selectedPaymentMethods.contains('online'),
+        codDeadline: deadline?.toIso8601String(),
+      );
+      setState(() => _codDeadline = deadline);
+    } catch (e) {
+      ToastUtils.showError("Failed to update COD deadline: $e");
+    }
+  }
+
   /// Update user currency
   Future<void> _updateUserCurrency(String val) async {
     final notifier = context.read<CurrencyNotifier>();
@@ -78,10 +133,8 @@ class _SettingsPageState extends State<SettingsPage> {
       notifier.setCurrency(val);
 
       ToastUtils.showSuccess("Currency updated to $val");
-      
     } catch (e) {
       ToastUtils.showError("Failed to update currency: $e");
-
     }
   }
 
@@ -97,7 +150,6 @@ class _SettingsPageState extends State<SettingsPage> {
       await launch(url);
     } else {
       ToastUtils.showError("Could not open link");
-
     }
   }
 
@@ -147,6 +199,135 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           const Divider(height: 32),
+
+          // New: Payment Methods section for admins
+          if (widget.role == 'admin') ...[
+            _sectionHeader("Payment Methods"),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryGreen.withOpacity(0.1),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Select Payment Methods",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    value: _selectedPaymentMethods.contains('cod'),
+                    activeColor: AppTheme.primaryGreen,
+                    title: const Text("Cash on Delivery"),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: (checked) {
+                      final methods = List<String>.from(
+                        _selectedPaymentMethods,
+                      );
+                      if (checked == true) {
+                        methods.add('cod');
+                      } else {
+                        methods.remove('cod');
+                        _updateCodDeadline(null); // Reset deadline if unchecked
+                      }
+                      _updatePaymentMethods(methods);
+                    },
+                  ),
+                  if (_selectedPaymentMethods.contains('cod')) ...[
+                    const SizedBox(height: 10),
+                    const Text(
+                      "COD Payment Deadline *",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now().add(
+                            const Duration(days: 7),
+                          ),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
+                        );
+                        if (picked != null) {
+                          _updateCodDeadline(picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              color: AppTheme.primaryGreen,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              _codDeadline != null
+                                  ? DateFormat(
+                                      'dd/MM/yyyy',
+                                    ).format(_codDeadline!)
+                                  : "Select Deadline",
+                              style: TextStyle(
+                                color: _codDeadline != null
+                                    ? Colors.black
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  CheckboxListTile(
+                    value: _selectedPaymentMethods.contains('online'),
+                    activeColor: AppTheme.primaryGreen,
+                    title: const Text("Online Payment"),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: (checked) {
+                      final methods = List<String>.from(
+                        _selectedPaymentMethods,
+                      );
+                      if (checked == true) {
+                        methods.add('online');
+                      } else {
+                        methods.remove('online');
+                      }
+                      _updatePaymentMethods(methods);
+                    },
+                  ),
+                  if (_selectedPaymentMethods.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 12, top: 4),
+                      child: Text(
+                        "⚠ Select at least one payment method",
+                        style: TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 32),
+          ],
 
           _sectionHeader("Help & Support"),
           ListTile(

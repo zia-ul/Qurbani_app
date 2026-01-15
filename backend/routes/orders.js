@@ -32,6 +32,54 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
+router.put("/:orderId", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const adminId = req.user.id;
+
+  const {
+    processing_status,
+    delivery_status,
+    delivery_person_id,
+  } = req.body;
+
+  try {
+    // Ensure order belongs to this admin
+    const [orders] = await pool.execute(
+      `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
+      [orderId, adminId]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Update order
+    await pool.execute(
+      `
+      UPDATE orders
+      SET
+        processing_status = ?,
+        delivery_status = ?,
+        delivery_person_id = ?
+      WHERE id = ?
+      `,
+      [
+        processing_status,
+        delivery_status,
+        delivery_person_id || null,
+        orderId,
+      ]
+    );
+
+    res.json({ message: "Order updated successfully" });
+  } catch (err) {
+    console.error("Error updating order:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+module.exports = router;
+
 // PUT /api/orders/:orderId/cancel - Cancel order
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   const { orderId } = req.params;

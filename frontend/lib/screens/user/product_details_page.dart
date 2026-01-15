@@ -44,6 +44,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       _orderData = await OrderService.getOrderDetails(widget.orderId);
+      print(_orderData);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -171,7 +172,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: value));
                 ToastUtils.showSuccess("ID Copied!");
-
               },
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
@@ -274,56 +274,34 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         child: Column(
           children: [
             // Product Info Card
-            _buildSectionCard(
-              title: "Product Info",
-              icon: Icons.pets,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      order['image_url'] ?? 'https://via.placeholder.com/150',
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order['title'] ?? 'Animal',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+            // Animals Card
+            if (order['animals'] != null &&
+                (order['animals'] as List).isNotEmpty)
+              _buildSectionCard(
+                title: "Animals",
+                icon: Icons.pets,
+                child: Column(
+                  children: (order['animals'] as List<dynamic>).map((animal) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "${animal['animal_type']} - ${animal['breed']}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        _buildInfoRow(
-                          Icons.pie_chart,
-                          "Shares",
-                          "${order['shares'] ?? 0}",
-                        ),
-                        // _buildInfoRow(
-                        //   Icons.payments,
-                        //   "Price",
-                        //   "${currencyNotifier.selectedCurrency} ${currencyNotifier.convertPrice(order['price'] ?? 0).toStringAsFixed(2)}",
-                        // ),
-                        if (order['barcode'] != null)
-                          _buildInfoRow(
-                            Icons.qr_code,
-                            "Barcode",
-                            "${order['barcode']}",
+                          Text("Price: ${animal['price']}"),
+                          Text(
+                            "Age: ${animal['age']}, Weight: ${animal['weight']}",
                           ),
-                      ],
-                    ),
-                  ),
-                ],
+                          Divider(),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
 
             // Admin Details Card
             _buildSectionCard(
@@ -373,17 +351,22 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   _buildInfoRow(
                     Icons.check_circle,
                     "Payment Status",
-                    order['payment_status'] ?? 'Paid',
+                    order['payment_status'],
                   ),
                   _buildInfoRow(
                     Icons.timer,
                     "Processing Status",
-                    order['processing_status'] ?? 'Pending',
+                    order['processing_status'] ,
                   ),
                   _buildInfoRow(
                     Icons.local_shipping,
                     "Delivery Status",
                     deliveryStatus,
+                  ),
+                  _buildInfoRow(
+                    Icons.code,
+                    "Delivery Code",
+                    order['delivery_code'],
                   ),
                   if (orderDate != null)
                     _buildInfoRow(

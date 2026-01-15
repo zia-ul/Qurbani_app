@@ -197,7 +197,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                   );
 
                   return Text(
-                   "Price: ${currency.currency} ${price.toStringAsFixed(2)}",
+                    "Price: ${currency.currency} ${price.toStringAsFixed(2)}",
                     style: const TextStyle(fontSize: 12),
                   );
                 },

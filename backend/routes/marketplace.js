@@ -59,7 +59,6 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
         animal_type,
         breed,
         price,
-        payment_methods,
         delivery_type,
         delivery_fee,
         delivery_threshold

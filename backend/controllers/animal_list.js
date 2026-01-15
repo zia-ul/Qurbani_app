@@ -93,7 +93,7 @@ exports.updateAnimal = async (req, res) => {
       weight,
       shares,
       photoUrls,
-      paymentMethods,
+      deliveryType,
       deliveryFee,
     } = req.body;
 
@@ -108,9 +108,8 @@ exports.updateAnimal = async (req, res) => {
         weight = ?,
         shares = ?,
         photo_urls = ?,
-        payment_methods = ?,
-        delivery_fee = ?,
-        updated_at = NOW()
+        delivery_type = ?,
+        delivery_fee = ?
        WHERE id = ? AND admin_id = ?`,
       [
         animalType,
@@ -122,7 +121,7 @@ exports.updateAnimal = async (req, res) => {
         weight,
         shares,
         JSON.stringify(photoUrls),
-        JSON.stringify(paymentMethods),
+        deliveryType,
         deliveryFee,
         animalId,
         adminId,
@@ -139,4 +138,3 @@ exports.updateAnimal = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-

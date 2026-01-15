@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -45,6 +46,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
 
     try {
       _orders = await DeliveryService.getOrders();
+      print(_orders);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -75,9 +77,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       final result = await DeliveryService.updateStatus(orderId, status);
       if (status == 'sent') {
         // Show code to delivery person (backend handles user notification)
-        ToastUtils.showSuccess(
-          'Code sent to user: ${result['code']}',
-        );
+        ToastUtils.showSuccess('Code sent to user');
 
         // Local notification
         AwesomeNotifications().createNotification(
@@ -92,7 +92,6 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       _fetchOrders(); // Refresh list
     } catch (e) {
       ToastUtils.showError("Error: $e");
-
     }
   }
 
@@ -242,7 +241,11 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
 
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = (order['delivery_status'] ?? 'pending').toLowerCase();
-    final items = List<Map<String, dynamic>>.from(order['items'] ?? []);
+    final rawItems = order['items'];
+
+    final List<Map<String, dynamic>> items = rawItems is String
+        ? List<Map<String, dynamic>>.from(jsonDecode(rawItems))
+        : List<Map<String, dynamic>>.from(rawItems ?? []);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -271,17 +274,17 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             ],
           ),
           const Divider(height: 25),
-          Row(
-            children: [
-              const Icon(Icons.pets, size: 16, color: Colors.orange),
-              const SizedBox(width: 8),
-              Text(
-                "${items.length} Items Included",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+          // Row(
+          //   children: [
+          //     const Icon(Icons.pets, size: 16, color: Colors.orange),
+          //     const SizedBox(width: 8),
+          //     Text(
+          //       "${items.length} Items Included",
+          //       style: const TextStyle(fontWeight: FontWeight.bold),
+          //     ),
+          //   ],
+          // ),
+          // const SizedBox(height: 8),
           _infoRow(
             Icons.location_on,
             order['delivery_address'] ?? 'No Address',
@@ -308,19 +311,26 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
           const SizedBox(height: 15),
           Row(
             children: [
+              // if (status == 'pending')
+              //   Expanded(
+              //     child: _actionBtn(
+              //       "Start Delivery",
+              //       Icons.play_arrow,
+              //       () async {
+              //         final hasPermissions =
+              //             await _requestPermissionsIfNeeded();
+              //         if (hasPermissions) _updateStatus(order['id'], 'sent');
+              //       },
+              //       isMain: true,
+              //     ),
+              //   ),
               if (status == 'pending')
                 Expanded(
-                  child: _actionBtn(
-                    "Start Delivery",
-                    Icons.play_arrow,
-                    () async {
-                      final hasPermissions =
-                          await _requestPermissionsIfNeeded();
-                      if (hasPermissions) _updateStatus(order['id'], 'sent');
-                    },
-                    isMain: true,
-                  ),
+                  child: _actionBtn("Start Delivery", Icons.play_arrow, () {
+                    _updateStatus(order['id'], 'sent');
+                  }, isMain: true),
                 ),
+
               if (status == 'sent')
                 Expanded(
                   child: _actionBtn(

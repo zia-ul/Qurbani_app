@@ -7,6 +7,7 @@ const crypto = require("crypto"); // Optional if you want extra token randomness
 const nodemailer = require("nodemailer"); // For sending verification emails
 const jwt = require("jsonwebtoken");
 const authMiddleware = require("../middleware/authmiddleware");
+const pool = require("../config/db");
 
 //email verification using nodemailer
 // const transporter = nodemailer.createTransport({
@@ -263,15 +264,15 @@ router.put("/change-password", authMiddleware, async (req, res) => {
 
   try {
     // Fetch user and verify current password
-    const [users] = await pool.execute(`SELECT password FROM users WHERE id = ?`, [userId]);
+    const [users] = await pool.execute(`SELECT password_hash FROM users WHERE id = ?`, [userId]);
     if (users.length === 0) return res.status(404).json({ message: "User not found" });
 
-    const isValid = await bcrypt.compare(currentPassword, users[0].password);
+    const isValid = await bcrypt.compare(currentPassword, users[0].password_hash);
     if (!isValid) return res.status(400).json({ message: "Current password is incorrect" });
 
     // Hash new password and update
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.execute(`UPDATE users SET password = ? WHERE id = ?`, [hashedPassword, userId]);
+    await pool.execute(`UPDATE users SET password_hash = ? WHERE id = ?`, [hashedPassword, userId]);
 
     res.json({ message: "Password changed successfully" });
   } catch (err) {

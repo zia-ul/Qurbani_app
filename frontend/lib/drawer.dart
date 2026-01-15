@@ -177,6 +177,18 @@ class MasterDrawer extends StatelessWidget {
             ),
             _drawerItem(
               context,
+              Icons.lock_reset,
+              "Reset Password",
+              const ResetPasswordPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.settings,
+              "Settings",
+              SettingsPage(userId: id, role: role),
+            ),
+            _drawerItem(
+              context,
               Icons.person_add,
               "Invite Friend",
               const InviteFriendPage(),
@@ -187,14 +199,27 @@ class MasterDrawer extends StatelessWidget {
               "Qurbani Features",
               const AboutUsPage(),
             ),
-            _drawerItem(
-              context,
-              Icons.settings,
-              "Settings",
-              SettingsPage(userId: id, role: role),
-            ),
           ] else if (role == 'delivery') ...[
             // _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
+            _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
+            _drawerItem(
+              context,
+              Icons.lock_reset,
+              "Reset Password",
+              const ResetPasswordPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.person_add,
+              "Invite Friend",
+              const InviteFriendPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.star,
+              "Qurbani Features",
+              const AboutUsPage(),
+            ),
           ] else if (role == 'user') ...[
             _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
             _drawerItem(

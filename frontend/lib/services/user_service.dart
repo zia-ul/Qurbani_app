@@ -12,9 +12,7 @@ class UserService {
 
     final res = await http.get(
       Uri.parse('$_baseUrl/users/me'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
@@ -54,7 +52,8 @@ class UserService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boys';
+      final msg =
+          jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boys';
       throw Exception(msg);
     }
 

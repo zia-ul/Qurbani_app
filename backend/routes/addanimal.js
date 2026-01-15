@@ -17,7 +17,6 @@ router.post(
     body("animalType").notEmpty(),
     body("breed").notEmpty(),
     body("price").isNumeric(),
-    body("paymentMethods").isArray({ min: 1 }),
     body("lastBookedDate")
       .notEmpty()
       .isISO8601()

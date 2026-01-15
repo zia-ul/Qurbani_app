@@ -238,24 +238,45 @@ router.get(
 // GET /api/delivery/orders - Fetch orders for delivery person
 router.get("/delivery/orders", authMiddleware, async (req, res) => {
   const deliveryPersonId = req.user.id;
+
   try {
     const [orders] = await pool.execute(
-      `SELECT id, user_id, admin_id, delivery_status, delivery_code, items, customer_name, delivery_address, admin_name, admin_contact, created_at
-       FROM orders WHERE delivery_person_id = ? ORDER BY created_at DESC`,
+      `
+      SELECT
+        o.id,
+        o.delivery_status,
+        o.delivery_code,
+        o.payment_status,
+        o.processing_status,
+        o.created_at,
+
+        -- customer info
+        u.name AS customer_name,
+        u.phone AS customer_phone,
+        u.address AS delivery_address,
+
+        -- admin/seller info
+        a.name AS admin_name,
+        a.phone AS admin_contact
+
+      FROM orders o
+      JOIN users u ON u.id = o.user_id
+      JOIN users a ON a.id = o.admin_id
+
+      WHERE o.delivery_person_id = ?
+      ORDER BY o.created_at DESC
+      `,
       [deliveryPersonId]
     );
 
-    printf(
-      "Fetched %d orders for delivery person %d\n",
-      orders.length,
-      deliveryPersonId
-    );
     res.json({ orders });
   } catch (err) {
     console.error("Error fetching delivery orders:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
 
 // PUT /api/delivery/orders/:id/status - Update delivery status
 router.put("/delivery/orders/:id/status", authMiddleware, async (req, res) => {
@@ -340,7 +361,6 @@ router.put("/profile/currency", authMiddleware, async (req, res) => {
   }
 });
 
-
 // GET /api/special-requests - Fetch user's special requests
 router.get("/special-requests", authMiddleware, async (req, res) => {
   const userId = req.user.id;
@@ -375,5 +395,14 @@ router.get("/animals/:animalId/orders", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+const controller = require("../controllers/admin_payment_settings");
+
+// User order page 
+router.get(
+  "/admins/:adminId/payment-settings",
+  controller.getAdminPaymentSettingsPublic
+);
+
 
 module.exports = router;

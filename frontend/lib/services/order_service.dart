@@ -155,7 +155,7 @@ class OrderService {
     }
   }
 
-   static Future<List<Map<String, dynamic>>> getAnimalOrders(
+  static Future<List<Map<String, dynamic>>> getAnimalOrders(
     String animalId,
   ) async {
     final token = await _storage.read(key: 'token');

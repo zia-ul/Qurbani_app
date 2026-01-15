@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AdminApplicationService {
+  // static const _baseUrl = 'http://192.168.1.6:3000/api';
   static const _baseUrl = 'http://192.168.1.6:3000/api';
   static const _storage = FlutterSecureStorage();
 
@@ -34,9 +35,15 @@ class AdminApplicationService {
     });
 
     req.files.add(await http.MultipartFile.fromPath('govtId', govtId.path));
-    req.files.add(await http.MultipartFile.fromPath('businessProof', businessProof.path));
-    req.files.add(await http.MultipartFile.fromPath('bankProof', bankProof.path));
-    req.files.add(await http.MultipartFile.fromPath('farmPhoto', farmPhoto.path));
+    req.files.add(
+      await http.MultipartFile.fromPath('businessProof', businessProof.path),
+    );
+    req.files.add(
+      await http.MultipartFile.fromPath('bankProof', bankProof.path),
+    );
+    req.files.add(
+      await http.MultipartFile.fromPath('farmPhoto', farmPhoto.path),
+    );
 
     final res = await req.send();
 

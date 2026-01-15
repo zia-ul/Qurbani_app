@@ -202,12 +202,23 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                     ),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.all(
+                    AppTheme.primaryGreen,
+                  ),
+                  foregroundColor: WidgetStateProperty.all(
+                    Colors.white,
+                  ), // ✅ text is white
+                  overlayColor: WidgetStateProperty.all(
+                    Colors.white.withOpacity(0.1), // ripple effect
+                  ),
+                  shape: WidgetStateProperty.all(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  padding: WidgetStateProperty.all(
+                    const EdgeInsets.symmetric(vertical: 4),
                   ),
                 ),
                 child: const Text(

@@ -9,6 +9,7 @@ const adminRoutes = require("../routes/marketplace");
 const adminProfileRoutes = require("../routes/adminprofile");
 // const orderRoutes = require("../controllers/orders"); 
 const userRoutes = require("../routes/users"); 
+const adminPaymentRoutes = require("../routes/admin_payment_routes");
 require('dotenv').config();
 
 console.log("JWT_SECRET:", process.env.JWT_SECRET);
@@ -35,6 +36,10 @@ app.use("/api/ratings", require("../routes/rating_routes"));
 app.use("/api/requests", require("../routes/requests_routes"));
 
 app.use("/api/slots", require("../routes/slots")); // Mount the slots routes
+// Admin payment settings
+// app.use("/api/admin/payment-settings", adminPaymentRoutes);
+app.use("/api/admin", require("../routes/admin_payment_routes"));
+// app.use("/api", require("./routes/public_admin.routes"));
 
 // user-related routes (profile, ratings, requests, delivery-boys)
 app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys

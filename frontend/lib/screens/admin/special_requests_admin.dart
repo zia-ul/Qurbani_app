@@ -148,7 +148,6 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       }
     } catch (e) {
       ToastUtils.showError("Error: $e");
-
     }
   }
 

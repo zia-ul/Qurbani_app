@@ -45,7 +45,10 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   final ImagePicker _picker = ImagePicker();
   List<String> selectedPaymentMethods = [];
   String? selectedAnimalType;
+  String? selectedDeliveryType; // add this
 
+  // When loading animal details
+  // selectedDeliveryType = data['delivery_type'] ?? 'Free';
   final Color lightBg = const Color(0xFFF9FBF9);
 
   @override
@@ -73,7 +76,8 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       }
 
       final data = jsonDecode(res.body);
-
+      selectedAnimalType = data['animal_type'];
+      selectedDeliveryType = data['delivery_type'] ?? 'Free';
       selectedAnimalType = data['animal_type'];
       animalTypeController.text = data['animal_type'] ?? '';
       breedController.text = data['breed'] ?? '';
@@ -88,9 +92,9 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       existingPhotoUrls = List<String>.from(
         jsonDecode(data['photo_urls'] ?? "[]"),
       );
-      selectedPaymentMethods = List<String>.from(
-        jsonDecode(data['payment_methods'] ?? "[]"),
-      );
+      // selectedPaymentMethods = List<String>.from(
+      //   jsonDecode(data['payment_methods'] ?? "[]"),
+      // );
 
       setState(() => isLoading = false);
     } catch (e) {
@@ -131,7 +135,6 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
 
   Future<void> updateAnimal() async {
     if (!_formKey.currentState!.validate()) return;
-    if (existingPhotoUrls.isEmpty && newImages.isEmpty) return;
 
     setState(() => isUpdating = true);
 
@@ -157,23 +160,21 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
           "weight": weightController.text,
           "shares": int.parse(sharesController.text),
           "photoUrls": allImages,
-          "paymentMethods": selectedPaymentMethods,
+          "deliveryType": selectedDeliveryType ?? "Free",
           "deliveryFee": double.parse(deliveryFeeController.text),
         }),
       );
 
       if (res.statusCode == 200) {
         if (!mounted) return;
-
         ToastUtils.showSuccess('Animal updated successfully');
-
         Navigator.pop(context);
       } else {
+        print(res.body); // 👈 debug help
         throw res.body;
       }
     } catch (e) {
-      ToastUtils.showError("Error: ${e.toString()}");
-
+      ToastUtils.showError("Error: $e");
     } finally {
       setState(() => isUpdating = false);
     }
@@ -341,16 +342,28 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                 ),
               ]),
               const SizedBox(height: 20),
-              _buildCardContainer([
-                _buildLabel("Payment Method", isReq: true),
-                Row(
-                  children: [
-                    _buildCheckbox("COD", 'cod'),
-                    _buildCheckbox("Online", 'online'),
-                  ],
-                ),
-              ]),
-              const SizedBox(height: 30),
+
+              _buildLabel("Delivery Type", isReq: true),
+              DropdownButtonFormField<String>(
+                value: ["Free", "Paid"].contains(selectedDeliveryType)
+                    ? selectedDeliveryType
+                    : null,
+                decoration: _inputDecoration("Select Delivery Type"),
+                items: ["Free", "Paid"]
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (val) => setState(() => selectedDeliveryType = val),
+              ),
+              // _buildCardContainer([
+              //   _buildLabel("Payment Method", isReq: true),
+              //   Row(
+              //     children: [
+              //       _buildCheckbox("COD", 'cod'),
+              //       _buildCheckbox("Online", 'online'),
+              //     ],
+              //   ),
+              // ]),
+              // const SizedBox(height: 30),
               PrimaryButton(
                 text: "Update Animal",
                 isLoading: isUpdating,
@@ -427,27 +440,27 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
     );
   }
 
-  Widget _buildCheckbox(String title, String key) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Checkbox(
-          value: selectedPaymentMethods.contains(key),
-          activeColor: AppTheme.primaryGreen,
-          onChanged: (val) {
-            setState(() {
-              if (val!) {
-                selectedPaymentMethods.add(key);
-              } else {
-                selectedPaymentMethods.remove(key);
-              }
-            });
-          },
-        ),
-        Text(title, style: const TextStyle(fontSize: 13)),
-      ],
-    );
-  }
+  // Widget _buildCheckbox(String title, String key) {
+  //   return Row(
+  //     mainAxisSize: MainAxisSize.min,
+  //     children: [
+  //       Checkbox(
+  //         value: selectedPaymentMethods.contains(key),
+  //         activeColor: AppTheme.primaryGreen,
+  //         onChanged: (val) {
+  //           setState(() {
+  //             if (val!) {
+  //               selectedPaymentMethods.add(key);
+  //             } else {
+  //               selectedPaymentMethods.remove(key);
+  //             }
+  //           });
+  //         },
+  //       ),
+  //       Text(title, style: const TextStyle(fontSize: 13)),
+  //     ],
+  //   );
+  // }
 
   Widget _buildCombinedImageGallery() {
     return SizedBox(

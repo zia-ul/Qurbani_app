@@ -5,6 +5,7 @@ import 'package:qurbani/services/order_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:qurbani/screens/user/payment_processing_page.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:http/http.dart' as http;
 
 class Shareholder {
   final TextEditingController nameController = TextEditingController();
@@ -36,11 +37,15 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   bool _isLoading = false;
   List<Map<String, dynamic>> _animals =
       []; // Includes price, payment_methods, delivery_fee, etc.
+  bool _allowCOD = false;
+  bool _allowOnline = true;
+  bool _paymentSettingsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _fetchAnimals();
+    _fetchPaymentSettings();
     _addShareholder();
   }
 
@@ -50,6 +55,41 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       s.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _fetchPaymentSettings() async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+          "http://192.168.1.6:3000/api/admins/${widget.adminId}/payment-settings",
+        ),
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception("Failed to load payment settings");
+      }
+
+      final data = jsonDecode(res.body);
+
+      setState(() {
+        _allowCOD = data['allow_cod'] == 1;
+        _allowOnline = data['allow_online'] == 1;
+
+        // Default payment method
+        if (_allowOnline) {
+          _paymentMethod = 'Online';
+        } else if (_allowCOD) {
+          _paymentMethod = 'Cash';
+        }
+
+        _paymentSettingsLoaded = true;
+      });
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: "Error loading payment settings",
+        backgroundColor: Colors.red,
+      );
+    }
   }
 
   Future<void> _fetchAnimals() async {
@@ -102,30 +142,24 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   // Get allowed payment methods from selected animals
   List<String> _getAllowedPaymentMethods() {
-    Set<String> methods = {};
-    for (var shareholder in _shareholders) {
-      if (shareholder.selectedAnimalId != null) {
-        final animal = _animals.firstWhere(
-          (a) => a['id'] == shareholder.selectedAnimalId,
-          orElse: () => {'payment_methods': '[]'},
-        );
-        try {
-          List<dynamic> animalMethods = jsonDecode(
-            animal['payment_methods'] ?? '[]',
-          );
-          methods.addAll(animalMethods.map((m) => m.toString()));
-        } catch (e) {
-          // If parsing fails, skip
-        }
-      }
+    final List<String> methods = [];
+
+    if (_allowCOD) {
+      methods.add('Cash');
     }
-    return methods.isNotEmpty
-        ? methods.toList()
-        : ['Cash', 'Online']; // Default if none selected
+
+    if (_allowOnline) {
+      methods.add('Online');
+    }
+
+    return methods;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_paymentSettingsLoaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       extendBodyBehindAppBar: false,
       appBar: AppBar(
@@ -524,6 +558,16 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Future<void> _submitOrder() async {
+    final allowedMethods = _getAllowedPaymentMethods();
+
+    if (!allowedMethods.contains(_paymentMethod)) {
+      Fluttertoast.showToast(
+        msg: "Selected payment method is not allowed",
+        backgroundColor: Colors.red,
+      );
+      return;
+    }
+
     for (var s in _shareholders) {
       if (s.nameController.text.trim().isEmpty ||
           s.guardianController.text.trim().isEmpty ||
@@ -537,16 +581,27 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     }
     setState(() => _isLoading = true);
     try {
-      final shareholdersData = _shareholders
-          .map(
-            (s) => {
-              'name': s.nameController.text.trim(),
-              'guardianName': s.guardianController.text.trim(),
-              'qurbaniDay': s.qurbaniDay,
-              'animalId': s.selectedAnimalId,
-            },
-          )
-          .toList();
+      final shareholdersData = _shareholders.map((s) {
+        final animal = _animals.firstWhere(
+          (a) => a['id'] == s.selectedAnimalId,
+          orElse: () => throw Exception("Animal not found for shareholder"),
+        );
+
+        final double price = double.tryParse(animal['price'].toString()) ?? 0.0;
+
+        final double deliveryFee = animal['delivery_type'] == 'Paid'
+            ? double.tryParse(animal['delivery_fee'].toString()) ?? 0.0
+            : 0.0;
+
+        return {
+          'name': s.nameController.text.trim(),
+          'guardianName': s.guardianController.text.trim(),
+          'qurbaniDay': s.qurbaniDay,
+          'animalId': s.selectedAnimalId,
+          'price': price, // ✅ per-animal price
+          'deliveryFee': deliveryFee,
+        };
+      }).toList();
 
       if (_paymentMethod == 'Cash') {
         final confirm = await showDialog<bool>(
