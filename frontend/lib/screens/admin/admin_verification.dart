@@ -7,6 +7,7 @@ import 'package:qurbani/services/admin_verification_service.dart';
 import 'package:qurbani/screens/admin/admin_home_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AdminVerificationPage extends StatefulWidget {
   const AdminVerificationPage({super.key});
@@ -56,9 +57,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       phoneController.text = profile['phone'] ?? '';
       addressController.text = profile['address'] ?? '';
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
+      ToastUtils.showError('Failed to load profile: $e');
     }
   }
 
@@ -132,9 +131,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<void> _submitVerification() async {
     if (!_formKey.currentState!.validate()) return;
     if (_images.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please upload at least one document")),
-      );
+      ToastUtils.showError("Please upload at least one document");
+
       return;
     }
 
@@ -155,14 +153,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       setState(() {
         _verificationStatus = 'pending';
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Verification submitted successfully")),
-      );
+      ToastUtils.showSuccess("Verification submitted successfully");
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ToastUtils.showError("Error submitting verification: $e");
     } finally {
       setState(() => isLoading = false);
     }

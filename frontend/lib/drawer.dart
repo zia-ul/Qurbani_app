@@ -9,7 +9,6 @@ import 'package:qurbani/screens/admin/slot_management.dart';
 
 // User Pages
 import 'package:qurbani/screens/user/profile_page.dart';
-import 'package:qurbani/screens/user/settings_page.dart';
 import 'package:qurbani/screens/user/reset_password_page.dart';
 import 'package:qurbani/screens/user/user_special_request.dart';
 import 'package:qurbani/screens/user/invite_friend_page.dart';
@@ -18,6 +17,7 @@ import 'package:qurbani/screens/user/qurbani_feature_page.dart'; // Assuming Abo
 // Delivery Pages
 // import 'package:qurbani/screens/delivery/delivery_settings.dart';
 import 'package:qurbani/services/service_profile.dart';
+import 'package:qurbani/settings_page.dart';
 
 class MasterDrawer extends StatelessWidget {
   final String name;
@@ -163,19 +163,70 @@ class MasterDrawer extends StatelessWidget {
           // Menu Items (Conditional)
           if (role == 'admin') ...[
             _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
-            _drawerItem(context, Icons.assignment, "Animal Inventory", AnimalListingPage()),
-            _drawerItem(context, Icons.schedule, "Slot Management", AdminSlotPage(adminId: id)),
-            _drawerItem(context, Icons.person_add, "Invite Friend", const InviteFriendPage()),
-            _drawerItem(context, Icons.star, "Qurbani Features", const AboutUsPage()),
+            _drawerItem(
+              context,
+              Icons.assignment,
+              "Animal Inventory",
+              AnimalListingPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.schedule,
+              "Slot Management",
+              AdminSlotPage(adminId: id),
+            ),
+            _drawerItem(
+              context,
+              Icons.person_add,
+              "Invite Friend",
+              const InviteFriendPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.star,
+              "Qurbani Features",
+              const AboutUsPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.settings,
+              "Settings",
+              SettingsPage(userId: id, role: role),
+            ),
           ] else if (role == 'delivery') ...[
             // _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
           ] else if (role == 'user') ...[
             _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
-            _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
-            _drawerItem(context, Icons.lock_reset, "Reset Password", const ResetPasswordPage()),
-            _drawerItem(context, Icons.assignment, "Special Requests", MySpecialRequestsPage()),
-            _drawerItem(context, Icons.person_add, "Invite Friend", const InviteFriendPage()),
-            _drawerItem(context, Icons.star, "Qurbani Features", const AboutUsPage()),
+            _drawerItem(
+              context,
+              Icons.settings,
+              "Settings",
+              SettingsPage(userId: id, role: role),
+            ),
+            _drawerItem(
+              context,
+              Icons.lock_reset,
+              "Reset Password",
+              const ResetPasswordPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.assignment,
+              "Special Requests",
+              MySpecialRequestsPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.person_add,
+              "Invite Friend",
+              const InviteFriendPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.star,
+              "Qurbani Features",
+              const AboutUsPage(),
+            ),
           ],
 
           const Spacer(),
@@ -214,16 +265,18 @@ class MasterDrawer extends StatelessWidget {
     );
   }
 
-  Widget _drawerItem(BuildContext context, IconData icon, String title, Widget page) {
+  Widget _drawerItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    Widget page,
+  ) {
     return ListTile(
       leading: Icon(icon),
       title: Text(title),
       onTap: () {
         Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => page),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (_) => page));
       },
     );
   }

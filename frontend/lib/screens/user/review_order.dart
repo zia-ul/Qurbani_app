@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani/screens/user/payment_success_page.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 import 'razorpay_integration.dart'; // Ensure this path is correct
 
 class ReviewOrderPage extends StatefulWidget {
@@ -217,9 +218,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Placement Error: $e")));
+      ToastUtils.showError("Placement Error: $e");
     } finally {
       setState(() => isPlacingOrder = false);
     }

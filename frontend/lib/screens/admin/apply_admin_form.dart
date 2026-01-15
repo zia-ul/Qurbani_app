@@ -52,8 +52,7 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
       farmPhotoFile,
     ].contains(null)) {
       ToastUtils.showError("All documents required");
-      // ScaffoldMessenger.of(context)
-      //     .showSnackBar(const SnackBar(content: Text("All documents required")));
+
       return;
     }
 
@@ -72,15 +71,12 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
       );
 
       ToastUtils.showSuccess("Application submitted for review");
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   const SnackBar(content: Text("Application submitted for review")),
-      // );
+
 
       Navigator.pop(context);
     } catch (e) {
       ToastUtils.showError(e.toString());
-      // ScaffoldMessenger.of(context)
-      //     .showSnackBar(SnackBar(content: Text(e.toString())));
+
     } finally {
       setState(() => loading = false);
     }

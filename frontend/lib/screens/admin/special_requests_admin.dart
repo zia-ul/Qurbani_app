@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AdminSpecialRequestsPage extends StatefulWidget {
   const AdminSpecialRequestsPage({super.key});
@@ -146,9 +147,8 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
         throw Exception(jsonDecode(res.body)['message']);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ToastUtils.showError("Error: $e");
+
     }
   }
 

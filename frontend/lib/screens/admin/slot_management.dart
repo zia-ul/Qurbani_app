@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class AdminSlotPage extends StatefulWidget {
   final String adminId;
@@ -46,7 +47,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
         setState(() => slots = []);
       }
     } catch (e) {
-      _showSnackBar("Error loading slots: $e", Colors.red);
+      ToastUtils.showError("Error loading slots: $e");
     } finally {
       setState(() => isLoading = false);
     }
@@ -79,7 +80,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
       );
 
       if (exists) {
-        _showSnackBar("This time already exists!", Colors.red);
+        ToastUtils.showError("This time already exists!");
         return;
       }
 
@@ -92,12 +93,12 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
 
   Future<void> saveSlots() async {
     if (slots.isEmpty) {
-      _showSnackBar("Please add at least one slot", Colors.red);
+      ToastUtils.showError("Please add at least one slot");
       return;
     }
 
     if (slots.any((s) => s["time"].toString().isEmpty)) {
-      _showSnackBar("Please set time for all slots", Colors.red);
+      ToastUtils.showError("Please set time for all slots");
       return;
     }
 
@@ -147,17 +148,20 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
         textColor: Colors.white,
       );
     } catch (e) {
-      _showSnackBar("Failed to save slots: $e", Colors.red);
+      // _showSnackBar("Failed to save slots: $e", Colors.red);
+      ToastUtils.showError("Failed to save slots: $e");
     } finally {
       setState(() => isSaving = false);
     }
   }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
-  }
+  // void _showSnackBar(String message, Color color) {
+
+  //   ToastUtils.showSuccess(message);
+  //   ScaffoldMessenger.of(
+  //     context,
+  //   ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+  // }
 
   int _toMinutes(String time) {
     if (time.isEmpty) return 99999;

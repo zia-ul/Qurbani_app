@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qurbani/screens/user/api_services.dart';
 import 'package:qurbani/screens/user/review_order.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class PaymentMethodPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -147,7 +148,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ToastUtils.showError(msg);
     setState(() => isSubmitting = false);
   }
 

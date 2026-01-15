@@ -35,35 +35,60 @@ router.get("/:orderId", auth, async (req, res) => {
 
 // POST /api/orders - Place order
 router.post("/", auth, async (req, res) => {
-  const { adminId, paymentMethod } = req.body;
+  const { adminId, paymentMethod, shareholders } = req.body;
   const userId = req.user.id;
 
+  const connection = await pool.getConnection();
   try {
+    await connection.beginTransaction();
+
     const orderId = uuidv4();
+    const totalShares = shareholders.length;
 
-    // payment status logic
-    const paymentStatus = paymentMethod === "Cash" ? "unpaid" : "pending";
-
-    await pool.execute(
+    // 1️⃣ Insert order
+    await connection.execute(
       `
-      INSERT INTO orders 
-        (id, user_id, admin_id, status, payment_status, processing_status, delivery_status, created_at)
-      VALUES 
-        (?, ?, ?, 'active', ?, 'pending', 'pending', NOW())
+      INSERT INTO orders
+      (id, user_id, admin_id, payment_method, total_shares)
+      VALUES (?, ?, ?, ?, ?)
       `,
-      [orderId, userId, adminId, paymentStatus]
+      [orderId, userId, adminId, paymentMethod, totalShares]
     );
+
+    // 2️⃣ Insert shareholders
+    for (const s of shareholders) {
+      await connection.execute(
+        `
+        INSERT INTO order_shareholders
+        (id, order_id, animal_id, shareholder_name, guardian_name, qurbani_day, price)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          uuidv4(),
+          orderId,
+          s.animalId,
+          s.name,
+          s.guardianName,
+          s.qurbaniDay,
+          s.price,
+        ]
+      );
+    }
+
+    await connection.commit();
 
     res.status(201).json({
       message: "Order placed successfully",
       orderId,
-      status: "active",
-      paymentStatus,
     });
   } catch (err) {
-    console.error("Error placing order:", err);
-    res.status(500).json({ message: "Internal server error" });
+    await connection.rollback();
+    console.error(err);
+    res.status(500).json({ message: "Failed to place order" });
+  } finally {
+    connection.release();
   }
 });
+
 
 module.exports = router;

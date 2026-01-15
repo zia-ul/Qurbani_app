@@ -2,6 +2,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 import 'package:showcaseview/showcaseview.dart';
 import 'package:qurbani/theme/theme.dart';
 
@@ -91,9 +92,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     await _firestore.collection('admin_orders').doc(orderId).update(data);
 
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Delivery status updated')));
+      ToastUtils.showSuccess("Delivery status updated to $status");
     }
   }
 
@@ -102,9 +101,8 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     final data = doc.data();
 
     if (data == null || data['deliveryCode'] == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No code found')));
+      ToastUtils.showError("No code found");
+
       return;
     }
 
@@ -116,14 +114,10 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Order delivered')));
+        ToastUtils.showSuccess("Order delivered");
       }
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Incorrect code')));
+      ToastUtils.showError("Incorrect code");
     }
   }
 

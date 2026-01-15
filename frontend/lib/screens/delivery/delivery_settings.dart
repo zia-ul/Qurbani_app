@@ -1,5 +1,6 @@
 // import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:qurbani/theme/theme.dart';
@@ -90,9 +91,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (await canLaunch(url)) {
       await launch(url);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Could not open link")));
+      ToastUtils.showError("Could not open link");
     }
   }
 

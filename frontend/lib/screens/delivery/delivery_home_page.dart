@@ -6,6 +6,7 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:qurbani/drawer.dart';
 import 'package:qurbani/services/delivery_service.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class DeliveryHomePage extends StatefulWidget {
   final String deliveryId;
@@ -64,9 +65,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
 
     final allGranted = statuses.values.every((status) => status.isGranted);
     if (!allGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Some permissions were denied')),
-      );
+      ToastUtils.showError("Some permissions were denied");
     }
     return allGranted;
   }
@@ -76,9 +75,10 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       final result = await DeliveryService.updateStatus(orderId, status);
       if (status == 'sent') {
         // Show code to delivery person (backend handles user notification)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Code sent to user: ${result['code']}')),
+        ToastUtils.showSuccess(
+          'Code sent to user: ${result['code']}',
         );
+
         // Local notification
         AwesomeNotifications().createNotification(
           content: NotificationContent(
@@ -91,9 +91,8 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       }
       _fetchOrders(); // Refresh list
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ToastUtils.showError("Error: $e");
+
     }
   }
 
@@ -101,14 +100,10 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     try {
       await DeliveryService.verifyCode(orderId, code);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Order marked as Delivered!')),
-      );
+      ToastUtils.showSuccess("Order marked as Delivered!");
       _fetchOrders();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+      ToastUtils.showError("Error: $e");
     }
   }
 

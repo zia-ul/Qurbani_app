@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/screens/user/profile_page.dart';
-import 'package:qurbani/services/currency_notifier.dart';
-import 'package:qurbani/services/service_profile.dart';
+import 'package:provider/provider.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:qurbani/services/currency_service.dart';
+
+import 'package:qurbani/services/currency_notifier.dart';
+import 'package:qurbani/services/service_profile.dart';
+import 'package:qurbani/theme/theme.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  final String userId;
+  final String role;
+
+  const SettingsPage({super.key, required this.userId, required this.role});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -26,25 +31,6 @@ class _SettingsPageState extends State<SettingsPage> {
     _loadUserCurrency();
   }
 
-  /// Load user-specific currency from backend
-  Future<void> _loadUserCurrency() async {
-    try {
-      final profile = await ProfileService.getProfile();
-      setState(() {
-        _selectedCurrency = profile['currency'] ?? "USD";
-      });
-      // Store locally
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString('currency', _selectedCurrency!);
-    } catch (e) {
-      // Fallback to local
-      final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        _selectedCurrency = prefs.getString('currency') ?? "USD";
-      });
-    }
-  }
-
   /// Load notification & language settings
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -52,6 +38,26 @@ class _SettingsPageState extends State<SettingsPage> {
       _notificationSound = prefs.getBool('notificationSound') ?? true;
       _selectedLanguage = prefs.getString('language') ?? "English";
     });
+  }
+
+  /// Load user-specific currency from backend or local storage
+  Future<void> _loadUserCurrency() async {
+    final prefs = await SharedPreferences.getInstance();
+    final notifier = context.read<CurrencyNotifier>();
+
+    try {
+      final profile = await ProfileService.getProfile();
+      final currency =
+          profile['currency'] ?? prefs.getString('currency') ?? "USD";
+
+      setState(() => _selectedCurrency = currency);
+      notifier.setCurrency(currency);
+      await prefs.setString('currency', currency);
+    } catch (_) {
+      final localCurrency = prefs.getString('currency') ?? "USD";
+      setState(() => _selectedCurrency = localCurrency);
+      notifier.setCurrency(localCurrency);
+    }
   }
 
   /// Update notification toggle
@@ -63,27 +69,26 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Update user currency
   Future<void> _updateUserCurrency(String val) async {
+    final notifier = context.read<CurrencyNotifier>();
+
     try {
       await ProfileService.updateCurrency(val);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('currency', val);
-      setState(() => _selectedCurrency = val);
+      await _setCurrency(val);
 
-      // Update currency notifier
-      // currencyNotifier.updateCurrency(val);
+      notifier.setCurrency(val);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Currency updated to $val. Prices will refresh shortly.",
-          ),
-        ),
-      );
+      ToastUtils.showSuccess("Currency updated to $val");
+      
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to update currency: $e")));
+      ToastUtils.showError("Failed to update currency: $e");
+
     }
+  }
+
+  Future<void> _setCurrency(String val) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currency', val);
+    setState(() => _selectedCurrency = val);
   }
 
   /// Open external links
@@ -91,9 +96,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (await canLaunch(url)) {
       await launch(url);
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Could not open link")));
+      ToastUtils.showError("Could not open link");
+
     }
   }
 
@@ -102,7 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Settings"),
-        backgroundColor: Color(0xff537D4F),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -117,26 +121,30 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 16),
 
           _sectionHeader("Currency"),
-          DropdownButtonFormField<String>(
-            initialValue: _selectedCurrency,
-            items: _currencyOptions.map((currency) {
-              return DropdownMenuItem(value: currency, child: Text(currency));
-            }).toList(),
-            onChanged: (val) {
-              if (val != null) _updateUserCurrency(val);
+          Consumer<CurrencyNotifier>(
+            builder: (_, notifier, __) {
+              return DropdownButtonFormField<String>(
+                value: _selectedCurrency ?? notifier.currency,
+                items: _currencyOptions
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) _updateUserCurrency(val);
+                },
+                decoration: const InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  labelText: "Currency",
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+              );
             },
-            decoration: const InputDecoration(
-              filled: true,
-              fillColor: Colors.white,
-              labelText: "Currency",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-            ),
           ),
           const Divider(height: 32),
 

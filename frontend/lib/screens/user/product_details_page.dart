@@ -7,6 +7,7 @@ import 'package:qurbani/screens/user/receipt_generator.dart';
 import 'package:qurbani/screens/user/special_request.dart';
 import 'package:qurbani/screens/user/rate_order.dart';
 import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final String orderId;
@@ -82,14 +83,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       await OrderService.cancelOrder(widget.orderId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Order Cancelled Successfully")),
-      );
+
+      ToastUtils.showSuccess("Order Cancelled Successfully");
+
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ToastUtils.showError("Error: $e");
     }
   }
 
@@ -171,9 +170,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               icon: const Icon(Icons.copy, size: 16, color: Colors.blue),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: value));
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("ID Copied!")));
+                ToastUtils.showSuccess("ID Copied!");
+
               },
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,

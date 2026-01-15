@@ -166,18 +166,14 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
         if (!mounted) return;
 
         ToastUtils.showSuccess('Animal updated successfully');
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   const SnackBar(content: Text("Animal updated successfully")),
-        // );
+
         Navigator.pop(context);
       } else {
         throw res.body;
       }
     } catch (e) {
       ToastUtils.showError("Error: ${e.toString()}");
-      // ScaffoldMessenger.of(
-      //   context,
-      // ).showSnackBar(SnackBar(content: Text("Error: $e")));
+
     } finally {
       setState(() => isUpdating = false);
     }

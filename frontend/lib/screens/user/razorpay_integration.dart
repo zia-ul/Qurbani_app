@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:qurbani/screens/user/payment_success_page.dart';
+import 'package:qurbani/widgets/success_error_popup.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'api_services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -103,7 +104,8 @@ class RazorPayIntegration {
 
   void _showSnack(String msg) {
     if (context != null) {
-      ScaffoldMessenger.of(context!).showSnackBar(SnackBar(content: Text(msg)));
+      ToastUtils.showError(msg);
+
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:convert'; // For JSON parsing
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:qurbani/services/order_service.dart';
@@ -9,6 +10,7 @@ class Shareholder {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController guardianController = TextEditingController();
   String qurbaniDay = 'Day 1';
+  String? selectedAnimalId; // Use ID for selection
 
   void dispose() {
     nameController.dispose();
@@ -26,17 +28,19 @@ class QurbaniOrderPage extends StatefulWidget {
 }
 
 class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
-  // Theme Colors from HomePage
   final Color bgGradientStart = const Color(0xffF2E8D5);
   final Color bgGradientEnd = const Color(0xffFFFFFF);
 
   final List<Shareholder> _shareholders = [];
-  String _paymentMethod = 'Cash';
+  String _paymentMethod = 'Cash'; // Will be updated dynamically
   bool _isLoading = false;
+  List<Map<String, dynamic>> _animals =
+      []; // Includes price, payment_methods, delivery_fee, etc.
 
   @override
   void initState() {
     super.initState();
+    _fetchAnimals();
     _addShareholder();
   }
 
@@ -46,6 +50,20 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       s.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _fetchAnimals() async {
+    try {
+      _animals = await OrderService.getAnimals(widget.adminId);
+      print(".....animals$_animals");
+      setState(() {});
+    } catch (e) {
+      print("Error fetching animals: $e");
+      Fluttertoast.showToast(
+        msg: "Error fetching animals: $e",
+        backgroundColor: Colors.red,
+      );
+    }
   }
 
   void _addShareholder() {
@@ -59,6 +77,51 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       _shareholders[index].dispose();
       _shareholders.removeAt(index);
     });
+  }
+
+  // Calculate total price: sum of animal prices + delivery fees
+  double _calculateTotalPrice() {
+    double subtotal = 0.0;
+    double deliveryTotal = 0.0;
+
+    for (var shareholder in _shareholders) {
+      if (shareholder.selectedAnimalId != null) {
+        final animal = _animals.firstWhere(
+          (a) => a['id'] == shareholder.selectedAnimalId,
+          orElse: () => {'price': 0.0, 'delivery_fee': 0.0},
+        );
+        subtotal += double.tryParse(animal['price'].toString()) ?? 0.0;
+        deliveryTotal += (animal['delivery_type'] == 'Paid')
+            ? (double.tryParse(animal['delivery_fee'].toString()) ?? 0.0)
+            : 0.0;
+      }
+    }
+
+    return subtotal + deliveryTotal;
+  }
+
+  // Get allowed payment methods from selected animals
+  List<String> _getAllowedPaymentMethods() {
+    Set<String> methods = {};
+    for (var shareholder in _shareholders) {
+      if (shareholder.selectedAnimalId != null) {
+        final animal = _animals.firstWhere(
+          (a) => a['id'] == shareholder.selectedAnimalId,
+          orElse: () => {'payment_methods': '[]'},
+        );
+        try {
+          List<dynamic> animalMethods = jsonDecode(
+            animal['payment_methods'] ?? '[]',
+          );
+          methods.addAll(animalMethods.map((m) => m.toString()));
+        } catch (e) {
+          // If parsing fails, skip
+        }
+      }
+    }
+    return methods.isNotEmpty
+        ? methods.toList()
+        : ['Cash', 'Online']; // Default if none selected
   }
 
   @override
@@ -99,13 +162,10 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   ...List.generate(
                     _shareholders.length,
                     (index) => _shareholderCard(index),
                   ),
-
-                  // Add Person Button
                   Center(
                     child: TextButton.icon(
                       onPressed: _addShareholder,
@@ -122,7 +182,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 30),
                   Text(
                     "Payment Summary",
@@ -133,17 +192,12 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
                   _paymentSection(),
-
-                  const SizedBox(height: 100), // Space for bottom button
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
-
-            // Bottom Sticky Confirm Button
             Align(alignment: Alignment.bottomCenter, child: _buildBottomBar()),
-
             if (_isLoading)
               Container(
                 color: Colors.black26,
@@ -211,6 +265,45 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             label: "Father / Guardian Name",
             icon: Icons.family_restroom_outlined,
           ),
+          const SizedBox(height: 15),
+          DropdownButtonFormField<String>(
+            value: shareholder.selectedAnimalId,
+            decoration: InputDecoration(
+              labelText: "Select Animal",
+              prefixIcon: Icon(
+                Icons.pets,
+                color: AppTheme.primaryGreen,
+                size: 20,
+              ),
+              filled: true,
+              fillColor: const Color(0xffF8F9FA),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.primaryGreen),
+              ),
+            ),
+            items: _animals.map((animal) {
+              return DropdownMenuItem<String>(
+                value: animal['id'],
+                child: Text("${animal['animal_type']} - \$${animal['price']}"),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                shareholder.selectedAnimalId = value;
+                // Update default payment method if needed
+                final allowed = _getAllowedPaymentMethods();
+                if (!allowed.contains(_paymentMethod)) {
+                  _paymentMethod = allowed.isNotEmpty ? allowed.first : 'Cash';
+                }
+              });
+            },
+            hint: const Text("Choose an animal"),
+          ),
           const SizedBox(height: 20),
           const Text(
             "Select Qurbani Day",
@@ -246,6 +339,25 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Widget _paymentSection() {
+    double totalPrice = _calculateTotalPrice();
+    double subtotal = 0.0;
+    double deliveryTotal = 0.0;
+
+    for (var shareholder in _shareholders) {
+      if (shareholder.selectedAnimalId != null) {
+        final animal = _animals.firstWhere(
+          (a) => a['id'] == shareholder.selectedAnimalId,
+          orElse: () => {'price': 0.0, 'delivery_fee': 0.0},
+        );
+        subtotal += double.tryParse(animal['price'].toString()) ?? 0.0;
+        deliveryTotal += (animal['delivery_type'] == 'Paid')
+            ? (double.tryParse(animal['delivery_fee'].toString()) ?? 0.0)
+            : 0.0;
+      }
+    }
+
+    List<String> allowedMethods = _getAllowedPaymentMethods();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -255,13 +367,21 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       ),
       child: Column(
         children: [
-          _paymentOption("Cash on Delivery", "Cash", Icons.money),
-          const Divider(),
-          _paymentOption(
-            "Online Payment",
-            "Online",
-            Icons.account_balance_wallet_outlined,
-          ),
+          ...allowedMethods.map((method) {
+            IconData icon = method == 'Cash'
+                ? Icons.money
+                : Icons.account_balance_wallet_outlined;
+            return Column(
+              children: [
+                _paymentOption(
+                  "${method == 'Cash' ? 'Cash on Delivery' : 'Online Payment'}",
+                  method,
+                  icon,
+                ),
+                if (method != allowedMethods.last) const Divider(),
+              ],
+            );
+          }),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -269,20 +389,60 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               color: bgGradientStart.withOpacity(0.5),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
               children: [
-                const Text(
-                  "Total Shares",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Subtotal",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "\$${subtotal.toStringAsFixed(2)}",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  "${_shareholders.length}",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
-                  ),
+                const SizedBox(height: 5),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Delivery Charges",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "\$${deliveryTotal.toStringAsFixed(2)}",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Total Price",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "\$${totalPrice.toStringAsFixed(2)}",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryGreen,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -363,13 +523,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     );
   }
 
-  // --- Logic remains the same as your snippet ---
   Future<void> _submitOrder() async {
     for (var s in _shareholders) {
       if (s.nameController.text.trim().isEmpty ||
-          s.guardianController.text.trim().isEmpty) {
+          s.guardianController.text.trim().isEmpty ||
+          s.selectedAnimalId == null) {
         Fluttertoast.showToast(
-          msg: "Please fill all fields",
+          msg: "Please fill all fields, including selecting an animal",
           backgroundColor: Colors.red,
         );
         return;
@@ -383,6 +543,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               'name': s.nameController.text.trim(),
               'guardianName': s.guardianController.text.trim(),
               'qurbaniDay': s.qurbaniDay,
+              'animalId': s.selectedAnimalId,
             },
           )
           .toList();
@@ -392,7 +553,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text("Confirm Order"),
-            content: const Text("Place order with Cash on Delivery?"),
+            content: Text(
+              "Total: \$${_calculateTotalPrice().toStringAsFixed(2)}\nPlace order with Cash on Delivery?",
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
@@ -416,6 +579,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         adminId: widget.adminId,
         paymentMethod: _paymentMethod,
         shareholders: shareholdersData,
+        totalAmount: _calculateTotalPrice(),
       );
 
       if (_paymentMethod == 'Online') {
@@ -424,7 +588,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           MaterialPageRoute(
             builder: (_) => PaymentProcessingPage(
               orderId: result['orderId'],
-              totalAmount: 1000.0 * _shareholders.length,
+              totalAmount: _calculateTotalPrice(),
             ),
           ),
         );
