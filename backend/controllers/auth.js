@@ -70,7 +70,7 @@ router.post(
       //   }
 
       //   const [adminExists] = await db.query(
-      //     `SELECT id FROM users 
+      //     `SELECT id FROM users
       //      WHERE role = 'admin' AND admin_status = 'approved' AND city = ?`,
       //     [city]
       //   );
@@ -110,7 +110,7 @@ router.post(
           adminStatus,
           currency || "USD",
           city || null,
-          false, 
+          false,
           verificationToken,
         ]
       );
@@ -144,7 +144,6 @@ router.post("/login", async (req, res) => {
 
     const emailNormalized = email.toLowerCase();
 
-
     // Fetch user
     const [users] = await db.query(
       `SELECT 
@@ -156,7 +155,9 @@ router.post("/login", async (req, res) => {
     );
 
     if (users.length === 0) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(404).json({
+        message: "Unregistered Mail ID",
+      });
     }
 
     const user = users[0];
@@ -164,7 +165,9 @@ router.post("/login", async (req, res) => {
     // Check password
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({
+        message: "Incorrect password",
+      });
     }
 
     // Check email verification
@@ -183,20 +186,18 @@ router.post("/login", async (req, res) => {
 
     let adminVerificationStatus = null;
 
-if (user.role === 'admin') {
-  const [rows] = await db.query(
-    `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-    [user.id]
-  );
+    if (user.role === "admin") {
+      const [rows] = await db.query(
+        `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
+        [user.id]
+      );
 
-  if (rows.length === 0) {
-    adminVerificationStatus = 'not_submitted';
-  } else {
-    adminVerificationStatus = rows[0].status; // pending / approved / rejected
-  }
-}
-
-
+      if (rows.length === 0) {
+        adminVerificationStatus = "not_submitted";
+      } else {
+        adminVerificationStatus = rows[0].status; // pending / approved / rejected
+      }
+    }
 
     if (!process.env.JWT_SECRET) {
       throw new Error("JWT_SECRET is not defined in environment variables");
@@ -229,7 +230,7 @@ if (user.role === 'admin') {
         role: user.role,
         city: user.city,
         currency: user.currency,
-        admin_verification_status: adminVerificationStatus
+        admin_verification_status: adminVerificationStatus,
       },
     });
   } catch (err) {
@@ -287,7 +288,6 @@ router.get("/me", authMiddleware, async (req, res) => {
   });
 });
 
-
 // PUT /api/auth/change-password
 router.put("/change-password", authMiddleware, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
@@ -295,15 +295,26 @@ router.put("/change-password", authMiddleware, async (req, res) => {
 
   try {
     // Fetch user and verify current password
-    const [users] = await pool.execute(`SELECT password_hash FROM users WHERE id = ?`, [userId]);
-    if (users.length === 0) return res.status(404).json({ message: "User not found" });
+    const [users] = await pool.execute(
+      `SELECT password_hash FROM users WHERE id = ?`,
+      [userId]
+    );
+    if (users.length === 0)
+      return res.status(404).json({ message: "User not found" });
 
-    const isValid = await bcrypt.compare(currentPassword, users[0].password_hash);
-    if (!isValid) return res.status(400).json({ message: "Current password is incorrect" });
+    const isValid = await bcrypt.compare(
+      currentPassword,
+      users[0].password_hash
+    );
+    if (!isValid)
+      return res.status(400).json({ message: "Current password is incorrect" });
 
     // Hash new password and update
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.execute(`UPDATE users SET password_hash = ? WHERE id = ?`, [hashedPassword, userId]);
+    await pool.execute(`UPDATE users SET password_hash = ? WHERE id = ?`, [
+      hashedPassword,
+      userId,
+    ]);
 
     res.json({ message: "Password changed successfully" });
   } catch (err) {

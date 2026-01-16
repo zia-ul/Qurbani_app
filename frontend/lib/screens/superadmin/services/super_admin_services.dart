@@ -38,7 +38,11 @@ class SuperAdminService {
   }
 
   /// Approve or reject a user/admin
-  static Future<void> updateUser(String userId, String action) async {
+static Future<void> updateUser(
+    String userId,
+    String action, {
+    String? reviewNote,
+  }) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -48,12 +52,14 @@ class SuperAdminService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'action': action}),
+      body: jsonEncode({
+        'action': action, // approve | reject
+        if (reviewNote != null) 'review_note': reviewNote,
+      }),
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to update user';
-      throw Exception(msg);
+      throw Exception(jsonDecode(res.body)['message']);
     }
   }
 

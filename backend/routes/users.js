@@ -151,39 +151,55 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
 // SUPERADMIN ROUTES
 
 // GET /api/superadmin/users - List users by role (for super admin)
+// GET /api/superadmin/users - List users by role (for super admin)
 router.get("/superadmin/users", authMiddleware, async (req, res) => {
-  const { role } = req.query; // 'all', 'user', 'admin', 'pending', 'delivery'
+  const { role } = req.query; // all | user | admin | delivery
   const superAdminId = req.user.id;
 
-  // Check if user is superadmin
-  const [superAdmins] = await pool.execute(
-    `SELECT role FROM users WHERE id = ?`,
-    [superAdminId]
-  );
-  if (superAdmins.length === 0 || superAdmins[0].role !== "super_admin") {
-    return res.status(403).json({ message: "Access denied" });
-  }
-
-  let query = `SELECT id, name, email, phone, role, created_at FROM users`;
-  let params = [];
-
-  if (!role || role === "all") {
-    // all roles visible to superadmin
-    query += ` WHERE role IN ('admin', 'pending', 'user', 'delivery')`;
-  } else {
-    const allowedRoles = ['admin', 'pending', 'user', 'delivery'];
-    if (!allowedRoles.includes(role)) {
-      return res.status(400).json({ message: "Invalid role" });
-    }
-    query += ` WHERE role = ?`;
-    params = [role];
-  }
-
-  query += ` ORDER BY created_at DESC`;
-
   try {
+    // Check super admin
+    const [superAdmins] = await pool.execute(
+      `SELECT role FROM users WHERE id = ?`,
+      [superAdminId]
+    );
+
+    if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Base query with verification status
+    let query = `
+      SELECT 
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.role,
+        u.created_at,
+        COALESCE(avr.status, 'not_submitted') AS verification_status
+      FROM users u
+      LEFT JOIN admin_verification_requests avr
+        ON avr.user_id = u.id
+      WHERE u.role IN ('user', 'admin', 'delivery')
+    `;
+
+    const params = [];
+
+    // Role filter (ONLY 3 ROLES)
+    if (role && role !== "all") {
+      const allowedRoles = ['user', 'admin', 'delivery'];
+      if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+
+      query += ` AND u.role = ?`;
+      params.push(role);
+    }
+
+    query += ` ORDER BY u.created_at DESC`;
+
     const [users] = await pool.execute(query, params);
-    console.log("Fetched users:", users); // ✅ debug print
+
     res.json({ users });
   } catch (err) {
     console.error("Error fetching users:", err);
@@ -194,38 +210,84 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
 
 // PUT /api/superadmin/users/:id - Update user role or delete (for super admin)
 router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { action } = req.body; // 'approve', 'reject', 'revoke'
+  const { id: userId } = req.params;
+  const { action, review_note } = req.body; // approve | reject
   const superAdminId = req.user.id;
 
-  // Check superadmin
-  const [superAdmins] = await pool.execute(
-    `SELECT role FROM users WHERE id = ?`,
-    [superAdminId]
-  );
-  if (superAdmins.length === 0 || superAdmins[0].role !== "super_admin") {
-    return res.status(403).json({ message: "Access denied" });
-  }
-
   try {
-    if (action === "approve") {
-      await pool.execute(`UPDATE users SET role = 'admin' WHERE id = ?`, [id]);
-      await pool.execute(
-        `UPDATE admin_verifications SET status = 'verified' WHERE admin_id = ?`,
-        [id]
-      );
-    } else if (action === "reject" || action === "revoke") {
-      await pool.execute(`DELETE FROM users WHERE id = ?`, [id]);
-      await pool.execute(`DELETE FROM admin_verifications WHERE admin_id = ?`, [
-        id,
-      ]);
+    // Check super admin
+    const [superAdmins] = await pool.execute(
+      `SELECT role FROM users WHERE id = ?`,
+      [superAdminId]
+    );
+
+    if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
+      return res.status(403).json({ message: "Access denied" });
     }
-    res.json({ message: "Action completed" });
+
+    // Ensure verification exists
+    const [requests] = await pool.execute(
+      `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (!requests.length) {
+      return res.status(404).json({ message: "Verification request not found" });
+    }
+
+    // APPROVE
+    if (action === "approve") {
+      await pool.execute(
+        `UPDATE admin_verification_requests
+         SET status = 'approved',
+             reviewed_by = ?,
+             review_note = ?,
+             updated_at = NOW()
+         WHERE user_id = ?`,
+        [superAdminId, review_note || null, userId]
+      );
+
+      await pool.execute(
+        `UPDATE users
+         SET role = 'admin',
+             admin_status = 'approved'
+         WHERE id = ?`,
+        [userId]
+      );
+
+      return res.json({ message: "Admin approved successfully" });
+    }
+
+    // REJECT
+    if (action === "reject") {
+      await pool.execute(
+        `UPDATE admin_verification_requests
+         SET status = 'rejected',
+             reviewed_by = ?,
+             review_note = ?,
+             updated_at = NOW()
+         WHERE user_id = ?`,
+        [superAdminId, review_note || null, userId]
+      );
+
+      await pool.execute(
+        `UPDATE users
+         SET admin_status = 'rejected',
+             role = 'pending_admin'
+         WHERE id = ?`,
+        [userId]
+      );
+
+      return res.json({ message: "Admin rejected successfully" });
+    }
+
+    return res.status(400).json({ message: "Invalid action" });
   } catch (err) {
-    console.error("Error updating user:", err);
+    console.error("Super admin action error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 // GET /api/superadmin/verifications/:adminId - Fetch verification details
 router.get(
@@ -262,6 +324,12 @@ router.get(
     }
   }
 );
+
+
+
+
+
+
 
 // GET /api/delivery/orders - Fetch orders for delivery person
 router.get("/delivery/orders", authMiddleware, async (req, res) => {
