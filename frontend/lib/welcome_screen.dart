@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'onboarding_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -22,7 +22,6 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const Spacer(),
 
-                
                 Image.asset(
                   'assets/images/app_logo.png',
                   height:

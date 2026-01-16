@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'package:qurbani/screens/admin/animal_edit.dart';
-import 'package:qurbani/screens/admin/animal_orders_page.dart'; // New page
-import 'package:qurbani/services/currency_notifier.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/screens/admin/animal_edit.dart';
+import 'package:Qurbani/screens/admin/animal_orders_page.dart'; // New page
+import 'package:Qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class AnimalListingPage extends StatefulWidget {
   const AnimalListingPage({super.key});

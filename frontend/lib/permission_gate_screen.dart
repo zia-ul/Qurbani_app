@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-// import 'package:qurbani/role_router.dart';
-import 'package:qurbani/wrapper_screen.dart';
+// import 'package:Qurbani/role_router.dart';
+import 'package:Qurbani/wrapper_screen.dart';
 import '../permission_service.dart';
 
 class PermissionGateScreen extends StatefulWidget {

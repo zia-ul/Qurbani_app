@@ -70,4 +70,20 @@ class DeliveryService {
       throw Exception(msg);
     }
   }
+
+  static Future<List<String>> checkDeliveryNotifications() async {
+  final token = await _storage.read(key: 'token');
+  if (token == null) throw Exception('Not authenticated');
+
+  final res = await http.get(
+    Uri.parse('$_baseUrl/delivery/notifications'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+
+  if (res.statusCode != 200) return [];
+
+  final List orders = jsonDecode(res.body)['orders'];
+  return orders.map<String>((o) => o['id']).toList();
+}
+
 }

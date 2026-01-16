@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qurbani/screens/user/api_services.dart';
-import 'package:qurbani/screens/user/review_order.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/screens/user/api_services.dart';
+import 'package:Qurbani/screens/user/review_order.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class PaymentMethodPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -250,7 +250,9 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
               ),
               child: Icon(
                 ui['icon'],
-                color: isSelected ? AppTheme.primaryGreen : AppTheme.primaryGreen,
+                color: isSelected
+                    ? AppTheme.primaryGreen
+                    : AppTheme.primaryGreen,
               ),
             ),
             const SizedBox(width: 15),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/services/currency_notifier.dart';
 
 class PriceWidget extends StatelessWidget {
   final double priceUsd;

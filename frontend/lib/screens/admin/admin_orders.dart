@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/screens/admin/admin_order_details.dart';
-import 'package:qurbani/services/admin_order_service.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/admin/admin_order_details.dart';
+import 'package:Qurbani/services/admin_order_service.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class AdminOrdersPage extends StatefulWidget {
   final String adminId;

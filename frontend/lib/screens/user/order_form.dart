@@ -1,10 +1,10 @@
 import 'dart:convert'; // For JSON parsing
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:qurbani/services/order_service.dart';
+import 'package:Qurbani/services/order_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:qurbani/screens/user/payment_processing_page.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/user/payment_processing_page.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'package:http/http.dart' as http;
 
 class Shareholder {

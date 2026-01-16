@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:qurbani/authentication/login_page.dart';
-import 'package:qurbani/services/auth_service.dart';
-import 'package:qurbani/terms_condition_dialog.dart';
-import 'package:qurbani/verify_email.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/authentication/login_page.dart';
+import 'package:Qurbani/services/auth_service.dart';
+import 'package:Qurbani/terms_condition_dialog.dart';
+import 'package:Qurbani/verify_email.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});

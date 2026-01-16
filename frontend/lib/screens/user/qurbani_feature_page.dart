@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 /// ===============================================================
 /// ABOUT US & FEATURES PAGE (Card-based Design)

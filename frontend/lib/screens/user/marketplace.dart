@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/screens/user/admin_profile.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/user/admin_profile.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});

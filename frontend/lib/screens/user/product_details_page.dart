@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:qurbani/services/order_service.dart';
-import 'package:qurbani/screens/user/receipt_generator.dart';
-import 'package:qurbani/screens/user/special_request.dart';
-import 'package:qurbani/screens/user/rate_order.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/services/order_service.dart';
+import 'package:Qurbani/screens/user/receipt_generator.dart';
+import 'package:Qurbani/screens/user/special_request.dart';
+import 'package:Qurbani/screens/user/rate_order.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final String orderId;

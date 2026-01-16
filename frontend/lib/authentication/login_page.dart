@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/wrapper_screen.dart';
+import 'package:Qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

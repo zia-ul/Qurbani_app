@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/drawer.dart';
+import 'package:Qurbani/drawer.dart';
 
 class PendingAdminScreen extends StatelessWidget {
   final String id;
@@ -18,14 +18,8 @@ class PendingAdminScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Admin Verification"),
-      ),
-      drawer: MasterDrawer(
-        id: id,
-        name: name,
-        role: role,
-      ),
+      appBar: AppBar(title: const Text("Admin Verification")),
+      drawer: MasterDrawer(id: id, name: name, role: role),
       body: Center(
         child: Padding(
           padding: EdgeInsets.all(24),

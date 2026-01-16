@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:qurbani/screens/user/payment_method_page.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/user/payment_method_page.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class ProceedPage extends StatefulWidget {
   final String adminId;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'slot_management.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class SlotAvailabilityWidget extends StatelessWidget {
   final String adminId;

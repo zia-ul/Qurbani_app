@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class InviteFriendPage extends StatelessWidget {
   const InviteFriendPage({super.key});

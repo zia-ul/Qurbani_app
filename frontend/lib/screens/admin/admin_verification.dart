@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/drawer.dart';
-import 'package:qurbani/screens/admin/pending_admin.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/drawer.dart';
+import 'package:Qurbani/screens/admin/pending_admin.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 import '../../services/admin_verification_service.dart';
 
 class AdminVerificationPage extends StatefulWidget {

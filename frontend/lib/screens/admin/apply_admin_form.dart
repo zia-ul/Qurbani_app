@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:qurbani/services/admin_application.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/services/admin_application.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class ApplyAdminFormPage extends StatefulWidget {
   const ApplyAdminFormPage({super.key});
@@ -72,11 +72,9 @@ class _ApplyAdminFormPageState extends State<ApplyAdminFormPage> {
 
       ToastUtils.showSuccess("Application submitted for review");
 
-
       Navigator.pop(context);
     } catch (e) {
       ToastUtils.showError(e.toString());
-
     } finally {
       setState(() => loading = false);
     }

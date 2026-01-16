@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:provider/provider.dart';
-import 'package:qurbani/services/currency_notifier.dart';
-import 'package:qurbani/services/currency_service.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/services/currency_service.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'wrapper_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -43,8 +43,19 @@ void main() async {
       >()
       ?.createNotificationChannel(channel);
 
-  /// Awesome Notifications (optional but fine)
+  /// Awesome Notifications
   AwesomeNotifications().initialize(null, [
+    NotificationChannel(
+      channelKey: 'admin_alerts',
+      channelName: 'Admin Alerts',
+      channelDescription: 'Admin dashboard notifications',
+      defaultColor: AppTheme.primaryGreen,
+      importance: NotificationImportance.Max,
+      channelShowBadge: true,
+      enableVibration: true,
+      playSound: true,
+    ),
+
     NotificationChannel(
       channelKey: 'basic_channel',
       channelName: 'Basic Notifications',
@@ -53,6 +64,7 @@ void main() async {
       importance: NotificationImportance.High,
       channelShowBadge: true,
     ),
+
     NotificationChannel(
       channelKey: 'order_updates',
       channelName: 'Order Updates',
@@ -64,11 +76,8 @@ void main() async {
     ),
   ], debug: true);
 
-   runApp(
-    ChangeNotifierProvider(
-      create: (_) => CurrencyNotifier(), 
-      child: MyApp(),
-    ),
+  runApp(
+    ChangeNotifierProvider(create: (_) => CurrencyNotifier(), child: MyApp()),
   );
 }
 
@@ -83,9 +92,9 @@ class MyApp extends StatelessWidget {
 
       /// Centralized Theme (Now Active)
       theme: AppTheme.lightTheme,
+
       // darkTheme: AppTheme.darkTheme,
       // themeMode: ThemeMode.system,
-
       home: WrapperScreen(),
       // home: const WelcomeScreen(),
 

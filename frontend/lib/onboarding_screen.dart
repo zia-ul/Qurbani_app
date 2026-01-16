@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'authentication/login_page.dart';
 import 'authentication/register_page.dart';
 
@@ -11,7 +11,6 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-
   @override
   Widget build(BuildContext context) {
     // ignore: unused_local_variable
@@ -29,7 +28,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Color(0xFFE8E6D1), // light beige
               Color.fromARGB(255, 219, 210, 153), // yellowish beige
               Color(0xFFE8E6D1), // light beige
-
             ],
           ),
         ),
@@ -37,7 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              
+
               // 1. App Logo
               Container(
                 height: 120,
@@ -46,12 +44,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   color: Colors.white.withOpacity(0.5),
                   shape: BoxShape.circle,
                   image: const DecorationImage(
-                    image: AssetImage('assets/images/app_logo.png'), // Ensure path is correct
+                    image: AssetImage(
+                      'assets/images/app_logo.png',
+                    ), // Ensure path is correct
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 30),
 
               // 2. Title and Tagline
@@ -102,11 +102,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage()));
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterPage(),
+                            ),
+                          );
                         },
                         child: const Text(
                           'Get Started',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -116,18 +124,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 55,
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppTheme.primaryGreen, width: 2),
+                          side: BorderSide(
+                            color: AppTheme.primaryGreen,
+                            width: 2,
+                          ),
                           foregroundColor: AppTheme.primaryGreen,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
                           ),
                         ),
                         onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
+                          );
                         },
                         child: const Text(
                           'Sign In',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

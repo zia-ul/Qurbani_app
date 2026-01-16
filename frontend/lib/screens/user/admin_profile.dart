@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/screens/user/order_form.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/user/order_form.dart';
 
 class AdminProfilePage extends StatefulWidget {
   final String adminId;

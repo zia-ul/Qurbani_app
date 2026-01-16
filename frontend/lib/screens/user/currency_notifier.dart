@@ -1,5 +1,5 @@
 // import 'package:flutter/material.dart';
-// import 'package:qurbani/exchange_rates.dart';
+// import 'package:Qurbani/exchange_rates.dart';
 
 // /// Currency change notifier to automatically update all currency-dependent widgets
 // class CurrencyNotifier extends ChangeNotifier {

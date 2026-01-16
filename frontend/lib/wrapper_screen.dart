@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/onboarding_screen.dart';
-import 'package:qurbani/screens/admin/admin_home_page.dart';
-import 'package:qurbani/screens/admin/admin_verification.dart';
-import 'package:qurbani/screens/admin/pending_admin.dart';
-import 'package:qurbani/screens/delivery/delivery_home_page.dart';
-import 'package:qurbani/screens/superadmin/superadmin_welcome_page.dart';
-import 'package:qurbani/screens/user/user_home_screen.dart';
-import 'package:qurbani/welcome_screen.dart';
+import 'package:Qurbani/onboarding_screen.dart';
+import 'package:Qurbani/screens/admin/admin_home_page.dart';
+import 'package:Qurbani/screens/admin/admin_verification.dart';
+import 'package:Qurbani/screens/admin/pending_admin.dart';
+import 'package:Qurbani/screens/delivery/delivery_home_page.dart';
+import 'package:Qurbani/screens/superadmin/superadmin_welcome_page.dart';
+import 'package:Qurbani/screens/user/user_home_screen.dart';
+import 'package:Qurbani/welcome_screen.dart';
 import 'services/auth_service.dart';
 import 'models/user_model.dart';
 
@@ -68,12 +68,22 @@ class _WrapperScreenState extends State<WrapperScreen> {
 
             // No submission yet
             if (status == null || status == 'not_submitted') {
-              return AdminVerificationPage(id: user.id, name: user.name, role: user.role, verification: user.verificationStatus);
+              return AdminVerificationPage(
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                verification: user.verificationStatus,
+              );
             }
 
             // Submitted, waiting
             if (status == 'pending') {
-              return PendingAdminScreen(id: user.id, name: user.name, role: user.role, verification: user.verificationStatus);
+              return PendingAdminScreen(
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                verification: user.verificationStatus,
+              );
             }
 
             // Approved admin
@@ -82,7 +92,12 @@ class _WrapperScreenState extends State<WrapperScreen> {
             }
 
             // Rejected or unknown state
-            return PendingAdminScreen(id: user.id, name: user.name, role: user.role, verification: user.verificationStatus);
+            return PendingAdminScreen(
+              id: user.id,
+              name: user.name,
+              role: user.role,
+              verification: user.verificationStatus,
+            );
 
           case 'super_admin':
             return SuperAdminDashboard();

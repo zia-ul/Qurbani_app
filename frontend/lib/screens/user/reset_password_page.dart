@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/auth_service.dart';
+import 'package:Qurbani/services/auth_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});

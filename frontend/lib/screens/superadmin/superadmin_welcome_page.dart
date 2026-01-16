@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/screens/superadmin/services/super_admin_services.dart';
-import 'package:qurbani/screens/superadmin/admin_details.dart';
-import 'package:qurbani/screens/superadmin/superadmin_drawer.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
+import 'package:Qurbani/screens/superadmin/admin_details.dart';
+import 'package:Qurbani/screens/superadmin/superadmin_drawer.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 enum RoleFilter { all, user, admin, delivery }
 
@@ -110,7 +110,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       appBar: AppBar(
         title: const Text(
           'Super Admin Panel',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w400),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w400,
+          ),
         ),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,

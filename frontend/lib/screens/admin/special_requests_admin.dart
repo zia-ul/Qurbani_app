@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class AdminSpecialRequestsPage extends StatefulWidget {
   const AdminSpecialRequestsPage({super.key});

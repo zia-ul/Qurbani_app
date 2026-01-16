@@ -41,7 +41,9 @@ exports.deleteAnimal = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ message: "Animal not found or not owned by you" });
+      return res
+        .status(404)
+        .json({ message: "Animal not found or not owned by you" });
     }
 
     // Delete
@@ -95,22 +97,24 @@ exports.updateAnimal = async (req, res) => {
       photoUrls,
       deliveryType,
       deliveryFee,
+      deliveryThreshold,
     } = req.body;
 
     const [result] = await db.query(
       `UPDATE animals SET
-        animal_type = ?,
-        breed = ?,
-        description = ?,
-        price = ?,
-        age = ?,
-        height = ?,
-        weight = ?,
-        shares = ?,
-        photo_urls = ?,
-        delivery_type = ?,
-        delivery_fee = ?
-       WHERE id = ? AND admin_id = ?`,
+    animal_type = ?,
+    breed = ?,
+    description = ?,
+    price = ?,
+    age = ?,
+    height = ?,
+    weight = ?,
+    shares = ?,
+    photo_urls = ?,
+    delivery_type = ?,
+    delivery_fee = ?,
+    delivery_threshold = ?
+   WHERE id = ? AND admin_id = ?`,
       [
         animalType,
         breed,
@@ -123,6 +127,7 @@ exports.updateAnimal = async (req, res) => {
         JSON.stringify(photoUrls),
         deliveryType,
         deliveryFee,
+        deliveryThreshold || null, // <-- NEW
         animalId,
         adminId,
       ]

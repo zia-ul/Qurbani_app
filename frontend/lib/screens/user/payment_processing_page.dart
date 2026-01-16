@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:qurbani/services/order_service.dart';
+import 'package:Qurbani/services/order_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 class PaymentProcessingPage extends StatefulWidget {
@@ -91,10 +91,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
           ),
-          child: const Text(
-            "Pay Now",
-            style: TextStyle(fontSize: 18),
-          ),
+          child: const Text("Pay Now", style: TextStyle(fontSize: 18)),
         ),
       ),
     );

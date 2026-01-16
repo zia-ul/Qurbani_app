@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/order_service.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/services/order_service.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class AnimalOrdersPage extends StatefulWidget {
   final String animalId;

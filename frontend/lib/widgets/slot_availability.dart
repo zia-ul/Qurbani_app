@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/screens/admin/slot_management.dart';
-import 'package:qurbani/services/slot_service.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/admin/slot_management.dart';
+import 'package:Qurbani/services/slot_service.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class SlotAvailabilityWidget extends StatefulWidget {
   final String adminId;
@@ -124,7 +124,10 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: AppTheme.primaryGreen, width: 1),
+                      border: Border.all(
+                        color: AppTheme.primaryGreen,
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black12,

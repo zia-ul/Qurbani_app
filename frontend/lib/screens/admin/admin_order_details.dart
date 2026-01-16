@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/admin_order_service.dart';
-import 'package:qurbani/services/user_service.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/services/admin_order_service.dart';
+import 'package:Qurbani/services/user_service.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class AdminOrderDetailPage extends StatefulWidget {
   final String orderId;

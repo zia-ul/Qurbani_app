@@ -2,11 +2,11 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:qurbani/drawer.dart';
-import 'package:qurbani/screens/user/marketplace.dart';
-import 'package:qurbani/screens/user/booked_page.dart';
-import 'package:qurbani/screens/user/currency_notifier.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/drawer.dart';
+import 'package:Qurbani/screens/user/marketplace.dart';
+import 'package:Qurbani/screens/user/booked_page.dart';
+import 'package:Qurbani/screens/user/currency_notifier.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class HomePage extends StatefulWidget {
   final String id;

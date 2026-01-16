@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:qurbani/authentication/login_page.dart';
-import 'package:qurbani/services/auth_service.dart';
+import 'package:Qurbani/authentication/login_page.dart';
+import 'package:Qurbani/services/auth_service.dart';
 
 // Admin Pages
-import 'package:qurbani/screens/admin/animal_listing.dart';
-import 'package:qurbani/screens/admin/slot_management.dart';
+import 'package:Qurbani/screens/admin/animal_listing.dart';
+import 'package:Qurbani/screens/admin/slot_management.dart';
 
 // User Pages
-import 'package:qurbani/screens/user/profile_page.dart';
-import 'package:qurbani/screens/user/reset_password_page.dart';
-import 'package:qurbani/screens/user/user_special_request.dart';
-import 'package:qurbani/screens/user/invite_friend_page.dart';
-import 'package:qurbani/screens/user/qurbani_feature_page.dart'; // Assuming AboutUsPage is here
+import 'package:Qurbani/screens/user/profile_page.dart';
+import 'package:Qurbani/screens/user/reset_password_page.dart';
+import 'package:Qurbani/screens/user/user_special_request.dart';
+import 'package:Qurbani/screens/user/invite_friend_page.dart';
+import 'package:Qurbani/screens/user/qurbani_feature_page.dart'; // Assuming AboutUsPage is here
 
 // Delivery Pages
-// import 'package:qurbani/screens/delivery/delivery_settings.dart';
-import 'package:qurbani/services/service_profile.dart';
-import 'package:qurbani/settings_page.dart';
+// import 'package:Qurbani/screens/delivery/delivery_settings.dart';
+import 'package:Qurbani/services/service_profile.dart';
+import 'package:Qurbani/settings_page.dart';
 
 class MasterDrawer extends StatelessWidget {
   final String name;

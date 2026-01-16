@@ -8,13 +8,13 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/drawer.dart';
-import 'package:qurbani/screens/admin/add_aminal.dart';
-import 'package:qurbani/screens/admin/admin_orders.dart';
-import 'package:qurbani/screens/admin/animal_listing.dart';
-import 'package:qurbani/screens/admin/special_requests_admin.dart';
-import 'package:qurbani/services/admin_service.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/drawer.dart';
+import 'package:Qurbani/screens/admin/add_aminal.dart';
+import 'package:Qurbani/screens/admin/admin_orders.dart';
+import 'package:Qurbani/screens/admin/animal_listing.dart';
+import 'package:Qurbani/screens/admin/special_requests_admin.dart';
+import 'package:Qurbani/services/admin_service.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class AdminHomePage extends StatefulWidget {
   final String adminId;
@@ -36,6 +36,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Map<String, dynamic>? _stats;
   Timer? _notificationTimer; // For polling notifications
 
+  Timer? _statsTimer;
+
   @override
   void initState() {
     super.initState();
@@ -43,22 +45,42 @@ class _AdminHomePageState extends State<AdminHomePage> {
       await _checkPermissions();
       await _ensureLocationSelected();
       await _loadStats();
-      _startNotificationPolling(); // Start polling for notifications
+      _startNotificationPolling();
+      _startStatsPolling(); // Start live stats polling
+      await _checkNotificationPermission();
     });
   }
 
   @override
   void dispose() {
-    _notificationTimer?.cancel(); // Cancel timer on dispose
+    _notificationTimer?.cancel();
+    _statsTimer?.cancel(); // 🔥 Cancel stats timer
     super.dispose();
+  }
+
+  void _startStatsPolling() {
+    _statsTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      await _loadStats(); // reload stats from backend
+    });
+  }
+
+  Future<void> _checkNotificationPermission() async {
+    final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!isAllowed) {
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+    }
   }
 
   Future<void> _loadStats() async {
     try {
-      _stats = await AdminService.getDashboardStats();
-      setState(() {});
+      final stats =
+          await AdminService.getDashboardStats(); // fetch from backend
+      setState(() {
+        _stats = stats; // update UI
+      });
     } catch (e) {
-      // Handle silently or show error
+      debugPrint("Error loading stats: $e");
+      // optional: show toast or ignore
     }
   }
 
@@ -118,6 +140,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
         channelKey: 'admin_alerts',
         title: title,
         body: body,
+        wakeUpScreen: true,
+        criticalAlert: true,
+        notificationLayout: NotificationLayout.Default,
         backgroundColor: AppTheme.primaryGreen,
       ),
     );
@@ -201,6 +226,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ElevatedButton(
+                    //   onPressed: () {
+                    //     _triggerAdminNotification(
+                    //       title: "Test Admin Notification",
+                    //       body: "If you see this, it works 🎉",
+                    //     );
+                    //   },
+                    //   child: const Text("TEST NOTIFICATION"),
+                    // ),
                     Text(
                       "Assalamu Alaikum,",
                       style: TextStyle(
@@ -327,9 +361,21 @@ class _AdminHomePageState extends State<AdminHomePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _featureItem(FontAwesomeIcons.rectangleList, "Animals", _stats!['animals'] ?? 0),
-          _featureItem(FontAwesomeIcons.cartFlatbed, "Orders", _stats!['orders'] ?? 0),
-          _featureItem(FontAwesomeIcons.message, "Requests", _stats!['requests'] ?? 0),
+          _featureItem(
+            FontAwesomeIcons.rectangleList,
+            "Animals",
+            _stats!['animals'] ?? 0,
+          ),
+          _featureItem(
+            FontAwesomeIcons.cartFlatbed,
+            "Orders",
+            _stats!['orders'] ?? 0,
+          ),
+          _featureItem(
+            FontAwesomeIcons.message,
+            "Requests",
+            _stats!['requests'] ?? 0,
+          ),
         ],
       ),
     );

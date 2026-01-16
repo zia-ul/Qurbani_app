@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:qurbani/screens/user/product_details_page.dart';
-import 'package:qurbani/screens/user/currency_notifier.dart';
-import 'package:qurbani/services/order_service.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/screens/user/product_details_page.dart';
+import 'package:Qurbani/screens/user/currency_notifier.dart';
+import 'package:Qurbani/services/order_service.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class BookedPage extends StatefulWidget {
   final String userId;

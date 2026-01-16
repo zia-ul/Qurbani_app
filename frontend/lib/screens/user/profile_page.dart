@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/services/service_profile.dart';
+import 'package:Qurbani/services/service_profile.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:intl/intl.dart';
 
 class ProfilePage extends StatefulWidget {

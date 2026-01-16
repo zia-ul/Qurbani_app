@@ -1,8 +1,8 @@
 // import 'package:flutter/material.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:qurbani/screens/user/cart_service.dart';
-// import 'package:qurbani/exchange_rates.dart';
-// import 'package:qurbani/screens/user/currency_notifier.dart';
+// import 'package:Qurbani/screens/user/cart_service.dart';
+// import 'package:Qurbani/exchange_rates.dart';
+// import 'package:Qurbani/screens/user/currency_notifier.dart';
 // import 'admin_profile.dart';
 
 // class AnimalDetailPage extends StatefulWidget {

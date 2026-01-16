@@ -4,14 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'dart:convert';
-import 'package:qurbani/widgets/primary_btn.dart';
-import 'package:qurbani/widgets/common_card.dart';
-import 'package:qurbani/widgets/common_label.dart';
-import 'package:qurbani/widgets/common_input_decoration.dart';
-import 'package:qurbani/widgets/custom_toast.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/widgets/primary_btn.dart';
+import 'package:Qurbani/widgets/common_card.dart';
+import 'package:Qurbani/widgets/common_label.dart';
+import 'package:Qurbani/widgets/common_input_decoration.dart';
+import 'package:Qurbani/widgets/custom_toast.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class AnimalEditPage extends StatefulWidget {
   final String animalId;
@@ -37,6 +37,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   final heightController = TextEditingController();
   final weightController = TextEditingController();
   final deliveryFeeController = TextEditingController();
+  final deliveryThresholdController = TextEditingController();
 
   bool isLoading = true;
   bool isUpdating = false;
@@ -50,6 +51,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   // When loading animal details
   // selectedDeliveryType = data['delivery_type'] ?? 'Free';
   final Color lightBg = const Color(0xFFF9FBF9);
+  bool get isDeliveryPaid => selectedDeliveryType?.toLowerCase() == "paid";
 
   @override
   void initState() {
@@ -88,6 +90,8 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       weightController.text = data['weight']?.toString() ?? '';
       sharesController.text = data['shares']?.toString() ?? '';
       deliveryFeeController.text = data['delivery_fee']?.toString() ?? "0";
+      deliveryThresholdController.text =
+          data['delivery_threshold']?.toString() ?? '';
 
       existingPhotoUrls = List<String>.from(
         jsonDecode(data['photo_urls'] ?? "[]"),
@@ -162,6 +166,9 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
           "photoUrls": allImages,
           "deliveryType": selectedDeliveryType ?? "Free",
           "deliveryFee": double.parse(deliveryFeeController.text),
+          "deliveryThreshold": isDeliveryPaid
+              ? double.tryParse(deliveryThresholdController.text) ?? null
+              : null,
         }),
       );
 
@@ -267,10 +274,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // _buildLabel(
-                          //   "Price (${UserCurrency.currency})",
-                          //   isReq: true,
-                          // ),
+                          _buildLabel("Price", isReq: true),
                           TextFormField(
                             controller: priceController,
                             keyboardType: TextInputType.number,
@@ -343,17 +347,70 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
               ]),
               const SizedBox(height: 20),
 
-              _buildLabel("Delivery Type", isReq: true),
-              DropdownButtonFormField<String>(
-                value: ["Free", "Paid"].contains(selectedDeliveryType)
-                    ? selectedDeliveryType
-                    : null,
-                decoration: _inputDecoration("Select Delivery Type"),
-                items: ["Free", "Paid"]
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (val) => setState(() => selectedDeliveryType = val),
-              ),
+              _buildCardContainer([
+                _buildLabel("Delivery Setup", isReq: true),
+
+                // Toggle Free / Paid
+                Row(
+                  children: [
+                    Text(
+                      "Free Delivery",
+                      style: TextStyle(
+                        color: !isDeliveryPaid
+                            ? AppTheme.primaryGreen
+                            : Colors.black54,
+                      ),
+                    ),
+                    Switch(
+                      value: isDeliveryPaid,
+                      activeColor: AppTheme.primaryGreen,
+                      onChanged: (val) {
+                        setState(() {
+                          selectedDeliveryType = val ? "Paid" : "Free";
+
+                          // Clear fee and threshold if switched to Free
+                          if (!val) {
+                            deliveryFeeController.clear();
+                            deliveryThresholdController.clear();
+                          }
+                        });
+                      },
+                    ),
+                    Text(
+                      "Paid Delivery",
+                      style: TextStyle(
+                        color: isDeliveryPaid
+                            ? AppTheme.primaryGreen
+                            : Colors.black54,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Paid delivery details
+                if (isDeliveryPaid) ...[
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: deliveryFeeController,
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDecoration("Delivery Fee Amount"),
+                    validator: (v) =>
+                        (isDeliveryPaid && (v == null || v.isEmpty))
+                        ? "Required for paid delivery"
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: deliveryThresholdController,
+                    keyboardType: TextInputType.number,
+                    decoration: _inputDecoration(
+                      "Free delivery if order > this amount",
+                    ),
+                  ),
+                ],
+              ]),
+
+              const SizedBox(height: 15),
               // _buildCardContainer([
               //   _buildLabel("Payment Method", isReq: true),
               //   Row(

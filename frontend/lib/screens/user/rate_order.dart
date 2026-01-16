@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/ratings_service.dart';
-import 'package:qurbani/theme/theme.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/services/ratings_service.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class RateOrderPage extends StatefulWidget {
   final String orderId;

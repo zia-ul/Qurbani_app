@@ -132,7 +132,7 @@ const { orderId } = req.params;
 
     // Update order
     await pool.execute(
-      `UPDATE orders SET status = ?, delivery_status = ?, delivery_person_id = ? WHERE id = ?`,
+      `UPDATE orders SET status = ?, delivery_status = ?, delivery_person_id = ?, delivery_notified = 0 WHERE id = ?`,
       [processingStatus, deliveryStatus, deliveryPersonId || null, orderId]
     );
 

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/widgets/success_error_popup.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class AddAnimalPage extends StatefulWidget {
   const AddAnimalPage({super.key});

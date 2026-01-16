@@ -135,7 +135,7 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
 
   try {
     const [verifications] = await pool.execute(
-      `SELECT status FROM admin_verifications WHERE admin_id = ?`,
+      `SELECT status FROM admin_verification_requests WHERE admin_id = ?`,
       [userId]
     );
     if (verifications.length === 0) {

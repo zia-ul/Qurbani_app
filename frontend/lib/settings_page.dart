@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:qurbani/services/admin_payment_service.dart';
-import 'package:qurbani/widgets/success_error_popup.dart';
+import 'package:Qurbani/services/admin_payment_service.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart'; // For date formatting
 
-import 'package:qurbani/services/currency_notifier.dart';
-import 'package:qurbani/services/service_profile.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:Qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/services/service_profile.dart';
+import 'package:Qurbani/theme/theme.dart';
 
 class SettingsPage extends StatefulWidget {
   final String userId;

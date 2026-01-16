@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:qurbani/services/currency_service.dart';
+import 'package:Qurbani/services/currency_service.dart';
 
 class CurrencyNotifier extends ChangeNotifier {
   String _currency = 'USD';
@@ -7,7 +7,7 @@ class CurrencyNotifier extends ChangeNotifier {
   final CurrencyService _currencyService;
 
   CurrencyNotifier({CurrencyService? service})
-      : _currencyService = service ?? currencyService {
+    : _currencyService = service ?? currencyService {
     _init();
   }
 
