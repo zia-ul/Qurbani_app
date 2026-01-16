@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qurbani/onboarding_screen.dart';
 import 'package:qurbani/screens/admin/admin_home_page.dart';
+import 'package:qurbani/screens/admin/admin_verification.dart';
 import 'package:qurbani/screens/admin/pending_admin.dart';
 import 'package:qurbani/screens/delivery/delivery_home_page.dart';
 import 'package:qurbani/screens/superadmin/superadmin_welcome_page.dart';
@@ -28,7 +29,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
 
     // Check if user is logged in via JWT
     _userFuture = AuthService.getCurrentUser();
-    // print("WrapperScreen: Checking current user...$_userFuture");
+    print("WrapperScreen: Checking current user...$_userFuture");
   }
 
   @override
@@ -56,29 +57,36 @@ class _WrapperScreenState extends State<WrapperScreen> {
 
         // Route based on role
         switch (user.role) {
-          case 'admin':
-            return AdminHomePage(adminId: user.id.toString(), name: user.name);
-          
-          case 'delivery':
-            return DeliveryHomePage(deliveryId: user.id.toString(), name: user.name);
-          
           case 'user':
-            print("WrapperScreen: Logged in as ${user.role} (${user.name})");
+            return HomePage(id: user.id, name: user.name, role: user.role);
 
-            return HomePage(
-              id: user.id.toString(),
-              name: user.name,
-              role: user.role,
-            );
-          
+          case 'delivery':
+            return DeliveryHomePage(deliveryId: user.id, name: user.name);
+
+          case 'admin':
+            final status = user.verificationStatus;
+
+            // No submission yet
+            if (status == null || status == 'not_submitted') {
+              return AdminVerificationPage(id: user.id, name: user.name, role: user.role, verification: user.verificationStatus);
+            }
+
+            // Submitted, waiting
+            if (status == 'pending') {
+              return PendingAdminScreen(id: user.id, name: user.name, role: user.role, verification: user.verificationStatus);
+            }
+
+            // Approved admin
+            if (status == 'approved') {
+              return AdminHomePage(adminId: user.id, name: user.name);
+            }
+
+            // Rejected or unknown state
+            return PendingAdminScreen(id: user.id, name: user.name, role: user.role, verification: user.verificationStatus);
+
           case 'super_admin':
-              print("WrapperScreen: Logged in as ${user.role} (${user.name})");
-              return SuperAdminDashboard();
+            return SuperAdminDashboard();
 
-          //show pending screen for pending admins
-          case 'pending_admin':
-            return const PendingAdminScreen();
-          
           default:
             return const WelcomeScreen();
         }

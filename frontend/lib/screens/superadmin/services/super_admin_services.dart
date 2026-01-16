@@ -6,6 +6,8 @@ class SuperAdminService {
   static const _storage = FlutterSecureStorage();
   static const _baseUrl = 'http://192.168.1.6:3000/api';
 
+  /// Fetch users for superadmin
+  /// If role = 'all', only fetch admins, pending admins, users, delivery boys
   static Future<List<Map<String, dynamic>>> getUsers(String role) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
@@ -21,9 +23,21 @@ class SuperAdminService {
     }
 
     final data = jsonDecode(res.body);
-    return List<Map<String, dynamic>>.from(data['users']);
+    List<Map<String, dynamic>> users =
+        List<Map<String, dynamic>>.from(data['users']);
+
+    // Filter client-side if backend returns extra roles (optional)
+    if (role == 'all') {
+      users = users.where((u) {
+        final r = u['role'];
+        return r == 'admin' || r == 'pending' || r == 'user' || r == 'delivery';
+      }).toList();
+    }
+
+    return users;
   }
 
+  /// Approve or reject a user/admin
   static Future<void> updateUser(String userId, String action) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
@@ -43,6 +57,7 @@ class SuperAdminService {
     }
   }
 
+  /// Fetch verification details for a specific admin
   static Future<Map<String, dynamic>> getVerification(String adminId) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');

@@ -70,9 +70,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     if (!termsAccepted) {
       ToastUtils.showError('Please accept Terms & Conditions');
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   const SnackBar(content: Text("Please accept Terms & Conditions")),
-      // );
+
       return;
     }
 

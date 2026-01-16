@@ -54,27 +54,30 @@ class _AdminVerificationDetailsPageState
           }
 
           final data = snapshot.data!;
-          final documents = data['documents'] as Map<String, dynamic>? ?? {};
           final status = data['status'] as String?;
-          final submittedAt =
-              data['created_at']; // Assuming backend returns this; adjust if not
+          final submittedAt = data['created_at'] as String?;
+          final reviewedBy = data['reviewed_by'] as String?;
+          final reviewNote = data['review_note'] as String?;
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _infoTile('Name', documents['name']),
-              _infoTile('Email', documents['email']),
-              _infoTile('Phone', documents['phone']),
-              _infoTile('Address', documents['address']),
-              _infoTile('Government ID', documents['governmentId']),
+              _infoTile('Organization Name', data['organization_name']),
+              _infoTile('Phone', data['phone']),
+              _infoTile('Experience', data['experience']),
+              _infoTile('Address', data['address']),
+              _infoTile('Government ID URL', data['govt_id_url']),
+              _infoTile('Business Proof URL', data['business_proof_url']),
+              _infoTile('Bank Proof URL', data['bank_proof_url']),
+              _infoTile('Farm Photo URL', data['farm_photo_url']),
               _statusTile(status),
               if (submittedAt != null)
                 _infoTile(
                   'Submitted On',
                   DateFormat('dd MMM yyyy').format(DateTime.parse(submittedAt)),
                 ),
-              const SizedBox(height: 20),
-              _documentsSection(documents['documentUrls']),
+              if (reviewedBy != null) _infoTile('Reviewed By', reviewedBy),
+              if (reviewNote != null) _infoTile('Review Note', reviewNote),
             ],
           );
         },
@@ -104,7 +107,7 @@ class _AdminVerificationDetailsPageState
     Color color;
 
     switch (status) {
-      case 'verified':
+      case 'approved':
         color = Colors.green;
         break;
       case 'pending':
@@ -129,50 +132,6 @@ class _AdminVerificationDetailsPageState
         ),
         trailing: Icon(Icons.verified, color: color),
       ),
-    );
-  }
-
-  Widget _documentsSection(dynamic urls) {
-    if (urls == null || urls is! List || urls.isEmpty) {
-      return const Text('No documents uploaded');
-    }
-
-    final List<String> documents = List<String>.from(urls);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Submitted Documents',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 10),
-        ...documents.map(
-          (url) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                url,
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder: (_, __, ___) => const SizedBox(
-                  height: 200,
-                  child: Center(child: Icon(Icons.broken_image)),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,16 +1,25 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:qurbani/services/admin_verification_service.dart';
-import 'package:qurbani/screens/admin/admin_home_page.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:qurbani/theme/theme.dart';
+import 'package:qurbani/drawer.dart';
+import 'package:qurbani/screens/admin/pending_admin.dart';
 import 'package:qurbani/widgets/success_error_popup.dart';
+import '../../services/admin_verification_service.dart';
 
 class AdminVerificationPage extends StatefulWidget {
-  const AdminVerificationPage({super.key});
+  final String id;
+  final String name;
+  final String role;
+  final String? verification;
+
+  const AdminVerificationPage({
+    super.key,
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.verification,
+  });
 
   @override
   State<AdminVerificationPage> createState() => _AdminVerificationPageState();
@@ -18,296 +27,163 @@ class AdminVerificationPage extends StatefulWidget {
 
 class _AdminVerificationPageState extends State<AdminVerificationPage> {
   final _formKey = GlobalKey<FormState>();
-  final _storage = const FlutterSecureStorage();
 
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController governmentIdController = TextEditingController();
-  final TextEditingController addressController = TextEditingController();
+  final orgController = TextEditingController();
+  final phoneController = TextEditingController();
+  final expController = TextEditingController();
+  final addressController = TextEditingController();
 
-  bool isLoading = false;
-  List<XFile> _images = [];
-  String? _verificationStatus;
-  Timer? _statusTimer;
+  XFile? govtId;
+  XFile? businessProof;
+  XFile? bankProof;
+  XFile? farmPhoto;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserInfo();
-    _startStatusPolling();
+  bool loading = false;
+
+  Future<XFile?> pickImage() async {
+    return await ImagePicker().pickImage(source: ImageSource.gallery);
   }
 
-  @override
-  void dispose() {
-    nameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    governmentIdController.dispose();
-    addressController.dispose();
-    _statusTimer?.cancel();
-    super.dispose();
-  }
+  Future<String?> upload(XFile? image) async {
+    if (image == null) return null;
 
-  Future<void> _loadUserInfo() async {
-    try {
-      final profile = await AdminVerificationService.getProfile();
-      nameController.text = profile['name'] ?? '';
-      emailController.text = profile['email'] ?? '';
-      phoneController.text = profile['phone'] ?? '';
-      addressController.text = profile['address'] ?? '';
-    } catch (e) {
-      ToastUtils.showError('Failed to load profile: $e');
-    }
-  }
+    const cloud = 'dfezveorl';
+    const preset = 'qurbani';
 
-  void _startStatusPolling() {
-    _statusTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-      try {
-        final status = await AdminVerificationService.getVerificationStatus();
-        setState(() {
-          _verificationStatus = status;
-        });
-        if (status == 'verified') {
-          timer.cancel();
-          _onVerified();
-        }
-      } catch (e) {
-        // Ignore errors during polling
-      }
-    });
-  }
+    final req =
+        http.MultipartRequest(
+            'POST',
+            Uri.parse('https://api.cloudinary.com/v1_1/$cloud/image/upload'),
+          )
+          ..fields['upload_preset'] = preset
+          ..files.add(await http.MultipartFile.fromPath('file', image.path));
 
-  Future<void> _onVerified() async {
-    // Optionally update role locally or fetch updated profile
-    final profile = await AdminVerificationService.getProfile();
-    final adminId = await _storage.read(
-      key: 'userId',
-    ); // Assuming you store userId
-    final name = profile['name'] ?? 'Admin';
+    final res = await req.send();
+    final body = await res.stream.bytesToString();
 
-    if (!mounted) return;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AdminHomePage(adminId: adminId!, name: name),
-      ),
-    );
-  }
-
-  Future<void> _pickImages() async {
-    final picker = ImagePicker();
-    final images = await picker.pickMultiImage();
-    setState(() => _images = images);
-  }
-
-  Future<List<String>> uploadImagesToCloudinary() async {
-    const cloudName = 'dfezveorl';
-    const uploadPreset = 'qurbani';
-    List<String> uploadedUrls = [];
-
-    for (final image in _images) {
-      final uri = Uri.parse(
-        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
-      );
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = uploadPreset
-        ..files.add(await http.MultipartFile.fromPath('file', image.path));
-
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        final resStr = await response.stream.bytesToString();
-        final resJson = jsonDecode(resStr);
-        uploadedUrls.add(resJson['secure_url']);
-      } else {
-        throw Exception("Failed to upload ${image.name}");
-      }
+    if (res.statusCode != 200) {
+      throw Exception("Upload failed");
     }
 
-    return uploadedUrls;
+    return jsonDecode(body)['secure_url'];
   }
 
-  Future<void> _submitVerification() async {
+  Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_images.isEmpty) {
-      ToastUtils.showError("Please upload at least one document");
 
-      return;
-    }
-
-    setState(() => isLoading = true);
+    setState(() => loading = true);
 
     try {
-      final documentUrls = await uploadImagesToCloudinary();
+      final data = {
+        "organization_name": orgController.text.trim(),
+        "phone": phoneController.text.trim(),
+        "experience": expController.text.trim(),
+        "address": addressController.text.trim(),
+        "govt_id_url": await upload(govtId),
+        "business_proof_url": await upload(businessProof),
+        "bank_proof_url": await upload(bankProof),
+        "farm_photo_url": await upload(farmPhoto),
+      };
 
-      await AdminVerificationService.submitVerification({
-        'name': nameController.text.trim(),
-        'email': emailController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'governmentId': governmentIdController.text.trim(),
-        'address': addressController.text.trim(),
-        'documentUrls': documentUrls,
-      });
+      await AdminVerificationService.submitVerification(data);
+      ToastUtils.showSuccess("Verification submitted");
 
-      setState(() {
-        _verificationStatus = 'pending';
-      });
-      ToastUtils.showSuccess("Verification submitted successfully");
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PendingAdminScreen(
+            id: widget.id,
+            name: widget.name,
+            role: widget.role,
+            verification: "pending",
+          ),
+        ),
+      );
     } catch (e) {
-      ToastUtils.showError("Error submitting verification: $e");
+      ToastUtils.showError(e.toString());
     } finally {
-      setState(() => isLoading = false);
+      setState(() => loading = false);
     }
-  }
-
-  InputDecoration _inputDecoration(String label, {String? hint}) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_verificationStatus == 'pending') {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text("Admin Verification"),
-          backgroundColor: AppTheme.primaryGreen,
-        ),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  size: 80,
-                  color: AppTheme.primaryGreen,
-                ),
-                SizedBox(height: 20),
-                Text(
-                  "Thanks for submitting!",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 12),
-                Text(
-                  "We are still verifying your details. Kindly wait for approval.",
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Register as Admin"),
-        backgroundColor: AppTheme.primaryGreen,
-      ),
+      appBar: AppBar(title: const Text("Register as Admin")),
+      drawer: MasterDrawer(id: widget.id, name: widget.name, role: widget.role),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              const Text(
-                "Admin Verification",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                "Provide your details for identity verification with government-approved documents. All information will be securely stored.",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.black54),
-              ),
-              const SizedBox(height: 24),
-
               TextFormField(
-                controller: nameController,
-                decoration: _inputDecoration("Full Name"),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Name is required" : null,
+                controller: orgController,
+                decoration: const InputDecoration(
+                  labelText: "Organization Name",
+                ),
+                validator: (v) => v!.isEmpty ? "Required" : null,
               ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: emailController,
-                readOnly: true,
-                decoration: _inputDecoration("Email Address"),
-              ),
-              const SizedBox(height: 12),
-
+              const SizedBox(height: 16),
               TextFormField(
                 controller: phoneController,
-                keyboardType: TextInputType.phone,
-                decoration: _inputDecoration("Phone Number"),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Phone number is required" : null,
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: governmentIdController,
-                decoration: _inputDecoration(
-                  "Government ID (e.g., Aadhaar, Passport)",
-                ),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Government ID is required" : null,
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: addressController,
-                decoration: _inputDecoration("Address"),
-                validator: (v) =>
-                    v == null || v.isEmpty ? "Address is required" : null,
+                decoration: const InputDecoration(labelText: "Phone"),
+                validator: (v) => v!.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
 
-              ElevatedButton.icon(
-                icon: const Icon(Icons.upload_file),
-                label: Text(
-                  _images.isEmpty
-                      ? "Upload Documents"
-                      : "${_images.length} file(s) selected",
-                ),
-                onPressed: _pickImages,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryGreen,
+              TextFormField(
+                controller: expController,
+                decoration: const InputDecoration(
+                  labelText: "Experience (years)",
+                  // border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _submitVerification,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryGreen,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Submit Verification",
-                          style: TextStyle(fontSize: 16),
-                        ),
-                ),
+              TextFormField(
+                controller: addressController,
+                decoration: const InputDecoration(labelText: "Address"),
+                validator: (v) => v!.isEmpty ? "Required" : null,
+              ),
+              const SizedBox(height: 16),
+
+              buildPicker("Government ID", () async {
+                govtId = await pickImage();
+                setState(() {});
+              }),
+              buildPicker("Business Proof", () async {
+                businessProof = await pickImage();
+                setState(() {});
+              }),
+              buildPicker("Bank Proof", () async {
+                bankProof = await pickImage();
+                setState(() {});
+              }),
+              buildPicker("Farm Photo", () async {
+                farmPhoto = await pickImage();
+                setState(() {});
+              }),
+
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: loading ? null : submit,
+                child: loading
+                    ? const CircularProgressIndicator()
+                    : const Text("Submit Verification"),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget buildPicker(String label, VoidCallback onTap) {
+    return ListTile(
+      title: Text(label),
+      trailing: const Icon(Icons.upload),
+      onTap: onTap,
     );
   }
 }

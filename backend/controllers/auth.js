@@ -86,7 +86,8 @@ router.post(
       const passwordHash = await bcrypt.hash(password, 12);
 
       // Admin approval logic
-      const adminStatus = role === "admin" ? "pending" : null;
+      const adminStatus = role === "admin" ? "pending_admin" : null;
+      // const is_verified = role === "admin" ? 1 : 0;
       const userId = uuidv4();
       const verificationToken = uuidv4();
 
@@ -109,7 +110,7 @@ router.post(
           adminStatus,
           currency || "USD",
           city || null,
-          false, // is_verified default
+          false, 
           verificationToken,
         ]
       );
@@ -180,6 +181,23 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    let adminVerificationStatus = null;
+
+if (user.role === 'admin') {
+  const [rows] = await db.query(
+    `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
+    [user.id]
+  );
+
+  if (rows.length === 0) {
+    adminVerificationStatus = 'not_submitted';
+  } else {
+    adminVerificationStatus = rows[0].status; // pending / approved / rejected
+  }
+}
+
+
+
     if (!process.env.JWT_SECRET) {
       throw new Error("JWT_SECRET is not defined in environment variables");
     }
@@ -211,6 +229,7 @@ router.post("/login", async (req, res) => {
         role: user.role,
         city: user.city,
         currency: user.currency,
+        admin_verification_status: adminVerificationStatus
       },
     });
   } catch (err) {
@@ -240,22 +259,34 @@ router.post("/login", async (req, res) => {
 
 // GET CURRENT USER
 router.get("/me", authMiddleware, async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      "SELECT id, name, email, role FROM users WHERE id = ?",
+  const [users] = await pool.execute(
+    `SELECT id, name, email, role FROM users WHERE id = ?`,
+    [req.user.id]
+  );
+
+  if (users.length === 0) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  let verificationStatus = null;
+
+  if (users[0].role === "admin") {
+    const [rows] = await pool.execute(
+      `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
       [req.user.id]
     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({ user: rows[0] });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    verificationStatus = rows.length ? rows[0].status : "not_submitted";
   }
+
+  res.json({
+    user: {
+      ...users[0],
+      verification_status: verificationStatus,
+    },
+  });
 });
+
 
 // PUT /api/auth/change-password
 router.put("/change-password", authMiddleware, async (req, res) => {

@@ -78,36 +78,56 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
   }
 });
 
+
+
 // ADMIN VERIFICATION ROUTES
 
 // POST /api/admin/verification - Submit admin verification
-router.post("/verification", authMiddleware, async (req, res) => {
+router.post("/admin/verification", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { name, email, phone, governmentId, address, documentUrls } = req.body;
+  const {
+    organization_name,
+    phone,
+    experience,
+    address,
+    govt_id_url,
+    business_proof_url,
+    bank_proof_url,
+    farm_photo_url
+  } = req.body;
 
-  try {
-    const verificationId = uuidv4();
-    await pool.execute(
-      `INSERT INTO admin_verifications (id, admin_id, documents, status) VALUES (?, ?, ?, 'pending')`,
-      [
-        verificationId,
-        userId,
-        JSON.stringify({
-          name,
-          email,
-          phone,
-          governmentId,
-          address,
-          documentUrls,
-        }),
-      ]
-    );
-    res.status(201).json({ message: "Verification submitted" });
-  } catch (err) {
-    console.error("Error submitting verification:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
+  await pool.execute(
+    `INSERT INTO admin_verification_requests
+     (user_id, organization_name, phone, experience, address,
+      govt_id_url, business_proof_url, bank_proof_url, farm_photo_url, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+     ON DUPLICATE KEY UPDATE
+       organization_name = VALUES(organization_name),
+       phone = VALUES(phone),
+       experience = VALUES(experience),
+       address = VALUES(address),
+       govt_id_url = VALUES(govt_id_url),
+       business_proof_url = VALUES(business_proof_url),
+       bank_proof_url = VALUES(bank_proof_url),
+       farm_photo_url = VALUES(farm_photo_url),
+       status = 'pending'
+    `,
+    [
+      userId,
+      organization_name,
+      phone,
+      experience,
+      address,
+      govt_id_url,
+      business_proof_url,
+      bank_proof_url,
+      farm_photo_url
+    ]
+  );
+
+  res.json({ message: "Verification submitted for review" });
 });
+
 
 // GET /api/admin/verification/status - Check verification status
 router.get("/verification/status", authMiddleware, async (req, res) => {
@@ -144,28 +164,33 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
     return res.status(403).json({ message: "Access denied" });
   }
 
-  let query = `SELECT id, name, email, phone, role, created_at FROM users WHERE role != 'superadmin'`;
+  let query = `SELECT id, name, email, phone, role, created_at FROM users`;
   let params = [];
 
-  if (role && role !== "all") {
-    if (role === "pending") {
-      query += ` AND role = 'pending'`;
-    } else {
-      query += ` AND role = ?`;
-      params = [role];
+  if (!role || role === "all") {
+    // all roles visible to superadmin
+    query += ` WHERE role IN ('admin', 'pending', 'user', 'delivery')`;
+  } else {
+    const allowedRoles = ['admin', 'pending', 'user', 'delivery'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
     }
+    query += ` WHERE role = ?`;
+    params = [role];
   }
 
   query += ` ORDER BY created_at DESC`;
 
   try {
     const [users] = await pool.execute(query, params);
+    console.log("Fetched users:", users); // ✅ debug print
     res.json({ users });
   } catch (err) {
     console.error("Error fetching users:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 // PUT /api/superadmin/users/:id - Update user role or delete (for super admin)
 router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
@@ -219,11 +244,14 @@ router.get(
       return res.status(403).json({ message: "Access denied" });
     }
 
+    console.log("Fetching verification for adminId:", adminId);
+
     try {
       const [verifications] = await pool.execute(
-        `SELECT documents, status FROM admin_verifications WHERE admin_id = ?`,
+        `SELECT * FROM admin_verification_requests WHERE user_id = ?`,
         [adminId]
       );
+      console.log("Verification result:", verifications);
       if (verifications.length === 0) {
         return res.status(404).json({ message: "No verification found" });
       }

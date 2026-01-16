@@ -44,27 +44,16 @@ class MasterDrawer extends StatelessWidget {
 
   Future<String?> _getProfilePicture() async {
     try {
-      if (role == 'delivery') {
-        final profile = await ProfileService.getProfile();
-        return profile['photoUrl'];
-      } else {
-        // Admin or User: Use Firestore
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(id)
-            .get();
-        if (doc.exists) {
-          final data = doc.data()!;
-          return data['photoUrl'] ??
-              data['profilePicture'] ??
-              data['profileImageUrl'] ??
-              data['imageUrl'];
-        }
-      }
+      final profile = await ProfileService.getProfile();
+      // print("profileeeee....$profile");
+      return profile['photo_url'] ??
+          profile['photoUrl'] ??
+          profile['profile_image'] ??
+          profile['image'];
     } catch (e) {
       debugPrint("Error fetching profile picture: $e");
+      return null;
     }
-    return null;
   }
 
   String _getWelcomeText() {
@@ -160,21 +149,21 @@ class MasterDrawer extends StatelessWidget {
             ),
           ),
 
-          // Menu Items (Conditional)
-          if (role == 'admin') ...[
-            _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
+          // Menu Items
+          if (role == 'admin' || role == 'pending') ...[
+            _drawerItem(context, Icons.person, "Profile", ProfilePage()),
             _drawerItem(
               context,
               Icons.assignment,
               "Animal Inventory",
               AnimalListingPage(),
             ),
-            _drawerItem(
-              context,
-              Icons.schedule,
-              "Slot Management",
-              AdminSlotPage(adminId: id),
-            ),
+            // _drawerItem(
+            //   context,
+            //   Icons.schedule,
+            //   "Slot Management",
+            //   AdminSlotPage(adminId: id),
+            // ),
             _drawerItem(
               context,
               Icons.lock_reset,

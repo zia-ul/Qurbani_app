@@ -22,7 +22,7 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const Spacer(),
 
-                // App Logo
+                
                 Image.asset(
                   'assets/images/app_logo.png',
                   height:

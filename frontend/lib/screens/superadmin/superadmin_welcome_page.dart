@@ -15,8 +15,6 @@ class SuperAdminDashboard extends StatefulWidget {
 }
 
 class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
-  static const Color primaryGreen = AppTheme.primaryGreen;
-
   RoleFilter _selectedFilter = RoleFilter.all;
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
@@ -35,10 +33,11 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     });
 
     try {
-      final role = _selectedFilter == RoleFilter.all
-          ? 'all'
+      // Only allow superadmin-visible roles
+      final filterRole = _selectedFilter == RoleFilter.all
+          ? 'all' // use 'superadmin' as a special keyword for backend to return only visible roles
           : _selectedFilter.name;
-      _users = await SuperAdminService.getUsers(role);
+      _users = await SuperAdminService.getUsers(filterRole);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -65,20 +64,20 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         backgroundColor: AppTheme.primaryGreen,
         actions: [_filterDropdown()],
       ),
-      drawer: SuperadminDrawer(),
+      drawer: const SuperadminDrawer(),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-          ? Center(child: Text('Error: $_errorMessage'))
-          : _users.isEmpty
-          ? const Center(child: Text('No users found'))
-          : ListView.builder(
-              itemCount: _users.length,
-              itemBuilder: (_, i) {
-                final user = _users[i];
-                return _userCard(context, user['id'], user);
-              },
-            ),
+              ? Center(child: Text('Error: $_errorMessage'))
+              : _users.isEmpty
+                  ? const Center(child: Text('No users found'))
+                  : ListView.builder(
+                      itemCount: _users.length,
+                      itemBuilder: (_, i) {
+                        final user = _users[i];
+                        return _userCard(context, user['id'], user);
+                      },
+                    ),
     );
   }
 
@@ -113,7 +112,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     String userId,
     Map<String, dynamic> data,
   ) {
-    final role = data['role'];
+    final role = data['role'] ?? 'user';
 
     return Card(
       margin: const EdgeInsets.all(12),
@@ -157,8 +156,10 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
               backgroundColor: role == 'pending'
                   ? Colors.orange[100]
                   : role == 'admin'
-                  ? Colors.green[100]
-                  : Colors.blue[100],
+                      ? Colors.green[100]
+                      : role == 'delivery'
+                          ? Colors.blue[100]
+                          : Colors.grey[200],
             ),
             const SizedBox(height: 8),
             Row(
@@ -235,7 +236,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         _fetchUsers();
       } catch (e) {
         ToastUtils.showError("Error: $e");
-
       }
     }
   }
