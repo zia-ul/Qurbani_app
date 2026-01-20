@@ -10,22 +10,23 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+
+
 // GET /api/orders/admin/my
 router.get("/my", auth, adminOnly, async (req, res) => {
-    const adminId = req.user.id; // Assuming JWT provides admin's user ID
+  const adminId = req.user.id;
+
+  logger.info("Admin fetching own orders", { adminId });
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at,
-              u.name as admin_name, u.email as admin_email
+      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at
        FROM orders o
-       JOIN users u ON o.admin_id = u.id
        WHERE o.admin_id = ?
        ORDER BY o.created_at DESC`,
       [adminId]
     );
 
-    // For each order, fetch shareholders and map to expected structure
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
         const [shareholders] = await pool.execute(
@@ -33,149 +34,149 @@ router.get("/my", auth, adminOnly, async (req, res) => {
           [order.id]
         );
 
-        // Map to Flutter-expected structure (add defaults for missing fields)
         return {
           orderId: order.id,
           adminId: order.admin_id,
-          deliveryStatus: 'pending', // Default; add column to orders table if needed
-          processingStatus: order.status, // Maps to status (pending, confirmed, etc.)
-          isCompleted: order.status === 'completed', // For filtering
+          deliveryStatus: "pending",
+          processingStatus: order.status,
+          isCompleted: order.status === "completed",
           createdAt: order.created_at,
-          contact: { primary: '' }, // Placeholder; join users table for phone if available
-          shareholders, // Include for details if needed
-          // Add other fields as needed (e.g., totalShares: order.total_shares)
+          shareholders,
         };
       })
     );
 
+    logger.info("Admin orders fetched", {
+      adminId,
+      orderCount: ordersWithDetails.length,
+    });
+
     res.json({ orders: ordersWithDetails });
   } catch (err) {
-    console.error("Error fetching admin orders:", err);
+    logger.error("Failed to fetch admin orders", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
 
 // GET /api/orders/admin/:orderId
 router.get("/:orderId", auth, adminOnly, async (req, res) => {
   const { orderId } = req.params;
-  const adminId = req.user.id; // Admin's user ID from JWT
+  const adminId = req.user.id;
 
-  console.log("Fetching order for admin:", adminId, "orderId:", orderId);
+  logger.info("Admin fetching order details", {
+    adminId,
+    orderId,
+  });
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.delivery_status, o.delivery_person_id, o.created_at,
-              u.name as user_name, u.email as user_email, u.phone as contact_no,
-              a.name as admin_name
+      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.status, o.delivery_status, o.delivery_person_id
        FROM orders o
-       JOIN users u ON o.user_id = u.id
-       JOIN users a ON o.admin_id = a.id
-       WHERE o.id = ? AND o.admin_id = ?`,  // Restrict to admin's own orders
+       WHERE o.id = ? AND o.admin_id = ?`,
       [orderId, adminId]
     );
 
-    console.log(orders);
-
-    if (orders.length === 0) {
+    if (!orders.length) {
+      logger.warn("Admin tried to access unauthorized order", {
+        adminId,
+        orderId,
+      });
       return res.status(404).json({ message: "Order not found or not authorized" });
     }
 
-    const order = orders[0];
-
-    // Fetch shareholders for the order
     const [shareholders] = await pool.execute(
       `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-      [order.id]
+      [orderId]
     );
 
-    // Structure the response to match admin frontend expectations
-    const orderWithDetails = {
-      orderId: order.id,
-      user_name: order.user_name,
-      animal_type: 'Sheep',  // Dummy, as per schema
-      parts: shareholders.map(s => s.name).join(', '),  // Map to parts
-      total_amount: 100 * order.total_shares,  // Dummy calculation
-      payment_status: 'Paid',  // Default
-      delivery_address: 'N/A',  // Default; add to schema if needed
-      contact_no: order.contact_no || 'N/A',
-      processing_status: order.status,
-      delivery_status: order.delivery_status || 'pending',
-      delivery_person_id: order.delivery_person_id,
-      shareholders,  // Include for reference
-    };
+    logger.info("Admin order details fetched", {
+      adminId,
+      orderId,
+      shareholderCount: shareholders.length,
+    });
 
-    res.json({ order: orderWithDetails });
+    res.json({
+      order: {
+        orderId,
+        processing_status: orders[0].status,
+        delivery_status: orders[0].delivery_status || "pending",
+        delivery_person_id: orders[0].delivery_person_id,
+        shareholders,
+      },
+    });
   } catch (err) {
-    console.error("Error fetching admin order:", err);
+    logger.error("Failed to fetch admin order", {
+      adminId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
+
+
+
 router.put("/:orderId", auth, adminOnly, async (req, res) => {
-const { orderId } = req.params;
+  const { orderId } = req.params;
   const { processingStatus, deliveryStatus, deliveryPersonId } = req.body;
   const adminId = req.user.id;
 
-  if (!processingStatus || !deliveryStatus) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
+  logger.info("Admin updating order status", {
+    adminId,
+    orderId,
+    processingStatus,
+    deliveryStatus,
+  });
 
   try {
-    // Check if order belongs to admin
     const [orders] = await pool.execute(
       `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
       [orderId, adminId]
     );
-    if (orders.length === 0) {
+
+    if (!orders.length) {
+      logger.warn("Admin attempted unauthorized order update", {
+        adminId,
+        orderId,
+      });
       return res.status(404).json({ message: "Order not found or not authorized" });
     }
 
-    // Update order
     await pool.execute(
-      `UPDATE orders SET status = ?, delivery_status = ?, delivery_person_id = ?, delivery_notified = 0 WHERE id = ?`,
+      `UPDATE orders 
+       SET status = ?, delivery_status = ?, delivery_person_id = ?, delivery_notified = 0
+       WHERE id = ?`,
       [processingStatus, deliveryStatus, deliveryPersonId || null, orderId]
     );
 
+    logger.info("Order updated successfully", {
+      adminId,
+      orderId,
+    });
+
     res.json({ message: "Order updated successfully" });
   } catch (err) {
-    console.error("Error updating order:", err);
+    logger.error("Failed to update order", {
+      adminId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
-// GET /api/admins/notifications - Fetch pending notifications for admin
-router.get("/notifications", auth, async (req, res) => {
-  const adminId = req.user.id;
 
-  try {
-    // Assuming a 'notifications' table with columns: id, type, order_id, admin_id, is_notified, created_at
-    const [notifications] = await pool.execute(
-      `SELECT id, type, order_id FROM notifications WHERE admin_id = ? AND is_notified = FALSE ORDER BY created_at DESC`,
-      [adminId]
-    );
-
-    res.json({ notifications });
-  } catch (err) {
-    console.error("Error fetching notifications:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
-
-// PUT /api/admin/notifications/:id/mark-notified - Mark notification as notified
-router.put("/notifications/:id/mark-notified", auth, async (req, res) => {
-  const { id } = req.params;
-  const adminId = req.user.id;
-
-  try {
-    await pool.execute(
-      `UPDATE notifications SET is_notified = TRUE WHERE id = ? AND admin_id = ?`,
-      [id, adminId]
-    );
-    res.json({ message: "Notification marked as notified" });
-  } catch (err) {
-    console.error("Error updating notification:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
 
 module.exports = router;

@@ -219,34 +219,54 @@ router.get("/:id", authMiddleware, isAdmin, getAnimalById);
 // GET /api/animals/:animalId/orders - Fetch orders for an animal (admin only)
 router.get("/:animalId/orders", authMiddleware, async (req, res) => {
   const { animalId } = req.params;
-  const adminId = req.user.id; 
+  const adminId = req.user.id;
+
+  logger.info("Fetching orders for animal", {
+    animalId,
+    adminId,
+  });
 
   try {
     const [orders] = await pool.execute(
-      `SELECT 
-      o.id AS order_id,
-      o.user_id,
-      o.processing_status,
-      o.delivery_status,
-      o.created_at,
-      u.name AS user_name,
-      s.shareholder_name,
-      s.guardian_name,
-      s.qurbani_day,
-      s.price
-   FROM orders o
-   JOIN users u ON o.user_id = u.id
-   JOIN order_shareholders s ON s.order_id = o.id
-   WHERE s.animal_id = ? AND o.admin_id = ?
-   ORDER BY o.created_at DESC`,
+      `
+      SELECT 
+        o.id AS order_id,
+        o.user_id,
+        o.processing_status,
+        o.delivery_status,
+        o.created_at,
+        u.name AS user_name,
+        s.shareholder_name,
+        s.guardian_name,
+        s.qurbani_day,
+        s.price
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      JOIN order_shareholders s ON s.order_id = o.id
+      WHERE s.animal_id = ? AND o.admin_id = ?
+      ORDER BY o.created_at DESC
+      `,
       [animalId, adminId]
     );
 
+    logger.info("Orders fetched for animal", {
+      animalId,
+      adminId,
+      orderCount: orders.length,
+    });
+
     res.json({ orders });
   } catch (err) {
-    console.error("Error fetching animal orders:", err);
+    logger.error("Error fetching orders for animal", {
+      animalId,
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 module.exports = router;

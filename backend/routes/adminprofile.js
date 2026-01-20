@@ -72,6 +72,10 @@ const router = express.Router();
 router.get("/:id", authMiddleware, async (req, res) => {
   const adminId = req.params.id;
 
+  logger.info("Fetching admin profile", {
+    adminId,
+  });
+
   try {
     // Fetch admin user
     const [users] = await db.query(
@@ -82,6 +86,10 @@ router.get("/:id", authMiddleware, async (req, res) => {
     );
 
     if (users.length === 0) {
+      logger.warn("Admin not found", {
+        adminId,
+      });
+
       return res.status(404).json({ message: "Admin not found" });
     }
 
@@ -94,27 +102,31 @@ router.get("/:id", authMiddleware, async (req, res) => {
     );
 
     const totalOrders = orders.length;
-    const completedOrders = orders.filter(o => o.status === "completed").length;
+    const completedOrders = orders.filter(
+      (o) => o.status === "completed"
+    ).length;
 
-    // Calculate average rating (if you have a ratings table)
-    // const [ratings] = await db.query(
-    //   `SELECT AVG(rating) AS avgRating FROM ratings WHERE admin_id = ?`,
-    //   [adminId]
-    // );
+    logger.info("Admin profile fetched successfully", {
+      adminId,
+      totalOrders,
+      completedOrders,
+    });
 
-    // const avgRating = ratings[0].avgRating || 0;
-
-    // Return data
     return res.json({
       ...admin,
       totalOrders,
       completedOrders,
-      // averageRating: parseFloat(avgRating.toFixed(1)),
     });
   } catch (err) {
-    console.error("Admin profile error:", err);
+    logger.error("Error fetching admin profile", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     return res.status(500).json({ message: "Server error" });
   }
 });
+
 
 module.exports = router;

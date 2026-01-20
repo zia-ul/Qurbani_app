@@ -78,41 +78,52 @@ router.get("/verified", fetchVerifiedAdmins);
 
 // GET /api/admin/dashboard-stats - Fetch quick stats for admin dashboard
 router.get("/dashboard-stats", authMiddleware, async (req, res) => {
-  const adminId = req.user.id; // From JWT payload
+  const adminId = req.user.id;
+
+  logger.info("Fetching admin dashboard stats", { adminId });
 
   try {
-    // Query for animal count (animals added by this admin)
     const [animalResult] = await pool.execute(
       "SELECT COUNT(*) AS count FROM animals WHERE admin_id = ?",
       [adminId]
     );
-    const animalCount = animalResult[0].count;
 
-    // Query for order count (orders placed for this admin's animals)
     const [orderResult] = await pool.execute(
       "SELECT COUNT(*) AS count FROM orders WHERE admin_id = ?",
       [adminId]
     );
-    const orderCount = orderResult[0].count;
 
-    // Query for request count (requests linked to this admin's orders via join)
     const [requestResult] = await pool.execute(
-      "SELECT COUNT(*) AS count FROM requests r JOIN orders o ON r.order_id = o.id WHERE o.admin_id = ?",
+      `SELECT COUNT(*) AS count 
+       FROM requests r 
+       JOIN orders o ON r.order_id = o.id 
+       WHERE o.admin_id = ?`,
       [adminId]
     );
-    const requestCount = requestResult[0].count;
 
-    // Return stats as JSON
-    res.json({
-      animals: animalCount,
-      orders: orderCount,
-      requests: requestCount,
+    const stats = {
+      animals: animalResult[0].count,
+      orders: orderResult[0].count,
+      requests: requestResult[0].count,
+    };
+
+    logger.info("Admin dashboard stats fetched", {
+      adminId,
+      ...stats,
     });
+
+    res.json(stats);
   } catch (err) {
-    console.error("Error fetching dashboard stats:", err);
+    logger.error("Error fetching admin dashboard stats", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 /**
  * @swagger
@@ -174,9 +185,12 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
 router.get("/:adminId/animals", authMiddleware, async (req, res) => {
   const { adminId } = req.params;
 
+  logger.info("Fetching animals for admin", { adminId });
+
   try {
     const [animals] = await pool.execute(
-      `SELECT 
+      `
+      SELECT 
         id,
         animal_type,
         breed,
@@ -184,16 +198,28 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
         delivery_type,
         delivery_fee,
         delivery_threshold
-        FROM animals
-        WHERE admin_id = ?
-        `,
+      FROM animals
+      WHERE admin_id = ?
+      `,
       [adminId]
     );
+
+    logger.info("Animals fetched for admin", {
+      adminId,
+      count: animals.length,
+    });
+
     res.json({ animals });
   } catch (err) {
-    console.error("Error fetching animals:", err);
+    logger.error("Error fetching animals for admin", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 module.exports = router;

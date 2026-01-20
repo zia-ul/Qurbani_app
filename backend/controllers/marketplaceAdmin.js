@@ -4,18 +4,23 @@ const db = require("../config/db");
  * Get all VERIFIED admins
  */
 exports.getVerifiedAdmins = async () => {
-  const [rows] = await db.query(`
-    SELECT 
-      id,
-      name,
-      city
-    FROM users
-    WHERE role = 'admin'
-      AND admin_status = 'approved'
-    ORDER BY name ASC
-  `);
+  try {
+    const [rows] = await db.query(`
+      SELECT 
+        id,
+        name,
+        city
+      FROM users
+      WHERE role = 'admin'
+        AND admin_status = 'approved'
+      ORDER BY name ASC
+    `);
 
-  return rows;
+    return rows;
+  } catch (err) {
+    logger.error("DB error fetching verified admins", { error: err.message });
+    throw new Error("Failed to fetch verified admins");
+  }
 };
 
 
@@ -27,7 +32,7 @@ exports.fetchVerifiedAdmins = async (req, res) => {
     const admins = await exports.getVerifiedAdmins();
     res.status(200).json({ admins });
   } catch (err) {
-    console.error("Fetch verified admins error:", err);
+    logger.error("Fetch verified admins error", { error: err.message });
     res.status(500).json({ message: "Server error" });
   }
 };

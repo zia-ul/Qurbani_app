@@ -34,33 +34,30 @@ const authMiddleware = require("../middleware/authmiddleware");
  *         description: Unauthorized
  */
 
-
 // GET /api/profile - Fetch authenticated user's profile
 router.get("/profile", authMiddleware, async (req, res) => {
   const userId = req.user.id;
+
   try {
     const [users] = await pool.execute(
       "SELECT name, email, phone, address, description, role, order_deadline FROM users WHERE id = ?",
-      [userId]
+      [userId],
     );
-    if (users.length === 0) {
+
+    if (!users.length) {
+      logger.warn("Profile not found", { userId });
       return res.status(404).json({ message: "User not found" });
     }
-    const user = users[0];
-    res.json({
-      profile: {
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        address: user.address,
-        description: user.description,
-        photoUrl: user.photo_url,
-        isAdmin: user.role === "admin",
-        orderDeadline: user.order_deadline,
-      },
-    });
+
+    logger.info("Profile fetched", { userId });
+
+    res.json({ profile: { ...users[0], isAdmin: users[0].role === "admin" } });
   } catch (err) {
-    console.error("Error fetching profile:", err);
+    logger.error("Profile fetch failed", {
+      userId,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -89,38 +86,33 @@ router.get("/profile", authMiddleware, async (req, res) => {
  *         description: Currency updated
  */
 
-
 // PUT /api/profile - Update authenticated user's profile
 router.put("/profile", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { name, phone, address, description, photoUrl, orderDeadline } =
-    req.body;
-
-  if (!name || name.trim().length < 3) {
-    return res
-      .status(400)
-      .json({ message: "Name must be at least 3 characters" });
-  }
 
   try {
     await pool.execute(
-      "UPDATE users SET name = ?, phone = ?, address = ?, description = ?, order_deadline = ? WHERE id = ?",
+      "UPDATE users SET name=?, phone=?, address=?, description=?, order_deadline=? WHERE id=?",
       [
-        name.trim(),
-        phone?.trim(),
-        address?.trim(),
-        description?.trim(),
-        orderDeadline,
+        req.body.name,
+        req.body.phone,
+        req.body.address,
+        req.body.description,
+        req.body.orderDeadline,
         userId,
-      ]
+      ],
     );
+
+    logger.info("Profile updated", { userId });
     res.json({ message: "Profile updated successfully" });
   } catch (err) {
-    console.error("Error updating profile:", err);
+    logger.error("Profile update failed", {
+      userId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
 
 /**
  * @swagger
@@ -135,13 +127,12 @@ router.put("/profile", authMiddleware, async (req, res) => {
  *         description: Orders list
  */
 
-
 // GET /api/delivery-boys - Fetch all delivery boys (users with role 'delivery')
 router.get("/delivery-boys", authMiddleware, async (req, res) => {
   try {
     const [deliveryBoys] = await pool.execute(
       `SELECT id, name, phone, address FROM users WHERE role = 'delivery'`,
-      []
+      [],
     );
     res.json({ deliveryBoys });
   } catch (err) {
@@ -149,8 +140,6 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-
 
 // ADMIN VERIFICATION ROUTES
 
@@ -184,7 +173,6 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
  *         description: Status updated
  */
 
-
 /**
  * @swagger
  * /api/delivery/orders/{id}/status:
@@ -214,7 +202,6 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
  *       200:
  *         description: Status updated
  */
-
 
 /**
  * @swagger
@@ -246,9 +233,6 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
  *         description: Order delivered
  */
 
-
-
-
 /**
  * @swagger
  * /api/admin/verification:
@@ -277,7 +261,6 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
  *         description: Verification submitted
  */
 
-
 // POST /api/admin/verification - Submit admin verification
 router.post("/admin/verification", authMiddleware, async (req, res) => {
   const userId = req.user.id;
@@ -289,11 +272,12 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
     govt_id_url,
     business_proof_url,
     bank_proof_url,
-    farm_photo_url
+    farm_photo_url,
   } = req.body;
 
-  await pool.execute(
-    `INSERT INTO admin_verification_requests
+  try {
+    await pool.execute(
+      `INSERT INTO admin_verification_requests
      (user_id, organization_name, phone, experience, address,
       govt_id_url, business_proof_url, bank_proof_url, farm_photo_url, status)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
@@ -308,20 +292,28 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
        farm_photo_url = VALUES(farm_photo_url),
        status = 'pending'
     `,
-    [
-      userId,
-      organization_name,
-      phone,
-      experience,
-      address,
-      govt_id_url,
-      business_proof_url,
-      bank_proof_url,
-      farm_photo_url
-    ]
-  );
+      [
+        userId,
+        organization_name,
+        phone,
+        experience,
+        address,
+        govt_id_url,
+        business_proof_url,
+        bank_proof_url,
+        farm_photo_url,
+      ],
+    );
 
-  res.json({ message: "Verification submitted for review" });
+    logger.info("Admin verification submitted", { userId });
+    res.json({ message: "Verification submitted for review" });
+  } catch (err) {
+    logger.error("Admin verification failed", {
+      userId,
+      error: err.message,
+    });
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 /**
@@ -337,7 +329,6 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
  *         description: Verification status
  */
 
-
 // GET /api/admin/verification/status - Check verification status
 router.get("/verification/status", authMiddleware, async (req, res) => {
   const userId = req.user.id;
@@ -345,7 +336,7 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
   try {
     const [verifications] = await pool.execute(
       `SELECT status FROM admin_verification_requests WHERE admin_id = ?`,
-      [userId]
+      [userId],
     );
     if (verifications.length === 0) {
       return res.json({ status: null });
@@ -358,7 +349,6 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
 });
 
 // SUPERADMIN ROUTES
-
 
 /**
  * @swagger
@@ -388,10 +378,14 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
     // Check super admin
     const [superAdmins] = await pool.execute(
       `SELECT role FROM users WHERE id = ?`,
-      [superAdminId]
+      [superAdminId],
     );
 
     if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
+      logger.warn("Unauthorized superadmin access attempt", {
+        userId: superAdminId,
+        route: req.originalUrl,
+      });
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -415,7 +409,7 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
 
     // Role filter (ONLY 3 ROLES)
     if (role && role !== "all") {
-      const allowedRoles = ['user', 'admin', 'delivery'];
+      const allowedRoles = ["user", "admin", "delivery"];
       if (!allowedRoles.includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
       }
@@ -465,7 +459,6 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
  *         description: Action completed
  */
 
-
 // PUT /api/superadmin/users/:id - Update user role or delete (for super admin)
 router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
   const { id: userId } = req.params;
@@ -476,21 +469,32 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
     // Check super admin
     const [superAdmins] = await pool.execute(
       `SELECT role FROM users WHERE id = ?`,
-      [superAdminId]
+      [superAdminId],
     );
 
     if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
-      return res.status(403).json({ message: "Access denied" });
+      logger.warn("Unauthorized superadmin access attempt", {
+        superAdminId,
+        targetUserId: userId,
+        action,
+      });
     }
 
     // Ensure verification exists
     const [requests] = await pool.execute(
       `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-      [userId]
+      [userId],
     );
 
     if (!requests.length) {
-      return res.status(404).json({ message: "Verification request not found" });
+      logger.warn("Verification request not found", {
+        superAdminId,
+        targetUserId: userId,
+      });
+
+      return res
+        .status(404)
+        .json({ message: "Verification request not found" });
     }
 
     // APPROVE
@@ -502,7 +506,7 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
              review_note = ?,
              updated_at = NOW()
          WHERE user_id = ?`,
-        [superAdminId, review_note || null, userId]
+        [superAdminId, review_note || null, userId],
       );
 
       await pool.execute(
@@ -510,8 +514,13 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
          SET role = 'admin',
              admin_status = 'approved'
          WHERE id = ?`,
-        [userId]
+        [userId],
       );
+
+      logger.info("Admin verification approved", {
+        superAdminId,
+        targetUserId: userId,
+      });
 
       return res.json({ message: "Admin approved successfully" });
     }
@@ -525,7 +534,7 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
              review_note = ?,
              updated_at = NOW()
          WHERE user_id = ?`,
-        [superAdminId, review_note || null, userId]
+        [superAdminId, review_note || null, userId],
       );
 
       await pool.execute(
@@ -533,15 +542,26 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
          SET admin_status = 'rejected',
              role = 'pending_admin'
          WHERE id = ?`,
-        [userId]
+        [userId],
       );
+
+      logger.info("Admin verification rejected", {
+        superAdminId,
+        targetUserId: userId,
+      });
 
       return res.json({ message: "Admin rejected successfully" });
     }
 
     return res.status(400).json({ message: "Invalid action" });
   } catch (err) {
-    console.error("Super admin action error:", err);
+    logger.error("Superadmin verification process failed", {
+      superAdminId,
+      targetUserId: userId,
+      action,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -571,39 +591,50 @@ router.get(
     const { adminId } = req.params;
     const superAdminId = req.user.id;
 
-    // Check superadmin
-    const [superAdmins] = await pool.execute(
-      `SELECT role FROM users WHERE id = ?`,
-      [superAdminId]
-    );
-    if (superAdmins.length === 0 || superAdmins[0].role !== "super_admin") {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    console.log("Fetching verification for adminId:", adminId);
-
     try {
+      const [superAdmins] = await pool.execute(
+        `SELECT role FROM users WHERE id = ?`,
+        [superAdminId],
+      );
+
+      if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
+        logger.warn("Unauthorized superadmin verification access", {
+          superAdminId,
+          targetAdminId: adminId,
+        });
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      logger.info("Superadmin fetching verification", {
+        superAdminId,
+        targetAdminId: adminId,
+      });
+
       const [verifications] = await pool.execute(
         `SELECT * FROM admin_verification_requests WHERE user_id = ?`,
-        [adminId]
+        [adminId],
       );
-      console.log("Verification result:", verifications);
-      if (verifications.length === 0) {
+
+      if (!verifications.length) {
+        logger.warn("Verification not found", {
+          superAdminId,
+          targetAdminId: adminId,
+        });
         return res.status(404).json({ message: "No verification found" });
       }
+
       res.json({ verification: verifications[0] });
     } catch (err) {
-      console.error("Error fetching verification:", err);
+      logger.error("Failed to fetch admin verification", {
+        superAdminId,
+        targetAdminId: adminId,
+        error: err.message,
+        stack: err.stack,
+      });
       res.status(500).json({ message: "Internal server error" });
     }
-  }
+  },
 );
-
-
-
-
-
-
 
 // GET /api/delivery/orders - Fetch orders for delivery person
 router.get("/delivery/orders", authMiddleware, async (req, res) => {
@@ -636,17 +667,21 @@ router.get("/delivery/orders", authMiddleware, async (req, res) => {
       WHERE o.delivery_person_id = ?
       ORDER BY o.created_at DESC
       `,
-      [deliveryPersonId]
+      [deliveryPersonId],
     );
-
+    logger.info("Delivery orders fetched", {
+      deliveryPersonId,
+      count: orders.length,
+    });
     res.json({ orders });
   } catch (err) {
-    console.error("Error fetching delivery orders:", err);
+    logger.error("Failed to fetch delivery orders", {
+      deliveryPersonId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-
 
 // PUT /api/delivery/orders/:id/status - Update delivery status
 router.put("/delivery/orders/:id/status", authMiddleware, async (req, res) => {
@@ -673,17 +708,31 @@ router.put("/delivery/orders/:id/status", authMiddleware, async (req, res) => {
 
     const [result] = await pool.execute(updateQuery, params);
     if (result.affectedRows === 0) {
+      logger.warn("Unauthorized delivery status update attempt", {
+        orderId: id,
+        deliveryPersonId,
+      });
       return res
         .status(404)
         .json({ message: "Order not found or not assigned" });
     }
+
+    logger.info("Delivery status updated", {
+      orderId: id,
+      deliveryPersonId,
+      status,
+    });
 
     res.json({
       message: "Status updated",
       code: status === "sent" ? params[1] : null,
     });
   } catch (err) {
-    console.error("Error updating status:", err);
+    logger.error("Delivery status update failed", {
+      orderId: id,
+      deliveryPersonId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -697,19 +746,34 @@ router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
   try {
     const [orders] = await pool.execute(
       `SELECT delivery_code FROM orders WHERE id = ? AND delivery_person_id = ?`,
-      [id, deliveryPersonId]
+      [id, deliveryPersonId],
     );
-    if (orders.length === 0 || orders[0].delivery_code !== code) {
+
+    if (!orders.length || orders[0].delivery_code !== code) {
+      logger.warn("Invalid delivery code attempt", {
+        orderId: id,
+        deliveryPersonId,
+      });
       return res.status(400).json({ message: "Invalid code" });
     }
 
     await pool.execute(
       `UPDATE orders SET delivery_status = 'delivered', delivered_at = NOW(), delivery_code = NULL WHERE id = ?`,
-      [id]
+      [id],
     );
+
+    logger.info("Delivery completed", {
+      orderId: id,
+      deliveryPersonId,
+    });
+
     res.json({ message: "Order delivered" });
   } catch (err) {
-    console.error("Error verifying code:", err);
+    logger.error("Delivery verification failed", {
+      orderId: id,
+      deliveryPersonId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -724,9 +788,13 @@ router.put("/profile/currency", authMiddleware, async (req, res) => {
       currency,
       userId,
     ]);
+    logger.info("Currency updated", { userId });
     res.json({ message: "Currency updated" });
   } catch (err) {
-    console.error("Error updating currency:", err);
+    logger.error("Currency update failed", {
+      userId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -738,11 +806,20 @@ router.get("/special-requests", authMiddleware, async (req, res) => {
   try {
     const [requests] = await pool.execute(
       `SELECT id, title, description, status, created_at, reply_message, replied_at FROM requests WHERE user_id = ? ORDER BY created_at DESC`,
-      [userId]
+      [userId],
     );
+
+    logger.info("Special requests fetched", {
+      userId,
+      count: requests.length,
+    });
+
     res.json({ requests });
   } catch (err) {
-    console.error("Error fetching special requests:", err);
+    logger.error("Failed to fetch special requests", {
+      userId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -757,22 +834,31 @@ router.get("/animals/:animalId/orders", authMiddleware, async (req, res) => {
     // Assuming animalId is the animal name; if it's ID, change to WHERE s.animal_id = ?
     const [orders] = await pool.execute(
       `SELECT o.id, o.user_id, o.admin_id, o.total_amount, o.created_at FROM orders o JOIN shareholders s ON o.id = s.order_id WHERE s.animal = ?`,
-      [animalId]
+      [animalId],
     );
+
+    logger.info("Animal orders fetched", {
+      animalId,
+      count: orders.length,
+    });
+
+
     res.json({ orders });
   } catch (err) {
-    console.error("Error fetching orders for animal:", err);
+    logger.error("Failed to fetch animal orders", {
+      animalId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
 const controller = require("../controllers/admin_payment_settings");
 
-// User order page 
+// User order page
 router.get(
   "/admins/:adminId/payment-settings",
-  controller.getAdminPaymentSettingsPublic
+  controller.getAdminPaymentSettingsPublic,
 );
-
 
 module.exports = router;

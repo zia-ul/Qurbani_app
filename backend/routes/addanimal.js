@@ -81,17 +81,37 @@ router.post(
       .withMessage("lastBookedDate is required and must be a valid date"),
   ],
   async (req, res) => {
+    const adminId = req.user.id;
+
+    logger.info("Add animal request received", {
+      adminId,
+      animalType: req.body.animalType,
+      breed: req.body.breed,
+    });
+
     try {
-      const id = await addAnimal(req.user.id, req.body);
+      const id = await addAnimal(adminId, req.body);
+
+      logger.info("Animal added successfully", {
+        adminId,
+        animalId: id,
+      });
+
       res.status(201).json({
         message: "Animal added successfully",
         animalId: id,
       });
     } catch (err) {
-      console.error("Error adding animal:", err);
+      logger.error("Error adding animal", {
+        adminId,
+        error: err.message,
+        stack: err.stack,
+      });
+
       res.status(500).json({ message: err.message });
     }
   }
 );
+
 
 module.exports = router;

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
+const { v4: uuidv4 } = require("uuid");
 
 router.use("/", require("../controllers/user_order"));
 router.use("/admin", require("../controllers/admin_order"));
@@ -65,7 +66,8 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.delivery_status, o.payment_status, o.processing_status, o.created_at, o.cancelled_at,
+      `SELECT o.id, o.user_id, o.admin_id, o.delivery_status, o.payment_status,
+              o.processing_status, o.created_at, o.cancelled_at,
               p.title, p.image_url, p.shares, p.price, p.barcode,
               a.name AS admin_name, a.phone AS admin_phone, a.address AS admin_address
        FROM orders o
@@ -74,15 +76,25 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
        WHERE o.id = ? AND o.user_id = ?`,
       [orderId, userId]
     );
-    if (orders.length === 0) {
+
+    if (!orders.length) {
+      logger.warn("Order not found for user", { userId, orderId });
       return res.status(404).json({ message: "Order not found" });
     }
+
+    logger.info("Order fetched successfully", { userId, orderId });
     res.json({ order: orders[0] });
   } catch (err) {
-    console.error("Error fetching order:", err);
+    logger.error("Error fetching order", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 /**
  * @swagger
@@ -129,47 +141,57 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const adminId = req.user.id;
 
-  const {
-    processing_status,
-    delivery_status,
-    delivery_person_id,
-  } = req.body;
+  const { processing_status, delivery_status, delivery_person_id } = req.body;
 
   try {
-    // Ensure order belongs to this admin
+    const [admins] = await pool.execute(
+      `SELECT role FROM users WHERE id = ?`,
+      [adminId]
+    );
+
+    if (!admins.length || admins[0].role !== "admin") {
+      logger.warn("Unauthorized order update attempt", { adminId, orderId });
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const [orders] = await pool.execute(
       `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
       [orderId, adminId]
     );
 
-    if (orders.length === 0) {
+    if (!orders.length) {
+      logger.warn("Admin tried to update non-owned order", {
+        adminId,
+        orderId,
+      });
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Update order
     await pool.execute(
-      `
-      UPDATE orders
-      SET
-        processing_status = ?,
-        delivery_status = ?,
-        delivery_person_id = ?
-      WHERE id = ?
-      `,
-      [
-        processing_status,
-        delivery_status,
-        delivery_person_id || null,
-        orderId,
-      ]
+      `UPDATE orders
+       SET processing_status = ?, delivery_status = ?, delivery_person_id = ?
+       WHERE id = ?`,
+      [processing_status, delivery_status, delivery_person_id || null, orderId]
     );
+
+    logger.info("Order updated by admin", {
+      adminId,
+      orderId,
+      processing_status,
+      delivery_status,
+    });
 
     res.json({ message: "Order updated successfully" });
   } catch (err) {
-    console.error("Error updating order:", err);
+    logger.error("Error updating order", {
+      adminId,
+      orderId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 /**
  * @swagger
@@ -210,30 +232,47 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       `SELECT delivery_status, created_at FROM orders WHERE id = ? AND user_id = ?`,
       [orderId, userId]
     );
-    if (orders.length === 0) {
+
+    if (!orders.length) {
+      logger.warn("Cancel attempt on non-existent order", { userId, orderId });
       return res.status(404).json({ message: "Order not found" });
     }
 
     const order = orders[0];
-    const isDelivered = order.delivery_status?.toLowerCase() === 'delivered';
-    const isCancelled = order.delivery_status?.toLowerCase() === 'cancelled';
-    const orderDate = new Date(order.created_at);
-    const canCancel = Date.now() - orderDate.getTime() < 24 * 60 * 60 * 1000 && !isDelivered && !isCancelled;
+    const isDelivered = order.delivery_status === "delivered";
+    const isCancelled = order.delivery_status === "cancelled";
+    const canCancel =
+      Date.now() - new Date(order.created_at).getTime() < 24 * 60 * 60 * 1000 &&
+      !isDelivered &&
+      !isCancelled;
 
     if (!canCancel) {
+      logger.warn("Invalid cancel attempt", { userId, orderId });
       return res.status(400).json({ message: "Cannot cancel this order" });
     }
 
     await pool.execute(
-      `UPDATE orders SET delivery_status = 'cancelled', payment_status = 'cancelled', processing_status = 'cancelled', cancelled_at = NOW() WHERE id = ?`,
+      `UPDATE orders
+       SET delivery_status='cancelled',
+           payment_status='cancelled',
+           processing_status='cancelled',
+           cancelled_at=NOW()
+       WHERE id=?`,
       [orderId]
     );
+
+    logger.info("Order cancelled by user", { userId, orderId });
     res.json({ message: "Order cancelled" });
   } catch (err) {
-    console.error("Error cancelling order:", err);
+    logger.error("Error cancelling order", {
+      userId,
+      orderId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 
 
@@ -284,27 +323,58 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { title, description } = req.body;
 
+  // Basic validation
+  if (!title || !description) {
+    logger.warn("Special request validation failed", {
+      userId,
+      orderId,
+    });
+    return res.status(400).json({ message: "Title and description are required" });
+  }
+
   try {
     // Check if order exists and belongs to user
     const [orders] = await pool.execute(
       `SELECT id FROM orders WHERE id = ? AND user_id = ?`,
       [orderId, userId]
     );
+
     if (orders.length === 0) {
+      logger.warn("Special request for non-owned or missing order", {
+        userId,
+        orderId,
+      });
       return res.status(404).json({ message: "Order not found" });
     }
 
     const requestId = uuidv4();
+
     await pool.execute(
-      `INSERT INTO special_requests (id, order_id, user_id, title, description, status) VALUES (?, ?, ?, ?, ?, 'pending')`,
+      `INSERT INTO special_requests 
+       (id, order_id, user_id, title, description, status)
+       VALUES (?, ?, ?, ?, ?, 'pending')`,
       [requestId, orderId, userId, title, description]
     );
+
+    logger.info("Special request submitted", {
+      requestId,
+      orderId,
+      userId,
+    });
+
     res.status(201).json({ message: "Special request submitted" });
   } catch (err) {
-    console.error("Error submitting special request:", err);
+    logger.error("Error submitting special request", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 /**
  * @swagger
@@ -349,50 +419,28 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
 
   try {
     await pool.execute(
-      `UPDATE orders SET payment_status = 'paid', payment_id = ? WHERE id = ? AND user_id = ?`,
+      `UPDATE orders
+       SET payment_status='paid', payment_id=?
+       WHERE id=? AND user_id=?`,
       [paymentId, orderId, userId]
     );
+
+    logger.info("Payment marked as paid", {
+      userId,
+      orderId,
+      paymentId,
+    });
+
     res.json({ message: "Payment updated" });
   } catch (err) {
-    console.error("Error updating payment:", err);
+    logger.error("Payment update failed", {
+      userId,
+      orderId,
+      error: err.message,
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-// // GET /api/admin/notifications - Fetch pending notifications for admin
-// router.get("/notifications", authMiddleware, async (req, res) => {
-//   const adminId = req.user.id;
-
-//   try {
-//     // Assuming a 'notifications' table with columns: id, type, order_id, admin_id, is_notified, created_at
-//     const [notifications] = await pool.execute(
-//       `SELECT id, type, order_id FROM notifications WHERE admin_id = ? AND is_notified = FALSE ORDER BY created_at DESC`,
-//       [adminId]
-//     );
-
-//     res.json({ notifications });
-//   } catch (err) {
-//     console.error("Error fetching notifications:", err);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// });
-
-// // PUT /api/admin/notifications/:id/mark-notified - Mark notification as notified
-// router.put("/notifications/:id/mark-notified", authMiddleware, async (req, res) => {
-//   const { id } = req.params;
-//   const adminId = req.user.id;
-
-//   try {
-//     await pool.execute(
-//       `UPDATE notifications SET is_notified = TRUE WHERE id = ? AND admin_id = ?`,
-//       [id, adminId]
-//     );
-//     res.json({ message: "Notification marked as notified" });
-//   } catch (err) {
-//     console.error("Error updating notification:", err);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// });
 
 
 module.exports = router;

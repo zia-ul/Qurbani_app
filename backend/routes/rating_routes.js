@@ -82,11 +82,15 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
   const { orderId, userId } = req.params;
 
   if (req.user.id !== userId) {
+    logger.warn("Unauthorized ratings fetch attempt", {
+      authUserId: req.user.id,
+      userId,
+      orderId,
+    });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   try {
-    // Fetch order + admin + delivery person
     const [orders] = await pool.execute(
       `
       SELECT 
@@ -104,10 +108,13 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
     );
 
     if (!orders.length) {
+      logger.warn("Order not found for ratings fetch", {
+        orderId,
+        userId,
+      });
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Fetch existing ratings
     const [ratings] = await pool.execute(
       `
       SELECT admin_id, admin_rating, delivery_rating, feedback
@@ -126,16 +133,29 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       };
     });
 
+    logger.info("Fetched ratings for order", {
+      userId,
+      orderId,
+      ratingsCount: ratings.length,
+    });
+
     res.json({
       order: orders[0],
       ratings: ratingsMap,
       submitted: ratings.length > 0,
     });
   } catch (err) {
-    console.error("Error fetching ratings:", err);
+    logger.error("Error fetching ratings", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 
 
@@ -215,10 +235,19 @@ router.post("/", auth, async (req, res) => {
   const { orderId, userId, ratings } = req.body;
 
   if (req.user.id !== userId) {
+    logger.warn("Unauthorized ratings submission attempt", {
+      authUserId: req.user.id,
+      userId,
+      orderId,
+    });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   if (!orderId || !Array.isArray(ratings) || ratings.length === 0) {
+    logger.warn("Invalid ratings payload", {
+      userId,
+      orderId,
+    });
     return res.status(400).json({ message: "Invalid ratings data" });
   }
 
@@ -228,12 +257,7 @@ router.post("/", auth, async (req, res) => {
     await connection.beginTransaction();
 
     for (const r of ratings) {
-      const {
-        adminId,
-        adminRating,
-        deliveryRating,
-        feedback,
-      } = r;
+      const { adminId, adminRating, deliveryRating, feedback } = r;
 
       if (
         !adminId ||
@@ -242,6 +266,13 @@ router.post("/", auth, async (req, res) => {
         deliveryRating < 1 ||
         deliveryRating > 5
       ) {
+        logger.warn("Invalid rating values detected", {
+          userId,
+          orderId,
+          adminId,
+          adminRating,
+          deliveryRating,
+        });
         throw new Error("Invalid rating values");
       }
 
@@ -267,10 +298,24 @@ router.post("/", auth, async (req, res) => {
     }
 
     await connection.commit();
+
+    logger.info("Ratings submitted successfully", {
+      userId,
+      orderId,
+      ratingsCount: ratings.length,
+    });
+
     res.json({ message: "Ratings submitted successfully" });
   } catch (err) {
     await connection.rollback();
-    console.error("Error submitting ratings:", err);
+
+    logger.error("Error submitting ratings", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   } finally {
     connection.release();

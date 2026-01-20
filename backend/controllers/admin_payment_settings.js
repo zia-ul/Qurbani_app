@@ -5,9 +5,11 @@ const db = require("../config/db");
  * GET /api/admin/payment-settings
  */
 exports.getMyPaymentSettings = async (req, res) => {
-  try {
-    const adminId = req.user.id;
+  const adminId = req.user.id;
 
+  logger.info("Admin fetching own payment settings", { adminId });
+
+  try {
     const [rows] = await db.query(
       `SELECT allow_cod, allow_online, cod_deadline
        FROM admin_payment_settings
@@ -16,6 +18,10 @@ exports.getMyPaymentSettings = async (req, res) => {
     );
 
     if (!rows.length) {
+      logger.info("Admin has no custom payment settings, returning defaults", {
+        adminId,
+      });
+
       return res.json({
         allow_cod: 0,
         allow_online: 1,
@@ -25,20 +31,33 @@ exports.getMyPaymentSettings = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error("Failed to fetch admin payment settings", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 /**
  * ADMIN (authenticated)
  * PUT /api/admin/payment-settings
  */
 exports.updateMyPaymentSettings = async (req, res) => {
-  try {
-    const adminId = req.user.id;
-    const { allow_cod, allow_online, cod_deadline } = req.body;
+  const adminId = req.user.id;
+  const { allow_cod, allow_online, cod_deadline } = req.body;
 
+  logger.info("Admin updating payment settings", {
+    adminId,
+    allow_cod,
+    allow_online,
+    has_cod_deadline: !!cod_deadline,
+  });
+
+  try {
     await db.query(
       `
       INSERT INTO admin_payment_settings
@@ -57,21 +76,33 @@ exports.updateMyPaymentSettings = async (req, res) => {
       ]
     );
 
+    logger.info("Admin payment settings updated successfully", {
+      adminId,
+    });
+
     res.json({ message: "Payment settings updated successfully" });
   } catch (err) {
-    console.error(err);
+    logger.error("Failed to update admin payment settings", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 /**
  * USER (public)
  * GET /api/admins/:adminId/payment-settings
  */
 exports.getAdminPaymentSettingsPublic = async (req, res) => {
-  try {
-    const { adminId } = req.params;
+  const { adminId } = req.params;
 
+  logger.info("Public fetch of admin payment settings", { adminId });
+
+  try {
     const [rows] = await db.query(
       `SELECT allow_cod, allow_online, cod_deadline
        FROM admin_payment_settings
@@ -80,7 +111,6 @@ exports.getAdminPaymentSettingsPublic = async (req, res) => {
     );
 
     if (!rows.length) {
-      // Default behavior if admin never configured settings
       return res.json({
         allow_cod: 0,
         allow_online: 1,
@@ -90,7 +120,12 @@ exports.getAdminPaymentSettingsPublic = async (req, res) => {
 
     res.json(rows[0]);
   } catch (err) {
-    console.error(err);
+    logger.error("Failed to fetch public admin payment settings", {
+      adminId,
+      error: err.message,
+    });
+
     res.status(500).json({ message: "Server error" });
   }
 };
+

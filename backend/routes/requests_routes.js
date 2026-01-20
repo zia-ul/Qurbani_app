@@ -62,29 +62,50 @@ router.post("/", auth, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
 
   if (req.user.id !== userId) {
+    logger.warn("Unauthorized request submission attempt", {
+      authUserId: req.user.id,
+      bodyUserId: userId,
+      orderId,
+    });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   if (!orderId || !title || !description) {
+    logger.warn("Missing fields in request submission", {
+      userId,
+      orderId,
+    });
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
     await pool.execute(
       `
-      INSERT INTO requests 
-        (order_id, user_id, title, description, status)
+      INSERT INTO requests (order_id, user_id, title, description, status)
       VALUES (?, ?, ?, ?, 'Pending')
       `,
       [orderId, userId, title, description]
     );
 
+    logger.info("Special request submitted", {
+      userId,
+      orderId,
+      title,
+    });
+
     res.status(201).json({ message: "Request submitted successfully" });
   } catch (err) {
-    console.error("Error submitting request:", err);
+    logger.error("Error submitting special request", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 
 /**
@@ -147,14 +168,18 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
   const { orderId, userId } = req.params;
 
   if (req.user.id !== userId) {
+    logger.warn("Unauthorized request fetch attempt", {
+      authUserId: req.user.id,
+      userId,
+      orderId,
+    });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   try {
     const [requests] = await pool.execute(
       `
-      SELECT 
-        id, title, description, status, created_at
+      SELECT id, title, description, status, created_at
       FROM requests
       WHERE order_id = ? AND user_id = ?
       ORDER BY created_at DESC
@@ -162,12 +187,25 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       [orderId, userId]
     );
 
+    logger.info("Fetched user special requests", {
+      userId,
+      orderId,
+      count: requests.length,
+    });
+
     res.json({ requests });
   } catch (err) {
-    console.error("Error fetching requests:", err);
+    logger.error("Error fetching user requests", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 
 /**
@@ -235,10 +273,8 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
  */
 router.get("/admin", auth, async (req, res) => {
   const adminId = req.user.id;
-  const { status } = req.query; // e.g., 'Pending', 'Replied', 'Closed', or omit for 'All'
+  const { status } = req.query;
 
-  // Assume authMiddleware sets req.user.role or check via DB
-  // For simplicity, assume all authenticated users are admins; adjust if needed
   try {
     let query = `
       SELECT 
@@ -251,18 +287,32 @@ router.get("/admin", auth, async (req, res) => {
     `;
     let params = [];
 
-    if (status && status !== 'All') {
-      query = query.replace('ORDER BY', 'WHERE r.status = ? ORDER BY');
+    if (status && status !== "All") {
+      query = query.replace("ORDER BY", "WHERE r.status = ? ORDER BY");
       params = [status];
     }
 
     const [requests] = await pool.execute(query, params);
+
+    logger.info("Admin fetched special requests", {
+      adminId,
+      status: status || "All",
+      count: requests.length,
+    });
+
     res.json({ requests });
   } catch (err) {
-    console.error("Error fetching admin requests:", err);
+    logger.error("Error fetching admin requests", {
+      adminId,
+      status,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 
 /**
@@ -319,41 +369,63 @@ router.get("/admin", auth, async (req, res) => {
  */
 router.put("/admin/:requestId", auth, async (req, res) => {
   const { requestId } = req.params;
-  const { replyMessage, action } = req.body; // action: 'reply' or 'close'
+  const { replyMessage, action } = req.body;
+  const adminId = req.user.id;
 
-  if (!action || (action === 'reply' && !replyMessage)) {
+  if (!action || (action === "reply" && !replyMessage)) {
+    logger.warn("Invalid admin request update payload", {
+      adminId,
+      requestId,
+      action,
+    });
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
     let updateFields = {};
-    if (action === 'reply') {
+
+    if (action === "reply") {
       updateFields = {
         reply_message: replyMessage,
-        status: 'Replied',
+        status: "Replied",
         replied_at: new Date(),
       };
-    } else if (action === 'close') {
+    } else if (action === "close") {
       updateFields = {
-        status: 'Closed',
+        status: "Closed",
         closed_at: new Date(),
       };
     }
 
-    const setClause = Object.keys(updateFields).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updateFields);
-    values.push(requestId); // For WHERE
+    const setClause = Object.keys(updateFields)
+      .map((key) => `${key} = ?`)
+      .join(", ");
+    const values = [...Object.values(updateFields), requestId];
 
     await pool.execute(
       `UPDATE requests SET ${setClause} WHERE id = ?`,
       values
     );
 
+    logger.info("Admin updated special request", {
+      adminId,
+      requestId,
+      action,
+    });
+
     res.json({ message: "Request updated successfully" });
   } catch (err) {
-    console.error("Error updating request:", err);
+    logger.error("Error updating special request", {
+      adminId,
+      requestId,
+      action,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 module.exports = router;

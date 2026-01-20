@@ -16,19 +16,34 @@ const swaggerSpec = require('../swagger');
 const requestLogger = require("../middlewares/requestLogger");
 const errorHandler = require("../middlewares/errorHandler");
 
+const rateLimit = require("express-rate-limit");
+
 
 require('dotenv').config();
 
-// console.log("JWT_SECRET:", process.env.JWT_SECRET);
 const logger = require("../middlewares/logger");
 logger.info("Application starting");
 
 
 const app = express();
+// Global rate limiter (applies to all requests)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per window
+  message: {
+    message: "Too many requests from this IP, please try again later."
+  },
+  standardHeaders: true, // Return rate limit info in headers
+  legacyHeaders: false,
+});
+
+app.use(globalLimiter);
+
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(requestLogger); 
+
 
 // Existing routes
 app.use('/api/auth', authRoutes);
