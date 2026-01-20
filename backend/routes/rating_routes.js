@@ -4,6 +4,77 @@ const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
 
 /**
+ * @swagger
+ * /api/ratings/{orderId}/{userId}:
+ *   get:
+ *     summary: Fetch ratings and order info for a user
+ *     description: Returns order details along with existing ratings for admin and delivery person. User can only access their own data.
+ *     tags: [Ratings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         description: Order ID
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: Logged-in user ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Ratings and order info fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 order:
+ *                   type: object
+ *                   properties:
+ *                     order_id:
+ *                       type: string
+ *                     admin_id:
+ *                       type: string
+ *                     admin_name:
+ *                       type: string
+ *                     delivery_person_id:
+ *                       type: string
+ *                       nullable: true
+ *                     delivery_person_name:
+ *                       type: string
+ *                       nullable: true
+ *                 ratings:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: object
+ *                     properties:
+ *                       adminRating:
+ *                         type: integer
+ *                         example: 5
+ *                       deliveryRating:
+ *                         type: integer
+ *                         example: 4
+ *                       feedback:
+ *                         type: string
+ *                         example: "Very good service"
+ *                 submitted:
+ *                   type: boolean
+ *                   example: true
+ *       403:
+ *         description: Unauthorized access
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+
+
+/**
  * GET /api/ratings/:orderId/:userId
  * Fetch ratings + related order info for a user
  */
@@ -65,6 +136,76 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
+
+/**
+ * @swagger
+ * /api/ratings:
+ *   post:
+ *     summary: Submit or update ratings for an order
+ *     description: Allows a user to submit or update ratings for admin and delivery person for an order.
+ *     tags: [Ratings]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - orderId
+ *               - userId
+ *               - ratings
+ *             properties:
+ *               orderId:
+ *                 type: string
+ *               userId:
+ *                 type: string
+ *               ratings:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - adminId
+ *                     - adminRating
+ *                     - deliveryRating
+ *                   properties:
+ *                     adminId:
+ *                       type: string
+ *                     adminRating:
+ *                       type: integer
+ *                       minimum: 1
+ *                       maximum: 5
+ *                       example: 5
+ *                     deliveryRating:
+ *                       type: integer
+ *                       minimum: 1
+ *                       maximum: 5
+ *                       example: 4
+ *                     feedback:
+ *                       type: string
+ *                       example: "Excellent handling and timely delivery"
+ *     responses:
+ *       200:
+ *         description: Ratings submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Ratings submitted successfully
+ *       400:
+ *         description: Invalid ratings data
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
 
 /**
  * POST /api/ratings

@@ -10,14 +10,25 @@ const adminProfileRoutes = require("../routes/adminprofile");
 // const orderRoutes = require("../controllers/orders"); 
 const userRoutes = require("../routes/users"); 
 const adminPaymentRoutes = require("../routes/admin_payment_routes");
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('../swagger');
+
+const requestLogger = require("../middlewares/requestLogger");
+const errorHandler = require("../middlewares/errorHandler");
+
+
 require('dotenv').config();
 
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
+// console.log("JWT_SECRET:", process.env.JWT_SECRET);
+const logger = require("../middlewares/logger");
+logger.info("Application starting");
+
 
 const app = express();
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(requestLogger); 
 
 // Existing routes
 app.use('/api/auth', authRoutes);
@@ -36,6 +47,7 @@ app.use("/api/ratings", require("../routes/rating_routes"));
 app.use("/api/requests", require("../routes/requests_routes"));
 
 app.use("/api/slots", require("../routes/slots")); // Mount the slots routes
+
 // Admin payment settings
 // app.use("/api/admin/payment-settings", adminPaymentRoutes);
 app.use("/api/admin", require("../routes/admin_payment_routes"));
@@ -44,11 +56,16 @@ app.use("/api/admin", require("../routes/admin_payment_routes"));
 // user-related routes (profile, ratings, requests, delivery-boys)
 app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys
 
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+
 const PORT = 3000;
 
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
+// app.get("/", (req, res) => {
+//   res.send("API is running");
+// });
+
+app.use(errorHandler); // Centralized error handling middleware
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

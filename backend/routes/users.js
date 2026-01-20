@@ -3,6 +3,38 @@ const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 
+/**
+ * @swagger
+ * /api/profile:
+ *   get:
+ *     summary: Get authenticated user's profile
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 profile:
+ *                   type: object
+ *                   properties:
+ *                     name: { type: string }
+ *                     email: { type: string }
+ *                     phone: { type: string }
+ *                     address: { type: string }
+ *                     description: { type: string }
+ *                     photoUrl: { type: string }
+ *                     isAdmin: { type: boolean }
+ *                     orderDeadline: { type: string, format: date-time }
+ *       401:
+ *         description: Unauthorized
+ */
+
+
 // GET /api/profile - Fetch authenticated user's profile
 router.get("/profile", authMiddleware, async (req, res) => {
   const userId = req.user.id;
@@ -32,6 +64,31 @@ router.get("/profile", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+/**
+ * @swagger
+ * /api/profile/currency:
+ *   put:
+ *     summary: Update user currency preference
+ *     tags: [Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currency]
+ *             properties:
+ *               currency:
+ *                 type: string
+ *                 example: "USD"
+ *     responses:
+ *       200:
+ *         description: Currency updated
+ */
+
 
 // PUT /api/profile - Update authenticated user's profile
 router.put("/profile", authMiddleware, async (req, res) => {
@@ -64,6 +121,21 @@ router.put("/profile", authMiddleware, async (req, res) => {
   }
 });
 
+
+/**
+ * @swagger
+ * /api/delivery/orders:
+ *   get:
+ *     summary: Fetch delivery person's orders
+ *     tags: [Delivery]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Orders list
+ */
+
+
 // GET /api/delivery-boys - Fetch all delivery boys (users with role 'delivery')
 router.get("/delivery-boys", authMiddleware, async (req, res) => {
   try {
@@ -81,6 +153,130 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
 
 
 // ADMIN VERIFICATION ROUTES
+
+/**
+ * @swagger
+ * /api/delivery/orders/{id}/status:
+ *   put:
+ *     summary: Update delivery status
+ *     tags: [Delivery]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, sent, delivered]
+ *     responses:
+ *       200:
+ *         description: Status updated
+ */
+
+
+/**
+ * @swagger
+ * /api/delivery/orders/{id}/status:
+ *   put:
+ *     summary: Update delivery status
+ *     tags: [Delivery]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, sent, delivered]
+ *     responses:
+ *       200:
+ *         description: Status updated
+ */
+
+
+/**
+ * @swagger
+ * /api/delivery/orders/{id}/verify:
+ *   put:
+ *     summary: Verify delivery code
+ *     tags: [Delivery]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [code]
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Order delivered
+ */
+
+
+
+
+/**
+ * @swagger
+ * /api/admin/verification:
+ *   post:
+ *     summary: Submit admin verification request
+ *     tags: [Admin Verification]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization_name: { type: string }
+ *               phone: { type: string }
+ *               experience: { type: string }
+ *               address: { type: string }
+ *               govt_id_url: { type: string }
+ *               business_proof_url: { type: string }
+ *               bank_proof_url: { type: string }
+ *               farm_photo_url: { type: string }
+ *     responses:
+ *       200:
+ *         description: Verification submitted
+ */
+
 
 // POST /api/admin/verification - Submit admin verification
 router.post("/admin/verification", authMiddleware, async (req, res) => {
@@ -128,6 +324,19 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
   res.json({ message: "Verification submitted for review" });
 });
 
+/**
+ * @swagger
+ * /api/verification/status:
+ *   get:
+ *     summary: Get admin verification status
+ *     tags: [Admin Verification]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Verification status
+ */
+
 
 // GET /api/admin/verification/status - Check verification status
 router.get("/verification/status", authMiddleware, async (req, res) => {
@@ -150,7 +359,26 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
 
 // SUPERADMIN ROUTES
 
-// GET /api/superadmin/users - List users by role (for super admin)
+
+/**
+ * @swagger
+ * /api/superadmin/users:
+ *   get:
+ *     summary: List users by role
+ *     tags: [Super Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [all, user, admin, delivery]
+ *     responses:
+ *       200:
+ *         description: Users list
+ */
+
 // GET /api/superadmin/users - List users by role (for super admin)
 router.get("/superadmin/users", authMiddleware, async (req, res) => {
   const { role } = req.query; // all | user | admin | delivery
@@ -206,6 +434,36 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+/**
+ * @swagger
+ * /api/superadmin/users/{id}:
+ *   put:
+ *     summary: Approve or reject admin verification
+ *     tags: [Super Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [action]
+ *             properties:
+ *               action:
+ *                 type: string
+ *                 enum: [approve, reject]
+ *               review_note:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Action completed
+ */
 
 
 // PUT /api/superadmin/users/:id - Update user role or delete (for super admin)
@@ -288,6 +546,22 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/superadmin/verifications/{adminId}:
+ *   get:
+ *     summary: Get admin verification details
+ *     tags: [Super Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: adminId
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Verification details
+ */
 
 // GET /api/superadmin/verifications/:adminId - Fetch verification details
 router.get(

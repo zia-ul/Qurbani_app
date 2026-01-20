@@ -20,40 +20,18 @@ router.get("/my", authMiddleware, async (req, res) => {
       [userId]
     );
 
-    // For each order, fetch shareholders
-    const ordersWithShareholders = await Promise.all(
-      orders.map(async (order) => {
-        const [shareholders] = await pool.execute(
-          `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-          [order.id]
-        );
-        return {
-          ...order,
-          shareholders: shareholders,
-          // For compatibility with frontend, add some dummy fields if needed
-          orderId: order.id,
-          processingStatus: order.status,
-          paymentStatus: 'Paid', // Assuming paid since order exists
-          deliveryStatus: 'Pending', // Default
-          deliveryCode: null,
-          createdAt: order.created_at,
-          items: shareholders.map(s => ({
-            animalType: 'Sheep', // Dummy, as per schema
-            breed: 'Local', // Dummy
-            price: 100, // Dummy price
-            photoUrl: null,
-            adminId: order.admin_id,
-            name: s.name,
-            guardianName: s.guardian_name,
-            qurbaniDay: s.qurbani_day
-          }))
-        };
-      })
-    );
+    logger.info("Fetched user orders", {
+      userId,
+      count: orders.length
+    });
 
-    res.json({ orders: ordersWithShareholders });
+    res.json({ orders });
   } catch (err) {
-    console.error("Error fetching orders:", err);
+    logger.error("Failed to fetch user orders", {
+      userId,
+      error: err.message,
+      stack: err.stack
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -61,47 +39,59 @@ router.get("/my", authMiddleware, async (req, res) => {
 
 // POST /api/orders
 router.post("/", authMiddleware, async (req, res) => {
-  const userId = req.user.id; // FROM JWT
+  const userId = req.user.id;
   const { adminId, paymentMethod, shareholders } = req.body;
 
   if (!adminId || !paymentMethod || !Array.isArray(shareholders) || shareholders.length === 0) {
+    logger.warn("Order validation failed", { userId });
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   const connection = await pool.getConnection();
+
   try {
     await connection.beginTransaction();
 
     const orderId = uuidv4();
-    const totalShares = shareholders.length;
 
-    // Insert order
     await connection.execute(
       `INSERT INTO orders (id, user_id, admin_id, payment_method, total_shares)
        VALUES (?, ?, ?, ?, ?)`,
-      [orderId, userId, adminId, paymentMethod, totalShares]
+      [orderId, userId, adminId, paymentMethod, shareholders.length]
     );
-
-    // Insert shareholders
-    const shareholderValues = shareholders.map((s) => [
-      uuidv4(),
-      orderId,
-      s.name,
-      s.guardianName,
-      s.qurbaniDay || "Day 1",
-    ]);
 
     await connection.query(
       `INSERT INTO shareholders (id, order_id, name, guardian_name, qurbani_day)
        VALUES ?`,
-      [shareholderValues]
+      [shareholders.map(s => [
+        uuidv4(),
+        orderId,
+        s.name,
+        s.guardianName,
+        s.qurbaniDay || "Day 1"
+      ])]
     );
 
     await connection.commit();
+
+    logger.info("Order placed", {
+      orderId,
+      userId,
+      adminId,
+      shares: shareholders.length
+    });
+
     res.status(201).json({ message: "Order placed successfully", orderId });
   } catch (err) {
     await connection.rollback();
-    console.error("Error placing order:", err);
+
+    logger.error("Order placement failed", {
+      userId,
+      adminId,
+      error: err.message,
+      stack: err.stack
+    });
+
     res.status(500).json({ message: "Internal server error" });
   } finally {
     connection.release();
@@ -116,8 +106,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at,
-              u.name as admin_name, u.email as admin_email
+      `SELECT o.*, u.name as admin_name, u.email as admin_email
        FROM orders o
        JOIN users u ON o.admin_id = u.id
        WHERE o.id = ? AND o.user_id = ?`,
@@ -125,45 +114,25 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
     );
 
     if (orders.length === 0) {
+      logger.warn("Order access denied or not found", {
+        orderId,
+        userId
+      });
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const order = orders[0];
-
-    // Fetch shareholders for the order
-    const [shareholders] = await pool.execute(
-      `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-      [order.id]
-    );
-
-    // Structure the response to match frontend expectations
-    const orderWithShareholders = {
-      ...order,
-      shareholders,
-      orderId: order.id,
-      processingStatus: order.status,
-      paymentStatus: 'Paid', // Default, as per existing logic
-      deliveryStatus: 'Pending', // Default
-      deliveryCode: null,
-      createdAt: order.created_at,
-      items: shareholders.map(s => ({
-        animalType: 'Sheep', // Dummy, as per schema
-        breed: 'Local', // Dummy
-        price: 100, // Dummy price
-        photoUrl: null,
-        adminId: order.admin_id,
-        name: s.name,
-        guardianName: s.guardian_name,
-        qurbaniDay: s.qurbani_day
-      }))
-    };
-
-    res.json({ order: orderWithShareholders });
+    logger.info("Fetched order details", { orderId, userId });
+    res.json({ order: orders[0] });
   } catch (err) {
-    console.error("Error fetching order:", err);
+    logger.error("Failed to fetch order", {
+      orderId,
+      userId,
+      error: err.message
+    });
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 
 // GET /api/orders/admin/my - Get all orders for the authenticated admin

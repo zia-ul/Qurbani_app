@@ -1,3 +1,63 @@
+/**
+ * @swagger
+ * /api/auth/admin/{id}:
+ *   get:
+ *     summary: Get admin profile and order statistics
+ *     description: >
+ *       Returns admin user details along with total and completed order statistics.
+ *       Requires a valid JWT token in the Authorization header.
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Admin user ID
+ *     responses:
+ *       200:
+ *         description: Admin profile fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                   example: 1
+ *                 name:
+ *                   type: string
+ *                   example: Admin User
+ *                 email:
+ *                   type: string
+ *                   example: admin@example.com
+ *                 phone:
+ *                   type: string
+ *                   example: "+923001234567"
+ *                 address:
+ *                   type: string
+ *                   example: Main Street
+ *                 city:
+ *                   type: string
+ *                   example: Lahore
+ *                 totalOrders:
+ *                   type: integer
+ *                   example: 25
+ *                 completedOrders:
+ *                   type: integer
+ *                   example: 18
+ *       401:
+ *         description: Unauthorized (missing or invalid JWT)
+ *       404:
+ *         description: Admin not found
+ *       500:
+ *         description: Server error
+ */
+
+
 // routes/admin.js
 const express = require("express");
 const db = require("../config/db"); // Your MySQL connection

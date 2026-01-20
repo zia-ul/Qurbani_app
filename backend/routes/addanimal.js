@@ -1,3 +1,61 @@
+/**
+ * @swagger
+ * /api/animals:
+ *   post:
+ *     summary: Add a new animal (Admin only)
+ *     description: Creates a new animal record. Only admins can access this endpoint.
+ *     tags: [Animals]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - animalType
+ *               - breed
+ *               - price
+ *               - lastBookedDate
+ *             properties:
+ *               animalType:
+ *                 type: string
+ *                 example: Cow
+ *               breed:
+ *                 type: string
+ *                 example: Jersey
+ *               price:
+ *                 type: number
+ *                 example: 15000
+ *               lastBookedDate:
+ *                 type: string
+ *                 format: date
+ *                 example: 2024-01-15
+ *     responses:
+ *       201:
+ *         description: Animal added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Animal added successfully
+ *                 animalId:
+ *                   type: integer
+ *                   example: 12
+ *       401:
+ *         description: Unauthorized (JWT missing or invalid)
+ *       403:
+ *         description: Forbidden (Admin access required)
+ *       500:
+ *         description: Server error
+ */
+
+
+
 const express = require("express");
 const { body } = require("express-validator");
 const auth = require("../controllers/auth");

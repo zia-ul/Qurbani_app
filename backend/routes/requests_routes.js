@@ -4,6 +4,57 @@ const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
 
 /**
+ * @swagger
+ * /api/requests:
+ *   post:
+ *     summary: Submit a special request for an order
+ *     description: Allows a user to submit a special request related to an order.
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - orderId
+ *               - userId
+ *               - title
+ *               - description
+ *             properties:
+ *               orderId:
+ *                 type: string
+ *               userId:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *                 example: "Change delivery time"
+ *               description:
+ *                 type: string
+ *                 example: "Please deliver after 6 PM"
+ *     responses:
+ *       201:
+ *         description: Request submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Request submitted successfully
+ *       400:
+ *         description: Missing required fields
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
+
+/**
  * POST /api/requests
  * Submit a special request for an order
  */
@@ -35,6 +86,59 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+
+/**
+ * @swagger
+ * /api/requests/{orderId}/{userId}:
+ *   get:
+ *     summary: Get all special requests for a user and order
+ *     description: Fetches all special requests submitted by a user for a specific order.
+ *     tags: [Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Requests fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 requests:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                         example: Pending
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *       403:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
+
 /**
  * GET /api/requests/:orderId/:userId
  * Fetch all requests for a user & order
@@ -64,6 +168,65 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
+/**
+ * @swagger
+ * /api/requests/admin:
+ *   get:
+ *     summary: Fetch all special requests for admin
+ *     description: Admin can fetch all special requests with optional status filtering.
+ *     tags: [Admin Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [All, Pending, Replied, Closed]
+ *         description: Filter requests by status
+ *     responses:
+ *       200:
+ *         description: Requests fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 requests:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       order_id:
+ *                         type: string
+ *                       user_id:
+ *                         type: string
+ *                       title:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       reply_message:
+ *                         type: string
+ *                         nullable: true
+ *                       created_at:
+ *                         type: string
+ *                         format: date-time
+ *                       user_name:
+ *                         type: string
+ *                       user_email:
+ *                         type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
 
 /**
  * GET /api/requests/admin
@@ -100,6 +263,55 @@ router.get("/admin", auth, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+
+/**
+ * @swagger
+ * /api/requests/admin/{requestId}:
+ *   put:
+ *     summary: Update a special request (reply or close)
+ *     description: Admin can reply to or close a special request.
+ *     tags: [Admin Requests]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - action
+ *             properties:
+ *               action:
+ *                 type: string
+ *                 enum: [reply, close]
+ *               replyMessage:
+ *                 type: string
+ *                 example: "Your request has been approved"
+ *     responses:
+ *       200:
+ *         description: Request updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Request updated successfully
+ *       400:
+ *         description: Missing required fields
+ *       500:
+ *         description: Internal server error
+ */
+
 
 /**
  * PUT /api/requests/admin/:requestId

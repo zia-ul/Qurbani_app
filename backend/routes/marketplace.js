@@ -6,9 +6,75 @@ const pool = require("../config/db");
 const router = express.Router();
 
 /**
+ * @swagger
+ * /api/admin/verified:
+ *   get:
+ *     summary: Fetch verified admins for marketplace
+ *     description: Public endpoint to list all verified admins available in marketplace.
+ *     tags: [Marketplace]
+ *     responses:
+ *       200:
+ *         description: List of verified admins
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *                   city:
+ *                     type: string
+ *       500:
+ *         description: Server error
+ */
+
+
+/**
  * PUBLIC – Fetch verified admins
  */
 router.get("/verified", fetchVerifiedAdmins);
+
+
+/**
+ * @swagger
+ * /api/admin/dashboard-stats:
+ *   get:
+ *     summary: Get admin dashboard statistics
+ *     description: Returns quick statistics for admin dashboard including animals, orders, and requests.
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard statistics fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 animals:
+ *                   type: integer
+ *                   example: 12
+ *                 orders:
+ *                   type: integer
+ *                   example: 45
+ *                 requests:
+ *                   type: integer
+ *                   example: 7
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
 
 // GET /api/admin/dashboard-stats - Fetch quick stats for admin dashboard
 router.get("/dashboard-stats", authMiddleware, async (req, res) => {
@@ -47,6 +113,62 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+/**
+ * @swagger
+ * /api/admin/{adminId}/animals:
+ *   get:
+ *     summary: Get animals for a specific admin
+ *     description: Fetch all animals listed by a specific admin.
+ *     tags: [Marketplace]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: adminId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Admin ID
+ *     responses:
+ *       200:
+ *         description: Animals fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 animals:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       animal_type:
+ *                         type: string
+ *                         example: Sheep
+ *                       breed:
+ *                         type: string
+ *                         example: Kajli
+ *                       price:
+ *                         type: number
+ *                         example: 35000
+ *                       delivery_type:
+ *                         type: string
+ *                         enum: [Free, Paid]
+ *                       delivery_fee:
+ *                         type: number
+ *                         example: 500
+ *                       delivery_threshold:
+ *                         type: number
+ *                         example: 10000
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
 
 // GET /api/admins/:adminId/animals - Get Animals for Admin
 router.get("/:adminId/animals", authMiddleware, async (req, res) => {

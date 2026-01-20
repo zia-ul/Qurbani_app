@@ -6,6 +6,58 @@ const authMiddleware = require("../middleware/authmiddleware");
 router.use("/", require("../controllers/user_order"));
 router.use("/admin", require("../controllers/admin_order"));
 
+/**
+ * @swagger
+ * /api/orders/{orderId}:
+ *   get:
+ *     summary: Get order details for logged-in user
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 order:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     delivery_status:
+ *                       type: string
+ *                     payment_status:
+ *                       type: string
+ *                     processing_status:
+ *                       type: string
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                     admin_name:
+ *                       type: string
+ *                     admin_phone:
+ *                       type: string
+ *                     admin_address:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+
+
 // GET /api/orders/:orderId - Fetch order details for user
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -31,6 +83,47 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+/**
+ * @swagger
+ * /api/orders/{orderId}:
+ *   put:
+ *     summary: Update order status (Admin only)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               processing_status:
+ *                 type: string
+ *                 enum: [pending, processing, completed, cancelled]
+ *               delivery_status:
+ *                 type: string
+ *                 enum: [pending, sent, delivered, cancelled]
+ *               delivery_person_id:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Order updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
 
 router.put("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -78,7 +171,34 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = router;
+/**
+ * @swagger
+ * /api/orders/{orderId}/cancel:
+ *   put:
+ *     summary: Cancel an order (User only)
+ *     description: User can cancel order within 24 hours if not delivered.
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Order cancelled successfully
+ *       400:
+ *         description: Cannot cancel this order
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+
 
 // PUT /api/orders/:orderId/cancel - Cancel order
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
@@ -115,6 +235,49 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   }
 });
 
+
+
+
+/**
+ * @swagger
+ * /api/orders/{orderId}/special-request:
+ *   post:
+ *     summary: Submit a special request for an order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Special request submitted successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+
+
 // POST /api/orders/:orderId/special-request - Submit special request
 router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -142,6 +305,41 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+/**
+ * @swagger
+ * /api/orders/{orderId}/payment-success:
+ *   put:
+ *     summary: Update order payment status after online payment
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paymentId
+ *             properties:
+ *               paymentId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment updated successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+
 
 // PUT /api/orders/:orderId/payment-success - Update payment status after online payment
 router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
