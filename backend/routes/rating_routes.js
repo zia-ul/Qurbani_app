@@ -70,7 +70,7 @@ const auth = require("../middleware/authmiddleware");
  *       404:
  *         description: Order not found
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -152,7 +152,7 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -223,7 +223,7 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
  *       403:
  *         description: Unauthorized
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -316,7 +316,7 @@ router.post("/", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   } finally {
     connection.release();
   }

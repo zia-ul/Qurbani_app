@@ -51,7 +51,7 @@
  *       403:
  *         description: Forbidden (Admin access required)
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 

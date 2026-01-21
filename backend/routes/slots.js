@@ -40,7 +40,7 @@ const authMiddleware = require("../middleware/authmiddleware");
  *       401:
  *         description: Unauthorized
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 // GET /api/slots/:adminId - Fetch slots for an admin
@@ -76,7 +76,7 @@ router.get("/:adminId", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

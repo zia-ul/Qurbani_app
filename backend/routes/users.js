@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
+const logger = require("../middleware/logger");
 
 /**
  * @swagger
@@ -40,7 +41,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 
   try {
     const [users] = await pool.execute(
-      "SELECT name, email, phone, address, description, role, order_deadline FROM users WHERE id = ?",
+      "SELECT name, email, phone, address, description, role, order_deadline, photo_url FROM users WHERE id = ?",
       [userId],
     );
 
@@ -58,7 +59,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -92,13 +93,14 @@ router.put("/profile", authMiddleware, async (req, res) => {
 
   try {
     await pool.execute(
-      "UPDATE users SET name=?, phone=?, address=?, description=?, order_deadline=? WHERE id=?",
+      "UPDATE users SET name=?, phone=?, address=?, description=?, order_deadline=?, photo_url=? WHERE id=?",
       [
         req.body.name,
         req.body.phone,
         req.body.address,
         req.body.description,
         req.body.orderDeadline,
+        req.body.photoUrl,
         userId,
       ],
     );
@@ -110,7 +112,7 @@ router.put("/profile", authMiddleware, async (req, res) => {
       userId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -137,7 +139,7 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
     res.json({ deliveryBoys });
   } catch (err) {
     console.error("Error fetching delivery boys:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -312,7 +314,7 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
       userId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -344,7 +346,7 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
     res.json({ status: verifications[0].status });
   } catch (err) {
     console.error("Error fetching status:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -425,7 +427,7 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
     res.json({ users });
   } catch (err) {
     console.error("Error fetching users:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -562,7 +564,7 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -631,7 +633,7 @@ router.get(
         error: err.message,
         stack: err.stack,
       });
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Something went wrong. Please try again later." });
     }
   },
 );
@@ -679,7 +681,7 @@ router.get("/delivery/orders", authMiddleware, async (req, res) => {
       deliveryPersonId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -733,7 +735,7 @@ router.put("/delivery/orders/:id/status", authMiddleware, async (req, res) => {
       deliveryPersonId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -774,7 +776,7 @@ router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
       deliveryPersonId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -795,7 +797,7 @@ router.put("/profile/currency", authMiddleware, async (req, res) => {
       userId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -820,7 +822,7 @@ router.get("/special-requests", authMiddleware, async (req, res) => {
       userId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -849,7 +851,7 @@ router.get("/animals/:animalId/orders", authMiddleware, async (req, res) => {
       animalId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

@@ -23,7 +23,7 @@ const options = {
     },
     security: [{ bearerAuth: [] }]
   },
-  apis: ['./routes/*.js'], // auto-scan routes
+  apis: ['./routes/*.js', './controllers/*.js'], // auto-scan routes
 };
 
 module.exports = swaggerJSDoc(options);

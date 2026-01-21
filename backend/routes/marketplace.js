@@ -2,6 +2,7 @@ const express = require("express");
 const { fetchVerifiedAdmins } = require("../controllers/marketplaceAdmin");
 const authMiddleware = require("../middleware/authmiddleware");
 const pool = require("../config/db");
+const logger = require("../middleware/logger");
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ const router = express.Router();
  *                   city:
  *                     type: string
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -72,7 +73,7 @@ router.get("/verified", fetchVerifiedAdmins);
  *       401:
  *         description: Unauthorized
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -120,7 +121,7 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -177,7 +178,7 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
  *       401:
  *         description: Unauthorized
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -217,7 +218,7 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

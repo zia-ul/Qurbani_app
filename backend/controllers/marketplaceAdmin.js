@@ -9,7 +9,7 @@ exports.getVerifiedAdmins = async () => {
       SELECT 
         id,
         name,
-        city
+        address
       FROM users
       WHERE role = 'admin'
         AND admin_status = 'approved'
@@ -33,6 +33,6 @@ exports.fetchVerifiedAdmins = async (req, res) => {
     res.status(200).json({ admins });
   } catch (err) {
     logger.error("Fetch verified admins error", { error: err.message });
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };

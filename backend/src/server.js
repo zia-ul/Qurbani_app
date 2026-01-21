@@ -7,25 +7,25 @@ const adminVerificationRoutes = require("../controllers/apply_admin_verification
 const animalRoutes = require("../routes/addanimal");
 const adminRoutes = require("../routes/marketplace");
 const adminProfileRoutes = require("../routes/adminprofile");
-// const orderRoutes = require("../controllers/orders"); 
+const orderRoutes = require("../controllers/orders"); 
 const userRoutes = require("../routes/users"); 
 const adminPaymentRoutes = require("../routes/admin_payment_routes");
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
-
-const requestLogger = require("../middlewares/requestLogger");
-const errorHandler = require("../middlewares/errorHandler");
-
+const requestLogger = require("../middleware/request_logger");
+const errorHandler = require("../middleware/error_logger");
 const rateLimit = require("express-rate-limit");
 
 
 require('dotenv').config();
 
-const logger = require("../middlewares/logger");
+// Winston logger
+const logger = require("../middleware/logger");
 logger.info("Application starting");
 
-
+// Express app setup
 const app = express();
+
 // Global rate limiter (applies to all requests)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -39,48 +39,46 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-
+// Cross-Origin Resource Sharing
 app.use(cors());
 app.use(bodyParser.json());
 app.use(requestLogger); 
+app.use(errorHandler);
 
-
-// Existing routes
+// routes
 app.use('/api/auth', authRoutes);
 app.use("/api/auth/adminprofile", adminProfileRoutes);
+
 app.use("/api/admin-verification", adminVerificationRoutes);
 app.use("/api/animals", animalRoutes);
 app.use("/api/admins", adminRoutes);
-// app.use("/api/orders", orderRoutes); 
+app.use("/api/orders", orderRoutes); 
 app.use("/api/animals", animalListRoutes);
 
 // Orders
 app.use("/api/orders", require("../routes/orders"));
+
+
 // Rating Routes
 app.use("/api/ratings", require("../routes/rating_routes"));
+
 // Special Requests Routes
 app.use("/api/requests", require("../routes/requests_routes"));
 
 app.use("/api/slots", require("../routes/slots")); // Mount the slots routes
 
 // Admin payment settings
-// app.use("/api/admin/payment-settings", adminPaymentRoutes);
+app.use("/api/admin/payment-settings", adminPaymentRoutes);
 app.use("/api/admin", require("../routes/admin_payment_routes"));
-// app.use("/api", require("./routes/public_admin.routes"));
+app.use("/api", require("../routes/public_admin_routes"));
 
 // user-related routes (profile, ratings, requests, delivery-boys)
 app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys
 
+// Swagger API docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-
 const PORT = 3000;
-
-// app.get("/", (req, res) => {
-//   res.send("API is running");
-// });
-
-app.use(errorHandler); // Centralized error handling middleware
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

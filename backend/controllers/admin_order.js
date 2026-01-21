@@ -59,7 +59,7 @@ router.get("/my", auth, adminOnly, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -119,7 +119,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -173,7 +173,7 @@ router.put("/:orderId", auth, adminOnly, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

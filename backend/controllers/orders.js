@@ -4,6 +4,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
+const logger = require("../middleware/logger");
 
 // GET /api/orders/my - Get all orders for the authenticated user
 router.get("/my", authMiddleware, async (req, res) => {
@@ -32,7 +33,7 @@ router.get("/my", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -92,7 +93,7 @@ router.post("/", authMiddleware, async (req, res) => {
       stack: err.stack
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   } finally {
     connection.release();
   }
@@ -106,7 +107,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.*, u.name as admin_name, u.email as admin_email
+      `SELECT o.*, u.name as admin_name, u.address as admin_address, u.phone as admin_phone
        FROM orders o
        JOIN users u ON o.admin_id = u.id
        WHERE o.id = ? AND o.user_id = ?`,
@@ -129,7 +130,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       userId,
       error: err.message
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -176,7 +177,7 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
     res.json({ orders: ordersWithDetails });
   } catch (err) {
     console.error("Error fetching admin orders:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -232,7 +233,7 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching ratings:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -273,7 +274,7 @@ router.post("/ratings", authMiddleware, async (req, res) => {
   } catch (err) {
     await connection.rollback();
     console.error("Error submitting ratings:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   } finally {
     connection.release();
   }
@@ -302,7 +303,7 @@ router.post("/requests", authMiddleware, async (req, res) => {
     res.status(201).json({ message: "Request submitted successfully" });
   } catch (err) {
     console.error("Error submitting request:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -326,7 +327,7 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
     res.json({ requests });
   } catch (err) {
     console.error("Error fetching requests:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -382,7 +383,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
     res.json({ order: orderWithDetails });
   } catch (err) {
     console.error("Error fetching admin order:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -415,7 +416,7 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
     res.json({ message: "Order updated successfully" });
   } catch (err) {
     console.error("Error updating order:", err);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

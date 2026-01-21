@@ -54,7 +54,7 @@
  *       404:
  *         description: Admin not found
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -62,7 +62,7 @@
 const express = require("express");
 const db = require("../config/db"); // Your MySQL connection
 const authMiddleware = require("../middleware/authmiddleware"); // JWT verification middleware
-
+const logger = require("../middleware/logger"); // Logger middleware
 const router = express.Router();
 
 /**
@@ -124,7 +124,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

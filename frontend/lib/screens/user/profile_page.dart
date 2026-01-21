@@ -28,6 +28,8 @@ class _ProfilePageState extends State<ProfilePage> {
   final addressController = TextEditingController();
   final descriptionController = TextEditingController();
   DateTime? _orderDeadline;
+  String? _completePhoneNumber; // +countryCode + number
+  String? _initialCountryCode; // e.g. IN, US, GB
 
   // Backup data for cancel functionality
   String _oldName = "";
@@ -35,6 +37,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _oldAddress = "";
   String _oldDescription = "";
   DateTime? _oldDeadline;
+  String? _oldPhotoUrl;
 
   String? _photoUrl;
   File? _selectedImage;
@@ -64,21 +67,27 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> loadProfile() async {
     try {
       final profile = await ProfileService.getProfile();
-      nameController.text = profile['name'] ?? '';
-      emailController.text = profile['email'] ?? '';
-      phoneController.text = profile['phone'] ?? '';
-      addressController.text = profile['address'] ?? '';
-      descriptionController.text = profile['description'] ?? '';
-      _photoUrl = profile['photoUrl'];
-      _isAdmin = profile['isAdmin'] ?? false;
-      if (profile['orderDeadline'] != null) {
-        _orderDeadline = DateTime.tryParse(profile['orderDeadline']);
-      }
+
+      if (!mounted) return;
+
+      setState(() {
+        nameController.text = profile['name'] ?? '';
+        emailController.text = profile['email'] ?? '';
+        phoneController.text = profile['phone'] ?? '';
+        addressController.text = profile['address'] ?? '';
+        descriptionController.text = profile['description'] ?? '';
+        _photoUrl = profile['photo_url'];
+        _isAdmin = profile['isAdmin'] ?? false;
+        print(_photoUrl);
+        if (profile['orderDeadline'] != null) {
+          _orderDeadline = DateTime.tryParse(profile['orderDeadline']);
+        }
+
+        _isLoading = false;
+      });
     } catch (e) {
-      print("Failed.......: $e");
-      ToastUtils.showError('Failed to load profile: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      ToastUtils.showError('Failed to load profile');
+      setState(() => _isLoading = false);
     }
   }
 
@@ -91,6 +100,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _oldAddress = addressController.text;
         _oldDescription = descriptionController.text;
         _oldDeadline = _orderDeadline;
+        _oldPhotoUrl = _photoUrl;
         _isEditing = true;
       } else {
         // Cancel: Restore backup
@@ -99,6 +109,7 @@ class _ProfilePageState extends State<ProfilePage> {
         addressController.text = _oldAddress;
         descriptionController.text = _oldDescription;
         _orderDeadline = _oldDeadline;
+        _photoUrl = _oldPhotoUrl;
         _selectedImage = null;
         _isEditing = false;
       }
@@ -164,6 +175,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isLoading = true);
     String? imageUrl = _photoUrl;
+
     if (_selectedImage != null) {
       imageUrl = await uploadToCloudinary(_selectedImage!);
       if (imageUrl == null) {
@@ -483,6 +495,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildHeaderArea() {
+    ImageProvider? imageProvider;
+    debugPrint("🖼 selectedImage: $_selectedImage");
+    debugPrint("🌐 photoUrl: $_photoUrl");
+    if (_selectedImage != null) {
+      imageProvider = FileImage(_selectedImage!);
+    } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
+      imageProvider = NetworkImage(_photoUrl!);
+    }
+    debugPrint("📦 imageProvider: $imageProvider");
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 60, bottom: 20),
@@ -492,28 +513,24 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
-          const SizedBox(height: 20),
           GestureDetector(
             onTap: _isEditing ? pickProfileImage : null,
             child: Stack(
               children: [
                 CircleAvatar(
                   radius: 60,
-                  backgroundColor: Colors.orange.shade100,
-                  backgroundImage: _selectedImage != null
-                      ? FileImage(_selectedImage!)
-                      : (_photoUrl != null ? NetworkImage(_photoUrl!) : null)
-                            as ImageProvider?,
-                  child: (_photoUrl == null && _selectedImage == null)
-                      ? const Icon(Icons.person, size: 50, color: Colors.white)
+                  backgroundColor: Colors.grey.shade200,
+                  backgroundImage: imageProvider,
+                  child: imageProvider == null
+                      ? const Icon(Icons.person, size: 50, color: Colors.grey)
                       : null,
                 ),
                 if (_isEditing)
                   Positioned(
-                    bottom: 5,
-                    right: 5,
+                    bottom: 4,
+                    right: 4,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
                         color: Colors.green,
                         shape: BoxShape.circle,
@@ -528,7 +545,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             nameController.text.isEmpty ? "User Name" : nameController.text,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),

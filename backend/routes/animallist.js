@@ -35,7 +35,7 @@ const pool = require("../config/db");
  *       403:
  *         description: Admin access required
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 // Get animals for logged-in admin
@@ -66,7 +66,7 @@ router.get("/", authMiddleware, isAdmin, getAnimals);
  *       404:
  *         description: Animal not found
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -119,7 +119,7 @@ router.delete("/:id", authMiddleware, isAdmin, deleteAnimal);
  *       404:
  *         description: Animal not found
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -155,7 +155,7 @@ router.put("/:id", authMiddleware, isAdmin, updateAnimal);
  *       404:
  *         description: Animal not found
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -212,7 +212,7 @@ router.get("/:id", authMiddleware, isAdmin, getAnimalById);
  *       403:
  *         description: Admin access required
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -264,7 +264,7 @@ router.get("/:animalId/orders", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

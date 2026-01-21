@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
-const logger = require("../middlewares/logger");
+const logger = require("../middleware/logger");
 
 const { v4: uuidv4 } = require("uuid");
 
@@ -26,7 +26,7 @@ router.get("/my", auth, async (req, res) => {
       error: err.message,
       stack: err.stack
     });
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -88,7 +88,7 @@ router.get("/:orderId", auth, async (req, res) => {
       error: err.message,
       stack: err.stack
     });
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

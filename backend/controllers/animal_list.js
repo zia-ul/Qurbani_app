@@ -28,7 +28,7 @@ exports.getAnimals = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -79,7 +79,7 @@ exports.deleteAnimal = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -116,7 +116,7 @@ exports.getAnimalById = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -204,6 +204,6 @@ exports.updateAnimal = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };

@@ -35,7 +35,7 @@ const auth = require('../middlewares/auth');
  *       401:
  *         description: Unauthorized
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -72,7 +72,7 @@ router.get('/my', auth, getMyNotifications);
  *       404:
  *         description: Notification not found
  *       500:
- *         description: Server error
+ *         description: Something went wrong. Please try again later.
  */
 
 

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../controllers/admin_payment_settings.controller");
+// const controller = require("../controllers/admin_payment_settings.controller");
+const controller = require("../controllers/admin_payment_settings");
 
 /**
  * @swagger
@@ -40,7 +41,7 @@ const controller = require("../controllers/admin_payment_settings.controller");
  *       404:
  *         description: Admin or payment settings not found
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 

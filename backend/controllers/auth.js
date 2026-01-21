@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
 const authMiddleware = require("../middleware/authmiddleware");
 const pool = require("../config/db");
-const logger = require("../middlewares/logger"); // Winston logger
+const logger = require("../middleware/logger"); // Winston logger
 const { loginLimiter, registerLimiter } = require("../middleware/rate_limiter");
 
 const router = express.Router();
@@ -96,7 +96,7 @@ router.post(
       });
     } catch (err) {
       logger.error("Registration error", { email, role, error: err.message });
-      res.status(500).json({ message: err.message || "Server error" });
+      res.status(500).json({ message: err.message || "Something went wrong. Please try again later." });
     }
   }
 );
@@ -181,7 +181,7 @@ router.post("/login", loginLimiter, async (req, res) => {
     });
   } catch (err) {
     logger.error("Login error", { email, error: err.message });
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -219,9 +219,37 @@ router.get("/me", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     logger.error("Fetch current user error", { userId: req.user.id, error: err.message });
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
+
+
+// Update profile photo
+router.put("/update-profile-photo", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const { photoUrl } = req.body;
+
+  if (!photoUrl) {
+    return res.status(400).json({ message: "Photo URL is required" });
+  }
+
+  try {
+    await db.query(
+      "UPDATE users SET photo_url = ? WHERE id = ?",
+      [photoUrl, userId]
+    );
+
+    res.json({ message: "Profile photo updated", photoUrl });
+  } catch (err) {
+    logger.error("Profile photo update failed", {
+      userId,
+      error: err.message,
+    });
+
+    res.status(500).json({ message: "Something went wrong. Please try again." });
+  }
+});
+
 
 /**
  * PUT /api/auth/change-password
@@ -258,7 +286,7 @@ router.put("/change-password", authMiddleware, async (req, res) => {
     res.json({ message: "Password changed successfully" });
   } catch (err) {
     logger.error("Change password error", { userId, error: err.message });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

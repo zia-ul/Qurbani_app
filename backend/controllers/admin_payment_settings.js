@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const logger = require("../middleware/logger");
 
 /**
  * ADMIN (authenticated)
@@ -37,7 +38,7 @@ exports.getMyPaymentSettings = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -88,7 +89,7 @@ exports.updateMyPaymentSettings = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
 
@@ -125,7 +126,7 @@ exports.getAdminPaymentSettingsPublic = async (req, res) => {
       error: err.message,
     });
 
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
 

@@ -32,6 +32,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
     if (res.statusCode != 200) {
       throw Exception("Failed to load admins");
     }
+    print(res.body);
 
     return jsonDecode(res.body)['admins'];
   }

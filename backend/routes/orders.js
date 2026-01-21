@@ -55,7 +55,7 @@ router.use("/admin", require("../controllers/admin_order"));
  *       404:
  *         description: Order not found
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -91,7 +91,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -134,7 +134,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
  *       404:
  *         description: Order not found
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 router.put("/:orderId", authMiddleware, async (req, res) => {
@@ -188,7 +188,7 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
       orderId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -218,7 +218,7 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
  *       404:
  *         description: Order not found
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -269,7 +269,7 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       orderId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -313,7 +313,7 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
  *       404:
  *         description: Order not found
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -371,7 +371,7 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -407,7 +407,7 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
  *       401:
  *         description: Unauthorized
  *       500:
- *         description: Internal server error
+ *         description: Something went wrong. Please try again later.
  */
 
 
@@ -438,7 +438,7 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       orderId,
       error: err.message,
     });
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

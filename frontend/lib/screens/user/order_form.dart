@@ -1,4 +1,5 @@
 import 'dart:convert'; // For JSON parsing
+import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:Qurbani/services/order_service.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Qurbani/screens/user/payment_processing_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 class Shareholder {
   final TextEditingController nameController = TextEditingController();
@@ -89,6 +91,28 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         msg: "Error loading payment settings",
         backgroundColor: Colors.red,
       );
+    }
+  }
+
+  double _convert(BuildContext context, double amount) {
+    final currency = context.read<CurrencyNotifier>();
+    return currency.convert(amount);
+  }
+
+  String _currencySymbol(BuildContext context) {
+    final currency = context.watch<CurrencyNotifier>().currency;
+
+    switch (currency) {
+      case 'INR':
+        return '₹';
+      case 'PKR':
+        return '₨';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      default:
+        return '\$';
     }
   }
 
@@ -323,7 +347,18 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             items: _animals.map((animal) {
               return DropdownMenuItem<String>(
                 value: animal['id'],
-                child: Text("${animal['animal_type']} - \$${animal['price']}"),
+                child: Consumer<CurrencyNotifier>(
+                  builder: (_, currency, __) {
+                    final priceUsd =
+                        double.tryParse(animal['price'].toString()) ?? 0.0;
+                    final converted = currency.convert(priceUsd);
+
+                    return Text(
+                      "${animal['animal_type']} - "
+                      "${_currencySymbol(context)}${converted.toStringAsFixed(2)}",
+                    );
+                  },
+                ),
               );
             }).toList(),
             onChanged: (value) {
@@ -432,13 +467,26 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                       "Subtotal",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    Text(
-                      "\$${subtotal.toStringAsFixed(2)}",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
-                      ),
+                    // Text(
+                    //   "\$${subtotal.toStringAsFixed(2)}",
+                    //   style: TextStyle(
+                    //     fontSize: 16,
+                    //     fontWeight: FontWeight.bold,
+                    //     color: AppTheme.primaryGreen,
+                    //   ),
+                    // ),
+                    Consumer<CurrencyNotifier>(
+                      builder: (_, currency, __) {
+                        final convertedSubtotal = currency.convert(subtotal);
+                        return Text(
+                          "${_currencySymbol(context)}${convertedSubtotal.toStringAsFixed(2)}",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
