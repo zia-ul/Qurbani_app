@@ -27,7 +27,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     _adminFuture = _fetchAdminProfile();
   }
 
-
   Future<Map<String, dynamic>> _fetchAdminProfile() async {
     const baseUrl = 'http://192.168.1.6:3000/api';
     final token = await _storage.read(key: "token");

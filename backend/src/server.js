@@ -16,8 +16,9 @@ const requestLogger = require("../middleware/request_logger");
 const errorHandler = require("../middleware/error_logger");
 const rateLimit = require("express-rate-limit");
 
-
+require("./cron");
 require('dotenv').config();
+console.log("Using API key:", process.env.OPENEXCHANGE_API_KEY);
 
 // Winston logger
 const logger = require("../middleware/logger");
@@ -48,7 +49,6 @@ app.use(errorHandler);
 // routes
 app.use('/api/auth', authRoutes);
 app.use("/api/auth/adminprofile", adminProfileRoutes);
-
 app.use("/api/admin-verification", adminVerificationRoutes);
 app.use("/api/animals", animalRoutes);
 app.use("/api/admins", adminRoutes);
@@ -58,6 +58,7 @@ app.use("/api/animals", animalListRoutes);
 // Orders
 app.use("/api/orders", require("../routes/orders"));
 
+app.use("/api/users", require("../routes/currency_rates"))
 
 // Rating Routes
 app.use("/api/ratings", require("../routes/rating_routes"));

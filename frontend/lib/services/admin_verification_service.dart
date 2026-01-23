@@ -36,10 +36,15 @@ class AdminVerificationService {
       body: jsonEncode(data),
     );
 
+    print(res.body);
+
     if (res.statusCode != 201) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to submit verification';
-      throw Exception(msg);
+      try {
+        final body = jsonDecode(res.body);
+        throw Exception(body['message'] ?? 'Verification failed');
+      } catch (_) {
+        throw Exception('Verification failed (${res.statusCode})');
+      }
     }
   }
 

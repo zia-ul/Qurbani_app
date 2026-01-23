@@ -158,12 +158,12 @@ class MasterDrawer extends StatelessWidget {
               "Animal Inventory",
               AnimalListingPage(),
             ),
-            // _drawerItem(
-            //   context,
-            //   Icons.schedule,
-            //   "Slot Management",
-            //   AdminSlotPage(adminId: id),
-            // ),
+            _drawerItem(
+              context,
+              Icons.schedule,
+              "Slot Management",
+              AdminSlotPage(adminId: id),
+            ),
             _drawerItem(
               context,
               Icons.lock_reset,

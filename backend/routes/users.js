@@ -264,8 +264,12 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
  */
 
 // POST /api/admin/verification - Submit admin verification
+const { v4: uuidv4 } = require("uuid");
+
 router.post("/admin/verification", authMiddleware, async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.id; 
+  const verificationId = uuidv4(); 
+
   const {
     organization_name,
     phone,
@@ -279,22 +283,36 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
 
   try {
     await pool.execute(
-      `INSERT INTO admin_verification_requests
-     (user_id, organization_name, phone, experience, address,
-      govt_id_url, business_proof_url, bank_proof_url, farm_photo_url, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-     ON DUPLICATE KEY UPDATE
-       organization_name = VALUES(organization_name),
-       phone = VALUES(phone),
-       experience = VALUES(experience),
-       address = VALUES(address),
-       govt_id_url = VALUES(govt_id_url),
-       business_proof_url = VALUES(business_proof_url),
-       bank_proof_url = VALUES(bank_proof_url),
-       farm_photo_url = VALUES(farm_photo_url),
-       status = 'pending'
-    `,
+      `
+      INSERT INTO admin_verification_requests
+      (
+        id,
+        user_id,
+        organization_name,
+        phone,
+        experience,
+        address,
+        govt_id_url,
+        business_proof_url,
+        bank_proof_url,
+        farm_photo_url,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+      ON DUPLICATE KEY UPDATE
+        organization_name = VALUES(organization_name),
+        phone = VALUES(phone),
+        experience = VALUES(experience),
+        address = VALUES(address),
+        govt_id_url = VALUES(govt_id_url),
+        business_proof_url = VALUES(business_proof_url),
+        bank_proof_url = VALUES(bank_proof_url),
+        farm_photo_url = VALUES(farm_photo_url),
+        status = 'pending',
+        updated_at = NOW()
+      `,
       [
+        verificationId,
         userId,
         organization_name,
         phone,
@@ -304,19 +322,31 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
         business_proof_url,
         bank_proof_url,
         farm_photo_url,
-      ],
+      ]
     );
 
-    logger.info("Admin verification submitted", { userId });
-    res.json({ message: "Verification submitted for review" });
+    logger.info("Admin verification submitted", {
+      userId,
+      verificationId,
+    });
+
+    res.status(201).json({
+      message: "Verification submitted for review",
+      verification_id: verificationId,
+    });
   } catch (err) {
     logger.error("Admin verification failed", {
       userId,
       error: err.message,
+      stack: err.stack,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
+
 
 /**
  * @swagger

@@ -186,9 +186,16 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
 router.get("/:adminId/animals", authMiddleware, async (req, res) => {
   const { adminId } = req.params;
 
-  logger.info("Fetching animals for admin", { adminId });
-
   try {
+    const [[admin]] = await pool.execute(
+      `SELECT currency FROM users WHERE id = ? AND role = 'admin'`,
+      [adminId]
+    );
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
     const [animals] = await pool.execute(
       `
       SELECT 
@@ -205,20 +212,12 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
       [adminId]
     );
 
-    logger.info("Animals fetched for admin", {
-      adminId,
-      count: animals.length,
+    res.json({
+      admin_currency: admin.currency, // ✅ THIS WAS MISSING
+      animals,
     });
-
-    res.json({ animals });
   } catch (err) {
-    logger.error("Error fetching animals for admin", {
-      adminId,
-      error: err.message,
-      stack: err.stack,
-    });
-
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({ message: "Something went wrong" });
   }
 });
 

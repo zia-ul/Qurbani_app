@@ -95,13 +95,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   double _convert(BuildContext context, double amount) {
-    final currency = context.read<CurrencyNotifier>();
+    final currency = context.watch<CurrencyNotifier>();
     return currency.convert(amount);
   }
 
   String _currencySymbol(BuildContext context) {
     final currency = context.watch<CurrencyNotifier>().currency;
-
+    debugPrint("Current currency: ${currency}");
     switch (currency) {
       case 'INR':
         return '₹';
@@ -118,11 +118,22 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   Future<void> _fetchAnimals() async {
     try {
-      _animals = await OrderService.getAnimals(widget.adminId);
-      print(".....animals$_animals");
-      setState(() {});
+      final result = await OrderService.getAnimals(widget.adminId);
+      // result contains: {'admin_currency': 'USD', 'animals': [...]}
+      final animals = List<Map<String, dynamic>>.from(result['animals']);
+      final adminCurrency = result['admin_currency'] ?? 'USD';
+
+      // Update currency notifier with admin currency
+      final currencyNotifier = context.read<CurrencyNotifier>();
+      currencyNotifier.setCurrency(adminCurrency);
+
+      setState(() {
+        _animals = animals;
+      });
+
+      debugPrint("Fetched animals: $_animals, currency: $adminCurrency");
     } catch (e) {
-      print("Error fetching animals: $e");
+      debugPrint("Error fetching animals: $e");
       Fluttertoast.showToast(
         msg: "Error fetching animals: $e",
         backgroundColor: Colors.red,
@@ -181,9 +192,39 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Add this currency loading check at the VERY beginning
+    final currency = context.watch<CurrencyNotifier>();
+
+    // Show loading indicator while currency rates are loading
+    if (currency.isLoading) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text("Loading currency rates..."),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show error state if currency failed to load
+    if (currency.hasError) {
+  debugPrint(
+    "Currency failed, falling back to base currency: ${currency.currency}",
+  );
+}
+
+
+    // THEN check payment settings (existing code)
     if (!_paymentSettingsLoaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+
+    // Rest of your existing build method continues here...
     return Scaffold(
       extendBodyBehindAppBar: false,
       appBar: AppBar(
@@ -498,13 +539,52 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                       "Delivery Charges",
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    Text(
-                      "\$${deliveryTotal.toStringAsFixed(2)}",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
-                      ),
+                    Consumer<CurrencyNotifier>(
+                      builder: (_, currency, __) {
+                        final convertedDelivery = currency.convert(
+                          deliveryTotal,
+                        );
+                        final convertedTotal = currency.convert(totalPrice);
+                        return Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Delivery Charges",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  "${_currencySymbol(context)}${convertedDelivery.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Divider(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "Total Price",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  "${_currencySymbol(context)}${convertedTotal.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryGreen,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -646,7 +726,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           'guardianName': s.guardianController.text.trim(),
           'qurbaniDay': s.qurbaniDay,
           'animalId': s.selectedAnimalId,
-          'price': price, // ✅ per-animal price
+          'price': price, // per-animal price
           'deliveryFee': deliveryFee,
         };
       }).toList();

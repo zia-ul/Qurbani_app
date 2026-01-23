@@ -42,7 +42,7 @@ class OrderService {
   }
 
   /// GET ANIMALS FOR ADMIN
-  static Future<List<Map<String, dynamic>>> getAnimals(String adminId) async {
+  static Future<Map<String, dynamic>> getAnimals(String adminId) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -56,8 +56,7 @@ class OrderService {
       throw Exception(msg);
     }
 
-    final List data = jsonDecode(res.body)['animals'];
-    return List<Map<String, dynamic>>.from(data);
+    return jsonDecode(res.body); 
   }
 
   static Future<void> updatePaymentSuccess(

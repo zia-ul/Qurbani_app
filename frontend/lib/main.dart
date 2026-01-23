@@ -12,7 +12,14 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await currencyService.initialize(); // Fetch rates and load cached data
+  // await currencyService.initialize(); // Fetch rates and load cached data
+  try {
+    await currencyService.initialize();
+    debugPrint("CurrencyService initialized in main");
+  } catch (e) {
+    debugPrint("CurrencyService initialization failed: $e");
+    // Continue anyway, it will use cached rates or defaults
+  }
 
   /// Local notifications initialization
   const AndroidInitializationSettings androidInit =

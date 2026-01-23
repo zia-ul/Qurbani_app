@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SuperAdminService {
   static const _storage = FlutterSecureStorage();
   static const _baseUrl = 'http://192.168.1.6:3000/api';
-
+  // 192.168.1.6
   /// Fetch users for superadmin
   /// If role = 'all', only fetch admins, pending admins, users, delivery boys
   static Future<List<Map<String, dynamic>>> getUsers(String role) async {
@@ -23,8 +23,9 @@ class SuperAdminService {
     }
 
     final data = jsonDecode(res.body);
-    List<Map<String, dynamic>> users =
-        List<Map<String, dynamic>>.from(data['users']);
+    List<Map<String, dynamic>> users = List<Map<String, dynamic>>.from(
+      data['users'],
+    );
 
     // Filter client-side if backend returns extra roles (optional)
     if (role == 'all') {
@@ -38,7 +39,7 @@ class SuperAdminService {
   }
 
   /// Approve or reject a user/admin
-static Future<void> updateUser(
+  static Future<void> updateUser(
     String userId,
     String action, {
     String? reviewNote,

@@ -27,6 +27,28 @@ class ProfileService {
     return Map<String, dynamic>.from(jsonDecode(res.body)['profile']);
   }
 
+  static Future<void> setUserCurrency(String currency) async {
+    const storage = FlutterSecureStorage();
+    final token = await storage.read(key: 'token');
+
+    if (token == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final response = await http.put(
+      Uri.parse('http://192.168.1.6:3000/api/users/currencies'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'currency': currency}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update currency: ${response.body}');
+    }
+  }
+
   /// UPDATE USER PROFILE
   static Future<void> updateProfile(Map<String, dynamic> updates) async {
     final token = await _storage.read(key: 'token');

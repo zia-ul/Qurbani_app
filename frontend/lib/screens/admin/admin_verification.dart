@@ -47,25 +47,31 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<String?> upload(XFile? image) async {
     if (image == null) return null;
 
-    const cloud = 'dfezveorl';
-    const preset = 'qurbani';
+    try {
+      final req =
+          http.MultipartRequest(
+              'POST',
+              Uri.parse(
+                'https://api.cloudinary.com/v1_1/dfezveorl/image/upload',
+              ),
+            )
+            ..fields['upload_preset'] = 'qurbani'
+            ..files.add(await http.MultipartFile.fromPath('file', image.path));
 
-    final req =
-        http.MultipartRequest(
-            'POST',
-            Uri.parse('https://api.cloudinary.com/v1_1/$cloud/image/upload'),
-          )
-          ..fields['upload_preset'] = preset
-          ..files.add(await http.MultipartFile.fromPath('file', image.path));
+      final res = await req.send();
+      final body = await res.stream.bytesToString();
 
-    final res = await req.send();
-    final body = await res.stream.bytesToString();
+      debugPrint("Cloudinary response: $body");
 
-    if (res.statusCode != 200) {
-      throw Exception("Upload failed");
+      if (res.statusCode != 200) {
+        throw Exception("Image upload failed");
+      }
+
+      return jsonDecode(body)['secure_url'];
+    } catch (e) {
+      debugPrint("Upload error: $e");
+      rethrow;
     }
-
-    return jsonDecode(body)['secure_url'];
   }
 
   Future<void> submit() async {
@@ -73,8 +79,16 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
     setState(() => loading = true);
 
+    if (govtId == null || businessProof == null) {
+      ToastUtils.showError("Please upload required documents");
+      // return;
+    }
+
+    print(".....id:$widget.id");
+
     try {
       final data = {
+        // "admin_id": widget.id,
         "organization_name": orgController.text.trim(),
         "phone": phoneController.text.trim(),
         "experience": expController.text.trim(),

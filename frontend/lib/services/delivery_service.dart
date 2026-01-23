@@ -26,7 +26,6 @@ class DeliveryService {
     return List<Map<String, dynamic>>.from(data['orders']);
   }
 
-
   static Future<Map<String, dynamic>> updateStatus(
     String orderId,
     String status,
@@ -51,7 +50,6 @@ class DeliveryService {
     return Map<String, dynamic>.from(jsonDecode(res.body));
   }
 
-
   static Future<void> verifyCode(String orderId, String code) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
@@ -72,18 +70,17 @@ class DeliveryService {
   }
 
   static Future<List<String>> checkDeliveryNotifications() async {
-  final token = await _storage.read(key: 'token');
-  if (token == null) throw Exception('Not authenticated');
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
 
-  final res = await http.get(
-    Uri.parse('$_baseUrl/delivery/notifications'),
-    headers: {'Authorization': 'Bearer $token'},
-  );
+    final res = await http.get(
+      Uri.parse('$_baseUrl/delivery/notifications'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-  if (res.statusCode != 200) return [];
+    if (res.statusCode != 200) return [];
 
-  final List orders = jsonDecode(res.body)['orders'];
-  return orders.map<String>((o) => o['id']).toList();
-}
-
+    final List orders = jsonDecode(res.body)['orders'];
+    return orders.map<String>((o) => o['id']).toList();
+  }
 }
