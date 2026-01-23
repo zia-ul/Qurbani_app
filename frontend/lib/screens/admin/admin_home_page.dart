@@ -31,7 +31,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final Color bgGradientStart = const Color(0xffF2E8D5); // Parchment style
   final Color bgGradientEnd = const Color(0xffFFFFFF);
 
-  static const String _baseUrl = "http://192.168.1.6:3000/api";
+  static const String _baseUrl = "http://192.168.1.4:3000/api";
 
   Map<String, dynamic>? _stats;
   Timer? _notificationTimer; // For polling notifications
@@ -45,7 +45,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       await _checkPermissions();
       await _ensureLocationSelected();
       await _loadStats();
-      _startNotificationPolling();
+      // _startNotificationPolling();
       _startStatsPolling(); // Start live stats polling
       await _checkNotificationPermission();
     });
@@ -88,65 +88,65 @@ class _AdminHomePageState extends State<AdminHomePage> {
   // POLLING FOR NOTIFICATIONS (Replaces Firestore Listeners)
   // ---------------------------------------------------------
 
-  void _startNotificationPolling() {
-    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (
-      timer,
-    ) async {
-      try {
-        final notifications = await AdminService.getNotifications();
-        for (final notification in notifications) {
-          String title = '';
-          String body = '';
+  // void _startNotificationPolling() {
+  //   _notificationTimer = Timer.periodic(const Duration(seconds: 30), (
+  //     timer,
+  //   ) async {
+  //     try {
+  //       final notifications = await AdminService.getNotifications();
+  //       for (final notification in notifications) {
+  //         String title = '';
+  //         String body = '';
 
-          switch (notification['type']) {
-            case 'new_order':
-              title = "💰 New Order Received";
-              body = "Order #${notification['order_id']} has been placed.";
-              break;
-            case 'delivery_update':
-              title = "🚚 Delivery Update";
-              body = "Order #${notification['order_id']} status updated.";
-              break;
-            case 'rating':
-              title = "⭐ New Rating";
-              body = "Order #${notification['order_id']} received a rating.";
-              break;
-          }
+  //         switch (notification['type']) {
+  //           case 'new_order':
+  //             title = "💰 New Order Received";
+  //             body = "Order #${notification['order_id']} has been placed.";
+  //             break;
+  //           case 'delivery_update':
+  //             title = "🚚 Delivery Update";
+  //             body = "Order #${notification['order_id']} status updated.";
+  //             break;
+  //           case 'rating':
+  //             title = "⭐ New Rating";
+  //             body = "Order #${notification['order_id']} received a rating.";
+  //             break;
+  //         }
 
-          if (title.isNotEmpty) {
-            _triggerAdminNotification(title: title, body: body);
-            // Mark as notified in backend
-            await AdminService.markNotificationNotified(notification['id']);
-          }
-        }
-      } catch (e) {
-        // Handle silently to avoid spam
-        debugPrint("Error polling notifications: $e");
-      }
-    });
-  }
+  //         if (title.isNotEmpty) {
+  //           _triggerAdminNotification(title: title, body: body);
+  //           // Mark as notified in backend
+  //           await AdminService.markNotificationNotified(notification['id']);
+  //         }
+  //       }
+  //     } catch (e) {
+  //       // Handle silently to avoid spam
+  //       debugPrint("Error polling notifications: $e");
+  //     }
+  //   });
+  // }
 
   // ---------------------------------------------------------
   // NOTIFICATIONS
   // ---------------------------------------------------------
 
-  void _triggerAdminNotification({
-    required String title,
-    required String body,
-  }) {
-    AwesomeNotifications().createNotification(
-      content: NotificationContent(
-        id: Random().nextInt(100000),
-        channelKey: 'admin_alerts',
-        title: title,
-        body: body,
-        wakeUpScreen: true,
-        criticalAlert: true,
-        notificationLayout: NotificationLayout.Default,
-        backgroundColor: AppTheme.primaryGreen,
-      ),
-    );
-  }
+  // void _triggerAdminNotification({
+  //   required String title,
+  //   required String body,
+  // }) {
+  //   AwesomeNotifications().createNotification(
+  //     content: NotificationContent(
+  //       id: Random().nextInt(100000),
+  //       channelKey: 'admin_alerts',
+  //       title: title,
+  //       body: body,
+  //       wakeUpScreen: true,
+  //       criticalAlert: true,
+  //       notificationLayout: NotificationLayout.Default,
+  //       backgroundColor: AppTheme.primaryGreen,
+  //     ),
+  //   );
+  // }
 
   // ---------------------------------------------------------
   // PERMISSIONS

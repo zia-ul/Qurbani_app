@@ -20,7 +20,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
   bool isSaving = false;
 
   /// 🔴 CHANGE THIS
-  final String baseUrl = "http://192.168.1.6:3000/api";
+  final String baseUrl = "http://192.168.1.4:3000/api";
 
   final Color scaffoldBg = const Color(0xffF4F7F4);
   final Color accentGold = const Color(0xffD1C4A9);

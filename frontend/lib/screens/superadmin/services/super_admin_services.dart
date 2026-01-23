@@ -4,8 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SuperAdminService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
-  // 192.168.1.6
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  // 192.168.1.4
   /// Fetch users for superadmin
   /// If role = 'all', only fetch admins, pending admins, users, delivery boys
   static Future<List<Map<String, dynamic>>> getUsers(String role) async {

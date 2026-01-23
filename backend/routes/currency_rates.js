@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
-
+const authMiddleware = require("../middleware/authmiddleware");
+const logger = require("../middleware/logger");
 /**
  * GET /api/users/currencies
  */
@@ -30,6 +31,26 @@ router.get("/currencies", async (req, res) => {
   } catch (err) {
     console.error("Currency fetch failed:", err);
     res.status(500).json({ message: "Failed to fetch currencies" });
+  }
+});
+
+router.put("/profile/currency", authMiddleware, async (req, res) => {
+  const { currency } = req.body;
+  const userId = req.user.id;
+
+  try {
+    await pool.execute(`UPDATE users SET currency = ? WHERE id = ?`, [
+      currency,
+      userId,
+    ]);
+    logger.info("Currency updated", { userId });
+    res.json({ message: "Currency updated" });
+  } catch (err) {
+    logger.error("Currency update failed", {
+      userId,
+      error: err.message,
+    });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

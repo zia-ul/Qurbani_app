@@ -67,28 +67,32 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// Load user currency from backend & CurrencyService
+  /// Load user currency from CurrencyNotifier
   Future<void> _loadUserCurrency() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notifier = context.read<CurrencyNotifier>();
-
     try {
       await currencyService.ensureInitialized();
       _availableCurrencies = currencyService.supportedCurrencies;
 
+      // SAFETY CHECK
+      // if (_availableCurrencies.isEmpty) {
+      //   debugPrint("No currencies received from backend");
+      //   setState(() => _selectedCurrency = "USD");
+      //   return;
+      // }
+
       final profile = await ProfileService.getProfile();
-      final currency = profile['currency'] ??
-          prefs.getString('currency') ??
-          _availableCurrencies.first;
+      final currency = profile['currency'] ?? _availableCurrencies.first;
 
       setState(() => _selectedCurrency = currency);
-      notifier.setCurrency(currency);
-      await prefs.setString('currency', currency);
-    } catch (_) {
-      final localCurrency =
-          prefs.getString('currency') ?? _availableCurrencies.first;
-      setState(() => _selectedCurrency = localCurrency);
-      notifier.setCurrency(localCurrency);
+    } catch (e) {
+      debugPrint("Currency load failed: $e");
+
+      // FINAL SAFETY
+      if (_availableCurrencies.isNotEmpty) {
+        setState(() => _selectedCurrency = _availableCurrencies.first);
+      } else {
+        setState(() => _selectedCurrency = "USD");
+      }
     }
   }
 
@@ -128,13 +132,11 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// Update user currency on backend & local storage
+  /// Update user currency on backend
   Future<void> _updateUserCurrency(String val) async {
     final notifier = context.read<CurrencyNotifier>();
     try {
       await CurrencyService.setUserCurrency(val); // Save to backend
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('currency', val);
 
       setState(() => _selectedCurrency = val);
       notifier.setCurrency(val);
@@ -176,12 +178,12 @@ class _SettingsPageState extends State<SettingsPage> {
           Consumer<CurrencyNotifier>(
             builder: (_, notifier, __) {
               return DropdownButtonFormField<String>(
-                value: _selectedCurrency ?? notifier.currency,
+                value: (_availableCurrencies.contains(_selectedCurrency))
+                    ? _selectedCurrency
+                    : null,
+
                 items: _availableCurrencies
-                    .map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c),
-                        ))
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
                 onChanged: (val) {
                   if (val != null) _updateUserCurrency(val);
@@ -302,9 +304,7 @@ class _SettingsPageState extends State<SettingsPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.primaryGreen.withOpacity(0.1),
-          ),
+          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,10 +334,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 10),
               const Text(
                 "COD Payment Deadline *",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 8),
               GestureDetector(
@@ -353,7 +350,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(8),
@@ -361,14 +361,19 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today, color: AppTheme.primaryGreen),
+                      const Icon(
+                        Icons.calendar_today,
+                        color: AppTheme.primaryGreen,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         _codDeadline != null
                             ? DateFormat('dd/MM/yyyy').format(_codDeadline!)
                             : "Select Deadline",
                         style: TextStyle(
-                          color: _codDeadline != null ? Colors.black : Colors.grey,
+                          color: _codDeadline != null
+                              ? Colors.black
+                              : Colors.grey,
                         ),
                       ),
                     ],

@@ -26,7 +26,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   /// Fetch verified admins from Node(backend), MySQL
   Future<List<dynamic>> fetchVerifiedAdmins() async {
     final res = await http.get(
-      Uri.parse("http://192.168.1.6:3000/api/admins/verified"),
+      Uri.parse("http://192.168.1.4:3000/api/admins/verified"),
     );
 
     if (res.statusCode != 200) {

@@ -40,6 +40,7 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 
+
 // Cross-Origin Resource Sharing
 app.use(cors());
 app.use(bodyParser.json());

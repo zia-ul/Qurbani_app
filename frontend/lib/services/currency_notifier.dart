@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:Qurbani/services/currency_service.dart';
 
 class CurrencyNotifier extends ChangeNotifier {
+  /// 🔹 User-selected currency (display only)
   String _currency = 'USD';
+
+  /// 🔹 Admin/base currency (prices come in this)
+  String _baseCurrency = 'USD';
+
   bool _isLoading = true;
   bool _hasError = false;
 
@@ -13,55 +18,88 @@ class CurrencyNotifier extends ChangeNotifier {
     _init();
   }
 
+  // ================= INIT =================
+
   Future<void> _init() async {
     try {
       _isLoading = true;
       notifyListeners();
 
       await _currencyService.initialize();
+
+      _baseCurrency = _currencyService.baseCurrency;
+
       debugPrint(
-        "Rates loaded: ${_currencyService.supportedCurrencies}",
+        "CurrencyNotifier ready | base=$_baseCurrency | supported=${_currencyService.supportedCurrencies}",
       );
 
       _isLoading = false;
+      _hasError = false;
       notifyListeners();
     } catch (e) {
-      debugPrint('CurrencyService init failed: $e');
-      _hasError = true;
+      debugPrint("CurrencyNotifier init failed: $e");
       _isLoading = false;
+      _hasError = true;
       notifyListeners();
     }
   }
 
-  /// 🔹 Call this AFTER profile loads
-  void setInitialCurrency(String currency) {
-    _currency = currency;
-    notifyListeners();
-  }
+  // ================= GETTERS =================
 
   String get currency => _currency;
+  String get baseCurrency => _baseCurrency;
+
   bool get isLoading => _isLoading;
   bool get hasError => _hasError;
 
-  bool get isReady =>
-      !_isLoading && !_hasError && _currencyService.rates != null;
+  bool get isReady => !_isLoading && !_hasError;
 
-  /// ✅ Supported currencies for dropdown
   List<String> get supportedCurrencies =>
       _currencyService.supportedCurrencies;
 
-  /// USD → selected currency
-  double convert(double amount) {
-    if (!isReady) return amount;
-    return _currencyService.convert(amount, _currency);
-  }
+  // ================= SETUP =================
 
-  /// Change currency from UI
-  void setCurrency(String value) {
-    if (_currency == value) return;
-    _currency = value;
+  /// 🔹 Call AFTER profile + animals load
+  void setInitialCurrency({
+    required String baseCurrency,
+    required String userCurrency,
+  }) {
+    _baseCurrency = baseCurrency;
+    _currency = userCurrency;
     notifyListeners();
   }
 
-  Map<String, double>? get rates => _currencyService.rates;
+   void setCurrency(String val) {
+    _currency = val;
+    notifyListeners();
+  }
+
+  // ================= CONVERSION =================
+
+  /// Convert from ADMIN currency → USER currency
+  double convert(double amountInBaseCurrency) {
+    if (!isReady) return amountInBaseCurrency;
+    if (_currency == _baseCurrency) return amountInBaseCurrency;
+
+    return _currencyService.convert(
+      amountInBaseCurrency,
+      _currency,
+    );
+  }
+
+  // ================= USER ACTION =================
+
+  /// Called from dropdown / UI
+  // Future<void> setCurrency(String value) async {
+  //   if (_currency == value) return;
+
+  //   _currency = value;
+  //   notifyListeners();
+
+  //   try {
+  //     await CurrencyService.setUserCurrency(value);
+  //   } catch (e) {
+  //     debugPrint("Failed to persist user currency: $e");
+  //   }
+  // }
 }

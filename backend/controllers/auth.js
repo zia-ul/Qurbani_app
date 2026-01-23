@@ -8,14 +8,15 @@ const authMiddleware = require("../middleware/authmiddleware");
 const pool = require("../config/db");
 const logger = require("../middleware/logger"); // Winston logger
 const { loginLimiter, registerLimiter } = require("../middleware/rate_limiter");
-
+const { sendVerificationEmail } = require("../src/email_service");
 const router = express.Router();
 
 /**
  * POST /api/auth/register
  */
 router.post(
-  "/register", registerLimiter,
+  "/register",
+  registerLimiter,
   [
     body("name").notEmpty(),
     body("email").isEmail(),
@@ -48,7 +49,7 @@ router.post(
       // Check email uniqueness
       const [existing] = await db.query(
         "SELECT id FROM users WHERE email = ?",
-        [email]
+        [email],
       );
 
       if (existing.length > 0) {
@@ -83,10 +84,20 @@ router.post(
           city || null,
           false,
           verificationToken,
-        ]
+        ],
       );
 
       logger.info("User registered successfully", { userId, role });
+
+      try {
+        await sendVerificationEmail(email, verificationToken);
+        logger.info(`Verification email sent to ${email}`);
+      } catch (err) {
+        logger.error(`Failed to send verification email to ${email}`, {
+          error: err.message,
+        });
+        // optionally: continue, or return error to user
+      }
 
       return res.status(201).json({
         message:
@@ -96,10 +107,44 @@ router.post(
       });
     } catch (err) {
       logger.error("Registration error", { email, role, error: err.message });
-      res.status(500).json({ message: err.message || "Something went wrong. Please try again later." });
+      res.status(500).json({
+        message: err.message || "Something went wrong. Please try again later.",
+      });
     }
-  }
+  },
 );
+
+// POST /api/auth/verify-email
+router.get("/verify-email", async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    const conn = await pool.getConnection();
+
+    // Find user with this token
+    const [users] = await conn.query(
+      "SELECT * FROM users WHERE verification_token = ? AND is_verified = 0",
+      [token],
+    );
+
+    if (users.length === 0) {
+      conn.release();
+      return res.status(400).send("Token invalid or already used");
+    }
+
+    // Update user as verified
+    await conn.query(
+      "UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?",
+      [users[0].id],
+    );
+
+    conn.release();
+    res.send("Email verified successfully! You can now login.");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err.message);
+  }
+});
 
 /**
  * POST /api/auth/login
@@ -109,8 +154,12 @@ router.post("/login", loginLimiter, async (req, res) => {
 
   try {
     if (!email || !password) {
-      logger.warn("Login failed: missing email or password", { body: req.body });
-      return res.status(400).json({ message: "Email and password are required" });
+      logger.warn("Login failed: missing email or password", {
+        body: req.body,
+      });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
 
     const emailNormalized = email.toLowerCase();
@@ -122,11 +171,13 @@ router.post("/login", loginLimiter, async (req, res) => {
         is_verified, is_active, city, currency
        FROM users
        WHERE email = ?`,
-      [emailNormalized]
+      [emailNormalized],
     );
 
     if (users.length === 0) {
-      logger.warn("Login failed: unregistered email", { email: emailNormalized });
+      logger.warn("Login failed: unregistered email", {
+        email: emailNormalized,
+      });
       return res.status(404).json({ message: "Unregistered Mail id" });
     }
 
@@ -156,14 +207,18 @@ router.post("/login", loginLimiter, async (req, res) => {
     if (user.role === "admin") {
       const [rows] = await db.query(
         `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-        [user.id]
+        [user.id],
       );
       adminVerificationStatus = rows.length ? rows[0].status : "not_submitted";
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
 
     logger.info("Login successful", { userId: user.id, role: user.role });
 
@@ -181,7 +236,9 @@ router.post("/login", loginLimiter, async (req, res) => {
     });
   } catch (err) {
     logger.error("Login error", { email, error: err.message });
-    return res.status(500).json({ message: "Something went wrong. Please try again later." });
+    return res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -192,11 +249,13 @@ router.get("/me", authMiddleware, async (req, res) => {
   try {
     const [users] = await pool.execute(
       `SELECT id, name, email, role FROM users WHERE id = ?`,
-      [req.user.id]
+      [req.user.id],
     );
 
     if (users.length === 0) {
-      logger.warn("Fetch current user failed: user not found", { userId: req.user.id });
+      logger.warn("Fetch current user failed: user not found", {
+        userId: req.user.id,
+      });
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -204,7 +263,7 @@ router.get("/me", authMiddleware, async (req, res) => {
     if (users[0].role === "admin") {
       const [rows] = await pool.execute(
         `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-        [req.user.id]
+        [req.user.id],
       );
       verificationStatus = rows.length ? rows[0].status : "not_submitted";
     }
@@ -218,11 +277,15 @@ router.get("/me", authMiddleware, async (req, res) => {
       },
     });
   } catch (err) {
-    logger.error("Fetch current user error", { userId: req.user.id, error: err.message });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    logger.error("Fetch current user error", {
+      userId: req.user.id,
+      error: err.message,
+    });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 // Update profile photo
 router.put("/update-profile-photo", authMiddleware, async (req, res) => {
@@ -234,10 +297,10 @@ router.put("/update-profile-photo", authMiddleware, async (req, res) => {
   }
 
   try {
-    await db.query(
-      "UPDATE users SET photo_url = ? WHERE id = ?",
-      [photoUrl, userId]
-    );
+    await db.query("UPDATE users SET photo_url = ? WHERE id = ?", [
+      photoUrl,
+      userId,
+    ]);
 
     res.json({ message: "Profile photo updated", photoUrl });
   } catch (err) {
@@ -246,10 +309,11 @@ router.put("/update-profile-photo", authMiddleware, async (req, res) => {
       error: err.message,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again." });
   }
 });
-
 
 /**
  * PUT /api/auth/change-password
@@ -261,7 +325,7 @@ router.put("/change-password", authMiddleware, async (req, res) => {
   try {
     const [users] = await pool.execute(
       `SELECT password_hash FROM users WHERE id = ?`,
-      [userId]
+      [userId],
     );
 
     if (users.length === 0) {
@@ -269,9 +333,14 @@ router.put("/change-password", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const isValid = await bcrypt.compare(currentPassword, users[0].password_hash);
+    const isValid = await bcrypt.compare(
+      currentPassword,
+      users[0].password_hash,
+    );
     if (!isValid) {
-      logger.warn("Password change failed: incorrect current password", { userId });
+      logger.warn("Password change failed: incorrect current password", {
+        userId,
+      });
       return res.status(400).json({ message: "Current password is incorrect" });
     }
 
@@ -286,7 +355,9 @@ router.put("/change-password", authMiddleware, async (req, res) => {
     res.json({ message: "Password changed successfully" });
   } catch (err) {
     logger.error("Change password error", { userId, error: err.message });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 

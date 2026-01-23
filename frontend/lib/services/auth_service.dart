@@ -5,7 +5,7 @@ import '../models/user_model.dart';
 
 class AuthService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
 
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {

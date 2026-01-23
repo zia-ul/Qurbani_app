@@ -39,6 +39,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   XFile? farmPhoto;
 
   bool loading = false;
+  String _fileName(XFile file) {
+    return file.path.split('/').last;
+  }
 
   Future<XFile?> pickImage() async {
     return await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -81,7 +84,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
     if (govtId == null || businessProof == null) {
       ToastUtils.showError("Please upload required documents");
-      // return;
+      return;
     }
 
     print(".....id:$widget.id");
@@ -162,22 +165,57 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
               ),
               const SizedBox(height: 16),
 
-              buildPicker("Government ID", () async {
-                govtId = await pickImage();
-                setState(() {});
-              }),
-              buildPicker("Business Proof", () async {
-                businessProof = await pickImage();
-                setState(() {});
-              }),
-              buildPicker("Bank Proof", () async {
-                bankProof = await pickImage();
-                setState(() {});
-              }),
-              buildPicker("Farm Photo", () async {
-                farmPhoto = await pickImage();
-                setState(() {});
-              }),
+              buildPicker(
+                label: "Government ID",
+                file: govtId,
+                required: true,
+                onPick: () async {
+                  govtId = await pickImage();
+                  setState(() {});
+                },
+                onRemove: () {
+                  setState(() => govtId = null);
+                },
+              ),
+
+              buildPicker(
+                label: "Business Proof",
+                file: businessProof,
+                required: true,
+                onPick: () async {
+                  businessProof = await pickImage();
+                  setState(() {});
+                },
+                onRemove: () {
+                  setState(() => businessProof = null);
+                },
+              ),
+
+              buildPicker(
+                label: "Bank Proof",
+                file: bankProof,
+                required: true,
+                onPick: () async {
+                  bankProof = await pickImage();
+                  setState(() {});
+                },
+                onRemove: () {
+                  setState(() => bankProof = null);
+                },
+              ),
+
+              buildPicker(
+                label: "Farm Photo",
+                file: farmPhoto,
+                required: true,
+                onPick: () async {
+                  farmPhoto = await pickImage();
+                  setState(() {});
+                },
+                onRemove: () {
+                  setState(() => farmPhoto = null);
+                },
+              ),
 
               const SizedBox(height: 24),
               ElevatedButton(
@@ -193,11 +231,51 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
     );
   }
 
-  Widget buildPicker(String label, VoidCallback onTap) {
-    return ListTile(
-      title: Text(label),
-      trailing: const Icon(Icons.upload),
-      onTap: onTap,
+  Widget buildPicker({
+    required String label,
+    required XFile? file,
+    required bool required,
+    required VoidCallback onPick,
+    required VoidCallback onRemove,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: required && file == null ? Colors.red : Colors.grey.shade300,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: required && file == null ? Colors.red : Colors.black,
+          ),
+        ),
+        subtitle: file != null
+            ? Text(_fileName(file), style: const TextStyle(fontSize: 12))
+            : required
+            ? const Text(
+                "Required",
+                style: TextStyle(color: Colors.red, fontSize: 12),
+              )
+            : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (file != null)
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                onPressed: onRemove,
+              ),
+            IconButton(icon: const Icon(Icons.upload), onPressed: onPick),
+          ],
+        ),
+      ),
     );
   }
 }

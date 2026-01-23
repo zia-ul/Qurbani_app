@@ -79,7 +79,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
   try {
     // Fetch admin user
     const [users] = await db.query(
-      `SELECT id, name, email, phone, address, city
+      `SELECT id, name, email, phone, address, city, order_deadline
        FROM users 
        WHERE id = ? AND role = 'admin'`,
       [adminId]

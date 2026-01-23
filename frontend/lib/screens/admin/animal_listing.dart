@@ -18,7 +18,7 @@ class AnimalListingPage extends StatefulWidget {
 
 class _AnimalListingPageState extends State<AnimalListingPage> {
   final _storage = const FlutterSecureStorage();
-  final String _baseUrl = "http://192.168.1.6:3000/api";
+  final String _baseUrl = "http://192.168.1.4:3000/api";
   List animals = [];
   bool isLoading = false;
 

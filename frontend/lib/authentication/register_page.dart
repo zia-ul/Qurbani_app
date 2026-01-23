@@ -95,12 +95,12 @@ class _RegisterPageState extends State<RegisterPage> {
         'Registration successful. Please verify your email.',
       );
 
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (_) => VerifyEmailPage(emailController.text.trim()),
-      //   ),
-      // );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifyEmailPage(emailController.text.trim()),
+        ),
+      );
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LoginScreen()),

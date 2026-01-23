@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AdminVerificationService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
 
   static Future<Map<String, dynamic>> getProfile() async {
     final token = await _storage.read(key: 'token');
@@ -36,7 +36,7 @@ class AdminVerificationService {
       body: jsonEncode(data),
     );
 
-    print(res.body);
+    // print(res.body);
 
     if (res.statusCode != 201) {
       try {

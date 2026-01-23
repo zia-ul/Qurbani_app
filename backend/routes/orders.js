@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const { v4: uuidv4 } = require("uuid");
+const logger = require("../middleware/logger");
 
 router.use("/", require("../controllers/user_order"));
 router.use("/admin", require("../controllers/admin_order"));

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/screens/user/order_form.dart';
+import 'package:intl/intl.dart';
 
 class AdminProfilePage extends StatefulWidget {
   final String adminId;
@@ -28,7 +29,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   }
 
   Future<Map<String, dynamic>> _fetchAdminProfile() async {
-    const baseUrl = 'http://192.168.1.6:3000/api';
+    const baseUrl = 'http://192.168.1.4:3000/api';
     final token = await _storage.read(key: "token");
     if (token == null) {
       throw Exception("No token found. User not logged in.");
@@ -65,6 +66,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           }
 
           final data = snapshot.data!;
+          print(data);
           final String name = data['name'] ?? 'Unknown Admin';
           final String phone = data['phone'] ?? 'N/A';
           final String address = data['address'] ?? 'N/A';
@@ -73,6 +75,13 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           final double avgRating = (data['averageRating'] ?? 0).toDouble();
           final int totalOrders = data['totalOrders'] ?? 0;
           final int completedOrders = data['completedOrders'] ?? 0;
+          DateTime? orderDeadline;
+
+          if (data['order_deadline'] != null) {
+            orderDeadline = DateTime.tryParse(data['order_deadline']);
+          }
+          final bool isDeadlinePassed =
+              orderDeadline != null && DateTime.now().isAfter(orderDeadline);
 
           return CustomScrollView(
             slivers: [
@@ -174,91 +183,116 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       children: [
                         _infoTile(Icons.phone, "Phone", phone),
                         _infoTile(Icons.location_on, "Address", address),
+                        if (orderDeadline != null)
+                          Text(
+                            "Order Deadline: ${DateFormat('dd MMM yyyy').format(orderDeadline)}",
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
                     // Map Section
-                    _buildInfoCard(
-                      title: "Operating Location",
-                      icon: Icons.map,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Image.network(
-                              //   "https://maps.googleapis.com/maps/api/staticmap?center=$city&zoom=13&size=600x300&key=YOUR_KEY_HERE",
-                              //   height: 150,
-                              //   width: double.infinity,
-                              //   fit: BoxFit.cover,
-                              //   errorBuilder: (c, e, s) => Container(
-                              //     height: 150,
-                              //     color: Colors.grey[300],
-                              //     child: const Icon(
-                              //       Icons.map_outlined,
-                              //       size: 50,
-                              //       color: Colors.grey,
-                              //     ),
-                              //   ),
-                              // ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  "$city Admin",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
+                    // _buildInfoCard(
+                    //   title: "Operating Location",
+                    //   icon: Icons.map,
+                    //   children: [
+                    //     ClipRRect(
+                    //       borderRadius: BorderRadius.circular(12),
+                    //       child: Stack(
+                    //         alignment: Alignment.center,
+                    //         children: [
+                    // Image.network(
+                    //   "https://maps.googleapis.com/maps/api/staticmap?center=$city&zoom=13&size=600x300&key=YOUR_KEY_HERE",
+                    //   height: 150,
+                    //   width: double.infinity,
+                    //   fit: BoxFit.cover,
+                    //   errorBuilder: (c, e, s) => Container(
+                    //     height: 150,
+                    //     color: Colors.grey[300],
+                    //     child: const Icon(
+                    //       Icons.map_outlined,
+                    //       size: 50,
+                    //       color: Colors.grey,
+                    //     ),
+                    //   ),
+                    // ),
+                    //           Container(
+                    //             padding: const EdgeInsets.symmetric(
+                    //               horizontal: 12,
+                    //               vertical: 6,
+                    //             ),
+                    //             decoration: BoxDecoration(
+                    //               color: Colors.white,
+                    //               borderRadius: BorderRadius.circular(20),
+                    //               boxShadow: const [
+                    //                 BoxShadow(
+                    //                   color: Colors.black26,
+                    //                   blurRadius: 4,
+                    //                 ),
+                    //               ],
+                    //             ),
+                    //             child: Text(
+                    //               "$city Admin",
+                    //               style: const TextStyle(
+                    //                 fontWeight: FontWeight.bold,
+                    //               ),
+                    //             ),
+                    //           ),
+                    //         ],
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
                     const SizedBox(height: 24),
 
                     _adminOrderStatsRow(totalOrders, completedOrders),
 
                     const SizedBox(height: 24),
 
-                    SizedBox(
-                      width: 160,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Place order
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  QurbaniOrderPage(adminId: widget.adminId),
+                    Column(
+                      children: [
+                        SizedBox(
+                          width: 160,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: isDeadlinePassed
+                                ? null // ❌ disables button
+                                : () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => QurbaniOrderPage(
+                                          adminId: widget.adminId,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDeadlinePassed
+                                  ? Colors.grey
+                                  : AppTheme.primaryGreen,
                             ),
-                          );
-                        },
-                        child: Text(
-                          "Place Order",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            child: const Text(
+                              "Place Order",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+
+                        if (isDeadlinePassed) ...[
+                          const SizedBox(height: 6),
+                          const Text(
+                            "No more orders accepting",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.redAccent,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ]),
                 ),

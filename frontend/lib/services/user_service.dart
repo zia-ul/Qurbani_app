@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class UserService {
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
   static const _storage = FlutterSecureStorage();
 
   /// Fetch logged-in user profile

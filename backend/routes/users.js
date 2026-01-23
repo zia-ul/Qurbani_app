@@ -811,25 +811,25 @@ router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
 });
 
 // PUT /api/profile/currency
-router.put("/profile/currency", authMiddleware, async (req, res) => {
-  const { currency } = req.body;
-  const userId = req.user.id;
+// router.put("/profile/currency", authMiddleware, async (req, res) => {
+//   const { currency } = req.body;
+//   const userId = req.user.id;
 
-  try {
-    await pool.execute(`UPDATE users SET currency = ? WHERE id = ?`, [
-      currency,
-      userId,
-    ]);
-    logger.info("Currency updated", { userId });
-    res.json({ message: "Currency updated" });
-  } catch (err) {
-    logger.error("Currency update failed", {
-      userId,
-      error: err.message,
-    });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
-  }
-});
+//   try {
+//     await pool.execute(`UPDATE users SET currency = ? WHERE id = ?`, [
+//       currency,
+//       userId,
+//     ]);
+//     logger.info("Currency updated", { userId });
+//     res.json({ message: "Currency updated" });
+//   } catch (err) {
+//     logger.error("Currency update failed", {
+//       userId,
+//       error: err.message,
+//     });
+//     res.status(500).json({ message: "Something went wrong. Please try again later." });
+//   }
+// });
 
 // GET /api/special-requests - Fetch user's special requests
 router.get("/special-requests", authMiddleware, async (req, res) => {

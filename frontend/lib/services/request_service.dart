@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class RequestService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
 
   /// SUBMIT SPECIAL REQUEST
   static Future<void> submitRequest(

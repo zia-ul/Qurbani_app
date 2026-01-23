@@ -186,7 +186,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       };
 
       final res = await http.post(
-        Uri.parse("http://192.168.1.6:3000/api/animals"),
+        Uri.parse("http://192.168.1.4:3000/api/animals"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",

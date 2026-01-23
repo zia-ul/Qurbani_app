@@ -7,7 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class CurrencyService {
   static const Duration _updateInterval = Duration(minutes: 45);
   static const String _backendUrl =
-      'http://192.168.1.6:3000/api/users/currencies';
+      'http://192.168.1.4:3000/api/users/currencies';
 
   static final CurrencyService _instance = CurrencyService._internal();
   factory CurrencyService() => _instance;
@@ -38,8 +38,7 @@ class CurrencyService {
   bool get isInitialized => _isInitialized;
 
   /// Supported currency codes
-  List<String> get supportedCurrencies =>
-      _rates.keys.toList()..sort();
+  List<String> get supportedCurrencies => _rates.keys.toList()..sort();
 
   // ---------------------------------------------------------------------------
   // INIT
@@ -62,7 +61,7 @@ class CurrencyService {
 
   Future<void> ensureInitialized() async {
     if (!_isInitialized) {
-      return _initCompleter.future;
+      await initialize();
     }
   }
 
@@ -124,7 +123,7 @@ class CurrencyService {
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.put(
-      Uri.parse('http://192.168.1.6:3000/api/users/currencies'),
+      Uri.parse('http://192.168.1.4:3000/api/users/profile/currency'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -142,10 +141,7 @@ class CurrencyService {
   // ---------------------------------------------------------------------------
 
   void _startAutoUpdate() {
-    _updateTimer = Timer.periodic(
-      _updateInterval,
-      (_) => _fetchRates(),
-    );
+    _updateTimer = Timer.periodic(_updateInterval, (_) => _fetchRates());
   }
 
   void dispose() {

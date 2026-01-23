@@ -18,7 +18,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   String activeFilter = 'All';
   final Color scaffoldBg = const Color(0xFFF4F7F4);
   final _storage = const FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
 
   List<Map<String, dynamic>> requests = [];
   bool isLoading = true;

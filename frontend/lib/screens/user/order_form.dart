@@ -1,5 +1,5 @@
 import 'dart:convert'; // For JSON parsing
-import 'package:Qurbani/services/currency_notifier.dart';
+// import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:Qurbani/services/order_service.dart';
@@ -7,7 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Qurbani/screens/user/payment_processing_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
+// import 'package:provider/provider.dart';
 
 class Shareholder {
   final TextEditingController nameController = TextEditingController();
@@ -42,6 +42,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   bool _allowCOD = false;
   bool _allowOnline = true;
   bool _paymentSettingsLoaded = false;
+  String _currency = 'USD';
+  double _currencyRate = 1.0; // USD base
+  bool _currencyLoaded = false;
 
   @override
   void initState() {
@@ -49,6 +52,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     _fetchAnimals();
     _fetchPaymentSettings();
     _addShareholder();
+    _fetchCurrency();
   }
 
   @override
@@ -63,7 +67,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     try {
       final res = await http.get(
         Uri.parse(
-          "http://192.168.1.6:3000/api/admins/${widget.adminId}/payment-settings",
+          "http://192.168.1.4:3000/api/admins/${widget.adminId}/payment-settings",
         ),
       );
 
@@ -94,26 +98,35 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     }
   }
 
-  double _convert(BuildContext context, double amount) {
-    final currency = context.watch<CurrencyNotifier>();
-    return currency.convert(amount);
+  Future<void> _fetchCurrency() async {
+    try {
+      final res = await http.get(
+        Uri.parse(
+          "http://192.168.1.4:3000/api/admins/${widget.adminId}/currency",
+        ),
+      );
+
+      if (res.statusCode != 200) {
+        throw Exception("Currency fetch failed");
+      }
+
+      final data = jsonDecode(res.body);
+
+      setState(() {
+        _currency = data['admin_currency'] ?? 'USD';
+        _currencyRate = (data['rate'] ?? 1).toDouble();
+        _currencyLoaded = true;
+      });
+    } catch (e) {
+      debugPrint("Currency error: $e");
+      setState(() {
+        _currencyLoaded = true; // fallback
+      });
+    }
   }
 
-  String _currencySymbol(BuildContext context) {
-    final currency = context.watch<CurrencyNotifier>().currency;
-    debugPrint("Current currency: ${currency}");
-    switch (currency) {
-      case 'INR':
-        return '₹';
-      case 'PKR':
-        return '₨';
-      case 'EUR':
-        return '€';
-      case 'GBP':
-        return '£';
-      default:
-        return '\$';
-    }
+  double _convert(double amount) {
+    return amount * _currencyRate;
   }
 
   Future<void> _fetchAnimals() async {
@@ -121,17 +134,12 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       final result = await OrderService.getAnimals(widget.adminId);
       // result contains: {'admin_currency': 'USD', 'animals': [...]}
       final animals = List<Map<String, dynamic>>.from(result['animals']);
-      final adminCurrency = result['admin_currency'] ?? 'USD';
-
-      // Update currency notifier with admin currency
-      final currencyNotifier = context.read<CurrencyNotifier>();
-      currencyNotifier.setCurrency(adminCurrency);
 
       setState(() {
         _animals = animals;
       });
 
-      debugPrint("Fetched animals: $_animals, currency: $adminCurrency");
+      debugPrint("Fetched animals: $_animals, currency: $_currency");
     } catch (e) {
       debugPrint("Error fetching animals: $e");
       Fluttertoast.showToast(
@@ -192,32 +200,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Add this currency loading check at the VERY beginning
-    final currency = context.watch<CurrencyNotifier>();
-
-    // Show loading indicator while currency rates are loading
-    if (currency.isLoading) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text("Loading currency rates..."),
-            ],
-          ),
-        ),
-      );
+    if (!_currencyLoaded || !_paymentSettingsLoaded) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
-    // Show error state if currency failed to load
-    if (currency.hasError) {
-  debugPrint(
-    "Currency failed, falling back to base currency: ${currency.currency}",
-  );
-}
-
 
     // THEN check payment settings (existing code)
     if (!_paymentSettingsLoaded) {
@@ -386,19 +371,16 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               ),
             ),
             items: _animals.map((animal) {
+              final priceUsd =
+                  double.tryParse(animal['price'].toString()) ?? 0.0;
+              final convertedPrice = priceUsd * _currencyRate;
+
               return DropdownMenuItem<String>(
                 value: animal['id'],
-                child: Consumer<CurrencyNotifier>(
-                  builder: (_, currency, __) {
-                    final priceUsd =
-                        double.tryParse(animal['price'].toString()) ?? 0.0;
-                    final converted = currency.convert(priceUsd);
-
-                    return Text(
-                      "${animal['animal_type']} - "
-                      "${_currencySymbol(context)}${converted.toStringAsFixed(2)}",
-                    );
-                  },
+                child: Text(
+                  "${animal['animal_type']} - "
+                  "$_currency ${convertedPrice.toStringAsFixed(2)}",
+                  style: const TextStyle(fontSize: 14),
                 ),
               );
             }).toList(),
@@ -449,24 +431,34 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Widget _paymentSection() {
-    double totalPrice = _calculateTotalPrice();
     double subtotal = 0.0;
     double deliveryTotal = 0.0;
 
+    // 1️⃣ Calculate totals in USD first
     for (var shareholder in _shareholders) {
       if (shareholder.selectedAnimalId != null) {
         final animal = _animals.firstWhere(
           (a) => a['id'] == shareholder.selectedAnimalId,
           orElse: () => {'price': 0.0, 'delivery_fee': 0.0},
         );
+
         subtotal += double.tryParse(animal['price'].toString()) ?? 0.0;
-        deliveryTotal += (animal['delivery_type'] == 'Paid')
-            ? (double.tryParse(animal['delivery_fee'].toString()) ?? 0.0)
-            : 0.0;
+
+        if (animal['delivery_type'] == 'Paid') {
+          deliveryTotal +=
+              double.tryParse(animal['delivery_fee'].toString()) ?? 0.0;
+        }
       }
     }
 
-    List<String> allowedMethods = _getAllowedPaymentMethods();
+    final totalPrice = subtotal + deliveryTotal;
+
+    // 2️⃣ Convert AFTER calculation
+    final convertedSubtotal = subtotal * _currencyRate;
+    final convertedDelivery = deliveryTotal * _currencyRate;
+    final convertedTotal = totalPrice * _currencyRate;
+
+    final allowedMethods = _getAllowedPaymentMethods();
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -481,18 +473,21 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             IconData icon = method == 'Cash'
                 ? Icons.money
                 : Icons.account_balance_wallet_outlined;
-            return Column(
-              children: [
-                _paymentOption(
-                  "${method == 'Cash' ? 'Cash on Delivery' : 'Online Payment'}",
-                  method,
-                  icon,
-                ),
-                if (method != allowedMethods.last) const Divider(),
-              ],
+
+            return RadioListTile<String>(
+              title: Text(
+                method == 'Cash' ? 'Cash on Delivery' : 'Online Payment',
+              ),
+              secondary: Icon(icon, color: AppTheme.primaryGreen),
+              value: method,
+              groupValue: _paymentMethod,
+              onChanged: (val) => setState(() => _paymentMethod = val!),
+              activeColor: AppTheme.primaryGreen,
             );
           }),
+
           const SizedBox(height: 10),
+
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -501,116 +496,47 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             ),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Subtotal",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    // Text(
-                    //   "\$${subtotal.toStringAsFixed(2)}",
-                    //   style: TextStyle(
-                    //     fontSize: 16,
-                    //     fontWeight: FontWeight.bold,
-                    //     color: AppTheme.primaryGreen,
-                    //   ),
-                    // ),
-                    Consumer<CurrencyNotifier>(
-                      builder: (_, currency, __) {
-                        final convertedSubtotal = currency.convert(subtotal);
-                        return Text(
-                          "${_currencySymbol(context)}${convertedSubtotal.toStringAsFixed(2)}",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryGreen,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Delivery Charges",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Consumer<CurrencyNotifier>(
-                      builder: (_, currency, __) {
-                        final convertedDelivery = currency.convert(
-                          deliveryTotal,
-                        );
-                        final convertedTotal = currency.convert(totalPrice);
-                        return Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  "Delivery Charges",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  "${_currencySymbol(context)}${convertedDelivery.toStringAsFixed(2)}",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryGreen,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Divider(),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  "Total Price",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  "${_currencySymbol(context)}${convertedTotal.toStringAsFixed(2)}",
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryGreen,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                _priceRow("Subtotal", convertedSubtotal),
+                _priceRow("Delivery Charges", convertedDelivery),
                 const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Total Price",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      "\$${totalPrice.toStringAsFixed(2)}",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                  ],
+                _priceRow(
+                  "Total Price",
+                  convertedTotal,
+                  isBold: true,
+                  fontSize: 20,
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _priceRow(
+    String label,
+    double amount, {
+    bool isBold = false,
+    double fontSize = 16,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+        Text(
+          "$_currency ${amount.toStringAsFixed(2)}",
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: AppTheme.primaryGreen,
+          ),
+        ),
+      ],
     );
   }
 

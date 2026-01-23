@@ -26,7 +26,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   final _formKey = GlobalKey<FormState>();
   final _storage = const FlutterSecureStorage();
 
-  final String _baseUrl = "http://192.168.1.6:3000/api";
+  final String _baseUrl = "http://192.168.1.4:3000/api";
 
   final descriptionController = TextEditingController();
   final breedController = TextEditingController();

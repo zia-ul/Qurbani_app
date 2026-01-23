@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ProfileService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.6:3000/api';
+  static const _baseUrl = 'http://192.168.1.4:3000/api';
 
   /// GET USER PROFILE
   static Future<Map<String, dynamic>> getProfile() async {
@@ -36,7 +36,7 @@ class ProfileService {
     }
 
     final response = await http.put(
-      Uri.parse('http://192.168.1.6:3000/api/users/currencies'),
+      Uri.parse('http://192.168.1.4:3000/api/users/currencies'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

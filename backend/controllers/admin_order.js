@@ -10,8 +10,6 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-
-
 // GET /api/orders/admin/my
 router.get("/my", auth, adminOnly, async (req, res) => {
   const adminId = req.user.id;
@@ -24,14 +22,14 @@ router.get("/my", auth, adminOnly, async (req, res) => {
        FROM orders o
        WHERE o.admin_id = ?
        ORDER BY o.created_at DESC`,
-      [adminId]
+      [adminId],
     );
 
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
         const [shareholders] = await pool.execute(
           `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-          [order.id]
+          [order.id],
         );
 
         return {
@@ -43,7 +41,7 @@ router.get("/my", auth, adminOnly, async (req, res) => {
           createdAt: order.created_at,
           shareholders,
         };
-      })
+      }),
     );
 
     logger.info("Admin orders fetched", {
@@ -59,11 +57,11 @@ router.get("/my", auth, adminOnly, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
 
 // GET /api/orders/admin/:orderId
 router.get("/:orderId", auth, adminOnly, async (req, res) => {
@@ -80,7 +78,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
       `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.status, o.delivery_status, o.delivery_person_id
        FROM orders o
        WHERE o.id = ? AND o.admin_id = ?`,
-      [orderId, adminId]
+      [orderId, adminId],
     );
 
     if (!orders.length) {
@@ -88,12 +86,14 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
         adminId,
         orderId,
       });
-      return res.status(404).json({ message: "Order not found or not authorized" });
+      return res
+        .status(404)
+        .json({ message: "Order not found or not authorized" });
     }
 
     const [shareholders] = await pool.execute(
       `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-      [orderId]
+      [orderId],
     );
 
     logger.info("Admin order details fetched", {
@@ -119,64 +119,89 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
-
 
 router.put("/:orderId", auth, adminOnly, async (req, res) => {
   const { orderId } = req.params;
-  const { processingStatus, deliveryStatus, deliveryPersonId } = req.body;
+
+  const {
+    delivery_person_id,
+    qurbani_time,
+  } = req.body;
+
+  // console.log(delivery_status);
+
   const adminId = req.user.id;
 
-  logger.info("Admin updating order status", {
-    adminId,
-    orderId,
-    processingStatus,
-    deliveryStatus,
-  });
-
   try {
-    const [orders] = await pool.execute(
-      `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
-      [orderId, adminId]
+    const [[order]] = await pool.execute(
+      `SELECT processing_status, qurbani_time
+       FROM orders
+       WHERE id = ? AND admin_id = ?`,
+      [orderId, adminId],
     );
 
-    if (!orders.length) {
-      logger.warn("Admin attempted unauthorized order update", {
-        adminId,
-        orderId,
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found or unauthorized",
       });
-      return res.status(404).json({ message: "Order not found or not authorized" });
+    }
+
+    let nextProcessingStatus = order.processing_status;
+
+    /**
+     * 🧱 RULE 1:
+     * pending → confirmed ONLY if qurbani_time provided
+     */
+    if (order.processing_status === "pending") {
+      if (!qurbani_time) {
+        return res.status(400).json({
+          message: "Qurbani date & time is required",
+        });
+      }
+
+      nextProcessingStatus = "confirmed";
+    }
+
+    /**
+     * 🧱 RULE 2:
+     * Cannot assign delivery person unless confirmed
+     */
+    if (delivery_person_id && nextProcessingStatus !== "confirmed") {
+      return res.status(400).json({
+        message: "Delivery person can only be assigned after confirmation",
+      });
     }
 
     await pool.execute(
-      `UPDATE orders 
-       SET status = ?, delivery_status = ?, delivery_person_id = ?, delivery_notified = 0
-       WHERE id = ?`,
-      [processingStatus, deliveryStatus, deliveryPersonId || null, orderId]
+      `UPDATE orders SET
+     processing_status = ?,
+     qurbani_time = COALESCE(?, qurbani_time),
+     delivery_person_id = COALESCE(?, delivery_person_id),
+     delivery_notified = 0
+   WHERE id = ?`,
+      [
+        nextProcessingStatus,
+        qurbani_time ?? null,
+        delivery_person_id ?? null,
+        orderId,
+      ],
     );
 
-    logger.info("Order updated successfully", {
-      adminId,
-      orderId,
+    res.json({
+      message: "Order updated successfully",
+      processing_status: nextProcessingStatus,
     });
-
-    res.json({ message: "Order updated successfully" });
   } catch (err) {
-    logger.error("Failed to update order", {
-      adminId,
-      orderId,
-      error: err.message,
-      stack: err.stack,
+    console.error(err);
+    res.status(500).json({
+      message: "Internal server error",
     });
-
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
 
 module.exports = router;

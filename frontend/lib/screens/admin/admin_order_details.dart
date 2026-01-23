@@ -17,8 +17,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   Map<String, dynamic>? orderData;
   bool isLoading = true;
   late String processing;
-  late String delivery;
+  late String? delivery;
   String? selectedDeliveryBoyId;
+  DateTime? qurbaniDate;
+  TimeOfDay? qurbaniTime;
 
   final List<String> processingOptions = ['pending', 'confirmed', 'completed'];
 
@@ -34,7 +36,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     _fetchDeliveryBoys();
   }
 
-  Future<void> _fetchOrderDetails() async {
+   Future<void> _fetchOrderDetails() async {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
       print("Order Data Admin: $orderData");
@@ -81,12 +83,34 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Future<void> save() async {
+    if (processing == 'pending') {
+      if (qurbaniDate == null || qurbaniTime == null) {
+        ToastUtils.showError('Qurbani date and time are required to continue.');
+        return;
+      }
+    }
+
     try {
-      await AdminOrderService.updateOrder(widget.orderId, {
-        'processing_status': processing,
-        'delivery_status': delivery,
-        'delivery_person_id': selectedDeliveryBoyId,
-      });
+      DateTime? combinedDateTime;
+      if (qurbaniDate != null && qurbaniTime != null) {
+        combinedDateTime = DateTime(
+          qurbaniDate!.year,
+          qurbaniDate!.month,
+          qurbaniDate!.day,
+          qurbaniTime!.hour,
+          qurbaniTime!.minute,
+        );
+      }
+
+      // Make sure all keys have either value or null
+      final body = {
+        // 'delivery_status': delivery ?? null,
+        'delivery_person_id': selectedDeliveryBoyId ?? null,
+        'qurbani_time': combinedDateTime?.toIso8601String() ?? null,
+      };
+
+      print("DEBUG: Updating order ${widget.orderId} with body: $body");
+      await AdminOrderService.updateOrder(widget.orderId, body);
 
       ToastUtils.showSuccess('Order updated successfully');
     } catch (e) {
@@ -124,34 +148,74 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             _buildRow('Delivery Address', data['delivery_address'] ?? 'N/A'),
             _buildRow('Contact', data['contact_no'] ?? 'N/A'),
             const SizedBox(height: 16),
+            if (processing == 'pending') ...[
+              const SizedBox(height: 12),
+
+              ElevatedButton(
+                onPressed: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
+                    initialDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setState(() => qurbaniDate = picked);
+                  }
+                },
+                child: Text(
+                  qurbaniDate == null
+                      ? 'Select Qurbani Date'
+                      : 'Date: ${qurbaniDate!.toLocal().toString().split(' ')[0]}',
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              ElevatedButton(
+                onPressed: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (picked != null) {
+                    setState(() => qurbaniTime = picked);
+                  }
+                },
+                child: Text(
+                  qurbaniTime == null
+                      ? 'Select Qurbani Time'
+                      : 'Time: ${qurbaniTime!.format(context)}',
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
 
             // Processing Status
-            DropdownButtonFormField<String>(
-              value: processing,
-              decoration: const InputDecoration(
-                labelText: 'Processing Status',
-                border: OutlineInputBorder(),
-              ),
-              items: processingOptions
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => processing = v!),
+            Chip(
+              label: Text(processing.toUpperCase()),
+              backgroundColor: processing == 'pending'
+                  ? Colors.orange.shade100
+                  : processing == 'confirmed'
+                  ? Colors.blue.shade100
+                  : Colors.green.shade100,
             ),
+
             const SizedBox(height: 12),
 
             // Delivery Status
-            DropdownButtonFormField<String>(
-              value: delivery,
-              decoration: const InputDecoration(
-                labelText: 'Delivery Status',
-                border: OutlineInputBorder(),
-              ),
-              items: deliveryOptions
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() => delivery = v!),
-            ),
-            const SizedBox(height: 12),
+            // DropdownButtonFormField<String>(
+            //   value: delivery,
+            //   decoration: const InputDecoration(
+            //     labelText: 'Delivery Status',
+            //     border: OutlineInputBorder(),
+            //   ),
+            //   items: deliveryOptions
+            //       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            //       .toList(),
+            //   onChanged: (v) => setState(() => delivery = v!),
+            // ),
+            // const SizedBox(height: 12),
 
             // Assign Delivery Boy
             loadingDeliveryBoys
