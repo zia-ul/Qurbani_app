@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:Qurbani/screens/admin/animal_edit.dart';
@@ -170,7 +171,14 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                           fit: BoxFit.cover,
                         ),
                       )
-                    : const Icon(Icons.pets, size: 40, color: Colors.grey),
+                    : Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 40,
+                          color: Colors.grey,
+                        ),
+                      ),
               ),
               const SizedBox(height: 8),
               Text(

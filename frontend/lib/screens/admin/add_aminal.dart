@@ -58,11 +58,14 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   }
 
   Future<void> pickLastBookedDate() async {
+    final now = DateTime.now();
+    final currentYear = now.year;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      initialDate: now,
+      firstDate: DateTime(currentYear, 1, 1),
+      lastDate: DateTime(currentYear, 12, 31),
     );
 
     if (picked != null) {
@@ -111,6 +114,16 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   Future<void> addAnimal() async {
     if (!_formKey.currentState!.validate()) {
       return;
+    }
+
+    if (lastBookedDate != null) {
+      final currentYear = DateTime.now().year;
+      if (lastBookedDate!.year != currentYear) {
+        ToastUtils.showError(
+          "Last booking date must be within the current year",
+        );
+        return;
+      }
     }
 
     // Additional validation for mandatory fields
@@ -290,7 +303,20 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                                 _buildLabel("Age", isRequired: false),
                                 TextFormField(
                                   controller: ageController,
-                                  decoration: _inputDecoration("e.g. 2 Years"),
+                                  keyboardType: TextInputType.number,
+                                  decoration: _inputDecoration("e.g. 2"),
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty)
+                                      return null; // optional field
+
+                                    final age = int.tryParse(v.trim());
+                                    if (age == null)
+                                      return "Enter a valid number";
+                                    if (age < 1)
+                                      return "Age must be at least 1 year";
+
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -305,9 +331,21 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                                   controller: priceController,
                                   keyboardType: TextInputType.number,
                                   decoration: _inputDecoration("Amount"),
-                                  validator: (v) => (v == null || v.isEmpty)
-                                      ? "Required"
-                                      : null,
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return "Required";
+                                    }
+
+                                    final price = double.tryParse(v.trim());
+                                    if (price == null) {
+                                      return "Enter a valid number";
+                                    }
+                                    if (price <= 0) {
+                                      return "Price must be greater than 0";
+                                    }
+
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),

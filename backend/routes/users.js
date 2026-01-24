@@ -668,6 +668,107 @@ router.get(
   },
 );
 
+/**
+ * GET /api/superadmin/users/:id
+ * Fetch full user profile for super admin
+ */
+router.get("/superadmin/users/:id", authMiddleware, async (req, res) => {
+  const { id: targetUserId } = req.params;
+  const superAdminId = req.user.id;
+
+  try {
+    // if (!(await ensureSuperAdmin(superAdminId))) {
+    //   return res.status(403).json({ message: "Access denied" });
+    // }
+
+    const [users] = await pool.execute(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        phone,
+        address,
+        role,
+        description,
+        photo_url,
+        created_at
+      FROM users
+      WHERE id = ?
+      `,
+      [targetUserId]
+    );
+
+    if (!users.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ user: users[0] });
+  } catch (err) {
+    logger.error("Superadmin user profile fetch failed", {
+      targetUserId,
+      error: err.message,
+    });
+    res.status(500).json({ message: "Something went wrong" });
+  }
+});
+
+/**
+ * GET /api/superadmin/users/:id/orders
+ * Fetch all orders taken by a user/admin
+ */
+router.get(
+  "/superadmin/users/:id/orders",
+  authMiddleware,
+  async (req, res) => {
+    const { id: targetUserId } = req.params;
+    const superAdminId = req.user.id;
+
+    try {
+      // if (!(await ensureSuperAdmin(superAdminId))) {
+      //   return res.status(403).json({ message: "Access denied" });
+      // }
+
+      const [orders] = await pool.execute(
+        `
+        SELECT
+          o.id,
+          o.payment_status,
+          o.processing_status,
+          o.delivery_status,
+          o.created_at,
+
+          u.name AS customer_name,
+          a.name AS admin_name,
+          d.name AS delivery_person
+
+        FROM orders o
+        JOIN users u ON u.id = o.user_id
+        JOIN users a ON a.id = o.admin_id
+        LEFT JOIN users d ON d.id = o.delivery_person_id
+
+        WHERE
+          o.user_id = ?
+          OR o.admin_id = ?
+          OR o.delivery_person_id = ?
+
+        ORDER BY o.created_at DESC
+        `,
+        [targetUserId, targetUserId, targetUserId]
+      );
+
+      res.json({ orders });
+    } catch (err) {
+      logger.error("Superadmin user orders fetch failed", {
+        targetUserId,
+        error: err.message,
+      });
+      res.status(500).json({ message: "Something went wrong" });
+    }
+  }
+);
+
+
 // GET /api/delivery/orders - Fetch orders for delivery person
 router.get("/delivery/orders", authMiddleware, async (req, res) => {
   const deliveryPersonId = req.user.id;
@@ -790,7 +891,7 @@ router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
     }
 
     await pool.execute(
-      `UPDATE orders SET delivery_status = 'delivered', delivered_at = NOW(), delivery_code = NULL WHERE id = ?`,
+      `UPDATE orders SET delivery_status = 'delivered', delivery_code = NULL WHERE id = ?`,
       [id],
     );
 

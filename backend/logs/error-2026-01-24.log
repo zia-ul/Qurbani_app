@@ -1,0 +1,19 @@
+2026-01-24 12:40:04 [error]: Delivery verification failed {"orderId":"47d99021-5c91-4d63-a69f-b34597eee18f","deliveryPersonId":"ded5a7a4-a203-42b2-abde-bfbe5b9765d1","error":"Unknown column 'delivered_at' in 'field list'"}
+2026-01-24 16:07:57 [error]: Superadmin user profile fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:07:57 [error]: Superadmin user orders fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:08:09 [error]: Superadmin user profile fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:08:09 [error]: Superadmin user orders fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:08:29 [error]: Superadmin user profile fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:08:29 [error]: Superadmin user orders fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:10:54 [error]: Superadmin user profile fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 16:10:54 [error]: Superadmin user orders fetch failed {"targetUserId":"0cecd6eb-ae42-4fbe-929c-57ef2e13010c","error":"ensureSuperAdmin is not defined"}
+2026-01-24 18:17:47 [error]: Superadmin user profile fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 18:17:47 [error]: Superadmin user orders fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 18:22:28 [error]: Superadmin user profile fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 18:22:28 [error]: Superadmin user orders fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 19:38:18 [error]: Superadmin user profile fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 19:38:18 [error]: Superadmin user orders fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 19:40:56 [error]: Superadmin user profile fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 19:40:56 [error]: Superadmin user orders fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 19:41:42 [error]: Superadmin user orders fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"ensureSuperAdmin is not defined"}
+2026-01-24 19:41:56 [error]: Superadmin user orders fetch failed {"targetUserId":"54741ac9-45ba-4874-932f-f7d9108b9465","error":"Unknown column 'o.total_amount' in 'field list'"}

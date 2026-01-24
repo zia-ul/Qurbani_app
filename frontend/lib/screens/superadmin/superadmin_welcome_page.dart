@@ -1,3 +1,5 @@
+import 'package:Qurbani/screens/superadmin/delivery_details';
+import 'package:Qurbani/screens/superadmin/user_details.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:Qurbani/screens/superadmin/admin_details.dart';
@@ -101,6 +103,106 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     }
   }
 
+  void _openFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        RoleFilter tempFilter = _selectedFilter;
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.4,
+          minChildSize: 0.25,
+          maxChildSize: 0.6,
+          builder: (context, scrollController) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: StatefulBuilder(
+                builder: (context, setModalState) {
+                  return ListView(
+                    controller: scrollController,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+
+                      const Text(
+                        'Filter Users By Role',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      ...RoleFilter.values.map(
+                        (role) => RadioListTile<RoleFilter>(
+                          value: role,
+                          groupValue: tempFilter,
+                          activeColor: AppTheme.primaryGreen,
+                          title: Text(role.name.toUpperCase()),
+                          onChanged: (val) =>
+                              setModalState(() => tempFilter = val!),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                setState(
+                                  () => _selectedFilter = RoleFilter.all,
+                                );
+                                _fetchUsers();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('RESET'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryGreen,
+                              ),
+                              onPressed: () {
+                                setState(() => _selectedFilter = tempFilter);
+                                _fetchUsers();
+                                Navigator.pop(context);
+                              },
+                              child: const Text('APPLY'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,12 +220,22 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         ),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
-        actions: [_filterDropdown()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.tune, color: Colors.white),
+            onPressed: _openFilterSheet,
+          ),
+        ],
       ),
       drawer: const SuperadminDrawer(),
       body: Column(
         children: [
-          _buildSummaryHeader(), // Added a summary header similar to "Order Summary"
+          _buildSummaryHeader(),
+          const SizedBox(height: 4),
+
+          _roleFilterBar(),
+
+          const SizedBox(height: 8),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -252,13 +364,31 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   size: 16,
                   color: Colors.grey,
                 ),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        AdminVerificationDetailsPage(adminId: userId),
-                  ),
-                ),
+                onPressed: () {
+                  if (role == 'admin') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AdminVerificationDetailsPage(adminId: userId),
+                      ),
+                    );
+                  } else if (role == 'user') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UserDetailsPage(adminId: userId),
+                      ),
+                    );
+                  } else if (role == 'delivery') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DeliveryPersonDetailsPage(deliveryPersonId: userId),
+                      ),
+                    );
+                  }
+                },
               ),
             ],
           ),
@@ -285,6 +415,49 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _roleFilterBar() {
+    return Container(
+      height: 46,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: RoleFilter.values.map((role) {
+          final bool isSelected = _selectedFilter == role;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                role.name.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? AppTheme.primaryGreen
+                      : Colors.grey.shade700,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
+              backgroundColor: Colors.white,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: isSelected
+                      ? AppTheme.primaryGreen
+                      : Colors.grey.shade300,
+                ),
+              ),
+              onSelected: (_) {
+                setState(() => _selectedFilter = role);
+                _fetchUsers();
+              },
+            ),
+          );
+        }).toList(),
       ),
     );
   }

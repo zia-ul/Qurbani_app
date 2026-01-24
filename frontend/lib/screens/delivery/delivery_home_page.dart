@@ -46,7 +46,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
 
     try {
       _orders = await DeliveryService.getOrders();
-      print(_orders);
+      // print(_orders);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();

@@ -208,3 +208,45 @@ exports.updateAnimal = async (req, res) => {
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 };
+
+
+exports.getDeliveryOrders = async (req, res) => {
+  try {
+    const { deliveryPersonId } = req.params;
+
+    const [orders] = await db.query(
+      `
+      SELECT 
+        id,
+        user_id,
+        admin_id,
+        payment_method,
+        total_shares,
+        status,
+        delivery_status,
+        payment_status,
+        processing_status,
+        qurbani_time,
+        delivery_code,
+        delivery_notified,
+        created_at
+      FROM orders
+      WHERE delivery_person_id = ?
+      ORDER BY created_at DESC
+      `,
+      [deliveryPersonId]
+    );
+
+    return res.status(200).json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    console.error('Delivery Orders Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch delivery orders',
+    });
+  }
+};
+

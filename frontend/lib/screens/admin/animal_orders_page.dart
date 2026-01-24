@@ -1,3 +1,4 @@
+import 'package:Qurbani/screens/admin/animal_edit.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/services/order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
@@ -88,6 +89,25 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                       Text("Processing: ${order['processing_status']}"),
                       Text("Delivery: ${order['delivery_status']}"),
                       Text("Date: ${order['created_at']}"),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  AnimalEditPage(animalId: widget.animalId),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: const Text('Add Details'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryGreen,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 36),
+                        ),
+                      ),
                     ],
                   ),
                 ),
