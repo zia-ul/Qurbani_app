@@ -1,0 +1,91 @@
+# TODO: Add Comments to All Files
+
+## Frontend Files
+- [x] main.dart - Basic comments added
+- [ ] lib/app_entry.dart
+- [ ] lib/drawer.dart
+- [ ] lib/forgot_password.dart
+- [ ] lib/onboarding_screen.dart
+- [ ] lib/permission_gate_screen.dart
+- [ ] lib/permission_service.dart
+- [ ] lib/settings_page.dart
+- [ ] lib/terms_condition_dialog.dart
+- [ ] lib/verify_email.dart
+- [ ] lib/welcome_screen.dart
+- [ ] lib/wrapper_screen.dart
+- [ ] lib/authentication/login_page.dart
+- [ ] lib/authentication/register_page.dart
+- [ ] lib/models/user_model.dart
+- [ ] lib/services/admin_application.dart
+- [ ] lib/services/admin_order_service.dart
+- [ ] lib/services/admin_payment_service.dart
+- [ ] lib/services/admin_service.dart
+- [ ] lib/services/admin_verification_service.dart
+- [ ] lib/services/auth_service.dart
+- [ ] lib/services/currency_notifier.dart
+- [ ] lib/services/currency_service.dart
+- [ ] lib/services/delivery_service.dart
+- [ ] lib/services/notification_service.dart
+- [ ] lib/services/order_service.dart
+- [ ] lib/services/ratings_service.dart
+- [ ] lib/services/request_service.dart
+- [ ] lib/services/service_profile.dart
+- [ ] lib/services/slot_service.dart
+- [ ] lib/services/user_service.dart
+- [ ] lib/theme/theme.dart
+- [ ] lib/widgets/common_card.dart
+- [ ] lib/widgets/common_input_decoration.dart
+- [ ] lib/widgets/common_label.dart
+- [ ] lib/widgets/custom_toast.dart
+- [ ] lib/widgets/error_notification.dart
+- [ ] lib/widgets/price_widget.dart
+- [ ] lib/widgets/primary_btn.dart
+- [ ] lib/widgets/secondary_btn.dart
+- [ ] lib/widgets/slot_availability.dart
+- [ ] lib/widgets/success_error_popup.dart
+- [ ] lib/widgets/primary_btn.dart
+- [ ] lib/widgets/secondary_btn.dart
+- [ ] lib/widgets/slot_availability.dart
+- [ ] lib/widgets/success_error_popup.dart
+- [ ] lib/screens/admin/add_aminal.dart - Already has comprehensive comments
+- [ ] lib/screens/delivery/ - All delivery screen files
+- [ ] lib/screens/superadmin/ - All superadmin screen files
+- [ ] lib/screens/user/ - All user screen files
+
+## Backend Files
+- [ ] backend/controllers/add_animal_details.js
+- [ ] backend/controllers/admin_order.js
+- [ ] backend/controllers/admin_payment_settings.js
+- [ ] backend/controllers/animal_list.js
+- [ ] backend/controllers/apply_admin_verification.js
+- [ ] backend/controllers/auth.js
+- [ ] backend/controllers/currency_rates.js
+- [ ] backend/controllers/delivery_notification.js
+- [ ] backend/controllers/marketplaceAdmin.js
+- [ ] backend/controllers/orders.js
+- [ ] backend/controllers/user_order.js
+- [ ] backend/middleware/admin_verification.js
+- [ ] backend/middleware/authmiddleware.js
+- [ ] backend/middleware/error_logger.js
+- [ ] backend/middleware/isAdmin.js
+- [ ] backend/middleware/isSuperAdmin.js
+- [ ] backend/middleware/logger.js
+- [ ] backend/middleware/rate_limiter.js
+- [ ] backend/middleware/request_logger.js
+- [ ] backend/routes/addanimal.js
+- [ ] backend/routes/admin_payment_routes.js
+- [ ] backend/routes/adminprofile.js
+- [ ] backend/routes/animallist.js
+- [ ] backend/routes/currency_rates.js
+- [ ] backend/routes/delivery_notifications.js
+- [ ] backend/routes/marketplace.js
+- [ ] backend/routes/orders.js
+- [ ] backend/routes/public_admin_routes.js
+- [ ] backend/routes/rating_routes.js
+- [ ] backend/routes/requests_routes.js
+- [ ] backend/routes/slots.js
+- [ ] backend/routes/users.js
+- [ ] backend/src/cron.js
+- [ ] backend/src/email_service.js
+- [ ] backend/src/server.js
+- [ ] backend/config/db.js

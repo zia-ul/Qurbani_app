@@ -11,17 +11,17 @@ const { loginLimiter, registerLimiter } = require("../middleware/rate_limiter");
 const { sendVerificationEmail } = require("../src/email_service");
 const router = express.Router();
 
-/**
- * POST /api/auth/register
- */
+// POST /api/auth/register - User registration endpoint
+// Validates input, checks for existing email, hashes password, creates user, and sends verification email
 router.post(
   "/register",
-  registerLimiter,
+  registerLimiter, // Apply rate limiting to prevent abuse
   [
-    body("name").notEmpty(),
-    body("email").isEmail(),
-    body("password").isLength({ min: 8 }),
-    body("role").isIn(["user", "admin", "delivery"]),
+    // Input validation rules using express-validator
+    body("name").notEmpty(), // Name field must not be empty
+    body("email").isEmail(), // Email must be valid format
+    body("password").isLength({ min: 8 }), // Password must be at least 8 characters
+    body("role").isIn(["user", "admin", "delivery"]), // Role must be one of the allowed values
   ],
   async (req, res) => {
     const errors = validationResult(req);
