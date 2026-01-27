@@ -1,3 +1,6 @@
+/// This file contains the Super Admin Dashboard screen, which allows super admins
+/// to view and manage users, filter by roles, and approve or reject admin verifications.
+
 import 'package:Qurbani/screens/superadmin/delivery_details';
 import 'package:Qurbani/screens/superadmin/user_details.dart';
 import 'package:flutter/material.dart';
@@ -7,8 +10,10 @@ import 'package:Qurbani/screens/superadmin/superadmin_drawer.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 
+/// Enum for filtering users by role.
 enum RoleFilter { all, user, admin, delivery }
 
+/// The main dashboard widget for super admins to manage users and verifications.
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
 
@@ -384,7 +389,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => DeliveryPersonDetailsPage(deliveryPersonId: userId),
+                        builder: (_) =>
+                            DeliveryPersonDetailsPage(deliveryPersonId: userId),
                       ),
                     );
                   }

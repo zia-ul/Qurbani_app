@@ -96,7 +96,6 @@ router.post(
         logger.error(`Failed to send verification email to ${email}`, {
           error: err.message,
         });
-        // optionally: continue, or return error to user
       }
 
       return res.status(201).json({

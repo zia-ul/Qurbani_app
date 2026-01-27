@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminSpecialRequestsPage extends StatefulWidget {
   const AdminSpecialRequestsPage({super.key});
@@ -18,7 +19,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   String activeFilter = 'All';
   final Color scaffoldBg = const Color(0xFFF4F7F4);
   final _storage = const FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   List<Map<String, dynamic>> requests = [];
   bool isLoading = true;

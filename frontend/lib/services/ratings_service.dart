@@ -2,12 +2,24 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RatingService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
-  /// GET RATINGS AND ORDER DETAILS
+  /**
+   * Retrieves existing ratings and order details for a specific order
+   *
+   * Fetches rating information and associated order details for display
+   * in the rating/review interface. Used to show current ratings or
+   * prepare the rating form for the user.
+   *
+   * @param orderId Unique identifier of the order to fetch ratings for
+   * @param userId Unique identifier of the user requesting the ratings
+   * @return Map containing rating data and order information
+   * @throws Exception if fetch fails or user is not authenticated
+   */
   static Future<Map<String, dynamic>> getRatings(
     String orderId,
     String userId,

@@ -1,3 +1,21 @@
+/**
+ * Special Requests Routes Module
+ *
+ * This module handles all special request operations in the Qurbani application.
+ * Special requests allow users to submit custom requests related to their orders,
+ * such as delivery time changes, special handling instructions, or other modifications.
+ *
+ * Routes are organized by functionality:
+ * - User Routes: Submit and view personal requests
+ * - Admin Routes: Manage and respond to all requests
+ *
+ * Key Features:
+ * - Secure request submission with user authentication
+ * - Admin dashboard for request management
+ * - Status tracking (Pending, Replied, Closed)
+ * - Audit logging for all operations
+ */
+
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
@@ -56,30 +74,48 @@ const logger = require("../middleware/logger");
 
 
 /**
+ * ===========================================
+ * USER REQUEST ROUTES
+ * ===========================================
+ * Routes for users to submit and view their special requests
+ */
+
+/**
  * POST /api/requests
  * Submit a special request for an order
+ * Allows authenticated users to create custom requests related to their orders
+ * such as delivery time changes, special handling, or other modifications
  */
 router.post("/", auth, async (req, res) => {
+  // Extract request data from the authenticated user's input
   const { orderId, userId, title, description } = req.body;
 
+  // Security check: Ensure the authenticated user can only submit requests for themselves
+  // This prevents users from submitting requests on behalf of other users
   if (req.user.id !== userId) {
     logger.warn("Unauthorized request submission attempt", {
-      authUserId: req.user.id,
-      bodyUserId: userId,
+      authUserId: req.user.id,      // Who is actually logged in
+      bodyUserId: userId,           // Who the request claims to be from
       orderId,
     });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
+  // Validation: Ensure all required fields are provided
+  // This prevents incomplete requests from being submitted
   if (!orderId || !title || !description) {
     logger.warn("Missing fields in request submission", {
       userId,
       orderId,
+      hasTitle: !!title,
+      hasDescription: !!description,
     });
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
+    // Insert the new request into the database
+    // Status is set to 'Pending' by default, awaiting admin review
     await pool.execute(
       `
       INSERT INTO requests (order_id, user_id, title, description, status)
@@ -88,21 +124,27 @@ router.post("/", auth, async (req, res) => {
       [orderId, userId, title, description]
     );
 
-    logger.info("Special request submitted", {
+    // Log successful request submission for audit trail
+    logger.info("Special request submitted successfully", {
       userId,
       orderId,
       title,
+      requestType: "special_request",
     });
 
+    // Return success response to the client
     res.status(201).json({ message: "Request submitted successfully" });
   } catch (err) {
+    // Log the error with context for debugging
     logger.error("Error submitting special request", {
       userId,
       orderId,
+      title,
       error: err.message,
       stack: err.stack,
     });
 
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
@@ -163,21 +205,28 @@ router.post("/", auth, async (req, res) => {
 
 /**
  * GET /api/requests/:orderId/:userId
- * Fetch all requests for a user & order
+ * Fetch all special requests for a specific user and order combination
+ * Allows users to view their own requests for a particular order
+ * Results are ordered by creation date (newest first) for better UX
  */
 router.get("/:orderId/:userId", auth, async (req, res) => {
+  // Extract order and user IDs from URL parameters
   const { orderId, userId } = req.params;
 
+  // Security check: Users can only view their own requests
+  // This prevents unauthorized access to other users' private requests
   if (req.user.id !== userId) {
     logger.warn("Unauthorized request fetch attempt", {
-      authUserId: req.user.id,
-      userId,
+      authUserId: req.user.id,      // Who is actually logged in
+      requestedUserId: userId,      // Whose requests are being requested
       orderId,
     });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   try {
+    // Query the database for all requests matching the user and order
+    // Only return basic request information (excluding admin-only fields like replies)
     const [requests] = await pool.execute(
       `
       SELECT id, title, description, status, created_at
@@ -188,21 +237,26 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       [orderId, userId]
     );
 
-    logger.info("Fetched user special requests", {
+    // Log successful request fetch for audit trail
+    logger.info("User successfully fetched their special requests", {
       userId,
       orderId,
-      count: requests.length,
+      requestCount: requests.length,
+      requestStatuses: requests.map(r => r.status), // For monitoring request status distribution
     });
 
+    // Return the requests array to the client
     res.json({ requests });
   } catch (err) {
-    logger.error("Error fetching user requests", {
+    // Log error with full context for debugging
+    logger.error("Error fetching user special requests", {
       userId,
       orderId,
       error: err.message,
       stack: err.stack,
     });
 
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
@@ -366,64 +420,89 @@ router.get("/admin", auth, async (req, res) => {
 
 /**
  * PUT /api/requests/admin/:requestId
- * Update a request (reply or close) for admin
+ * Admin endpoint to update special requests by replying or closing them
+ * Supports two actions: 'reply' (provide response message) and 'close' (mark as resolved)
+ * Critical for maintaining communication flow between admins and users
+ * Updates request status and timestamps accordingly
  */
 router.put("/admin/:requestId", auth, async (req, res) => {
+  // Extract request ID from URL parameters
   const { requestId } = req.params;
+  // Extract action and optional reply message from request body
   const { replyMessage, action } = req.body;
+  // Get authenticated admin's ID
   const adminId = req.user.id;
 
+  // Validation: Ensure action is provided and reply message exists for reply actions
+  // This prevents incomplete or invalid request updates
   if (!action || (action === "reply" && !replyMessage)) {
-    logger.warn("Invalid admin request update payload", {
+    logger.warn("Invalid admin request update attempt - missing required fields", {
       adminId,
       requestId,
       action,
+      hasReplyMessage: !!replyMessage,
     });
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
+    // Initialize update fields object based on action type
     let updateFields = {};
 
+    // Handle "reply" action: Set reply message, update status, and timestamp
     if (action === "reply") {
       updateFields = {
-        reply_message: replyMessage,
-        status: "Replied",
-        replied_at: new Date(),
+        reply_message: replyMessage,    // Store admin's response message
+        status: "Replied",              // Update status to indicate response given
+        replied_at: new Date(),         // Record when reply was made
       };
-    } else if (action === "close") {
+    }
+    // Handle "close" action: Update status and timestamp only
+    else if (action === "close") {
       updateFields = {
-        status: "Closed",
-        closed_at: new Date(),
+        status: "Closed",               // Mark request as resolved/closed
+        closed_at: new Date(),          // Record when request was closed
       };
     }
 
+    // Build dynamic SQL SET clause from update fields
+    // This approach allows flexible field updates based on action type
     const setClause = Object.keys(updateFields)
-      .map((key) => `${key} = ?`)
-      .join(", ");
+      .map((key) => `${key} = ?`)        // Create "field = ?" placeholders
+      .join(", ");                       // Join with commas
+
+    // Prepare parameter values in correct order for prepared statement
     const values = [...Object.values(updateFields), requestId];
 
+    // Execute the update query with prepared parameters for security
     await pool.execute(
       `UPDATE requests SET ${setClause} WHERE id = ?`,
       values
     );
 
-    logger.info("Admin updated special request", {
+    // Log successful admin action for audit trail
+    logger.info("Admin successfully updated special request", {
       adminId,
       requestId,
       action,
+      newStatus: updateFields.status,
+      hasReplyMessage: action === "reply",
     });
 
+    // Return success response to admin interface
     res.json({ message: "Request updated successfully" });
   } catch (err) {
-    logger.error("Error updating special request", {
+    // Log error with comprehensive context for debugging
+    logger.error("Error updating special request by admin", {
       adminId,
       requestId,
       action,
+      attemptedReplyMessage: action === "reply" ? replyMessage : null,
       error: err.message,
       stack: err.stack,
     });
 
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });

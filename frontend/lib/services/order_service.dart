@@ -1,14 +1,28 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OrderService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
-  /// PLACE ORDER
-  /// Expects:
-  /// userId, adminId, paymentMethod ('Cash'/'Online'), shareholders (List<Map<String,dynamic>>), totalAmount
+  /**
+   * Places a new order for Qurbani animal shares
+   *
+   * Creates a comprehensive order including multiple shareholders, payment method,
+   * and total amount calculation. This is the primary order creation endpoint
+   * used by the order placement flow.
+   *
+   * @param userId ID of the user placing the order
+   * @param adminId ID of the admin/vendor fulfilling the order
+   * @param paymentMethod Payment method ('Cash' or 'Online')
+   * @param shareholders List of shareholder details with animal portions
+   * @param totalAmount Total order amount in selected currency
+   * @return Map containing order creation response with order ID and details
+   * @throws Exception if order placement fails or user is not authenticated
+   */
   static Future<Map<String, dynamic>> placeOrder({
     required String userId,
     required String adminId,
@@ -204,9 +218,19 @@ class OrderService {
 
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
-  /// GET SINGLE ORDER DETAILS (for admin)
+  /**
+   * Retrieves detailed order information for admin review
+   *
+   * Fetches comprehensive order data including sensitive information
+   * only accessible to administrators. Used for order management
+   * and detailed order inspection.
+   *
+   * @param orderId Unique identifier of the order to retrieve
+   * @return Map containing complete order details with admin-level data
+   * @throws Exception if order not found or admin authentication fails
+   */
   static Future<Map<String, dynamic>> getOrderById(String orderId) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');

@@ -1,8 +1,30 @@
+/**
+ * User Routes Module
+ *
+ * This module defines all user-related API routes for the Qurbani application.
+ * It handles user profile management, admin verification, superadmin operations,
+ * delivery management, and various user-specific functionalities.
+ *
+ * Routes are organized by functionality:
+ * - Profile: User profile CRUD operations
+ * - Admin Verification: Admin application and verification process
+ * - Superadmin: Administrative user management
+ * - Delivery: Delivery person operations
+ * - Miscellaneous: Special requests, animal orders, etc.
+ */
+
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
+
+/**
+ * ===========================================
+ * PROFILE MANAGEMENT ROUTES
+ * ===========================================
+ * Routes for managing user profile information including fetching and updating profile data.
+ */
 
 /**
  * @swagger
@@ -36,6 +58,7 @@ const logger = require("../middleware/logger");
  */
 
 // GET /api/profile - Fetch authenticated user's profile
+// Retrieves the current user's profile information from the database
 router.get("/profile", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
@@ -263,13 +286,20 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
  *         description: Verification submitted
  */
 
-// POST /api/admin/verification - Submit admin verification
+// POST /api/admin/verification - Submit admin verification request
+// Allows users to apply for admin privileges by submitting detailed verification information
+// Uses ON DUPLICATE KEY UPDATE to allow resubmissions of verification requests
 const { v4: uuidv4 } = require("uuid");
 
 router.post("/admin/verification", authMiddleware, async (req, res) => {
-  const userId = req.user.id; 
-  const verificationId = uuidv4(); 
+  // Extract the authenticated user's ID from the JWT token
+  const userId = req.user.id;
 
+  // Generate a unique verification request ID using UUID v4
+  const verificationId = uuidv4();
+
+  // Destructure verification details from request body
+  // These include organization info, contact details, and document URLs
   const {
     organization_name,
     phone,
@@ -282,6 +312,9 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
   } = req.body;
 
   try {
+    // Insert or update admin verification request in database
+    // ON DUPLICATE KEY UPDATE allows users to resubmit their application
+    // This is useful if they need to correct information or reapply
     await pool.execute(
       `
       INSERT INTO admin_verification_requests
@@ -402,17 +435,25 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
  */
 
 // GET /api/superadmin/users - List users by role (for super admin)
+// This endpoint provides superadmins with a comprehensive view of all users in the system
+// Supports filtering by user roles and includes verification status information
+// Used for administrative oversight and user management purposes
 router.get("/superadmin/users", authMiddleware, async (req, res) => {
-  const { role } = req.query; // all | user | admin | delivery
+  // Extract role filter from query parameters (optional)
+  // Valid values: 'all', 'user', 'admin', 'delivery'
+  const { role } = req.query;
+  // Get the authenticated superadmin's ID for authorization
   const superAdminId = req.user.id;
 
   try {
-    // Check super admin
+    // Step 1: Verify superadmin privileges
+    // This is a critical security check to ensure only superadmins can access user lists
     const [superAdmins] = await pool.execute(
       `SELECT role FROM users WHERE id = ?`,
       [superAdminId],
     );
 
+    // Deny access if user doesn't exist or isn't a superadmin
     if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
       logger.warn("Unauthorized superadmin access attempt", {
         userId: superAdminId,
@@ -421,9 +462,11 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Base query with verification status
+    // Step 2: Build dynamic query with optional role filtering
+    // Base query joins users table with admin_verification_requests to show verification status
+    // Uses LEFT JOIN to include users who haven't submitted verification requests
     let query = `
-      SELECT 
+      SELECT
         u.id,
         u.name,
         u.email,
@@ -437,26 +480,35 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
       WHERE u.role IN ('user', 'admin', 'delivery')
     `;
 
+    // Initialize parameters array for prepared statement
     const params = [];
 
-    // Role filter (ONLY 3 ROLES)
+    // Step 3: Apply role-based filtering if specified
+    // Only allow filtering by the three main user roles
     if (role && role !== "all") {
       const allowedRoles = ["user", "admin", "delivery"];
+      // Validate that the requested role is allowed
       if (!allowedRoles.includes(role)) {
-        return res.status(400).json({ message: "Invalid role" });
+        return res.status(400).json({ message: "Invalid role filter" });
       }
 
+      // Add role condition to query
       query += ` AND u.role = ?`;
       params.push(role);
     }
 
+    // Order results by creation date (newest first) for better UX
     query += ` ORDER BY u.created_at DESC`;
 
+    // Execute the query with prepared parameters for security
     const [users] = await pool.execute(query, params);
 
+    // Return the filtered user list
     res.json({ users });
   } catch (err) {
-    console.error("Error fetching users:", err);
+    // Log the error with context for debugging
+    console.error("Error fetching users for superadmin:", err);
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
@@ -491,33 +543,42 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
  *         description: Action completed
  */
 
-// PUT /api/superadmin/users/:id - Update user role or delete (for super admin)
+// PUT /api/superadmin/users/:id - Approve or reject admin verification requests
+// This critical route allows superadmins to review and decide on admin verification applications
+// Actions: 'approve' grants admin privileges, 'reject' denies the application
+// Includes audit logging and status updates for both verification requests and user roles
 router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
+  // Extract target user ID from URL parameters and action details from request body
   const { id: userId } = req.params;
-  const { action, review_note } = req.body; // approve | reject
-  const superAdminId = req.user.id;
+  const { action, review_note } = req.body; // action can be 'approve' or 'reject'
+  const superAdminId = req.user.id; // ID of the superadmin performing the action
 
   try {
-    // Check super admin
+    // Step 1: Verify that the requester is indeed a superadmin
+    // This is a critical security check to prevent unauthorized access
     const [superAdmins] = await pool.execute(
       `SELECT role FROM users WHERE id = ?`,
       [superAdminId],
     );
 
+    // If user doesn't exist or doesn't have super_admin role, deny access
     if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
       logger.warn("Unauthorized superadmin access attempt", {
         superAdminId,
         targetUserId: userId,
         action,
       });
+      return res.status(403).json({ message: "Access denied" });
     }
 
-    // Ensure verification exists
+    // Step 2: Verify that a verification request exists for the target user
+    // This prevents processing actions on users who haven't applied for admin status
     const [requests] = await pool.execute(
       `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
       [userId],
     );
 
+    // If no verification request found, return error
     if (!requests.length) {
       logger.warn("Verification request not found", {
         superAdminId,
@@ -816,97 +877,137 @@ router.get("/delivery/orders", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/delivery/orders/:id/status - Update delivery status
+// PUT /api/delivery/orders/:id/status - Update delivery status with business logic
+// This route handles the complex delivery workflow with different status transitions:
+// - "sent": Generates a 6-digit verification code and marks order as sent to customer
+// - "delivered": Marks order as delivered and clears the verification code
+// Includes security checks to ensure only assigned delivery persons can update orders
 router.put("/delivery/orders/:id/status", authMiddleware, async (req, res) => {
+  // Extract order ID from URL parameters and new status from request body
   const { id } = req.params;
   const { status } = req.body;
-  const deliveryPersonId = req.user.id;
+  const deliveryPersonId = req.user.id; // Authenticated delivery person's ID
 
   try {
+    // Initialize the base update query and parameters array
     let updateQuery = `UPDATE orders SET delivery_status = ?`;
     let params = [status];
 
+    // Handle different status transitions with specific business logic
     if (status === "sent") {
+      // When marking as "sent", generate a random 6-digit verification code
+      // This code will be used by the customer to confirm delivery receipt
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       updateQuery += `, delivery_code = ?`;
       params.push(code);
-      // Notify user (e.g., send SMS/email with code)
-      // Implement notification logic here
+      // TODO: Implement notification logic here (SMS/email to customer with code)
+      // This would typically involve calling a notification service
     } else if (status === "delivered") {
+      // When marking as "delivered", set delivery timestamp and clear verification code
+      // This prevents further verification attempts and records completion time
       updateQuery += `, delivered_at = NOW(), delivery_code = NULL`;
     }
 
+    // Add security constraints: only the assigned delivery person can update this order
     updateQuery += ` WHERE id = ? AND delivery_person_id = ?`;
     params.push(id, deliveryPersonId);
 
+    // Execute the update query
     const [result] = await pool.execute(updateQuery, params);
+
+    // Check if the update affected any rows (security/authorization check)
     if (result.affectedRows === 0) {
       logger.warn("Unauthorized delivery status update attempt", {
         orderId: id,
         deliveryPersonId,
+        attemptedStatus: status,
       });
       return res
         .status(404)
-        .json({ message: "Order not found or not assigned" });
+        .json({ message: "Order not found or not assigned to you" });
     }
 
+    // Log successful status update for audit trail
     logger.info("Delivery status updated", {
       orderId: id,
       deliveryPersonId,
-      status,
+      newStatus: status,
+      verificationCode: status === "sent" ? params[1] : null,
     });
 
+    // Return success response with verification code if applicable
     res.json({
-      message: "Status updated",
-      code: status === "sent" ? params[1] : null,
+      message: "Status updated successfully",
+      code: status === "sent" ? params[1] : null, // Return code for "sent" status
     });
   } catch (err) {
     logger.error("Delivery status update failed", {
       orderId: id,
       deliveryPersonId,
+      attemptedStatus: status,
       error: err.message,
+      stack: err.stack,
     });
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
-// PUT /api/delivery/orders/:id/verify - Verify delivery code
+// PUT /api/delivery/orders/:id/verify - Verify delivery code and complete order
+// This route allows delivery persons to confirm successful delivery by entering the verification code
+// The code was previously generated when the order status was set to "sent"
+// Upon successful verification, the order is marked as fully delivered
 router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
+  // Extract order ID from URL and verification code from request body
   const { id } = req.params;
   const { code } = req.body;
+  // Get the authenticated delivery person's ID
   const deliveryPersonId = req.user.id;
 
   try {
+    // Step 1: Retrieve the stored verification code for this order
+    // Security check ensures only the assigned delivery person can verify their orders
     const [orders] = await pool.execute(
       `SELECT delivery_code FROM orders WHERE id = ? AND delivery_person_id = ?`,
       [id, deliveryPersonId],
     );
 
+    // Step 2: Validate the verification code
+    // Check if order exists and if the provided code matches the stored code
     if (!orders.length || orders[0].delivery_code !== code) {
-      logger.warn("Invalid delivery code attempt", {
+      logger.warn("Invalid delivery code verification attempt", {
         orderId: id,
         deliveryPersonId,
+        providedCode: code,
       });
-      return res.status(400).json({ message: "Invalid code" });
+      return res.status(400).json({ message: "Invalid verification code" });
     }
 
+    // Step 3: Complete the delivery process
+    // Update order status to 'delivered' and clear the verification code
+    // This prevents further verification attempts and marks the order as complete
     await pool.execute(
       `UPDATE orders SET delivery_status = 'delivered', delivery_code = NULL WHERE id = ?`,
       [id],
     );
 
-    logger.info("Delivery completed", {
+    // Step 4: Log successful delivery completion for audit trail
+    logger.info("Delivery successfully verified and completed", {
       orderId: id,
       deliveryPersonId,
+      verificationCode: code,
     });
 
-    res.json({ message: "Order delivered" });
+    // Return success response
+    res.json({ message: "Order delivery verified and completed successfully" });
   } catch (err) {
-    logger.error("Delivery verification failed", {
+    // Log error with context for debugging
+    logger.error("Delivery verification process failed", {
       orderId: id,
       deliveryPersonId,
       error: err.message,
+      stack: err.stack,
     });
+    // Return generic error to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });

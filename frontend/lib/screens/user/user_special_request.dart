@@ -10,7 +10,9 @@ class MySpecialRequestsPage extends StatefulWidget {
   State<MySpecialRequestsPage> createState() => _MySpecialRequestsPageState();
 }
 
+/// The state class for MySpecialRequestsPage, managing the fetching and display of user requests.
 class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
+  /// Future that holds the list of user requests fetched from the service.
   Future<List<Map<String, dynamic>>>? _requestsFuture;
 
   @override
@@ -19,6 +21,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
     _fetchRequests();
   }
 
+  /// Fetches the user's special requests from the service.
   void _fetchRequests() {
     setState(() {
       _requestsFuture = RequestService.getUserRequests();

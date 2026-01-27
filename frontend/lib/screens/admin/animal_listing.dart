@@ -9,6 +9,7 @@ import 'package:Qurbani/screens/admin/animal_orders_page.dart'; // New page
 import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AnimalListingPage extends StatefulWidget {
   const AnimalListingPage({super.key});
@@ -19,7 +20,7 @@ class AnimalListingPage extends StatefulWidget {
 
 class _AnimalListingPageState extends State<AnimalListingPage> {
   final _storage = const FlutterSecureStorage();
-  final String _baseUrl = "http://192.168.1.4:3000/api";
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
   List animals = [];
   bool isLoading = false;
 
@@ -238,19 +239,19 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              AnimalEditPage(animalId: animal['id'].toString()),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.edit, size: 20),
-                    color: AppTheme.primaryGreen,
-                  ),
+                  // IconButton(
+                  //   onPressed: () {
+                  //     Navigator.push(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //         builder: (context) =>
+                  //             AnimalEditPage(animalId: animal['id'].toString()),
+                  //       ),
+                  //     );
+                  //   },
+                  //   icon: const Icon(Icons.edit, size: 20),
+                  //   color: AppTheme.primaryGreen,
+                  // ),
                   IconButton(
                     onPressed: () => deleteAnimal(animal['id']),
                     icon: const Icon(Icons.delete, size: 20),

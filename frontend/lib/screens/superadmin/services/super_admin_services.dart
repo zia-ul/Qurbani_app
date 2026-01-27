@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class SuperAdminService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
-  // 192.168.1.4
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   /// Fetch users for superadmin
   /// If role = 'all', only fetch admins, pending admins, users, delivery boys

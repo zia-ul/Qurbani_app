@@ -1,9 +1,15 @@
+/// This file contains the Admin Verification Details page, which displays
+/// detailed information about an admin's verification status, including
+/// organization details, documents, and review history.
+
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:intl/intl.dart';
 import 'package:Qurbani/theme/theme.dart';
 
+/// A page widget that displays detailed verification information for a specific admin.
 class AdminVerificationDetailsPage extends StatefulWidget {
+  /// The ID of the admin whose verification details are to be displayed.
   final String adminId;
 
   const AdminVerificationDetailsPage({super.key, required this.adminId});
@@ -13,8 +19,10 @@ class AdminVerificationDetailsPage extends StatefulWidget {
       _AdminVerificationDetailsPageState();
 }
 
+/// The state class for AdminVerificationDetailsPage, managing the verification data fetching and UI rendering.
 class _AdminVerificationDetailsPageState
     extends State<AdminVerificationDetailsPage> {
+  /// Future that holds the verification data fetched from the service.
   Future<Map<String, dynamic>>? _verificationFuture;
 
   @override
@@ -23,12 +31,14 @@ class _AdminVerificationDetailsPageState
     _loadVerification();
   }
 
+  /// Loads the verification data for the admin by calling the service.
   void _loadVerification() {
     setState(() {
       _verificationFuture = SuperAdminService.getVerification(widget.adminId);
     });
   }
 
+  /// Builds the UI for the verification details page, including app bar and body with sections for status, organization details, documents, and review audit.
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -1,9 +1,14 @@
+/// This file contains the User Details page, which displays detailed information
+/// about a specific user, including their profile and order history.
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
 
+/// A page widget that displays detailed information about a specific user.
 class UserDetailsPage extends StatefulWidget {
+  /// The ID of the user whose details are to be displayed.
   final String adminId;
 
   const UserDetailsPage({super.key, required this.adminId});
@@ -45,8 +50,8 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
           }
 
           final profile = snapshot.data![0] as Map<String, dynamic>;
-          final orders =
-              (snapshot.data![1] as List).cast<Map<String, dynamic>>();
+          final orders = (snapshot.data![1] as List)
+              .cast<Map<String, dynamic>>();
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -128,7 +133,7 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
               Padding(
                 padding: EdgeInsets.all(16),
                 child: Text('No orders found'),
-              )
+              ),
             ]
           : orders.map((order) {
               return ListTile(
@@ -138,8 +143,9 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
                   style: const TextStyle(fontSize: 12),
                 ),
                 trailing: Text(
-                  DateFormat('dd MMM yyyy')
-                      .format(DateTime.parse(order['created_at'])),
+                  DateFormat(
+                    'dd MMM yyyy',
+                  ).format(DateTime.parse(order['created_at'])),
                   style: const TextStyle(fontSize: 11),
                 ),
               );
@@ -190,8 +196,8 @@ class _UserDetailsPageState extends State<UserDetailsPage> {
     Color color = role == 'admin'
         ? Colors.green
         : role == 'delivery'
-            ? Colors.blue
-            : Colors.grey;
+        ? Colors.blue
+        : Colors.grey;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

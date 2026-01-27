@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class DeliveryService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   static Future<List<Map<String, dynamic>>> getOrders() async {
     final token = await _storage.read(key: 'token');
@@ -26,6 +27,18 @@ class DeliveryService {
     return List<Map<String, dynamic>>.from(data['orders']);
   }
 
+  /**
+   * Updates the delivery status of a specific order
+   *
+   * Allows delivery personnel to update order status during delivery process
+   * (e.g., 'picked_up', 'out_for_delivery', 'delivered'). Critical for tracking
+   * delivery progress and notifying customers.
+   *
+   * @param orderId Unique identifier of the order to update
+   * @param status New delivery status to set
+   * @return Map containing updated order information
+   * @throws Exception if update fails or delivery person is not authenticated
+   */
   static Future<Map<String, dynamic>> updateStatus(
     String orderId,
     String status,

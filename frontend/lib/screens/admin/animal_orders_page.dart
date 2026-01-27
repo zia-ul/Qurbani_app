@@ -80,11 +80,11 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Order ID: ${order['id']}",
+                        "Order ID: ${order['order_id']}",
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      Text("User: ${order['user_name']}"),
+                      Text("User: ${order['order_id']}"),
                       Text("Payment: ${order['payment_status']}"),
                       Text("Processing: ${order['processing_status']}"),
                       Text("Delivery: ${order['delivery_status']}"),
@@ -92,11 +92,14 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                       const SizedBox(height: 12),
                       ElevatedButton.icon(
                         onPressed: () {
+                          // print("odrer.....$order['order_id']");
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  AnimalEditPage(animalId: widget.animalId),
+                              builder: (context) => AnimalEditPage(
+                                animalId: widget.animalId,
+                                orderId: order['order_id'],
+                              ),
                             ),
                           );
                         },

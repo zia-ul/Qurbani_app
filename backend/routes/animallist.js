@@ -74,6 +74,9 @@ router.get("/", authMiddleware, isAdmin, getAnimals);
 // Delete animal by ID (admin only)
 router.delete("/:id", authMiddleware, isAdmin, deleteAnimal);
 
+
+
+
 /**
  * @swagger
  * /api/animals/{id}:
@@ -233,6 +236,7 @@ router.get("/:animalId/orders", authMiddleware, async (req, res) => {
       SELECT 
         o.id AS order_id,
         o.user_id,
+        o.payment_status,
         o.processing_status,
         o.delivery_status,
         o.created_at,

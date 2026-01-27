@@ -6,7 +6,6 @@ import 'package:Qurbani/screens/admin/pending_admin.dart';
 import 'package:Qurbani/screens/delivery/delivery_home_page.dart';
 import 'package:Qurbani/screens/superadmin/superadmin_welcome_page.dart';
 import 'package:Qurbani/screens/user/user_home_screen.dart';
-import 'package:Qurbani/welcome_screen.dart';
 import 'services/auth_service.dart';
 import 'models/user_model.dart';
 
@@ -16,6 +15,8 @@ class WrapperScreen extends StatefulWidget {
   @override
   State<WrapperScreen> createState() => _WrapperScreenState();
 }
+
+
 
 class _WrapperScreenState extends State<WrapperScreen> {
   late Future<UserModel?> _userFuture;
@@ -103,7 +104,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
             return SuperAdminDashboard();
 
           default:
-            return const WelcomeScreen();
+            return const OnboardingScreen();
         }
       },
     );

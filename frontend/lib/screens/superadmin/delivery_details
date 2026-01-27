@@ -18,6 +18,7 @@ class DeliveryPersonDetailsPage extends StatefulWidget {
 
 class _DeliveryPersonDetailsPageState
     extends State<DeliveryPersonDetailsPage> {
+  /// Future that holds the profile and orders data fetched from the service.
   late Future<List<dynamic>> _pageFuture;
 
   @override

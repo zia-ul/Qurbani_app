@@ -1,0 +1,2 @@
+2026-01-27 15:30:45 [error]: Failed to send verification email to hajrashahid420@gmail.com {"error":"transporter is not defined"}
+2026-01-27 16:56:17 [error]: Error updating order {"adminId":"6a6fcd2a-0e88-495e-aff2-5f0ea76f9d74","orderId":"22f24421-b0db-485f-b1d9-957d86f19ffe","error":"Bind parameters must not contain undefined. To pass SQL NULL specify JS null"}

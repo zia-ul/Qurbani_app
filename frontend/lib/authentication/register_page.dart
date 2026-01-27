@@ -1,3 +1,22 @@
+/**
+ * Registration Page Widget
+ *
+ * This screen handles new user registration for the Qurbani application.
+ * It provides a comprehensive form with multiple fields including personal
+ * information, contact details, password creation, and role selection.
+ *
+ * Features:
+ * - Multi-field registration form with validation
+ * - Password strength checking and confirmation
+ * - International phone number input
+ * - Terms and conditions acceptance
+ * - Role-based registration (User/Admin/Delivery)
+ * - Email verification flow after registration
+ * - Currency preference selection
+ * - Gender selection
+ * - Address collection
+ */
+
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/authentication/login_page.dart';
@@ -7,6 +26,13 @@ import 'package:Qurbani/verify_email.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
 
+/**
+ * RegisterPage Widget
+ *
+ * A stateful widget that displays the comprehensive user registration form.
+ * Handles new user account creation with multiple validation steps and
+ * navigation to email verification upon successful registration.
+ */
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -14,9 +40,18 @@ class RegisterPage extends StatefulWidget {
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
+/**
+ * State class for RegisterPage
+ *
+ * Manages the complex registration form state including form validation,
+ * password strength checking, terms acceptance, and user registration flow.
+ * Handles multiple input controllers and state variables for form management.
+ */
 class _RegisterPageState extends State<RegisterPage> {
+  // Global form key for validation management
   final _formKey = GlobalKey<FormState>();
 
+  // Text editing controllers for form input fields
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
@@ -24,16 +59,18 @@ class _RegisterPageState extends State<RegisterPage> {
   final confirmPassController = TextEditingController();
   final addressController = TextEditingController();
 
-  String selectedRole = 'user';
-  String? selectedGender;
-  bool termsAccepted = false;
-  bool isLoading = false;
-  String passwordStrength = "";
-  bool _obscureConfirmPassword = true;
+  // User selection and preference variables
+  String selectedRole = 'user';        // Default role selection
+  String? selectedGender;              // Gender selection (Male/Female)
+  bool termsAccepted = false;          // Terms and conditions acceptance flag
+  bool isLoading = false;              // Loading state during registration
+  String passwordStrength = "";        // Real-time password strength indicator
+  bool _obscureConfirmPassword = true; // Password confirmation field visibility
 
-  String? completePhoneNumber;
-  String? countryISO;
-  String selectedCurrency = 'USD';
+  // Phone number handling variables
+  String? completePhoneNumber;         // Full international phone number
+  String? countryISO;                  // Country ISO code for phone validation
+  String selectedCurrency = 'USD';     // Default currency preference
 
   // ---------------- PASSWORD ----------------
   String _checkPasswordStrength(String password) {

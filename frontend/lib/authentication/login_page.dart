@@ -1,9 +1,31 @@
+/**
+ * Login Page Widget
+ *
+ * This screen handles user authentication for the Qurbani application.
+ * It provides a form-based login interface with email and password fields,
+ * including validation, error handling, and navigation to the main app.
+ *
+ * Features:
+ * - Email and password input validation
+ * - Password visibility toggle
+ * - Loading states during authentication
+ * - Error handling with user-friendly dialogs
+ * - Navigation to registration page
+ * - Automatic redirect to wrapper screen on successful login
+ */
+
 import 'package:flutter/material.dart';
 import 'package:Qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 
+/**
+ * LoginScreen Widget
+ *
+ * A stateful widget that displays the login form with email and password fields.
+ * Handles user authentication flow and navigation upon successful login.
+ */
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -11,15 +33,26 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/**
+ * State class for LoginScreen
+ *
+ * Manages the login form state including form validation, loading states,
+ * password visibility toggle, and authentication logic.
+ */
 class _LoginScreenState extends State<LoginScreen> {
+  // Form controllers for managing input field values
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  // Global key for form validation
   final _formKey = GlobalKey<FormState>();
 
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  // State variables for UI management
+  bool _isLoading = false;        // Controls loading spinner during authentication
+  bool _obscurePassword = true;   // Controls password field visibility
 
-  // 🔐 LOGIN FUNCTION
+
+  // LOGIN FUNCTION
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -29,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
-      // 🔑 Login (JWT saved inside AuthService)
+      // Login (JWT saved inside AuthService)
       await AuthService.login({'email': email, 'password': password});
 
       if (!mounted) return;
@@ -64,6 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -71,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // 🎨 UI
+  // UI
   @override
   Widget build(BuildContext context) {
     return Scaffold(

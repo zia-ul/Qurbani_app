@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CurrencyService {
   static const Duration _updateInterval = Duration(minutes: 45);
-  static const String _backendUrl =
-      'http://192.168.1.4:3000/api/users/currencies';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   static final CurrencyService _instance = CurrencyService._internal();
   factory CurrencyService() => _instance;
@@ -44,6 +44,15 @@ class CurrencyService {
   // INIT
   // ---------------------------------------------------------------------------
 
+  /**
+   * Initializes the currency service with current exchange rates
+   *
+   * Performs initial setup including fetching current rates from backend,
+   * starting auto-update timer, and marking service as ready. This method
+   * should be called once during app initialization.
+   *
+   * @throws Exception if initial rate fetch fails
+   */
   Future<void> initialize() async {
     if (_isInitialized) return _initCompleter.future;
 
@@ -74,7 +83,7 @@ class CurrencyService {
     _isFetching = true;
 
     try {
-      final res = await http.get(Uri.parse(_backendUrl));
+      final res = await http.get(Uri.parse('$_baseUrl/api/users/currencies'));
       if (res.statusCode != 200) {
         debugPrint("Currency fetch failed: ${res.body}");
         return;
@@ -118,12 +127,22 @@ class CurrencyService {
   // USER CURRENCY UPDATE
   // ---------------------------------------------------------------------------
 
+  /**
+   * Updates the authenticated user's preferred currency setting
+   *
+   * Saves the user's currency preference to their profile. This affects
+   * how prices and amounts are displayed throughout the app for this user.
+   * Requires authentication and updates the backend user profile.
+   *
+   * @param currency Currency code to set as user's preference (e.g., 'USD', 'EUR')
+   * @throws Exception if update fails or user is not authenticated
+   */
   static Future<void> setUserCurrency(String currency) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
     final res = await http.put(
-      Uri.parse('http://192.168.1.4:3000/api/users/profile/currency'),
+      Uri.parse('$_baseUrl/users/profile/currency'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

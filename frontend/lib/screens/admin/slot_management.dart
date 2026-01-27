@@ -4,6 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminSlotPage extends StatefulWidget {
   final String adminId;
@@ -20,7 +21,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
   bool isSaving = false;
 
   /// 🔴 CHANGE THIS
-  final String baseUrl = "http://192.168.1.4:3000/api";
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   final Color scaffoldBg = const Color(0xffF4F7F4);
   final Color accentGold = const Color(0xffD1C4A9);
@@ -38,7 +39,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
     setState(() => isLoading = true);
     try {
       final res = await http.get(
-        Uri.parse("$baseUrl/slots/${widget.adminId}/$dayKey"),
+        Uri.parse("$_baseUrl/slots/${widget.adminId}/$dayKey"),
       );
 
       if (res.statusCode == 200) {
@@ -80,7 +81,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
 
     try {
       final res = await http.post(
-        Uri.parse("$baseUrl/slots/${widget.adminId}/$dayKey"),
+        Uri.parse("$_baseUrl/slots/${widget.adminId}/$dayKey"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"slots": slots}),
       );

@@ -3,6 +3,7 @@ import 'package:Qurbani/authentication/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class VerifyEmailPage extends StatefulWidget {
   final String email;
@@ -16,6 +17,7 @@ class VerifyEmailPage extends StatefulWidget {
 class _VerifyEmailPageState extends State<VerifyEmailPage> {
   bool isLoading = false;
   bool verified = false;
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   @override
   void initState() {
@@ -27,7 +29,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   /// Call backend to manually verify email using token
   Future<void> verifyEmail(String token) async {
     final url = Uri.parse(
-      "http://192.168.1.4:3000/api/auth/verify-email?token=$token",
+      "$_baseUrl/auth/verify-email?token=$token",
     );
 
     try {
@@ -67,7 +69,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   //     }
 
   //     final url = Uri.parse(
-  //       "http://192.168.1.4:3000/api/auth/check-email-status?email=${widget.email}",
+  //       "http://0.0.0.0:3000/api/auth/check-email-status?email=${widget.email}",
   //     );
   //     try {
   //       final response = await http.get(url);

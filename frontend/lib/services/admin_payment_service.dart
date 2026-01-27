@@ -1,18 +1,28 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PaymentService {
-  static const _baseUrl = "http://192.168.1.4:3000/api/admin/payment-settings";
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
   static const _storage = FlutterSecureStorage();
 
-  /// Get current admin payment settings
+  /**
+   * Retrieves the current admin's payment settings and configuration
+   *
+   * Fetches payment-related settings for the authenticated admin including
+   * payment method preferences, deadlines, and configuration options.
+   * Used for displaying and managing payment settings in the admin interface.
+   *
+   * @return Map containing payment settings data
+   * @throws Exception if fetch fails or admin is not authenticated
+   */
   static Future<Map<String, dynamic>> getPaymentSettings() async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception("Not authenticated");
 
     final res = await http.get(
-      Uri.parse(_baseUrl),
+      Uri.parse('$_baseUrl/admin/payment-settings'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -44,7 +54,7 @@ class PaymentService {
     };
 
     final res = await http.put(
-      Uri.parse(_baseUrl),
+      Uri.parse('$_baseUrl/admin/payment-settings'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",

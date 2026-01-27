@@ -2,10 +2,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   /// GET ALL ORDERS FOR THE AUTHENTICATED ADMIN
   static Future<List<Map<String, dynamic>>> getAdminOrders() async {

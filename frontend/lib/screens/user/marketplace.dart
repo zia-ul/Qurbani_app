@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:Qurbani/screens/user/admin_profile.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
@@ -16,6 +17,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   late Future<List<dynamic>> _adminsFuture;
 
   final Color parchmentBg = const Color(0xffF2E8D5);
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   @override
   void initState() {
@@ -25,9 +27,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
 
   /// Fetch verified admins from Node(backend), MySQL
   Future<List<dynamic>> fetchVerifiedAdmins() async {
-    final res = await http.get(
-      Uri.parse("http://192.168.1.4:3000/api/admins/verified"),
-    );
+    final res = await http.get(Uri.parse("$_baseUrl/admins/verified"));
 
     if (res.statusCode != 200) {
       throw Exception("Failed to load admins");

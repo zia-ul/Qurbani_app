@@ -8,6 +8,7 @@ import 'package:Qurbani/screens/user/payment_processing_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:http/http.dart' as http;
 // import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class Shareholder {
   final TextEditingController nameController = TextEditingController();
@@ -45,6 +46,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   String _currency = 'USD';
   double _currencyRate = 1.0; // USD base
   bool _currencyLoaded = false;
+static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   @override
   void initState() {
@@ -67,7 +69,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     try {
       final res = await http.get(
         Uri.parse(
-          "http://192.168.1.4:3000/api/admins/${widget.adminId}/payment-settings",
+          "$_baseUrl/admins/${widget.adminId}/payment-settings",
         ),
       );
 
@@ -101,9 +103,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   Future<void> _fetchCurrency() async {
     try {
       final res = await http.get(
-        Uri.parse(
-          "http://192.168.1.4:3000/api/admins/${widget.adminId}/currency",
-        ),
+        Uri.parse("$_baseUrl/admins/${widget.adminId}/currency"),
       );
 
       if (res.statusCode != 200) {
@@ -201,11 +201,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   @override
   Widget build(BuildContext context) {
     if (!_currencyLoaded || !_paymentSettingsLoaded) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    // THEN check payment settings (existing code)
-    if (!_paymentSettingsLoaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -653,7 +648,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           'qurbaniDay': s.qurbaniDay,
           'animalId': s.selectedAnimalId,
           'price': price, // per-animal price
-          'deliveryFee': deliveryFee,
+          // 'deliveryFee': deliveryFee,
         };
       }).toList();
 
@@ -663,7 +658,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           builder: (ctx) => AlertDialog(
             title: const Text("Confirm Order"),
             content: Text(
-              "Total: \$${_calculateTotalPrice().toStringAsFixed(2)}\nPlace order with Cash on Delivery?",
+              "Total: $_currency ${(_calculateTotalPrice() * _currencyRate).toStringAsFixed(2)}\nPlace order with Cash on Delivery?",
             ),
             actions: [
               TextButton(

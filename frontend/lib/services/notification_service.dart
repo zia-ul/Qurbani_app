@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
 
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   static void startPolling() {
     Future.doWhile(() async {
@@ -16,6 +17,14 @@ class NotificationService {
     });
   }
 
+  /**
+   * Checks for unread notifications from the backend
+   *
+   * Fetches unread notifications from the server and displays them as local
+   * push notifications using Flutter Local Notifications. Each notification
+   * is shown with its title and body content. This method is called
+   * periodically by the polling mechanism.
+   */
   static Future<void> _checkNotifications() async {
     final res = await http.get(Uri.parse('$_baseUrl/notifications/unread'));
 

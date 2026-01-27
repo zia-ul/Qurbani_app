@@ -87,7 +87,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       return;
     }
 
-    print(".....id:$widget.id");
+    // print(".....id:$widget.id");
 
     try {
       final data = {

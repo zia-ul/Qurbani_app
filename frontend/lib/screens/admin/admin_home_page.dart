@@ -15,6 +15,7 @@ import 'package:Qurbani/screens/admin/animal_listing.dart';
 import 'package:Qurbani/screens/admin/special_requests_admin.dart';
 import 'package:Qurbani/services/admin_service.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminHomePage extends StatefulWidget {
   final String adminId;
@@ -30,8 +31,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final Color bgGradientStart = const Color(0xffF2E8D5); // Parchment style
   final Color bgGradientEnd = const Color(0xffFFFFFF);
-
-  static const String _baseUrl = "http://192.168.1.4:3000/api";
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   Map<String, dynamic>? _stats;
   Timer? _notificationTimer; // For polling notifications

@@ -7,16 +7,18 @@ import 'package:http/http.dart' as http;
 import 'package:Qurbani/theme/theme.dart';
 import 'dart:convert';
 import 'package:Qurbani/widgets/primary_btn.dart';
-import 'package:Qurbani/widgets/common_card.dart';
-import 'package:Qurbani/widgets/common_label.dart';
-import 'package:Qurbani/widgets/common_input_decoration.dart';
-import 'package:Qurbani/widgets/custom_toast.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AnimalEditPage extends StatefulWidget {
   final String animalId;
+  final String orderId;
 
-  const AnimalEditPage({super.key, required this.animalId});
+  const AnimalEditPage({
+    super.key,
+    required this.animalId,
+    required this.orderId,
+  });
 
   @override
   State<AnimalEditPage> createState() => _AnimalEditPageState();
@@ -26,7 +28,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   final _formKey = GlobalKey<FormState>();
   final _storage = const FlutterSecureStorage();
 
-  final String _baseUrl = "http://192.168.1.4:3000/api";
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   final descriptionController = TextEditingController();
   final breedController = TextEditingController();
@@ -38,6 +40,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   final weightController = TextEditingController();
   final deliveryFeeController = TextEditingController();
   final deliveryThresholdController = TextEditingController();
+  final barcodeController = TextEditingController();
 
   bool isLoading = true;
   bool isUpdating = false;
@@ -56,7 +59,21 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   @override
   void initState() {
     super.initState();
+    print("order id being printed......$widget.orderId");
     _loadAnimalDetails();
+  }
+
+  void generateBarcode() {
+    // combine animalId + timestamp for uniqueness
+    final barcode =
+        "${widget.animalId}-${DateTime.now().millisecondsSinceEpoch}";
+    setState(() {
+      barcodeController.text = barcode;
+    });
+  }
+
+  bool _hasValue(TextEditingController c) {
+    return c.text.trim().isNotEmpty;
   }
 
   Future<void> _loadAnimalDetails() async {
@@ -140,6 +157,20 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   Future<void> updateAnimal() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final confirmed = await _showConfirmationDialog();
+
+    if (!confirmed) {
+      // User clicked cancel → allow editing
+      return;
+    }
+
+    // User confirmed → lock in
+    await _submitAnimalUpdate();
+  }
+
+  Future<void> _submitAnimalUpdate() async {
+    if (!_formKey.currentState!.validate()) return;
+
     setState(() => isUpdating = true);
 
     try {
@@ -148,27 +179,29 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       final newUrls = await _uploadNewImages();
       final allImages = [...existingPhotoUrls, ...newUrls];
 
-      final res = await http.put(
+      final res = await http.post(
         Uri.parse("$_baseUrl/animals/${widget.animalId}"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
         },
         body: jsonEncode({
-          "animalType": selectedAnimalType ?? animalTypeController.text,
+          "orderId": widget.orderId,
+          // "animalType": selectedAnimalType ?? animalTypeController.text,
           "breed": breedController.text,
           "description": descriptionController.text,
-          "price": double.parse(priceController.text),
+          // "price": double.parse(priceController.text),
           "age": ageController.text,
           "height": heightController.text,
           "weight": weightController.text,
-          "shares": int.parse(sharesController.text),
+          // "shares": int.parse(sharesController.text),
           "photoUrls": allImages,
-          "deliveryType": selectedDeliveryType ?? "Free",
-          "deliveryFee": double.parse(deliveryFeeController.text),
-          "deliveryThreshold": isDeliveryPaid
-              ? double.tryParse(deliveryThresholdController.text) ?? null
-              : null,
+          // "deliveryType": selectedDeliveryType ?? "Free",
+          // "deliveryFee": double.parse(deliveryFeeController.text),
+          // "deliveryThreshold": isDeliveryPaid
+          // ? double.tryParse(deliveryThresholdController.text) ?? null
+          // : null,
+          "barcode": barcodeController.text,
         }),
       );
 
@@ -215,41 +248,39 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
           child: Column(
             children: [
               _buildCardContainer([
-                _buildLabel("Animal Type", isReq: true),
-                DropdownButtonFormField<String>(
-                  value:
-                      [
-                        "Goat",
-                        "Buffalo",
-                        "Sheep",
-                        "Camel",
-                      ].contains(selectedAnimalType)
-                      ? selectedAnimalType
-                      : null,
-                  decoration: _inputDecoration("Select Type"),
-                  items: ["Goat", "Buffalo", "Sheep", "Camel"]
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (val) => setState(() => selectedAnimalType = val),
-                ),
-                const SizedBox(height: 15),
-                TextFormField(
+                _buildLabel("Animal Type"),
+                _readOnlyField(
                   controller: animalTypeController,
-                  decoration: _inputDecoration("Or Specify Type"),
+                  label: "Animal Type",
                 ),
+
                 const SizedBox(height: 15),
+
+                // const SizedBox(height: 15),
                 _buildLabel("Animal Breed", isReq: true),
                 TextFormField(
                   controller: breedController,
-                  decoration: _inputDecoration("e.g. Sahiwal"),
+                  enabled: !_hasValue(breedController),
+                  decoration: _inputDecoration("e.g. Sahiwal").copyWith(
+                    fillColor: _hasValue(breedController)
+                        ? Colors.grey[100]
+                        : Colors.grey[50],
+                  ),
                   validator: (v) => v!.isEmpty ? "Required" : null,
                 ),
+
                 const SizedBox(height: 15),
                 _buildLabel("Description (Optional)", isReq: false),
                 TextFormField(
                   controller: descriptionController,
+                  enabled: !_hasValue(descriptionController),
                   maxLines: 3,
-                  decoration: _inputDecoration("Appearance details..."),
+                  decoration: _inputDecoration("Appearance details...")
+                      .copyWith(
+                        fillColor: _hasValue(descriptionController)
+                            ? Colors.grey[100]
+                            : Colors.grey[50],
+                      ),
                 ),
               ]),
               const SizedBox(height: 20),
@@ -263,7 +294,12 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                           _buildLabel("Height", isReq: true),
                           TextFormField(
                             controller: heightController,
-                            decoration: _inputDecoration("cm / ft"),
+                            enabled: !_hasValue(heightController),
+                            decoration: _inputDecoration("cm / ft").copyWith(
+                              fillColor: _hasValue(heightController)
+                                  ? Colors.grey[100]
+                                  : Colors.grey[50],
+                            ),
                             validator: (v) => v!.isEmpty ? "Required" : null,
                           ),
                         ],
@@ -278,8 +314,11 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                           TextFormField(
                             controller: priceController,
                             keyboardType: TextInputType.number,
-                            decoration: _inputDecoration("0.00"),
-                            validator: (v) => v!.isEmpty ? "Required" : null,
+                            readOnly: true, // 🔒 lock editing
+                            enabled: false, // 🚫 disable interaction
+                            decoration: _inputDecoration("0.00").copyWith(
+                              fillColor: Colors.grey[100], // visual cue
+                            ),
                           ),
                         ],
                       ),
@@ -296,8 +335,13 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                           _buildLabel("Weight (Optional)", isReq: false),
                           TextFormField(
                             controller: weightController,
+                            enabled: !_hasValue(weightController),
                             keyboardType: TextInputType.number,
-                            decoration: _inputDecoration("kg"),
+                            decoration: _inputDecoration("kg").copyWith(
+                              fillColor: _hasValue(weightController)
+                                  ? Colors.grey[100]
+                                  : Colors.grey[50],
+                            ),
                           ),
                         ],
                       ),
@@ -307,10 +351,16 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLabel("Age (Optional)", isReq: false),
+                          _buildLabel("Age"),
                           TextFormField(
                             controller: ageController,
-                            decoration: _inputDecoration("e.g. 2 yrs"),
+                            enabled: !_hasValue(weightController),
+                            keyboardType: TextInputType.number,
+                            decoration: _inputDecoration("years").copyWith(
+                              fillColor: _hasValue(weightController)
+                                  ? Colors.grey[100]
+                                  : Colors.grey[50],
+                            ),
                           ),
                         ],
                       ),
@@ -319,15 +369,12 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                 ),
               ]),
               const SizedBox(height: 20),
-              _buildCardContainer([
-                _buildLabel("Shares Available", isReq: true),
-                TextFormField(
-                  controller: sharesController,
-                  keyboardType: TextInputType.number,
-                  decoration: _inputDecoration("Total Shares"),
-                  validator: (v) => v!.isEmpty ? "Required" : null,
-                ),
-              ]),
+              _buildLabel("Shares Available"),
+              _readOnlyField(
+                controller: sharesController,
+                label: "Total Shares",
+              ),
+
               const SizedBox(height: 20),
               _buildCardContainer([
                 _buildLabel("Gallery (Existing & New)", isReq: true),
@@ -345,6 +392,35 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                   ),
                 ),
               ]),
+              const SizedBox(height: 20),
+
+              _buildCardContainer([
+                _buildLabel("Barcode", isReq: true),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: barcodeController,
+                        readOnly: true,
+                        decoration: _inputDecoration("Generated barcode"),
+                        validator: (v) =>
+                            v!.isEmpty ? "Generate barcode first" : null,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: generateBarcode,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(100, 45),
+                      ),
+                      child: const Text("Generate"),
+                    ),
+                  ],
+                ),
+              ]),
+
               const SizedBox(height: 20),
 
               _buildCardContainer([
@@ -431,6 +507,18 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
           ),
         ),
       ),
+    );
+  }
+
+  TextFormField _readOnlyField({
+    required TextEditingController controller,
+    required String label,
+  }) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      enabled: false,
+      decoration: _inputDecoration(label).copyWith(fillColor: Colors.grey[100]),
     );
   }
 
@@ -573,5 +661,76 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
         ),
       ],
     );
+  }
+
+  Widget _confirmRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: RichText(
+        text: TextSpan(
+          text: "$label: ",
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+          children: [
+            TextSpan(
+              text: value.isEmpty ? "—" : value,
+              style: const TextStyle(fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<bool> _showConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                "Confirm Animal Details",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _confirmRow("Breed", breedController.text),
+                    _confirmRow("Description", descriptionController.text),
+                    _confirmRow("Age", ageController.text),
+                    _confirmRow("Height", heightController.text),
+                    _confirmRow("Weight", weightController.text),
+                    _confirmRow("Barcode", barcodeController.text),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "⚠ These details won’t be editable again.\nKindly confirm before proceeding.",
+                      style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                  ),
+                  child: const Text("Confirm"),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 }

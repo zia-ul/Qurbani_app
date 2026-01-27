@@ -18,12 +18,12 @@ router.get("/my", authMiddleware, async (req, res) => {
        JOIN users u ON o.admin_id = u.id
        WHERE o.user_id = ?
        ORDER BY o.created_at DESC`,
-      [userId]
+      [userId],
     );
 
     logger.info("Fetched user orders", {
       userId,
-      count: orders.length
+      count: orders.length,
     });
 
     res.json({ orders });
@@ -31,20 +31,25 @@ router.get("/my", authMiddleware, async (req, res) => {
     logger.error("Failed to fetch user orders", {
       userId,
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 // POST /api/orders
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { adminId, paymentMethod, shareholders } = req.body;
+  const { adminId, paymentMethod, shareholders, totalAmount } = req.body;
 
-  if (!adminId || !paymentMethod || !Array.isArray(shareholders) || shareholders.length === 0) {
-    logger.warn("Order validation failed", { userId });
+  if (
+    !adminId ||
+    !paymentMethod ||
+    !Array.isArray(shareholders) ||
+    shareholders.length === 0
+  ) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
@@ -55,45 +60,40 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const orderId = uuidv4();
 
+    // Create order
     await connection.execute(
       `INSERT INTO orders (id, user_id, admin_id, payment_method, total_shares)
        VALUES (?, ?, ?, ?, ?)`,
-      [orderId, userId, adminId, paymentMethod, shareholders.length]
+      [orderId, userId, adminId, paymentMethod, shareholders.length],
     );
 
+    // Insert order_shareholders (WITH animal_id)
     await connection.query(
-      `INSERT INTO shareholders (id, order_id, name, guardian_name, qurbani_day)
+      `INSERT INTO order_shareholders
+       (id, order_id, animal_id, shareholder_name, guardian_name, qurbani_day, price)
        VALUES ?`,
-      [shareholders.map(s => [
-        uuidv4(),
-        orderId,
-        s.name,
-        s.guardianName,
-        s.qurbaniDay || "Day 1"
-      ])]
+      [
+        shareholders.map((s) => [
+          uuidv4(),
+          orderId,
+          s.animalId,
+          s.name,
+          s.guardianName,
+          s.qurbaniDay || "Day 1",
+          s.price,
+        ]),
+      ],
     );
 
     await connection.commit();
 
-    logger.info("Order placed", {
+    res.status(201).json({
+      message: "Order placed successfully",
       orderId,
-      userId,
-      adminId,
-      shares: shareholders.length
     });
-
-    res.status(201).json({ message: "Order placed successfully", orderId });
   } catch (err) {
     await connection.rollback();
-
-    logger.error("Order placement failed", {
-      userId,
-      adminId,
-      error: err.message,
-      stack: err.stack
-    });
-
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({ message: "Something went wrong" });
   } finally {
     connection.release();
   }
@@ -111,13 +111,13 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
        FROM orders o
        JOIN users u ON o.admin_id = u.id
        WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (orders.length === 0) {
       logger.warn("Order access denied or not found", {
         orderId,
-        userId
+        userId,
       });
       return res.status(404).json({ message: "Order not found" });
     }
@@ -128,13 +128,13 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
     logger.error("Failed to fetch order", {
       orderId,
       userId,
-      error: err.message
+      error: err.message,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
 
 // GET /api/orders/admin/my - Get all orders for the authenticated admin
 router.get("/admin/my", authMiddleware, async (req, res) => {
@@ -148,40 +148,40 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
        JOIN users u ON o.admin_id = u.id
        WHERE o.admin_id = ?
        ORDER BY o.created_at DESC`,
-      [adminId]
+      [adminId],
     );
 
     // For each order, fetch shareholders and map to expected structure
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
         const [shareholders] = await pool.execute(
-          `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-          [order.id]
+          `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
+          [order.id],
         );
 
         // Map to Flutter-expected structure (add defaults for missing fields)
         return {
           orderId: order.id,
           adminId: order.admin_id,
-          deliveryStatus: 'pending', // Default; add column to orders table if needed
+          deliveryStatus: "pending", // Default; add column to orders table if needed
           processingStatus: order.status, // Maps to status (pending, confirmed, etc.)
-          isCompleted: order.status === 'completed', // For filtering
+          isCompleted: order.status === "completed", // For filtering
           createdAt: order.created_at,
-          contact: { primary: '' }, // Placeholder; join users table for phone if available
+          contact: { primary: "" }, // Placeholder; join users table for phone if available
           shareholders, // Include for details if needed
           // Add other fields as needed (e.g., totalShares: order.total_shares)
         };
-      })
+      }),
     );
 
     res.json({ orders: ordersWithDetails });
   } catch (err) {
     console.error("Error fetching admin orders:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
 
 // GET /api/ratings/:orderId/:userId - Fetch ratings and order details for the user
 router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
@@ -201,7 +201,7 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
        JOIN users u ON o.admin_id = u.id
        LEFT JOIN users d ON o.delivery_person_id = d.id
        WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (orders.length === 0) {
@@ -213,12 +213,12 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
       `SELECT admin_id, admin_rating, delivery_rating, feedback
        FROM ratings
        WHERE order_id = ? AND user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     // Map ratings by adminId
     const ratingsMap = {};
-    ratings.forEach(rating => {
+    ratings.forEach((rating) => {
       ratingsMap[rating.admin_id] = {
         adminRating: rating.admin_rating,
         deliveryRating: rating.delivery_rating,
@@ -233,7 +233,9 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching ratings:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -256,7 +258,13 @@ router.post("/ratings", authMiddleware, async (req, res) => {
 
     for (const rating of ratings) {
       const { adminId, adminRating, deliveryRating, feedback } = rating;
-      if (!adminId || adminRating < 1 || adminRating > 5 || deliveryRating < 1 || deliveryRating > 5) {
+      if (
+        !adminId ||
+        adminRating < 1 ||
+        adminRating > 5 ||
+        deliveryRating < 1 ||
+        deliveryRating > 5
+      ) {
         throw new Error("Invalid rating data");
       }
 
@@ -265,7 +273,14 @@ router.post("/ratings", authMiddleware, async (req, res) => {
         `INSERT INTO ratings (order_id, user_id, admin_id, admin_rating, delivery_rating, feedback)
          VALUES (?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE admin_rating = VALUES(admin_rating), delivery_rating = VALUES(delivery_rating), feedback = VALUES(feedback)`,
-        [orderId, userId, adminId, adminRating, deliveryRating, feedback || null]
+        [
+          orderId,
+          userId,
+          adminId,
+          adminRating,
+          deliveryRating,
+          feedback || null,
+        ],
       );
     }
 
@@ -274,7 +289,9 @@ router.post("/ratings", authMiddleware, async (req, res) => {
   } catch (err) {
     await connection.rollback();
     console.error("Error submitting ratings:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   } finally {
     connection.release();
   }
@@ -297,13 +314,15 @@ router.post("/requests", authMiddleware, async (req, res) => {
     await pool.execute(
       `INSERT INTO requests (order_id, user_id, title, description, status)
        VALUES (?, ?, ?, ?, 'Pending')`,
-      [orderId, userId, title, description]
+      [orderId, userId, title, description],
     );
 
     res.status(201).json({ message: "Request submitted successfully" });
   } catch (err) {
     console.error("Error submitting request:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -321,13 +340,15 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
       `SELECT id, title, description, status, created_at
        FROM requests
        WHERE order_id = ? AND user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     res.json({ requests });
   } catch (err) {
     console.error("Error fetching requests:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -346,44 +367,48 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
        FROM orders o
        JOIN users u ON o.user_id = u.id
        JOIN users a ON o.admin_id = a.id
-       WHERE o.id = ? AND o.admin_id = ?`,  // Restrict to admin's own orders
-      [orderId, adminId]
+       WHERE o.id = ? AND o.admin_id = ?`, // Restrict to admin's own orders
+      [orderId, adminId],
     );
 
     console.log(orders);
 
     if (orders.length === 0) {
-      return res.status(404).json({ message: "Order not found or not authorized" });
+      return res
+        .status(404)
+        .json({ message: "Order not found or not authorized" });
     }
 
     const order = orders[0];
 
     // Fetch shareholders for the order
     const [shareholders] = await pool.execute(
-      `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
-      [order.id]
+      `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
+      [order.id],
     );
 
     // Structure the response to match admin frontend expectations
     const orderWithDetails = {
       orderId: order.id,
       user_name: order.user_name,
-      animal_type: 'Sheep',  // Dummy, as per schema
-      parts: shareholders.map(s => s.name).join(', '),  // Map to parts
-      total_amount: 100 * order.total_shares,  // Dummy calculation
-      payment_status: 'Paid',  // Default
-      delivery_address: 'N/A',  // Default; add to schema if needed
-      contact_no: order.contact_no || 'N/A',
+      animal_type: "Sheep", // Dummy, as per schema
+      parts: shareholders.map((s) => s.name).join(", "), // Map to parts
+      total_amount: 100 * order.total_shares, // Dummy calculation
+      payment_status: "Paid", // Default
+      delivery_address: "N/A", // Default; add to schema if needed
+      contact_no: order.contact_no || "N/A",
       processing_status: order.status,
-      delivery_status: order.delivery_status || 'pending',
+      delivery_status: order.delivery_status || "pending",
       delivery_person_id: order.delivery_person_id,
-      shareholders,  // Include for reference
+      shareholders, // Include for reference
     };
 
     res.json({ order: orderWithDetails });
   } catch (err) {
     console.error("Error fetching admin order:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -401,22 +426,26 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
     // Check if order belongs to admin
     const [orders] = await pool.execute(
       `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
-      [orderId, adminId]
+      [orderId, adminId],
     );
     if (orders.length === 0) {
-      return res.status(404).json({ message: "Order not found or not authorized" });
+      return res
+        .status(404)
+        .json({ message: "Order not found or not authorized" });
     }
 
     // Update order
     await pool.execute(
       `UPDATE orders SET status = ?, delivery_status = ?, delivery_person_id = ? WHERE id = ?`,
-      [processingStatus, deliveryStatus, deliveryPersonId || null, orderId]
+      [processingStatus, deliveryStatus, deliveryPersonId || null, orderId],
     );
 
     res.json({ message: "Order updated successfully" });
   } catch (err) {
     console.error("Error updating order:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 

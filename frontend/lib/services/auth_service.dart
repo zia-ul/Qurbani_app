@@ -2,10 +2,20 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+/**
+ * AuthService Class
+ *
+ * Singleton service class that provides authentication functionality.
+ * Handles communication with authentication endpoints and manages user sessions.
+ */
 class AuthService {
+  // Secure storage instance for JWT tokens and user data
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+
+  // Base URL for API endpoints (development server)
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {
@@ -44,9 +54,19 @@ class AuthService {
     return UserModel.fromJson(decoded['user']);
   }
 
-  // REGISTER
+  /**
+   * Registers a new user account
+   *
+   * Sends user registration data to /auth/register endpoint.
+   * Handles comprehensive user information including personal details,
+   * contact information, and role preferences.
+   *
+   * @param data Map containing user registration data (name, email, password, etc.)
+   * @throws Exception if registration fails with server error message
+   */
   static Future<void> register(Map<String, dynamic> data) async {
-    print(data);
+    // print(data);
+
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
@@ -61,7 +81,17 @@ class AuthService {
     }
   }
 
-  // LOGIN
+  /**
+   * Authenticates user credentials and establishes session
+   *
+   * Sends login request to /auth/login endpoint with email/password.
+   * On success, securely stores JWT token and user ID, then returns user data.
+   * Used by login screen to authenticate users and start sessions.
+   *
+   * @param data Map containing 'email' and 'password' keys
+   * @return UserModel containing authenticated user information
+   * @throws Exception if login fails with server error message
+   */
   static Future<UserModel> login(Map<String, dynamic> data) async {
     print(data);
     final res = await http.post(
@@ -89,12 +119,27 @@ class AuthService {
     return UserModel.fromJson(user);
   }
 
-  // LOGOUT
+  /**
+   * Logs out the current user and clears session data
+   *
+   * Removes JWT token and user ID from secure storage, effectively
+   * ending the user's authenticated session.
+   */
   static Future<void> logout() async {
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'userId');
   }
 
+  /**
+   * Changes the authenticated user's password
+   *
+   * Sends password change request to /auth/change-password endpoint.
+   * Requires current password verification for security.
+   *
+   * @param currentPassword User's current password for verification
+   * @param newPassword New password to set
+   * @throws Exception if password change fails or user is not authenticated
+   */
   static Future<void> changePassword(
     String currentPassword,
     String newPassword,

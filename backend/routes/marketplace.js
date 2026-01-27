@@ -201,7 +201,6 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
       SELECT 
         id,
         animal_type,
-        breed,
         price,
         delivery_type,
         delivery_fee,

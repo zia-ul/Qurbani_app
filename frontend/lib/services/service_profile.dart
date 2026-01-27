@@ -2,12 +2,22 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ProfileService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
-  /// GET USER PROFILE
+  /**
+   * Retrieves the authenticated user's profile information
+   *
+   * Fetches comprehensive user profile data including personal details,
+   * contact information, and account settings. Used for profile display
+   * and user account management throughout the application.
+   *
+   * @return Map containing user profile data
+   * @throws Exception if profile fetch fails or user is not authenticated
+   */
   static Future<Map<String, dynamic>> getProfile() async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
@@ -36,7 +46,7 @@ class ProfileService {
     }
 
     final response = await http.put(
-      Uri.parse('http://192.168.1.4:3000/api/users/currencies'),
+      Uri.parse('$_baseUrl/users/currencies'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

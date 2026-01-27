@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/screens/user/order_form.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminProfilePage extends StatefulWidget {
   final String adminId;
@@ -21,6 +22,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   final Color backgroundGrey = const Color(0xffF8F9FA);
   final _storage = const FlutterSecureStorage();
   late Future<Map<String, dynamic>> _adminFuture;
+static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   @override
   void initState() {
@@ -29,14 +31,13 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   }
 
   Future<Map<String, dynamic>> _fetchAdminProfile() async {
-    const baseUrl = 'http://192.168.1.4:3000/api';
     final token = await _storage.read(key: "token");
     if (token == null) {
       throw Exception("No token found. User not logged in.");
     }
 
     final res = await http.get(
-      Uri.parse('$baseUrl/auth/adminprofile/${widget.adminId}'),
+      Uri.parse('$_baseUrl/auth/adminprofile/${widget.adminId}'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

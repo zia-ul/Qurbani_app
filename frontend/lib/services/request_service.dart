@@ -2,10 +2,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RequestService {
   static const _storage = FlutterSecureStorage();
-  static const _baseUrl = 'http://192.168.1.4:3000/api';
+  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
   /// SUBMIT SPECIAL REQUEST
   static Future<void> submitRequest(
@@ -37,6 +38,15 @@ class RequestService {
     }
   }
 
+  /**
+   * Retrieves all special requests submitted by the authenticated user
+   *
+   * Fetches the user's request history including pending, replied, and closed
+   * requests. Used for displaying request status and history in the user interface.
+   *
+   * @return List of request objects with details and status information
+   * @throws Exception if fetch fails or user is not authenticated
+   */
   static Future<List<Map<String, dynamic>>> getUserRequests() async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');

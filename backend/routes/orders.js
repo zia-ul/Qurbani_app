@@ -1,3 +1,23 @@
+/**
+ * Orders Routes Module
+ *
+ * This module handles all order-related API operations in the Qurbani application.
+ * It manages the complete order lifecycle including creation, status updates,
+ * cancellations, special requests, and payment processing.
+ *
+ * Routes are organized by functionality:
+ * - User Routes: Order details, cancellation, special requests, payment updates
+ * - Admin Routes: Order status management and updates (delegated to controllers)
+ *
+ * Key Features:
+ * - Secure order access with user authentication and ownership validation
+ * - Admin-only order management with role-based access control
+ * - Time-based cancellation policies (24-hour window)
+ * - Payment gateway integration for online payments
+ * - Comprehensive audit logging for all order operations
+ * - Special request system for custom order modifications
+ */
+
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
@@ -5,7 +25,9 @@ const authMiddleware = require("../middleware/authmiddleware");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../middleware/logger");
 
+// Mount user order routes from controller
 router.use("/", require("../controllers/user_order"));
+// Mount admin order routes from controller
 router.use("/admin", require("../controllers/admin_order"));
 
 /**
@@ -60,12 +82,18 @@ router.use("/admin", require("../controllers/admin_order"));
  */
 
 
-// GET /api/orders/:orderId - Fetch order details for user
+// GET /api/orders/:orderId - Fetch detailed order information for authenticated user
+// This endpoint provides comprehensive order details including animal information,
+// admin contact details, and current status for order tracking purposes
 router.get("/:orderId", authMiddleware, async (req, res) => {
+  // Extract order ID from URL parameters and get authenticated user's ID
   const { orderId } = req.params;
   const userId = req.user.id;
 
   try {
+    // Execute complex JOIN query to fetch order with related data
+    // Joins orders with animals table for product details and users table for admin info
+    // Security: WHERE clause ensures users can only access their own orders
     const [orders] = await pool.execute(
       `SELECT o.id, o.user_id, o.admin_id, o.delivery_status, o.payment_status,
               o.processing_status, o.created_at, o.cancelled_at,
@@ -78,20 +106,35 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       [orderId, userId]
     );
 
+    // Check if order exists and belongs to the authenticated user
     if (!orders.length) {
-      logger.warn("Order not found for user", { userId, orderId });
+      logger.warn("Order not found or access denied", {
+        userId,
+        orderId,
+        reason: "Order doesn't exist or doesn't belong to user"
+      });
       return res.status(404).json({ message: "Order not found" });
     }
 
-    logger.info("Order fetched successfully", { userId, orderId });
+    // Log successful order retrieval for audit trail
+    logger.info("Order details retrieved successfully", {
+      userId,
+      orderId,
+      orderStatus: orders[0].delivery_status,
+      paymentStatus: orders[0].payment_status
+    });
+
+    // Return order details to client
     res.json({ order: orders[0] });
   } catch (err) {
-    logger.error("Error fetching order", {
+    // Log error with comprehensive context for debugging
+    logger.error("Error retrieving order details", {
       userId,
       orderId,
       error: err.message,
       stack: err.stack,
     });
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
@@ -223,35 +266,64 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
  */
 
 
-// PUT /api/orders/:orderId/cancel - Cancel order
+// PUT /api/orders/:orderId/cancel - User order cancellation with time-based restrictions
+// Allows users to cancel their orders within a 24-hour window if not yet delivered
+// Implements business rules for cancellation eligibility and updates all order statuses
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
+  // Extract order ID from URL parameters and get authenticated user's ID
   const { orderId } = req.params;
   const userId = req.user.id;
 
   try {
+    // Step 1: Verify order exists and belongs to user
+    // Fetch current order status and creation time for cancellation validation
     const [orders] = await pool.execute(
       `SELECT delivery_status, created_at FROM orders WHERE id = ? AND user_id = ?`,
       [orderId, userId]
     );
 
+    // If order doesn't exist or doesn't belong to user, return error
     if (!orders.length) {
-      logger.warn("Cancel attempt on non-existent order", { userId, orderId });
+      logger.warn("Order cancellation attempt on non-existent or non-owned order", {
+        userId,
+        orderId,
+        reason: "Order not found or doesn't belong to user"
+      });
       return res.status(404).json({ message: "Order not found" });
     }
 
     const order = orders[0];
+
+    // Step 2: Evaluate cancellation eligibility based on business rules
     const isDelivered = order.delivery_status === "delivered";
     const isCancelled = order.delivery_status === "cancelled";
-    const canCancel =
-      Date.now() - new Date(order.created_at).getTime() < 24 * 60 * 60 * 1000 &&
-      !isDelivered &&
-      !isCancelled;
 
+    // Cancellation allowed within 24 hours AND order not delivered/cancelled
+    // Time calculation: current time minus order creation time
+    const timeSinceOrder = Date.now() - new Date(order.created_at).getTime();
+    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+    const canCancel = within24Hours && !isDelivered && !isCancelled;
+
+    // If cancellation not allowed, return appropriate error
     if (!canCancel) {
-      logger.warn("Invalid cancel attempt", { userId, orderId });
+      logger.warn("Invalid order cancellation attempt - business rules violation", {
+        userId,
+        orderId,
+        orderStatus: order.delivery_status,
+        timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)), // hours
+        within24Hours,
+        isDelivered,
+        isCancelled,
+        reason: !within24Hours ? "Outside 24-hour window" :
+                isDelivered ? "Order already delivered" :
+                "Order already cancelled"
+      });
       return res.status(400).json({ message: "Cannot cancel this order" });
     }
 
+    // Step 3: Execute cancellation by updating all order statuses
+    // Sets all statuses to 'cancelled' and records cancellation timestamp
     await pool.execute(
       `UPDATE orders
        SET delivery_status='cancelled',
@@ -262,14 +334,26 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       [orderId]
     );
 
-    logger.info("Order cancelled by user", { userId, orderId });
-    res.json({ message: "Order cancelled" });
+    // Step 4: Log successful cancellation for audit trail
+    logger.info("Order successfully cancelled by user", {
+      userId,
+      orderId,
+      orderAge: Math.floor(timeSinceOrder / (1000 * 60)), // minutes since order
+      cancellationType: "user_initiated",
+      previousStatus: order.delivery_status
+    });
+
+    // Return success response
+    res.json({ message: "Order cancelled successfully" });
   } catch (err) {
-    logger.error("Error cancelling order", {
+    // Log error with comprehensive context for debugging
+    logger.error("Error processing order cancellation", {
       userId,
       orderId,
       error: err.message,
+      stack: err.stack,
     });
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
@@ -412,13 +496,22 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
  */
 
 
-// PUT /api/orders/:orderId/payment-success - Update payment status after online payment
+// PUT /api/orders/:orderId/payment-success - Update order payment status after online payment completion
+// Called by payment gateway webhook or frontend after successful payment processing
+// Marks order as paid and stores payment gateway reference ID for reconciliation
+// Critical for order fulfillment workflow and financial tracking
 router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
+  // Extract order ID from URL parameters
   const { orderId } = req.params;
+  // Extract payment gateway ID from request body
   const { paymentId } = req.body;
+  // Get authenticated user's ID for security validation
   const userId = req.user.id;
 
   try {
+    // Step 1: Update order payment status in database
+    // Sets payment_status to 'paid' and stores payment gateway reference
+    // Security: WHERE clause ensures users can only update their own orders
     await pool.execute(
       `UPDATE orders
        SET payment_status='paid', payment_id=?
@@ -426,19 +519,30 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       [paymentId, orderId, userId]
     );
 
-    logger.info("Payment marked as paid", {
+    // Step 2: Log successful payment update for audit trail and financial tracking
+    logger.info("Order payment status updated to paid successfully", {
       userId,
       orderId,
       paymentId,
+      paymentMethod: "online_payment",
+      updateType: "payment_success_callback",
+      previousStatus: "pending/unpaid", // Assumed based on context
+      newStatus: "paid"
     });
 
-    res.json({ message: "Payment updated" });
+    // Return success response to payment gateway or frontend
+    res.json({ message: "Payment status updated successfully" });
   } catch (err) {
-    logger.error("Payment update failed", {
+    // Log error with comprehensive context for payment reconciliation debugging
+    logger.error("Error updating order payment status", {
       userId,
       orderId,
+      paymentId,
       error: err.message,
+      stack: err.stack,
+      impact: "Payment may not be properly recorded - manual reconciliation required"
     });
+    // Return generic error message to client
     res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
