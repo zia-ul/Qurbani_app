@@ -81,7 +81,6 @@ router.use("/admin", require("../controllers/admin_order"));
  *         description: Something went wrong. Please try again later.
  */
 
-
 // GET /api/orders/:orderId - Fetch detailed order information for authenticated user
 // This endpoint provides comprehensive order details including animal information,
 // admin contact details, and current status for order tracking purposes
@@ -103,7 +102,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
        JOIN animals p ON o.animal_id = p.id
        JOIN users a ON o.admin_id = a.id
        WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     // Check if order exists and belongs to the authenticated user
@@ -111,7 +110,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       logger.warn("Order not found or access denied", {
         userId,
         orderId,
-        reason: "Order doesn't exist or doesn't belong to user"
+        reason: "Order doesn't exist or doesn't belong to user",
       });
       return res.status(404).json({ message: "Order not found" });
     }
@@ -121,7 +120,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       userId,
       orderId,
       orderStatus: orders[0].delivery_status,
-      paymentStatus: orders[0].payment_status
+      paymentStatus: orders[0].payment_status,
     });
 
     // Return order details to client
@@ -135,10 +134,11 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
     // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 /**
  * @swagger
@@ -188,10 +188,9 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
   const { processing_status, delivery_status, delivery_person_id } = req.body;
 
   try {
-    const [admins] = await pool.execute(
-      `SELECT role FROM users WHERE id = ?`,
-      [adminId]
-    );
+    const [admins] = await pool.execute(`SELECT role FROM users WHERE id = ?`, [
+      adminId,
+    ]);
 
     if (!admins.length || admins[0].role !== "admin") {
       logger.warn("Unauthorized order update attempt", { adminId, orderId });
@@ -200,7 +199,7 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
 
     const [orders] = await pool.execute(
       `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
-      [orderId, adminId]
+      [orderId, adminId],
     );
 
     if (!orders.length) {
@@ -215,7 +214,7 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
       `UPDATE orders
        SET processing_status = ?, delivery_status = ?, delivery_person_id = ?
        WHERE id = ?`,
-      [processing_status, delivery_status, delivery_person_id || null, orderId]
+      [processing_status, delivery_status, delivery_person_id || null, orderId],
     );
 
     logger.info("Order updated by admin", {
@@ -232,10 +231,11 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
       orderId,
       error: err.message,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 /**
  * @swagger
@@ -265,7 +265,6 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 // PUT /api/orders/:orderId/cancel - User order cancellation with time-based restrictions
 // Allows users to cancel their orders within a 24-hour window if not yet delivered
 // Implements business rules for cancellation eligibility and updates all order statuses
@@ -279,16 +278,19 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
     // Fetch current order status and creation time for cancellation validation
     const [orders] = await pool.execute(
       `SELECT delivery_status, created_at FROM orders WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     // If order doesn't exist or doesn't belong to user, return error
     if (!orders.length) {
-      logger.warn("Order cancellation attempt on non-existent or non-owned order", {
-        userId,
-        orderId,
-        reason: "Order not found or doesn't belong to user"
-      });
+      logger.warn(
+        "Order cancellation attempt on non-existent or non-owned order",
+        {
+          userId,
+          orderId,
+          reason: "Order not found or doesn't belong to user",
+        },
+      );
       return res.status(404).json({ message: "Order not found" });
     }
 
@@ -307,18 +309,23 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
 
     // If cancellation not allowed, return appropriate error
     if (!canCancel) {
-      logger.warn("Invalid order cancellation attempt - business rules violation", {
-        userId,
-        orderId,
-        orderStatus: order.delivery_status,
-        timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)), // hours
-        within24Hours,
-        isDelivered,
-        isCancelled,
-        reason: !within24Hours ? "Outside 24-hour window" :
-                isDelivered ? "Order already delivered" :
-                "Order already cancelled"
-      });
+      logger.warn(
+        "Invalid order cancellation attempt - business rules violation",
+        {
+          userId,
+          orderId,
+          orderStatus: order.delivery_status,
+          timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)), // hours
+          within24Hours,
+          isDelivered,
+          isCancelled,
+          reason: !within24Hours
+            ? "Outside 24-hour window"
+            : isDelivered
+              ? "Order already delivered"
+              : "Order already cancelled",
+        },
+      );
       return res.status(400).json({ message: "Cannot cancel this order" });
     }
 
@@ -331,7 +338,7 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
            processing_status='cancelled',
            cancelled_at=NOW()
        WHERE id=?`,
-      [orderId]
+      [orderId],
     );
 
     // Step 4: Log successful cancellation for audit trail
@@ -340,7 +347,7 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       orderId,
       orderAge: Math.floor(timeSinceOrder / (1000 * 60)), // minutes since order
       cancellationType: "user_initiated",
-      previousStatus: order.delivery_status
+      previousStatus: order.delivery_status,
     });
 
     // Return success response
@@ -354,13 +361,11 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
     // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
-
-
 
 /**
  * @swagger
@@ -401,7 +406,6 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 // POST /api/orders/:orderId/special-request - Submit special request
 router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -414,14 +418,16 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
       userId,
       orderId,
     });
-    return res.status(400).json({ message: "Title and description are required" });
+    return res
+      .status(400)
+      .json({ message: "Title and description are required" });
   }
 
   try {
     // Check if order exists and belongs to user
     const [orders] = await pool.execute(
       `SELECT id FROM orders WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (orders.length === 0) {
@@ -438,7 +444,7 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
       `INSERT INTO special_requests 
        (id, order_id, user_id, title, description, status)
        VALUES (?, ?, ?, ?, ?, 'pending')`,
-      [requestId, orderId, userId, title, description]
+      [requestId, orderId, userId, title, description],
     );
 
     logger.info("Special request submitted", {
@@ -456,10 +462,11 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 /**
  * @swagger
@@ -495,7 +502,6 @@ router.post("/:orderId/special-request", authMiddleware, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 // PUT /api/orders/:orderId/payment-success - Update order payment status after online payment completion
 // Called by payment gateway webhook or frontend after successful payment processing
 // Marks order as paid and stores payment gateway reference ID for reconciliation
@@ -516,7 +522,7 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       `UPDATE orders
        SET payment_status='paid', payment_id=?
        WHERE id=? AND user_id=?`,
-      [paymentId, orderId, userId]
+      [paymentId, orderId, userId],
     );
 
     // Step 2: Log successful payment update for audit trail and financial tracking
@@ -527,7 +533,7 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       paymentMethod: "online_payment",
       updateType: "payment_success_callback",
       previousStatus: "pending/unpaid", // Assumed based on context
-      newStatus: "paid"
+      newStatus: "paid",
     });
 
     // Return success response to payment gateway or frontend
@@ -540,12 +546,66 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       paymentId,
       error: err.message,
       stack: err.stack,
-      impact: "Payment may not be properly recorded - manual reconciliation required"
+      impact:
+        "Payment may not be properly recorded - manual reconciliation required",
     });
     // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
+router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { qurbani_time } = req.body;
+
+  if (!qurbani_time) {
+    return res.status(400).json({ message: "Qurbani time required" });
+  }
+
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+    console.log("schedle updatebegins");
+    // 1️⃣ Update animal_details
+    const [animalResult] = await conn.execute(
+      `UPDATE animal_details
+         SET qurbani_datetime = ?
+         WHERE order_id = ?`,
+      [qurbani_time, orderId],
+    );
+    console.log("schedle ends", animalResult);
+
+    if (animalResult.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({
+        message: "Animal details not found for this order",
+      });
+    }
+
+    // 2️⃣ Update order status
+    await conn.execute(
+      `UPDATE orders
+         SET processing_status = 'confirmed'
+         WHERE id = ?`,
+      [orderId],
+    );
+
+    await conn.commit();
+
+    res.json({
+      message: "Qurbani scheduled successfully",
+      processing_status: "confirmed",
+    });
+  } catch (err) {
+    await conn.rollback();
+    logger.error("Schedule update failed", err);
+    res.status(500).json({ message: "Failed to update schedule" });
+  } finally {
+    conn.release();
+  }
+});
 
 module.exports = router;

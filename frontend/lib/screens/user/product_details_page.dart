@@ -349,7 +349,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     Icons.fingerprint,
                     "Order ID",
                     order['id'],
-                    isCopyable: true,
+                    isCopyable: false,
                   ),
                   _buildInfoRow(
                     Icons.check_circle,
@@ -378,6 +378,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     Icons.code,
                     "Delivery Code",
                     order['delivery_code'] ?? 'Not assigned',
+                    isCopyable: order['delivery_code'] != null
                   ),
                   if (orderDate != null)
                     _buildInfoRow(

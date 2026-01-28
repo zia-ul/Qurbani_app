@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:Qurbani/screens/admin/admin_order_details.dart';
+import 'package:Qurbani/screens/admin/order_details.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 

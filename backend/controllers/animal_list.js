@@ -85,7 +85,7 @@ exports.deleteAnimal = async (req, res) => {
 };
 
 
-
+// fetch edit detils
 exports.getAnimalById = async (req, res) => {
   const adminId = req.user?.id;
   const animalId = req.params.id;
@@ -102,6 +102,8 @@ exports.getAnimalById = async (req, res) => {
       "SELECT * FROM animals WHERE id = ? AND admin_id = ?",
       [animalId, adminId]
     );
+
+    console.log("testing edit animal",rows);
 
     if (!rows.length) {
       logger.warn("Animal not found for admin", { adminId, animalId });

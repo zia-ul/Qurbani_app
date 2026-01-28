@@ -18,17 +18,19 @@ router.get("/my", auth, adminOnly, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at
+      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.processing_status, o.created_at
        FROM orders o
        WHERE o.admin_id = ?
        ORDER BY o.created_at DESC`,
       [adminId],
     );
 
+    logger.info("Admin orders", { orders });
+
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
         const [shareholders] = await pool.execute(
-          `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
+          `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
           [order.id],
         );
 
@@ -36,8 +38,8 @@ router.get("/my", auth, adminOnly, async (req, res) => {
           orderId: order.id,
           adminId: order.admin_id,
           deliveryStatus: "pending",
-          processingStatus: order.status,
-          isCompleted: order.status === "completed",
+          processingStatus: order.processing_status,
+          isCompleted: order.processing_status === "completed",
           createdAt: order.created_at,
           shareholders,
         };
@@ -75,7 +77,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.status, o.delivery_status, o.delivery_person_id
+      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id
        FROM orders o
        WHERE o.id = ? AND o.admin_id = ?`,
       [orderId, adminId],
@@ -92,7 +94,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
     }
 
     const [shareholders] = await pool.execute(
-      `SELECT id, name, guardian_name, qurbani_day FROM shareholders WHERE order_id = ?`,
+      `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
       [orderId],
     );
 
@@ -105,7 +107,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
     res.json({
       order: {
         orderId,
-        processing_status: orders[0].status,
+        processing_status: orders[0].processing_status,
         delivery_status: orders[0].delivery_status || "pending",
         delivery_person_id: orders[0].delivery_person_id,
         shareholders,

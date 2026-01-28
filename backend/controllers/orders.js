@@ -13,7 +13,7 @@ router.get("/my", authMiddleware, async (req, res) => {
   try {
     const [orders] = await pool.execute(
       `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at,
-              u.name as admin_name, u.email as admin_email
+              u.name as admin_name, u.email as admin_email, o.delivery_status
        FROM orders o
        JOIN users u ON o.admin_id = u.id
        WHERE o.user_id = ?
@@ -99,7 +99,6 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-
 // GET /api/orders/:orderId - Get a single order by ID for the authenticated user
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -136,13 +135,140 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
+//api/orders/:id
+router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { qurbani_time } = req.body;
+
+  if (!qurbani_time) {
+    return res.status(400).json({ message: "Qurbani time required" });
+  }
+
+  const conn = await pool.getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // 1️⃣ Update animal_details
+    const [animalResult] = await conn.execute(
+      `UPDATE animal_details
+         SET qurbani_datetime = ?
+         WHERE order_id = ?`,
+      [qurbani_time, orderId],
+    );
+
+    console.log("schedule check", animalResult);
+
+    if (animalResult.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({
+        message: "Animal details not found for this order",
+      });
+    }
+
+    // 2️⃣ Update order status
+    const [orderResult] = await conn.execute(
+      `UPDATE orders
+   SET processing_status = 'confirmed'
+   WHERE id = ?`,
+      [orderId],
+    );
+
+    console.log("order update result", orderResult);
+
+    if (orderResult.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    await conn.commit();
+
+    res.json({
+      message: "Qurbani scheduled successfully",
+      processing_status: "confirmed",
+    });
+  } catch (err) {
+    await conn.rollback();
+    logger.error("Schedule update failed", err);
+    res.status(500).json({ message: "Failed to update schedule" });
+  } finally {
+    conn.release();
+  }
+});
+
+router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { meat_weight, body_parts_description } = req.body;
+
+  if (
+  meat_weight === undefined ||
+  body_parts_description === undefined ||
+  String(body_parts_description).trim() === ""
+) {
+  return res.status(400).json({ message: "Incomplete meat details" });
+}
+
+  console.log("Meat check");
+  try {
+    // UPSERT animal details
+    await pool.execute(
+      `INSERT INTO animal_details (order_id, meat_weight, body_parts_description)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           meat_weight = VALUES(meat_weight),
+           body_parts_description = VALUES(body_parts_description)`,
+      [orderId, meat_weight, body_parts_description],
+    );
+
+    // Mark order completed
+    await pool.execute(
+      `UPDATE orders SET processing_status = 'completed' WHERE id = ?`,
+      [orderId],
+    );
+
+    res.json({ message: "Meat details saved successfully" });
+  } catch (err) {
+    logger.error("Meat details update failed", err);
+    res.status(500).json({ message: "Failed to save meat details" });
+  }
+});
+
+router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { delivery_person_id } = req.body;
+
+  if (!delivery_person_id) {
+    return res.status(400).json({ message: "Delivery person required" });
+  }
+
+  try {
+    const [result] = await pool.execute(
+      `UPDATE orders
+         SET delivery_person_id = ?
+         WHERE id = ?`,
+      [delivery_person_id, orderId],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json({ message: "Delivery assigned successfully" });
+  } catch (err) {
+    logger.error("Delivery assignment failed", err);
+    res.status(500).json({ message: "Failed to assign delivery" });
+  }
+});
+
 // GET /api/orders/admin/my - Get all orders for the authenticated admin
 router.get("/admin/my", authMiddleware, async (req, res) => {
   const adminId = req.user.id; // Assuming JWT provides admin's user ID
-
+  console.log("coming here");
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at,
+      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.processing_status, o.created_at,
               u.name as admin_name, u.email as admin_email
        FROM orders o
        JOIN users u ON o.admin_id = u.id
@@ -150,6 +276,8 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
        ORDER BY o.created_at DESC`,
       [adminId],
     );
+
+    console.log(orders);
 
     // For each order, fetch shareholders and map to expected structure
     const ordersWithDetails = await Promise.all(
@@ -164,8 +292,8 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
           orderId: order.id,
           adminId: order.admin_id,
           deliveryStatus: "pending", // Default; add column to orders table if needed
-          processingStatus: order.status, // Maps to status (pending, confirmed, etc.)
-          isCompleted: order.status === "completed", // For filtering
+          processingStatus: order.processing_status, // Maps to status (pending, confirmed, etc.)
+          isCompleted: order.processing_status === "completed", // For filtering
           createdAt: order.created_at,
           contact: { primary: "" }, // Placeholder; join users table for phone if available
           shareholders, // Include for details if needed
@@ -361,7 +489,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.delivery_status, o.delivery_person_id, o.created_at,
+      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.created_at,
               u.name as user_name, u.email as user_email, u.phone as contact_no,
               a.name as admin_name
        FROM orders o
@@ -397,7 +525,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
       payment_status: "Paid", // Default
       delivery_address: "N/A", // Default; add to schema if needed
       contact_no: order.contact_no || "N/A",
-      processing_status: order.status,
+      processing_status: order.processing_status,
       delivery_status: order.delivery_status || "pending",
       delivery_person_id: order.delivery_person_id,
       shareholders, // Include for reference

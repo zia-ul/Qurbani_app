@@ -170,10 +170,11 @@ class _BookedPageState extends State<BookedPage> {
     Map<String, dynamic> order,
     Map<String, Map<String, dynamic>> adminMap,
   ) {
+    print("order......checking....$order");
     final cartItems = order['items'] ?? [];
-    final orderDate = DateTime.tryParse(order['createdAt'] ?? '');
+    final orderDate = DateTime.tryParse(order['created_at'] ?? '');
     final String pStatus = order['processingStatus'] ?? 'Pending';
-    print(cartItems);
+
     // Safely handle orderId for display
     String orderIdStr = (order['id'] ?? '').toString();
     String displayId = orderIdStr.length >= 5
@@ -257,7 +258,7 @@ class _BookedPageState extends State<BookedPage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        "Delivery: ${order['deliveryStatus'] ?? 'Pending'}",
+                        "Delivery: ${order['delivery_status'] ?? 'Pending'}",
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 11,
