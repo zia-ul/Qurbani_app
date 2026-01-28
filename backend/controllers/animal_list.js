@@ -99,7 +99,25 @@ exports.getAnimalById = async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT * FROM animals WHERE id = ? AND admin_id = ?",
+      `
+      SELECT 
+        a.*,
+        ad.id AS animal_details_id,
+        ad.order_id,
+        ad.barcode,
+        ad.breed AS details_breed,
+        ad.description AS details_description,
+        ad.age AS details_age,
+        ad.height AS details_height,
+        ad.weight AS details_weight,
+        ad.photo_urls AS details_photo_urls,
+        ad.qurbani_datetime,
+        ad.meat_weight,
+        ad.body_parts_description
+      FROM animals a
+      LEFT JOIN animal_details ad ON ad.animal_id = a.id
+      WHERE a.id = ? AND a.admin_id = ?
+      `,
       [animalId, adminId]
     );
 

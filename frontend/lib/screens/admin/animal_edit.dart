@@ -28,7 +28,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   final _formKey = GlobalKey<FormState>();
   final _storage = const FlutterSecureStorage();
 
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   final descriptionController = TextEditingController();
   final breedController = TextEditingController();
@@ -95,24 +95,41 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       }
 
       final data = jsonDecode(res.body);
-      selectedAnimalType = data['animal_type'];
-      selectedDeliveryType = data['delivery_type'] ?? 'Free';
-      selectedAnimalType = data['animal_type'];
-      animalTypeController.text = data['animal_type'] ?? '';
-      breedController.text = data['breed'] ?? '';
-      descriptionController.text = data['description'] ?? '';
-      priceController.text = data['price'].toString();
-      ageController.text = data['age'] ?? '';
-      heightController.text = data['height']?.toString() ?? '';
-      weightController.text = data['weight']?.toString() ?? '';
-      sharesController.text = data['shares']?.toString() ?? '';
-      deliveryFeeController.text = data['delivery_fee']?.toString() ?? "0";
-      deliveryThresholdController.text =
-          data['delivery_threshold']?.toString() ?? '';
 
-      existingPhotoUrls = List<String>.from(
-        jsonDecode(data['photo_urls'] ?? "[]"),
-      );
+      print("data on fronent...animal edit: $data");
+
+      // from animals table
+      animalTypeController.text = data['animal_type'] ?? '';
+      breedController.text = data['details_breed'] ?? data['breed'] ?? '';
+      descriptionController.text =
+          data['details_description'] ?? data['description'] ?? '';
+      ageController.text = data['details_age'] ?? '';
+      heightController.text = data['details_height'] ?? '';
+      weightController.text = data['details_weight'] ?? '';
+      priceController.text = data['price']?.toString() ?? '';
+      sharesController.text = data['shares']?.toString() ?? '';
+
+      // animal_details specific
+      barcodeController.text = data['barcode'] ?? '';
+      final meatWeight = data['meat_weight'];
+      final bodyPartsDesc = data['body_parts_description'];
+      final qurbaniDate = data['qurbani_datetime'];
+
+      // photos (prefer animal_details if present)
+      // Robust handling of details_photo_urls
+      final photoUrlsRaw =
+          data['details_photo_urls'] ?? data['photo_urls'] ?? [];
+
+      if (photoUrlsRaw is String) {
+        existingPhotoUrls = photoUrlsRaw.contains(',')
+            ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
+            : [photoUrlsRaw];
+      } else if (photoUrlsRaw is List) {
+        existingPhotoUrls = List<String>.from(photoUrlsRaw);
+      } else {
+        existingPhotoUrls = [];
+      }
+
       // selectedPaymentMethods = List<String>.from(
       //   jsonDecode(data['payment_methods'] ?? "[]"),
       // );
@@ -401,15 +418,27 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                     Expanded(
                       child: TextFormField(
                         controller: barcodeController,
-                        readOnly: true,
-                        decoration: _inputDecoration("Generated barcode"),
+                        readOnly: _hasValue(
+                          barcodeController,
+                        ), // ✅ disable if already has value
+                        enabled: !_hasValue(
+                          barcodeController,
+                        ), // visually greys out
+                        decoration: _inputDecoration("Generated barcode")
+                            .copyWith(
+                              fillColor: _hasValue(barcodeController)
+                                  ? Colors.grey[100]
+                                  : Colors.grey[50],
+                            ),
                         validator: (v) =>
                             v!.isEmpty ? "Generate barcode first" : null,
                       ),
                     ),
                     const SizedBox(width: 10),
                     ElevatedButton(
-                      onPressed: generateBarcode,
+                      onPressed: _hasValue(barcodeController)
+                          ? null // disable button if barcode exists
+                          : generateBarcode,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryGreen,
                         foregroundColor: Colors.white,

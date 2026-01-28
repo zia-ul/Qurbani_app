@@ -275,6 +275,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           children: [
             // Product Info Card
             // Animals Card
+            // Animals Card
             if (order['animals'] != null &&
                 (order['animals'] as List).isNotEmpty)
               _buildSectionCard(
@@ -282,20 +283,66 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 icon: Icons.pets,
                 child: Column(
                   children: (order['animals'] as List<dynamic>).map((animal) {
+                    // Handle optional fields safely
+                    final breed = animal['breed'] ?? 'N/A';
+                    final type = animal['animal_type'] ?? 'N/A';
+                    final price = animal['price']?.toString() ?? 'N/A';
+                    final age = animal['details_age']?.toString() ?? 'N/A';
+                    final weight =
+                        animal['details_weight']?.toString() ?? 'N/A';
+                    final barcode = animal['barcode'] ?? 'N/A';
+                    final qurbani_datetime =
+                        animal['qurbani_datetime'] ?? 'N/A';
+                    final photoUrlsRaw = animal['photo_urls'] ?? [];
+                    List<String> photoUrls = [];
+
+                    if (photoUrlsRaw is String) {
+                      photoUrls = photoUrlsRaw.contains(',')
+                          ? photoUrlsRaw
+                                .split(',')
+                                .map((e) => e.trim())
+                                .toList()
+                          : [photoUrlsRaw];
+                    } else if (photoUrlsRaw is List) {
+                      photoUrls = List<String>.from(photoUrlsRaw);
+                    }
+
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "${animal['animal_type']} - ${animal['breed']}",
+                            "$type - $breed",
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          Text("Price: ${animal['price']}"),
-                          // Text(
-                          //   "Age: ${animal['age']}, Weight: ${animal['weight']}",
-                          // ),
-                          Divider(),
+                          Text("Price: $price"),
+                          Text("Age: $age"),
+                          Text("Weight: $weight"),
+                          Text("Barcode: $barcode"),
+                          Text("Qurbani Time: $qurbani_datetime"),
+                          if (photoUrls.isNotEmpty)
+                            SizedBox(
+                              height: 80,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: photoUrls.map((url) {
+                                  return Padding(
+                                    padding: const EdgeInsets.all(4.0),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        url,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          const Divider(),
                         ],
                       ),
                     );
@@ -378,7 +425,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     Icons.code,
                     "Delivery Code",
                     order['delivery_code'] ?? 'Not assigned',
-                    isCopyable: order['delivery_code'] != null
+                    isCopyable: order['delivery_code'] != null,
                   ),
                   if (orderDate != null)
                     _buildInfoRow(
@@ -418,7 +465,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     icon: Icons.download,
                     color: Colors.blue[700]!,
                     onPressed: () async {
-                      final file = await generateReceiptPDF(order);
+                      final file = await generateReceiptPDF(_orderData);
                       await OpenFilex.open(file.path);
                     },
                   ),

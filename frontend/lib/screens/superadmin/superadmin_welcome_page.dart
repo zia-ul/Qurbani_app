@@ -307,6 +307,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     final bool needsApproval =
         role == 'admin' && verificationStatus == 'pending';
     // (role == 'admin' || role == 'delivery') && verificationStatus == 'pending';
+    final bool isVerifiedAdmin =
+        role == 'admin' && verificationStatus == 'approved';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -333,14 +335,28 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      data['name'] ?? 'No Name',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            data['name'] ?? 'No Name',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        if (isVerifiedAdmin)
+                          const Icon(
+                            Icons.verified,
+                            color: Colors.blue,
+                            size: 18,
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
+
                     Row(
                       children: [
                         const Icon(

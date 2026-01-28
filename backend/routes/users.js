@@ -620,6 +620,7 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
 
     // REJECT
     if (action === "reject") {
+      console.log("rejecting process begins");
       await pool.execute(
         `UPDATE admin_verification_requests
          SET status = 'rejected',

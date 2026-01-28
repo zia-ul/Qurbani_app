@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
-
+const logger = require("../middleware/logger");
 /**
  * @swagger
  * /api/ratings/{orderId}/{userId}:

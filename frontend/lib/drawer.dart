@@ -150,19 +150,13 @@ class MasterDrawer extends StatelessWidget {
           ),
 
           // Menu Items
-          if (role == 'admin' || role == 'pending') ...[
+          if (role == 'admin') ...[
             _drawerItem(context, Icons.person, "Profile", ProfilePage()),
             _drawerItem(
               context,
               Icons.assignment,
               "Animal Inventory",
               AnimalListingPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.schedule,
-              "Slot Management",
-              AdminSlotPage(adminId: id),
             ),
             _drawerItem(
               context,
@@ -175,6 +169,27 @@ class MasterDrawer extends StatelessWidget {
               Icons.settings,
               "Settings",
               SettingsPage(userId: id, role: role),
+            ),
+            _drawerItem(
+              context,
+              Icons.person_add,
+              "Invite Friend",
+              const InviteFriendPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.star,
+              "Qurbani Features",
+              const AboutUsPage(),
+            ),
+          ] else if (role == 'pending') ...[
+            _drawerItem(context, Icons.person, "Profile", ProfilePage()),
+
+            _drawerItem(
+              context,
+              Icons.lock_reset,
+              "Reset Password",
+              const ResetPasswordPage(),
             ),
             _drawerItem(
               context,

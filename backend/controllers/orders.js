@@ -110,30 +110,31 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
        FROM orders o
        JOIN users u ON o.admin_id = u.id
        WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId],
+      [orderId, userId]
     );
 
     if (orders.length === 0) {
-      logger.warn("Order access denied or not found", {
-        orderId,
-        userId,
-      });
       return res.status(404).json({ message: "Order not found" });
     }
 
-    logger.info("Fetched order details", { orderId, userId });
-    res.json({ order: orders[0] });
+    const order = orders[0];
+
+    // Fetch animals linked to this order
+    const [animals] = await pool.execute(
+      `SELECT ad.*, a.animal_type, a.price
+       FROM animal_details ad
+       JOIN animals a ON ad.animal_id = a.id
+       WHERE ad.order_id = ?`,
+      [orderId]
+    );
+
+    // Respond with order + animals
+    res.json({ order: { ...order, animals } });
   } catch (err) {
-    logger.error("Failed to fetch order", {
-      orderId,
-      userId,
-      error: err.message,
-    });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({ message: "Something went wrong." });
   }
 });
+
 
 //api/orders/:id
 router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
@@ -371,7 +372,7 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
 router.post("/ratings", authMiddleware, async (req, res) => {
   const { orderId, userId, ratings } = req.body; // ratings: [{adminId, adminRating, deliveryRating, feedback}]
   const authUserId = req.user.id;
-
+  // console.log();
   if (authUserId !== userId) {
     return res.status(403).json({ message: "Unauthorized" });
   }
@@ -386,6 +387,7 @@ router.post("/ratings", authMiddleware, async (req, res) => {
 
     for (const rating of ratings) {
       const { adminId, adminRating, deliveryRating, feedback } = rating;
+      console.log("ratings geting started");
       if (
         !adminId ||
         adminRating < 1 ||
