@@ -41,7 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 height: 120,
                 width: 120,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.5),
+                  color: AppTheme.bgGradientEnd,
                   shape: BoxShape.circle,
                   image: const DecorationImage(
                     image: AssetImage(
@@ -64,7 +64,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       style: TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D4F32), // Darker green for contrast
+                        color: AppTheme.primaryGreen, // Darker green for contrast
                         fontFamily: 'Serif',
                       ),
                     ),
@@ -74,7 +74,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.black54,
+                        color: AppTheme.darkBgGradientEnd,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -95,7 +95,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppTheme.bgGradientEnd,
                           elevation: 3,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(15),
@@ -161,7 +161,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 "powered by AI Confidence Cure",
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.black38,
+                  color: AppTheme.darkBgGradientEnd,
                   fontStyle: FontStyle.italic,
                   letterSpacing: 1.1,
                 ),

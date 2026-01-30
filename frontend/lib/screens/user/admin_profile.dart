@@ -22,7 +22,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   final Color backgroundGrey = const Color(0xffF8F9FA);
   final _storage = const FlutterSecureStorage();
   late Future<Map<String, dynamic>> _adminFuture;
-static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   @override
   void initState() {
@@ -67,12 +67,14 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
           }
 
           final data = snapshot.data!;
-          print(data);
+          print("....testing.....$data");
           final String name = data['name'] ?? 'Unknown Admin';
+          final String description = data['description'] ?? 'Not Available';
           final String phone = data['phone'] ?? 'N/A';
           final String address = data['address'] ?? 'N/A';
           final String city = data['city'] ?? 'City Area';
-          final String photoUrl = data['photoUrl'] ?? '';
+          final String photoUrl = (data['photo_url'] ?? '').toString().trim();
+
           final double avgRating = (data['averageRating'] ?? 0).toDouble();
           final int totalOrders = data['totalOrders'] ?? 0;
           final int completedOrders = data['completedOrders'] ?? 0;
@@ -121,12 +123,19 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
                         ),
                         child: CircleAvatar(
                           radius: 60,
-                          backgroundImage: photoUrl.isNotEmpty
-                              ? NetworkImage(photoUrl)
-                              : null,
-                          child: photoUrl.isEmpty
-                              ? const Icon(Icons.person, size: 60)
-                              : null,
+                          backgroundColor: Colors.grey[200],
+                          child: ClipOval(
+                            child: photoUrl.isNotEmpty
+                                ? Image.network(
+                                    photoUrl,
+                                    width: 120,
+                                    height: 120,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const Icon(Icons.person, size: 60),
+                                  )
+                                : const Icon(Icons.person, size: 60),
+                          ),
                         ),
                       ),
                     ),
@@ -169,6 +178,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
                         ),
                       ],
                     ),
+                    Text(description, style: const TextStyle(fontSize: 15)),
                   ],
                 ),
               ),

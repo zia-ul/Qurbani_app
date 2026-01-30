@@ -1,2 +1,0 @@
-2026-01-22 16:37:50 [error]: Admin verification failed {"userId":"ee9a2dca-1cb7-4402-8de5-5fb470001265","error":"Bind parameters must not contain undefined. To pass SQL NULL specify JS null"}
-2026-01-22 16:50:36 [error]: Admin verification failed {"userId":"ee9a2dca-1cb7-4402-8de5-5fb470001265","error":"Bind parameters must not contain undefined. To pass SQL NULL specify JS null"}

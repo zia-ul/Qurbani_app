@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Qurbani/authentication/login_page.dart';
@@ -77,7 +78,7 @@ class MasterDrawer extends StatelessWidget {
         children: [
           // Header
           DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xff537D4F)),
+            decoration: const BoxDecoration(color: AppTheme.accentGreen),
             child: Row(
               children: [
                 FutureBuilder<String?>(
@@ -86,9 +87,9 @@ class MasterDrawer extends StatelessWidget {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const CircleAvatar(
                         radius: 35,
-                        backgroundColor: Colors.white,
+                        backgroundColor: AppTheme.bgGradientEnd,
                         child: CircularProgressIndicator(
-                          color: Color(0xff537D4F),
+                          color: AppTheme.accentGreen,
                           strokeWidth: 2,
                         ),
                       );
@@ -97,7 +98,7 @@ class MasterDrawer extends StatelessWidget {
                     final img = snapshot.data;
                     return CircleAvatar(
                       radius: 35,
-                      backgroundColor: Colors.white,
+                      backgroundColor: AppTheme.bgGradientEnd,
                       backgroundImage: (img != null && img.isNotEmpty)
                           ? NetworkImage(img)
                           : null,
@@ -105,7 +106,7 @@ class MasterDrawer extends StatelessWidget {
                           ? const Icon(
                               Icons.person,
                               size: 40,
-                              color: Color(0xff537D4F),
+                              color: AppTheme.accentGreen,
                             )
                           : null,
                     );
@@ -120,7 +121,7 @@ class MasterDrawer extends StatelessWidget {
                       Text(
                         _getWelcomeText(),
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: AppTheme.bgGradientEnd,
                           fontSize: 14,
                         ),
                       ),
@@ -128,7 +129,7 @@ class MasterDrawer extends StatelessWidget {
                       Text(
                         name,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.bgGradientEnd,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -138,7 +139,7 @@ class MasterDrawer extends StatelessWidget {
                       Text(
                         id.length > 8 ? "${id.substring(0, 8)}..." : id,
                         style: const TextStyle(
-                          color: Colors.white60,
+                          color: AppTheme.bgGradientEnd,
                           fontSize: 12,
                         ),
                       ),
@@ -263,8 +264,8 @@ class MasterDrawer extends StatelessWidget {
           // Logout
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text("Logout", style: TextStyle(color: Colors.red)),
+            leading: const Icon(Icons.logout, color: AppTheme.warningRed),
+            title: const Text("Logout", style: TextStyle(color: AppTheme.warningRed)),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,

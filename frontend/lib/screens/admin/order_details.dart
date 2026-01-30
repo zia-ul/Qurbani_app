@@ -28,6 +28,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   String? selectedDeliveryBoyId;
   List<Map<String, dynamic>> deliveryBoys = [];
   bool loadingDeliveryBoys = true;
+  
 
   @override
   void initState() {
@@ -40,7 +41,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
       processing = orderData!['processing_status'];
-      print("RAW STATUS => '${orderData!['processing_status']}'");
+      print("RAW STATUS => '$orderData'");
       print("NORMALIZED => '$processing'");
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
@@ -84,10 +85,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Future<void> _saveMeatDetails() async {
-    if (meatWeightCtrl.text.isEmpty || bodyPartsCtrl.text.isEmpty) {
-      ToastUtils.showError('Fill all fields');
-      return;
-    }
+    // if (meatWeightCtrl.text.isEmpty || bodyPartsCtrl.text.isEmpty) {
+    //   ToastUtils.showError('Fill all fields');
+    //   return;
+    // }
 
     try {
       await AdminOrderService.updateMeatDetails(
@@ -129,6 +130,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
 
     final data = orderData!;
+    final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
       appBar: AppBar(
@@ -139,7 +141,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         padding: const EdgeInsets.all(16),
         children: [
           _orderDetailsCard(data),
+          if (shareholders.isNotEmpty) ...[
           const SizedBox(height: 16),
+          _shareholdersCard(shareholders),
+        ],
+          const SizedBox(height: 16),
+
           _processingTimeline(),
           const SizedBox(height: 16),
 
@@ -168,13 +175,58 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             _infoRow('Animal', data['animal_type']),
             _infoRow('Price', data['total_amount'].toString()),
             _infoRow('Payment', data['payment_status']),
-            _infoRow('Address', data['delivery_address']),
+            // _infoRow('Address', data['delivery_address']),
             _infoRow('Contact', data['contact_no']),
           ],
         ),
       ),
     );
   }
+
+  Widget _shareholdersCard(List shareholders) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _cardTitle('Shareholders'),
+          const SizedBox(height: 12),
+
+          ...shareholders.asMap().entries.map((entry) {
+            final i = entry.key + 1;
+            final s = entry.value;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Shareholder $i',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  _infoRow('Name', s['shareholder_name']),
+                  _infoRow('Guardian', s['guardian_name']),
+                  _infoRow('Qurbani Day', s['qurbani_day']),
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    ),
+  );
+}
+
 
   Widget _processingTimeline() {
     final isPending = processing == 'pending';
@@ -202,41 +254,57 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   Widget _pendingCard() {
     return _actionCard(
       title: 'Step 1: Schedule Qurbani',
-      child: Column(
+      child: Row(
         children: [
-          ElevatedButton(
-            onPressed: () async {
-              final d = await showDatePicker(
-                context: context,
-                firstDate: DateTime.now(),
-                lastDate: DateTime.now().add(const Duration(days: 30)),
-                initialDate: DateTime.now(),
-              );
-              if (d != null) setState(() => qurbaniDate = d);
-            },
-            child: Text(
-              qurbaniDate == null
-                  ? 'Select Date'
-                  : qurbaniDate!.toLocal().toString().split(' ')[0],
+          // Date button
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final d = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 30)),
+                    initialDate: DateTime.now(),
+                  );
+                  if (d != null) setState(() => qurbaniDate = d);
+                },
+                child: Text(
+                  qurbaniDate == null
+                      ? 'Date'
+                      : qurbaniDate!.toLocal().toString().split(' ')[0],
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () async {
-              final t = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.now(),
-              );
-              if (t != null) setState(() => qurbaniTime = t);
-            },
-            child: Text(
-              qurbaniTime == null
-                  ? 'Select Time'
-                  : qurbaniTime!.format(context),
+
+          // Time button
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: ElevatedButton(
+                onPressed: () async {
+                  final t = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (t != null) setState(() => qurbaniTime = t);
+                },
+                child: Text(
+                  qurbaniTime == null ? 'Time' : qurbaniTime!.format(context),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          _saveButton(_saveSchedule),
+
+          // Save button
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: _saveButton(_saveSchedule),
+            ),
+          ),
         ],
       ),
     );
@@ -255,15 +323,15 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: bodyPartsCtrl,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Body Parts Description',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
+          // TextField(
+          //   controller: bodyPartsCtrl,
+          //   maxLines: 3,
+          //   decoration: const InputDecoration(
+          //     labelText: 'Body Parts Description',
+          //     border: OutlineInputBorder(),
+          //   ),
+          // ),
+          // const SizedBox(height: 16),
           _saveButton(_saveMeatDetails),
         ],
       ),
@@ -348,9 +416,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   Widget _saveButton(VoidCallback onTap) => SizedBox(
     width: double.infinity,
-    child: ElevatedButton(
-      onPressed: onTap,
-      child: const Text('Save & Continue'),
-    ),
+    child: ElevatedButton(onPressed: onTap, child: const Text('Save')),
   );
 }

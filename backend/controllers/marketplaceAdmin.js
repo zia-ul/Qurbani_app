@@ -9,7 +9,8 @@ exports.getVerifiedAdmins = async () => {
       SELECT 
         id,
         name,
-        address
+        address,
+        photo_url
       FROM users
       WHERE role = 'admin'
         AND admin_status = 'approved'

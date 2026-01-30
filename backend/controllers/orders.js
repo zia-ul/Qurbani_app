@@ -203,13 +203,13 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { meat_weight, body_parts_description } = req.body;
 
-  if (
-  meat_weight === undefined ||
-  body_parts_description === undefined ||
-  String(body_parts_description).trim() === ""
-) {
-  return res.status(400).json({ message: "Incomplete meat details" });
-}
+//   if (
+//   meat_weight === undefined ||
+//   body_parts_description === undefined ||
+//   String(body_parts_description).trim() === ""
+// ) {
+//   return res.status(400).json({ message: "Incomplete meat details" });
+// }
 
   console.log("Meat check");
   try {

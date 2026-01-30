@@ -190,7 +190,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
                 decoration: const InputDecoration(
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppTheme.bgGradientEnd,
                   labelText: "Currency",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -264,7 +264,7 @@ class _SettingsPageState extends State<SettingsPage> {
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Colors.black54,
+          color: AppTheme.darkBgGradientEnd,
         ),
       ),
     );
@@ -302,7 +302,7 @@ class _SettingsPageState extends State<SettingsPage> {
       Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.bgGradientEnd,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
         ),
@@ -373,7 +373,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         style: TextStyle(
                           color: _codDeadline != null
                               ? Colors.black
-                              : Colors.grey,
+                              : AppTheme.darkBgGradientStart,
                         ),
                       ),
                     ],

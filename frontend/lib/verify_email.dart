@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:Qurbani/authentication/login_page.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -99,7 +100,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
       backgroundColor: const Color(0xFFEEF7EF),
       appBar: AppBar(
         title: const Text("Verify Email"),
-        backgroundColor: const Color(0xFF2E7D32),
+        backgroundColor: AppTheme.primaryGreen,
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -109,7 +110,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
             Icon(
               Icons.email_outlined,
               size: 100,
-              color: const Color(0xFF2E7D32),
+              color: AppTheme.primaryGreen,
             ),
             const SizedBox(height: 20),
             const Text(
@@ -136,7 +137,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                       );
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
+                backgroundColor: AppTheme.primaryGreen,
                 padding: const EdgeInsets.symmetric(
                   vertical: 14,
                   horizontal: 20,

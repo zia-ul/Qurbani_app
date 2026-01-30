@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:Qurbani/screens/user/admin_profile.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:Qurbani/screens/user/order_form.dart';
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
@@ -84,7 +85,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.85,
+                    childAspectRatio: 0.69,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
@@ -125,9 +126,9 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   Widget _buildAdminGridCard(Map<String, dynamic> admin) {
     final String name = admin['name'] ?? 'Unknown Admin';
     final String address = admin['address'] ?? 'No Address';
-    // final double rating =
-    // double.tryParse(admin['average_rating']?.toString() ?? '0') ?? 0.0;
+
     final String adminId = admin['id'];
+    final String? photoUrl = admin['photo_url'];
 
     return Container(
       decoration: BoxDecoration(
@@ -148,8 +149,14 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
             CircleAvatar(
               radius: 30,
               backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
-              child: Icon(Icons.person, size: 35, color: AppTheme.primaryGreen),
+              backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                  ? NetworkImage(photoUrl)
+                  : null,
+              child: (photoUrl == null || photoUrl.isEmpty)
+                  ? Icon(Icons.person, size: 35, color: AppTheme.primaryGreen)
+                  : null,
             ),
+
             const SizedBox(height: 10),
             Text(
               name,
@@ -162,15 +169,6 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // const Icon(Icons.star, size: 14, color: Colors.amber),
-                // Text(
-                //   " $rating",
-                //   style: const TextStyle(
-                //     fontSize: 12,
-                //     fontWeight: FontWeight.w500,
-                //   ),
-                // ),
-                // const SizedBox(width: 4),
                 const Icon(Icons.verified, size: 14, color: Colors.blue),
               ],
             ),
@@ -209,7 +207,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                   ),
                   foregroundColor: WidgetStateProperty.all(
                     Colors.white,
-                  ), // ✅ text is white
+                  ), // text is white
                   overlayColor: WidgetStateProperty.all(
                     Colors.white.withOpacity(0.1), // ripple effect
                   ),
@@ -224,6 +222,45 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 ),
                 child: const Text(
                   "View Profile",
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
+            const Divider(height: 10),
+
+            SizedBox(
+              width: double.infinity,
+              height: 30,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => QurbaniOrderPage(adminId: adminId),
+                    ),
+                  );
+                },
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.all(
+                    AppTheme.primaryGreen,
+                  ),
+                  foregroundColor: WidgetStateProperty.all(
+                    Colors.white,
+                  ), // text is white
+                  overlayColor: WidgetStateProperty.all(
+                    Colors.white.withOpacity(0.1), // ripple effect
+                  ),
+                  shape: WidgetStateProperty.all(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  padding: WidgetStateProperty.all(
+                    const EdgeInsets.symmetric(vertical: 4),
+                  ),
+                ),
+                child: const Text(
+                  "Place Order",
                   style: TextStyle(fontSize: 11),
                 ),
               ),

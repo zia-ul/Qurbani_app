@@ -420,7 +420,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                         controller: barcodeController,
                         readOnly: _hasValue(
                           barcodeController,
-                        ), // ✅ disable if already has value
+                        ), // disable if already has value
                         enabled: !_hasValue(
                           barcodeController,
                         ), // visually greys out

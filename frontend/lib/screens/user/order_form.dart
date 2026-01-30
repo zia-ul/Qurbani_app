@@ -429,7 +429,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
     double subtotal = 0.0;
     double deliveryTotal = 0.0;
 
-    // 1️⃣ Calculate totals in USD first
+    // Calculate totals in USD first
     for (var shareholder in _shareholders) {
       if (shareholder.selectedAnimalId != null) {
         final animal = _animals.firstWhere(
