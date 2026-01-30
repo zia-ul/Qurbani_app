@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 
 class PrimaryButton extends StatelessWidget {
@@ -25,13 +26,13 @@ class PrimaryButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xff3D6B4E),
-          foregroundColor: Colors.white,
+          foregroundColor: AppTheme.bgGradientEnd,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
         ),
         child: isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
+            ? const CircularProgressIndicator(color: AppTheme.bgGradientEnd)
             : Text(
                 text,
                 style: const TextStyle(

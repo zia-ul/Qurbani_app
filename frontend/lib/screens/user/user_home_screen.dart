@@ -223,7 +223,7 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
         boxShadow: [
@@ -267,7 +267,7 @@ class _HomePageState extends State<HomePage> {
         padding: const EdgeInsets.all(20),
         height: 160,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.bgGradientEnd,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color.withOpacity(0.2)),
           boxShadow: [

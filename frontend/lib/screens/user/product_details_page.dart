@@ -73,7 +73,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
               "Yes, Cancel",
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: AppTheme.warningRed),
             ),
           ),
         ],
@@ -101,7 +101,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: AppTheme.bgGradientEnd.withOpacity(0.9),
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFD1C4A9), width: 1),
         boxShadow: [
@@ -195,7 +195,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         label: Text(label),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: AppTheme.bgGradientEnd,
           disabledBackgroundColor: Colors.grey[400],
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
@@ -213,7 +213,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         backgroundColor: bgParchment,
         appBar: AppBar(
           title: const Text("Order Details"),
-          backgroundColor: Colors.white,
+          backgroundColor: AppTheme.bgGradientEnd,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -224,7 +224,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         backgroundColor: bgParchment,
         appBar: AppBar(
           title: const Text("Order Details"),
-          backgroundColor: Colors.white,
+          backgroundColor: AppTheme.bgGradientEnd,
         ),
         body: Center(
           child: Column(
@@ -264,7 +264,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           "Order Details",
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -496,7 +496,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               _buildActionBtn(
                 label: "Cancel Order",
                 icon: Icons.cancel,
-                color: Colors.red,
+                color: AppTheme.warningRed,
                 onPressed: () => _cancelOrder(context),
               ),
           ],

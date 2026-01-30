@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/drawer.dart';
 
@@ -58,7 +59,7 @@ class RejectedAdminScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.cancel, size: 80, color: Colors.red),
+              Icon(Icons.cancel, size: 80, color: AppTheme.warningRed),
               SizedBox(height: 20),
               Text(
                 "Admin verification rejected",

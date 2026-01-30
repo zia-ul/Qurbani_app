@@ -9,7 +9,7 @@ import 'package:Qurbani/screens/admin/animal_listing.dart';
 import 'package:Qurbani/screens/admin/slot_management.dart';
 
 // User Pages
-import 'package:Qurbani/screens/user/profile_page.dart';
+import 'package:Qurbani/profile_page.dart';
 import 'package:Qurbani/screens/user/reset_password_page.dart';
 import 'package:Qurbani/screens/user/user_special_request.dart';
 import 'package:Qurbani/screens/user/invite_friend_page.dart';

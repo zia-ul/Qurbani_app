@@ -114,7 +114,7 @@ class _ProceedPageState extends State<ProceedPage> {
           "Checkout",
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -148,7 +148,7 @@ class _ProceedPageState extends State<ProceedPage> {
 
   Widget _buildStepperHeader() {
     return Container(
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
       child: Column(
         children: [
@@ -185,7 +185,7 @@ class _ProceedPageState extends State<ProceedPage> {
           backgroundColor: active ? AppTheme.primaryGreen : Colors.grey[300],
           child: Text(
             num,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
+            style: const TextStyle(color: AppTheme.bgGradientEnd, fontSize: 12),
           ),
         ),
         const SizedBox(height: 4),
@@ -217,7 +217,7 @@ class _ProceedPageState extends State<ProceedPage> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFD1C4A9).withOpacity(0.5)),
         boxShadow: [
@@ -323,7 +323,7 @@ class _ProceedPageState extends State<ProceedPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: Colors.black12),
       ),
@@ -429,7 +429,7 @@ class _ProceedPageState extends State<ProceedPage> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: AppTheme.bgGradientEnd,
           ),
         ),
       ),

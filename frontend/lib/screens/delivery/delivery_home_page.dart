@@ -117,7 +117,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       ),
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         iconTheme: IconThemeData(color: AppTheme.primaryGreen),
         title: Text(
           "Delivery Dashboard",
@@ -142,7 +142,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
 
   Widget _buildHeader() {
     return Container(
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,7 +187,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
               label: Text(
                 s.toUpperCase(),
                 style: TextStyle(
-                  color: selected ? Colors.white : Colors.black87,
+                  color: selected ? AppTheme.bgGradientEnd : Colors.black87,
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
@@ -195,7 +195,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
               selected: selected,
               onSelected: (v) => setState(() => _statusFilter = s),
               selectedColor: AppTheme.primaryGreen,
-              backgroundColor: Colors.white,
+              backgroundColor: AppTheme.bgGradientEnd,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -251,7 +251,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
@@ -343,7 +343,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
               if (status == 'delivered')
                 const Expanded(
                   child: Text(
-                    "✅ Order Successfully Completed",
+                    "Order Successfully Completed",
                     style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
@@ -415,12 +415,16 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 14, color: isMain ? Colors.white : Colors.black87),
+            Icon(
+              icon,
+              size: 14,
+              color: isMain ? AppTheme.bgGradientEnd : Colors.black87,
+            ),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
-                color: isMain ? Colors.white : Colors.black87,
+                color: isMain ? AppTheme.bgGradientEnd : Colors.black87,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
@@ -466,7 +470,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             onPressed: () => _verifyCode(orderId, ctrl.text),
             child: const Text(
               "Verify & Deliver",
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: AppTheme.bgGradientEnd),
             ),
           ),
         ],

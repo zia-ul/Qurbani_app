@@ -48,9 +48,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // State variables for UI management
-  bool _isLoading = false;        // Controls loading spinner during authentication
-  bool _obscurePassword = true;   // Controls password field visibility
-
+  bool _isLoading = false; // Controls loading spinner during authentication
+  bool _obscurePassword = true; // Controls password field visibility
 
   // LOGIN FUNCTION
   Future<void> _signIn() async {
@@ -96,8 +95,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-
 
   @override
   void dispose() {
@@ -159,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: const InputDecoration(
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: AppTheme.bgGradientEnd,
                               prefixIcon: Icon(Icons.email_outlined),
                               labelText: 'Email',
                               border: OutlineInputBorder(
@@ -180,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: AppTheme.bgGradientEnd,
                               prefixIcon: const Icon(Icons.lock_outline),
                               labelText: 'Password',
                               border: const OutlineInputBorder(
@@ -224,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       width: 20,
                                       height: 20,
                                       child: CircularProgressIndicator(
-                                        color: Colors.white,
+                                        color: AppTheme.bgGradientEnd,
                                         strokeWidth: 2,
                                       ),
                                     )

@@ -101,7 +101,7 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.bgGradientEnd,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
@@ -190,7 +190,7 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
                           onPressed: _loading ? null : _submitRequest,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryGreen,
-                            foregroundColor: Colors.white,
+                            foregroundColor: AppTheme.bgGradientEnd,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -201,7 +201,7 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
                                   height: 20,
                                   width: 20,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                    color: AppTheme.bgGradientEnd,
                                     strokeWidth: 2,
                                   ),
                                 )
@@ -241,7 +241,7 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
       hintText: hint,
       hintStyle: const TextStyle(color: Colors.black26, fontSize: 14),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppTheme.bgGradientEnd,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -253,11 +253,11 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: AppTheme.warningRed),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+        borderSide: const BorderSide(color: AppTheme.warningRed, width: 1.5),
       ),
     );
   }

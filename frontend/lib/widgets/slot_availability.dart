@@ -40,7 +40,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Card(
-              color: Colors.white,
+              color: AppTheme.bgGradientEnd,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
                 side: const BorderSide(color: AppTheme.primaryGreen, width: 1),
@@ -61,7 +61,10 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                     const SizedBox(height: 8),
                     Text(
                       "Error loading slots: ${snapshot.error}",
-                      style: const TextStyle(fontSize: 14, color: Colors.red),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.warningRed,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Align(
@@ -122,7 +125,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                     margin: const EdgeInsets.only(right: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppTheme.bgGradientEnd,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
                         color: AppTheme.primaryGreen,
@@ -157,7 +160,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
                         _buildStatRow(
                           "Booked",
                           booked.toString(),
-                          color: Colors.red,
+                          color: AppTheme.warningRed,
                         ),
                         const Spacer(),
                         if (total > 0)
@@ -206,7 +209,7 @@ class _SlotAvailabilityWidgetState extends State<SlotAvailabilityWidget> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Card(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
           side: const BorderSide(color: AppTheme.primaryGreen, width: 1),

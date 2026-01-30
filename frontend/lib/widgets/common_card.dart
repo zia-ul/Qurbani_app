@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 
 class CommonCard extends StatelessWidget {
@@ -11,7 +12,7 @@ class CommonCard extends StatelessWidget {
     required this.children,
     this.padding,
     this.borderRadius = 15,
-    this.backgroundColor = Colors.white,
+    this.backgroundColor = AppTheme.bgGradientEnd,
   });
 
   @override

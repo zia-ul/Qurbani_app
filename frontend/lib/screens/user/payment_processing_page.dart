@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:Qurbani/services/order_service.dart';
@@ -50,14 +51,14 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       Fluttertoast.showToast(
         msg: "Payment Successful!",
         backgroundColor: Colors.green,
-        textColor: Colors.white,
+        textColor: AppTheme.bgGradientEnd,
       );
       Navigator.pop(context); // Back to order page or home
     } catch (e) {
       Fluttertoast.showToast(
         msg: "Payment recorded, but error updating: $e",
         backgroundColor: Colors.orange,
-        textColor: Colors.white,
+        textColor: AppTheme.bgGradientEnd,
       );
     }
   }
@@ -65,8 +66,8 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
   void _handleError(PaymentFailureResponse res) {
     Fluttertoast.showToast(
       msg: "Payment Failed: ${res.message}",
-      backgroundColor: Colors.red,
-      textColor: Colors.white,
+      backgroundColor: AppTheme.warningRed,
+      textColor: AppTheme.bgGradientEnd,
     );
   }
 
@@ -74,7 +75,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
     Fluttertoast.showToast(
       msg: "Wallet Selected: ${res.walletName}",
       backgroundColor: Colors.blue,
-      textColor: Colors.white,
+      textColor: AppTheme.bgGradientEnd,
     );
   }
 

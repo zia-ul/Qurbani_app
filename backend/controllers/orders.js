@@ -42,7 +42,10 @@ router.get("/my", authMiddleware, async (req, res) => {
 // POST /api/orders
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { adminId, paymentMethod, shareholders, totalAmount } = req.body;
+  const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } = req.body;
+
+  console.log("Print pay status", paymentStatus);
+
 
   if (
     !adminId ||
@@ -62,9 +65,9 @@ router.post("/", authMiddleware, async (req, res) => {
 
     // Create order
     await connection.execute(
-      `INSERT INTO orders (id, user_id, admin_id, payment_method, total_shares)
-       VALUES (?, ?, ?, ?, ?)`,
-      [orderId, userId, adminId, paymentMethod, shareholders.length],
+      `INSERT INTO orders (id, user_id, admin_id, payment_method, total_shares, payment_status, total_amt)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [orderId, userId, adminId, paymentMethod, shareholders.length, paymentStatus, totalAmount],
     );
 
     // Insert order_shareholders (WITH animal_id)
@@ -167,7 +170,7 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
       });
     }
 
-    // 2️⃣ Update order status
+    //  Update order status
     const [orderResult] = await conn.execute(
       `UPDATE orders
    SET processing_status = 'confirmed'
@@ -547,6 +550,8 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { processingStatus, deliveryStatus, deliveryPersonId } = req.body;
   const adminId = req.user.id;
+
+  console.log("Updating order for admin:", processingStatus);
 
   if (!processingStatus || !deliveryStatus) {
     return res.status(400).json({ message: "Missing required fields" });

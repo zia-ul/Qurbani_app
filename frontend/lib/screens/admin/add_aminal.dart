@@ -136,7 +136,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         foregroundColor: AppTheme.primaryGreen,
         elevation: 0,
       ),
@@ -260,7 +260,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   Widget _card(List<Widget> children) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       borderRadius: BorderRadius.circular(12),
       boxShadow: [
         BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
@@ -285,7 +285,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             ? const [
                 TextSpan(
                   text: " *",
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(color: AppTheme.warningRed),
                 ),
               ]
             : [],

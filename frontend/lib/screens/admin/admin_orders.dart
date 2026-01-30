@@ -59,7 +59,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Color(0xFF2D4F32)),
@@ -68,7 +68,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         children: [
           // 1. TABS
           Container(
-            color: Colors.white,
+            color: AppTheme.bgGradientEnd,
             child: TabBar(
               controller: _tabController,
               labelColor: AppTheme.primaryGreen,
@@ -90,7 +90,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
               decoration: InputDecoration(
                 hintText: "Search ID or Phone...",
                 prefixIcon: const Icon(Icons.search),
-                fillColor: Colors.white,
+                fillColor: AppTheme.bgGradientEnd,
                 filled: true,
                 isDense: true,
                 contentPadding: const EdgeInsets.all(12),
@@ -166,7 +166,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.bgGradientEnd,
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
@@ -210,7 +210,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppTheme.bgGradientEnd,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           shape: RoundedRectangleBorder(

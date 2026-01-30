@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'package:Qurbani/services/service_profile.dart';
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/admin/pending_admin.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
@@ -30,7 +33,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
   final orgController = TextEditingController();
   final phoneController = TextEditingController();
-  final expController = TextEditingController();
+  final expController = TextEditingController(text: "0"); // default experience
   final addressController = TextEditingController();
 
   XFile? govtId;
@@ -39,8 +42,30 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   XFile? farmPhoto;
 
   bool loading = false;
-  String _fileName(XFile file) {
-    return file.path.split('/').last;
+  bool fetchingProfile = true;
+
+  String _fileName(XFile file) => file.path.split('/').last;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserProfile();
+  }
+
+  Future<void> _fetchUserProfile() async {
+    try {
+      final profile = await ProfileService.getProfile();
+      setState(() {
+        orgController.text = profile['organization_name'] ?? '';
+        phoneController.text = profile['phone'] ?? '';
+        addressController.text = profile['address'] ?? '';
+        expController.text = "0"; // default experience
+        fetchingProfile = false;
+      });
+    } catch (e) {
+      setState(() => fetchingProfile = false);
+      ToastUtils.showError("Failed to fetch profile: $e");
+    }
   }
 
   Future<XFile?> pickImage() async {
@@ -49,7 +74,6 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
   Future<String?> upload(XFile? image) async {
     if (image == null) return null;
-
     try {
       final req =
           http.MultipartRequest(
@@ -63,13 +87,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
       final res = await req.send();
       final body = await res.stream.bytesToString();
-
-      debugPrint("Cloudinary response: $body");
-
-      if (res.statusCode != 200) {
-        throw Exception("Image upload failed");
-      }
-
+      if (res.statusCode != 200) throw Exception("Image upload failed");
       return jsonDecode(body)['secure_url'];
     } catch (e) {
       debugPrint("Upload error: $e");
@@ -79,19 +97,15 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
   Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => loading = true);
-
     if (govtId == null || businessProof == null) {
       ToastUtils.showError("Please upload required documents");
       return;
     }
 
-    // print(".....id:$widget.id");
+    setState(() => loading = true);
 
     try {
       final data = {
-        // "admin_id": widget.id,
         "organization_name": orgController.text.trim(),
         "phone": phoneController.text.trim(),
         "experience": expController.text.trim(),
@@ -103,6 +117,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       };
 
       await AdminVerificationService.submitVerification(data);
+
       ToastUtils.showSuccess("Verification submitted");
 
       Navigator.pushReplacement(
@@ -125,6 +140,10 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (fetchingProfile) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text("Register as Admin")),
       drawer: MasterDrawer(id: widget.id, name: widget.name, role: widget.role),
@@ -134,6 +153,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
           key: _formKey,
           child: Column(
             children: [
+              // Organization Name
               TextFormField(
                 controller: orgController,
                 decoration: const InputDecoration(
@@ -142,22 +162,39 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 validator: (v) => v!.isEmpty ? "Required" : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+
+              // Phone with country code
+              IntlPhoneField(
                 controller: phoneController,
                 decoration: const InputDecoration(labelText: "Phone"),
-                validator: (v) => v!.isEmpty ? "Required" : null,
+                initialCountryCode: 'IN',
+                onChanged: (phone) =>
+                    phoneController.text = phone.completeNumber,
+                validator: (phone) {
+                  if (phone == null || phone.number.isEmpty) return 'Required';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
+              // Experience
               TextFormField(
                 controller: expController,
                 decoration: const InputDecoration(
                   labelText: "Experience (years)",
-                  // border: OutlineInputBorder(),
                 ),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  final exp = int.tryParse(v);
+                  if (exp == null || exp < 1)
+                    return 'Minimum 1 year experience required';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
+              // Address
               TextFormField(
                 controller: addressController,
                 decoration: const InputDecoration(labelText: "Address"),
@@ -165,6 +202,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
               ),
               const SizedBox(height: 16),
 
+              // Document pickers
               buildPicker(
                 label: "Government ID",
                 file: govtId,
@@ -173,11 +211,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                   govtId = await pickImage();
                   setState(() {});
                 },
-                onRemove: () {
-                  setState(() => govtId = null);
-                },
+                onRemove: () => setState(() => govtId = null),
               ),
-
               buildPicker(
                 label: "Business Proof",
                 file: businessProof,
@@ -186,35 +221,27 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                   businessProof = await pickImage();
                   setState(() {});
                 },
-                onRemove: () {
-                  setState(() => businessProof = null);
-                },
+                onRemove: () => setState(() => businessProof = null),
               ),
-
               buildPicker(
                 label: "Bank Proof",
                 file: bankProof,
-                required: true,
+                required: false,
                 onPick: () async {
                   bankProof = await pickImage();
                   setState(() {});
                 },
-                onRemove: () {
-                  setState(() => bankProof = null);
-                },
+                onRemove: () => setState(() => bankProof = null),
               ),
-
               buildPicker(
                 label: "Farm Photo",
                 file: farmPhoto,
-                required: true,
+                required: false,
                 onPick: () async {
                   farmPhoto = await pickImage();
                   setState(() {});
                 },
-                onRemove: () {
-                  setState(() => farmPhoto = null);
-                },
+                onRemove: () => setState(() => farmPhoto = null),
               ),
 
               const SizedBox(height: 24),
@@ -243,7 +270,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         border: Border.all(
-          color: required && file == null ? Colors.red : Colors.grey.shade300,
+          color: required && file == null
+              ? AppTheme.warningRed
+              : Colors.grey.shade300,
         ),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -253,7 +282,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
           label,
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: required && file == null ? Colors.red : Colors.black,
+            color: required && file == null
+                ? AppTheme.warningRed
+                : Colors.black,
           ),
         ),
         subtitle: file != null
@@ -261,7 +292,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
             : required
             ? const Text(
                 "Required",
-                style: TextStyle(color: Colors.red, fontSize: 12),
+                style: TextStyle(color: AppTheme.warningRed, fontSize: 12),
               )
             : null,
         trailing: Row(
@@ -269,7 +300,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
           children: [
             if (file != null)
               IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
+                icon: const Icon(Icons.close, color: AppTheme.warningRed),
                 onPressed: onRemove,
               ),
             IconButton(icon: const Icon(Icons.upload), onPressed: onPick),

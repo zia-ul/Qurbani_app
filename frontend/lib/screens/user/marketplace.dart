@@ -45,7 +45,10 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
       appBar: AppBar(
         title: const Text(
           "Verified Admins",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.bgGradientEnd,
+          ),
         ),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
@@ -105,7 +108,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   Widget _buildSearchHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       child: TextField(
         onChanged: (v) => setState(() => searchText = v),
         decoration: InputDecoration(
@@ -132,7 +135,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -206,10 +209,10 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                     AppTheme.primaryGreen,
                   ),
                   foregroundColor: WidgetStateProperty.all(
-                    Colors.white,
+                    AppTheme.bgGradientEnd,
                   ), // text is white
                   overlayColor: WidgetStateProperty.all(
-                    Colors.white.withOpacity(0.1), // ripple effect
+                    AppTheme.bgGradientEnd.withOpacity(0.1), // ripple effect
                   ),
                   shape: WidgetStateProperty.all(
                     RoundedRectangleBorder(
@@ -245,10 +248,10 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                     AppTheme.primaryGreen,
                   ),
                   foregroundColor: WidgetStateProperty.all(
-                    Colors.white,
+                    AppTheme.bgGradientEnd,
                   ), // text is white
                   overlayColor: WidgetStateProperty.all(
-                    Colors.white.withOpacity(0.1), // ripple effect
+                    AppTheme.bgGradientEnd.withOpacity(0.1), // ripple effect
                   ),
                   shape: WidgetStateProperty.all(
                     RoundedRectangleBorder(

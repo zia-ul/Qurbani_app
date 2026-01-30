@@ -114,7 +114,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
                             child: Text(
                               status.toUpperCase(),
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: AppTheme.bgGradientEnd,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 11,
                               ),

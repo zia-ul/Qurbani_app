@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -9,7 +10,7 @@ class CustomToast {
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
       backgroundColor: const Color(0xff3D6B4E),
-      textColor: Colors.white,
+      textColor: AppTheme.bgGradientEnd,
       fontSize: 16.0,
     );
   }
@@ -20,8 +21,8 @@ class CustomToast {
       toastLength: Toast.LENGTH_SHORT,
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
-      backgroundColor: Colors.red,
-      textColor: Colors.white,
+      backgroundColor: AppTheme.warningRed,
+      textColor: AppTheme.bgGradientEnd,
       fontSize: 16.0,
     );
   }
@@ -33,7 +34,7 @@ class CustomToast {
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
       backgroundColor: Colors.blue,
-      textColor: Colors.white,
+      textColor: AppTheme.bgGradientEnd,
       fontSize: 16.0,
     );
   }
@@ -45,7 +46,7 @@ class CustomToast {
       gravity: ToastGravity.BOTTOM,
       timeInSecForIosWeb: 1,
       backgroundColor: Colors.orange,
-      textColor: Colors.white,
+      textColor: AppTheme.bgGradientEnd,
       fontSize: 16.0,
     );
   }

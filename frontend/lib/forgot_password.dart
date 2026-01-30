@@ -97,7 +97,7 @@
 //                           width: 24,
 //                           height: 24,
 //                           child: CircularProgressIndicator(
-//                             color: Colors.white,
+//                             color: AppTheme.bgGradientEnd,
 //                             strokeWidth: 2,
 //                           ),
 //                         )

@@ -38,7 +38,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: AppTheme.primaryGreen,
-        textColor: Colors.white,
+        textColor: AppTheme.bgGradientEnd,
       );
 
       // Clear the form fields
@@ -67,8 +67,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         msg: errorMessage,
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
+        backgroundColor: AppTheme.warningRed,
+        textColor: AppTheme.bgGradientEnd,
       );
     } finally {
       setState(() => _isLoading = false);
@@ -90,10 +90,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         backgroundColor: AppTheme.primaryGreen,
         title: const Text(
           "Change Password",
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: AppTheme.bgGradientEnd),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.bgGradientEnd),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -116,7 +116,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 obscureText: _obscureCurrentPassword,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppTheme.bgGradientEnd,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
                     color: AppTheme.primaryGreen,
@@ -164,7 +164,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 obscureText: _obscureNewPassword,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppTheme.bgGradientEnd,
                   prefixIcon: const Icon(
                     Icons.lock,
                     color: AppTheme.primaryGreen,
@@ -214,7 +214,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 obscureText: _obscureConfirmPassword,
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppTheme.bgGradientEnd,
                   prefixIcon: const Icon(
                     Icons.lock_outline,
                     color: AppTheme.primaryGreen,
@@ -271,11 +271,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       ? const SizedBox(
                           height: 20,
                           width: 20,
-                          child: CircularProgressIndicator(color: Colors.white),
+                          child: CircularProgressIndicator(
+                            color: AppTheme.bgGradientEnd,
+                          ),
                         )
                       : const Text(
                           "Change Password",
-                          style: TextStyle(fontSize: 16, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.bgGradientEnd,
+                          ),
                         ),
                 ),
               ),

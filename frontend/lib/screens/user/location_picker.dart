@@ -156,7 +156,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                       height: 40,
                       child: const Icon(
                         Icons.location_pin,
-                        color: Colors.red,
+                        color: AppTheme.warningRed,
                         size: 40,
                       ),
                     ),

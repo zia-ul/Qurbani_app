@@ -17,11 +17,15 @@ router.post(
   "/register",
   registerLimiter, // Apply rate limiting to prevent abuse
   [
-    // Input validation rules using express-validator
-    body("name").notEmpty(), // Name field must not be empty
-    body("email").isEmail(), // Email must be valid format
-    body("password").isLength({ min: 8 }), // Password must be at least 8 characters
-    body("role").isIn(["user", "admin", "delivery"]), // Role must be one of the allowed values
+    body("name").notEmpty(),
+    body("email").isEmail(),
+    body("password").isLength({ min: 8 }),
+    body("role").isIn(["user", "admin", "delivery"]),
+    body("phone").notEmpty().isNumeric(),
+    body("country_code")
+      .notEmpty()
+      .matches(/^\+\d{1,4}$/),
+    body("country_iso").notEmpty().isLength({ min: 2, max: 2 }),
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -35,7 +39,8 @@ router.post(
       email,
       password,
       phone,
-      countryISO,
+      country_code,
+      country_iso,
       address,
       gender,
       role,
@@ -66,16 +71,17 @@ router.post(
 
       await db.query(
         `INSERT INTO users
-        (id, name, email, password_hash, phone, country_iso, address, gender, role,
-         admin_status, currency, city, is_verified, verification_token)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, name, email, password_hash, phone, country_code, country_iso, address, gender, role,
+        admin_status, currency, city, is_verified, verification_token)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           name,
           email,
           passwordHash,
           phone,
-          countryISO,
+          country_code,
+          country_iso,
           address,
           gender,
           role,

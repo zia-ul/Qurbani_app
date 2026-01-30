@@ -6,7 +6,6 @@ const logger = require("../middleware/logger");
 
 const { v4: uuidv4 } = require("uuid");
 
-
 // GET /api/orders/my
 router.get("/my", auth, async (req, res) => {
   const userId = req.user.id;
@@ -14,7 +13,7 @@ router.get("/my", auth, async (req, res) => {
   try {
     const [orders] = await pool.execute(
       `SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC`,
-      [userId]
+      [userId],
     );
 
     logger.info("Fetched user orders", { userId, count: orders.length });
@@ -24,12 +23,13 @@ router.get("/my", auth, async (req, res) => {
     logger.error("Failed to fetch user orders", {
       userId,
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 // GET /api/orders/:orderId
 router.get("/:orderId", auth, async (req, res) => {
@@ -47,13 +47,13 @@ router.get("/:orderId", auth, async (req, res) => {
       JOIN users u ON o.admin_id = u.id
       WHERE o.id = ? AND o.user_id = ?
       `,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (!orderRows.length) {
       logger.warn("Order not found or unauthorized access", {
         orderId,
-        userId
+        userId,
       });
 
       return res.status(404).json({ message: "Order not found" });
@@ -69,7 +69,7 @@ router.get("/:orderId", auth, async (req, res) => {
       JOIN animals a ON s.animal_id = a.id
       WHERE s.order_id = ?
       `,
-      [orderId]
+      [orderId],
     );
 
     order.animals = animalRows;
@@ -77,7 +77,7 @@ router.get("/:orderId", auth, async (req, res) => {
     logger.info("Fetched order details", {
       orderId,
       userId,
-      animalsCount: animalRows.length
+      animalsCount: animalRows.length,
     });
 
     res.json({ order });
@@ -86,28 +86,41 @@ router.get("/:orderId", auth, async (req, res) => {
       orderId,
       userId,
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
-
-
-
 // POST /api/orders - Place order
 router.post("/", auth, async (req, res) => {
-  const { adminId, paymentMethod, shareholders } = req.body;
+  const { adminId, paymentMethod, paymentStatus, shareholders } = req.body;
+
+  const allowedStatuses = ["pending", "paid", "unpaid"];
+
+  console.log("Print pay status", paymentStatus);
+
+  const finalPaymentStatus = allowedStatuses.includes(paymentStatus)
+    ? paymentStatus
+    : "unpaid";
+    
+
   const userId = req.user.id;
 
   if (!adminId || !paymentMethod) {
     logger.warn("Order validation failed", { userId });
-    return res.status(400).json({ message: "Admin ID and payment method are required" });
+    return res
+      .status(400)
+      .json({ message: "Admin ID and payment method are required" });
   }
 
   if (!Array.isArray(shareholders) || shareholders.length === 0) {
     logger.warn("Order has no shareholders", { userId });
-    return res.status(400).json({ message: "At least one shareholder is required" });
+    return res
+      .status(400)
+      .json({ message: "At least one shareholder is required" });
   }
 
   const connection = await pool.getConnection();
@@ -120,28 +133,27 @@ router.post("/", auth, async (req, res) => {
     await connection.execute(
       `
       INSERT INTO orders
-      (id, user_id, admin_id, payment_method, total_shares)
-      VALUES (?, ?, ?, ?, ?)
+      (id, user_id, admin_id, payment_method, payment_status, total_shares)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [orderId, userId, adminId, paymentMethod, shareholders.length]
+      [orderId, userId, adminId, paymentMethod, shareholders.length],
     );
 
     for (const s of shareholders) {
       await connection.execute(
         `
-        INSERT INTO order_shareholders
-        (id, order_id, animal_id, shareholder_name, guardian_name, qurbani_day, price)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO orders
+        (id, user_id, admin_id, payment_method, payment_status, total_shares)
+        VALUES (?, ?, ?, ?, ?, ?)
         `,
         [
-          uuidv4(),
           orderId,
-          s.animalId,
-          s.name,
-          s.guardianName,
-          s.qurbaniDay,
-          s.price,
-        ]
+          userId,
+          adminId,
+          paymentMethod,
+          finalPaymentStatus,
+          shareholders.length,
+        ],
       );
     }
 
@@ -151,7 +163,7 @@ router.post("/", auth, async (req, res) => {
       orderId,
       userId,
       adminId,
-      shares: shareholders.length
+      shares: shareholders.length,
     });
 
     res.status(201).json({
@@ -165,7 +177,7 @@ router.post("/", auth, async (req, res) => {
       userId,
       adminId,
       error: err.message,
-      stack: err.stack
+      stack: err.stack,
     });
 
     res.status(500).json({ message: "Failed to place order" });
@@ -173,6 +185,5 @@ router.post("/", auth, async (req, res) => {
     connection.release();
   }
 });
-
 
 module.exports = router;

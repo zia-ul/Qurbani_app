@@ -60,17 +60,19 @@ class _RegisterPageState extends State<RegisterPage> {
   final addressController = TextEditingController();
 
   // User selection and preference variables
-  String selectedRole = 'user';        // Default role selection
-  String? selectedGender;              // Gender selection (Male/Female)
-  bool termsAccepted = false;          // Terms and conditions acceptance flag
-  bool isLoading = false;              // Loading state during registration
-  String passwordStrength = "";        // Real-time password strength indicator
+  String selectedRole = 'user'; // Default role selection
+  String? selectedGender; // Gender selection (Male/Female)
+  bool termsAccepted = false; // Terms and conditions acceptance flag
+  bool isLoading = false; // Loading state during registration
+  String passwordStrength = ""; // Real-time password strength indicator
   bool _obscureConfirmPassword = true; // Password confirmation field visibility
 
   // Phone number handling variables
-  String? completePhoneNumber;         // Full international phone number
-  String? countryISO;                  // Country ISO code for phone validation
-  String selectedCurrency = 'USD';     // Default currency preference
+  String? countryCode; // +91
+  String? phoneNumber; // 9876543210
+
+  String? countryISO; // Country ISO code for phone validation
+  String selectedCurrency = 'USD'; // Default currency preference
 
   // ---------------- PASSWORD ----------------
   String _checkPasswordStrength(String password) {
@@ -105,6 +107,13 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
+    _formKey.currentState!.save();
+
+    if (phoneNumber == null || countryCode == null) {
+      ToastUtils.showError('Please enter phone number');
+      return;
+    }
+
     if (!termsAccepted) {
       ToastUtils.showError('Please accept Terms & Conditions');
 
@@ -118,8 +127,9 @@ class _RegisterPageState extends State<RegisterPage> {
         "name": nameController.text.trim(),
         "email": emailController.text.trim(),
         "password": passController.text.trim(),
-        "phone": completePhoneNumber,
-        "countryISO": countryISO,
+        "phone": phoneNumber,
+        "country_code": countryCode,
+        "country_iso": countryISO,
         "address": addressController.text.trim(),
         "gender": selectedGender,
         "role": selectedRole,
@@ -274,7 +284,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 elevation:
                                     15, // Increase elevation for a bigger shadow
                                 shadowColor: const Color.fromARGB(255, 0, 0, 0),
-                                // color: Colors.white,
+                                // color: AppTheme.bgGradientEnd,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(20),
@@ -377,7 +387,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                             ),
                                             decoration: const InputDecoration(
                                               filled: true,
-                                              fillColor: Colors.white,
+                                              fillColor: AppTheme.bgGradientEnd,
                                               labelText: "Gender",
                                               contentPadding:
                                                   EdgeInsets.symmetric(
@@ -417,34 +427,19 @@ class _RegisterPageState extends State<RegisterPage> {
                                             child: IntlPhoneField(
                                               controller: phoneController,
                                               initialCountryCode: 'IN',
-                                              keyboardType: TextInputType.phone,
-                                              decoration: const InputDecoration(
-                                                filled: true,
-                                                fillColor: Colors.white,
-                                                labelText: 'Phone Number',
-                                                contentPadding: EdgeInsets.symmetric(
-                                                  vertical:
-                                                      8, // ↓ reduce vertical padding
-                                                  horizontal:
-                                                      10, // ↓ reduce horizontal padding
-                                                ),
-                                                border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.all(
-                                                        Radius.circular(12),
-                                                      ),
-                                                ),
-                                              ),
+                                              onSaved: (phone) {
+                                                phoneNumber = phone?.number;
+                                                countryCode =
+                                                    phone?.countryCode;
+                                                countryISO =
+                                                    phone?.countryISOCode;
+                                              },
                                               onChanged: (phone) {
-                                                completePhoneNumber =
-                                                    phone.completeNumber;
+                                                phoneNumber = phone.number;
+                                                countryCode = phone.countryCode;
                                                 countryISO =
                                                     phone.countryISOCode;
                                               },
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.black,
-                                              ),
                                               validator: (phone) {
                                                 if (phone == null ||
                                                     phone.number.isEmpty) {
@@ -522,7 +517,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                                             '0xff537D4F',
                                                           ),
                                                         )
-                                                      : Colors.red,
+                                                      : AppTheme.warningRed,
                                                 ),
                                               ),
                                             ),
@@ -566,7 +561,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                             ),
                                             decoration: const InputDecoration(
                                               filled: true,
-                                              fillColor: Colors.white,
+                                              fillColor: AppTheme.bgGradientEnd,
                                               labelText: "Register As",
                                               border: OutlineInputBorder(
                                                 borderRadius: BorderRadius.all(
@@ -628,7 +623,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                             ),
                                             child: isLoading
                                                 ? const CircularProgressIndicator(
-                                                    color: Colors.white,
+                                                    color:
+                                                        AppTheme.bgGradientEnd,
                                                   )
                                                 : const Text(
                                                     "Register",

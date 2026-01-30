@@ -135,7 +135,7 @@ class SuperAdminService {
   }
 
   /// Fetch verification details for a specific admin
-  static Future<Map<String, dynamic>> getVerification(String adminId) async {
+  static Future<Map<String, dynamic>?> getVerification(String adminId) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -143,6 +143,11 @@ class SuperAdminService {
       Uri.parse('$_baseUrl/superadmin/verifications/$adminId'),
       headers: {'Authorization': 'Bearer $token'},
     );
+
+    if (res.statusCode == 404) {
+      // No verification submitted yet
+      return null;
+    }
 
     if (res.statusCode != 200) {
       final msg =

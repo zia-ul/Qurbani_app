@@ -84,7 +84,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.warningRed,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Reject'),
           ),
@@ -124,7 +126,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             return Container(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.bgGradientEnd,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: StatefulBuilder(
@@ -218,7 +220,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         title: const Text(
           'Super Admin Panel',
           style: TextStyle(
-            color: Colors.white,
+            color: AppTheme.bgGradientEnd,
             fontSize: 18,
             fontWeight: FontWeight.w400,
           ),
@@ -227,7 +229,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune, color: Colors.white),
+            icon: const Icon(Icons.tune, color: AppTheme.bgGradientEnd),
             onPressed: _openFilterSheet,
           ),
         ],
@@ -265,7 +267,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
       ),
@@ -314,7 +316,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -431,7 +433,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 
               _actionButton(
                 label: 'REJECT',
-                color: Colors.red.shade400,
+                color: AppTheme.warningRed,
                 onTap: () => _deleteAdmin(context, userId),
               ),
             ],
@@ -465,7 +467,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
               ),
               selected: isSelected,
               selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
-              backgroundColor: Colors.white,
+              backgroundColor: AppTheme.bgGradientEnd,
               shape: StadiumBorder(
                 side: BorderSide(
                   color: isSelected
@@ -517,7 +519,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: AppTheme.bgGradientEnd,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -536,9 +538,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       padding: const EdgeInsets.only(right: 12),
       child: DropdownButton<RoleFilter>(
         value: _selectedFilter,
-        dropdownColor: Colors.white,
+        dropdownColor: AppTheme.bgGradientEnd,
         underline: const SizedBox(),
-        icon: const Icon(Icons.filter_list, color: Colors.white),
+        icon: const Icon(Icons.filter_list, color: AppTheme.bgGradientEnd),
         items: RoleFilter.values.map((filter) {
           return DropdownMenuItem(
             value: filter,

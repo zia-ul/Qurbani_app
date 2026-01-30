@@ -76,69 +76,136 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
     return c.text.trim().isNotEmpty;
   }
 
+  // Future<void> _loadAnimalDetails() async {
+  //   try {
+  //     final token = await _storage.read(key: "token");
+  //     if (token == null) return;
+
+  //     final res = await http.get(
+  //       Uri.parse("$_baseUrl/animals/${widget.animalId}"),
+  //       headers: {
+  //         "Authorization": "Bearer $token",
+  //         "Content-Type": "application/json",
+  //       },
+  //     );
+
+  //     if (res.statusCode != 200) {
+  //       setState(() => isLoading = false);
+  //       return;
+  //     }
+
+  //     final data = jsonDecode(res.body);
+
+  //     print("data on fronent...animal edit: $data");
+
+  //     // from animals table
+  //     animalTypeController.text = data['animal_type'] ?? '';
+  //     breedController.text = data['details_breed'] ?? data['breed'] ?? '';
+  //     descriptionController.text =
+  //         data['details_description'] ?? data['description'] ?? '';
+  //     ageController.text = data['details_age'] ?? '';
+  //     heightController.text = data['details_height'] ?? '';
+  //     weightController.text = data['details_weight'] ?? '';
+  //     priceController.text = data['price']?.toString() ?? '';
+  //     sharesController.text = data['shares']?.toString() ?? '';
+
+  //     // animal_details specific
+  //     barcodeController.text = data['barcode'] ?? '';
+  //     final meatWeight = data['meat_weight'];
+  //     final bodyPartsDesc = data['body_parts_description'];
+  //     final qurbaniDate = data['qurbani_datetime'];
+
+  //     // photos (prefer animal_details if present)
+  //     // Robust handling of details_photo_urls
+  //     final photoUrlsRaw =
+  //         data['details_photo_urls'] ?? data['photo_urls'] ?? [];
+
+  //     if (photoUrlsRaw is String) {
+  //       existingPhotoUrls = photoUrlsRaw.contains(',')
+  //           ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
+  //           : [photoUrlsRaw];
+  //     } else if (photoUrlsRaw is List) {
+  //       existingPhotoUrls = List<String>.from(photoUrlsRaw);
+  //     } else {
+  //       existingPhotoUrls = [];
+  //     }
+
+  //     // selectedPaymentMethods = List<String>.from(
+  //     //   jsonDecode(data['payment_methods'] ?? "[]"),
+  //     // );
+
+  //     setState(() => isLoading = false);
+  //   } catch (e) {
+  //     setState(() => isLoading = false);
+  //   }
+  // }
+
   Future<void> _loadAnimalDetails() async {
-    try {
-      final token = await _storage.read(key: "token");
-      if (token == null) return;
+  try {
+    final token = await _storage.read(key: "token");
+    if (token == null) return;
 
-      final res = await http.get(
-        Uri.parse("$_baseUrl/animals/${widget.animalId}"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-      );
+    // Pass orderId as query param
+    final uri = Uri.parse("$_baseUrl/animals/${widget.animalId}")
+        .replace(queryParameters: {
+      'orderId': widget.orderId,
+      // 'shareholderId': someShareholderId, // optional if needed
+    });
 
-      if (res.statusCode != 200) {
-        setState(() => isLoading = false);
-        return;
-      }
+    final res = await http.get(
+      uri,
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
 
-      final data = jsonDecode(res.body);
-
-      print("data on fronent...animal edit: $data");
-
-      // from animals table
-      animalTypeController.text = data['animal_type'] ?? '';
-      breedController.text = data['details_breed'] ?? data['breed'] ?? '';
-      descriptionController.text =
-          data['details_description'] ?? data['description'] ?? '';
-      ageController.text = data['details_age'] ?? '';
-      heightController.text = data['details_height'] ?? '';
-      weightController.text = data['details_weight'] ?? '';
-      priceController.text = data['price']?.toString() ?? '';
-      sharesController.text = data['shares']?.toString() ?? '';
-
-      // animal_details specific
-      barcodeController.text = data['barcode'] ?? '';
-      final meatWeight = data['meat_weight'];
-      final bodyPartsDesc = data['body_parts_description'];
-      final qurbaniDate = data['qurbani_datetime'];
-
-      // photos (prefer animal_details if present)
-      // Robust handling of details_photo_urls
-      final photoUrlsRaw =
-          data['details_photo_urls'] ?? data['photo_urls'] ?? [];
-
-      if (photoUrlsRaw is String) {
-        existingPhotoUrls = photoUrlsRaw.contains(',')
-            ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
-            : [photoUrlsRaw];
-      } else if (photoUrlsRaw is List) {
-        existingPhotoUrls = List<String>.from(photoUrlsRaw);
-      } else {
-        existingPhotoUrls = [];
-      }
-
-      // selectedPaymentMethods = List<String>.from(
-      //   jsonDecode(data['payment_methods'] ?? "[]"),
-      // );
-
+    if (res.statusCode != 200) {
       setState(() => isLoading = false);
-    } catch (e) {
-      setState(() => isLoading = false);
+      return;
     }
+
+    final data = jsonDecode(res.body);
+
+    print("data on frontend...animal edit: $data");
+
+    // from animals table
+    animalTypeController.text = data['animal_type'] ?? '';
+    breedController.text = data['details_breed'] ?? data['breed'] ?? '';
+    descriptionController.text =
+        data['details_description'] ?? data['description'] ?? '';
+    ageController.text = data['details_age'] ?? '';
+    heightController.text = data['details_height'] ?? '';
+    weightController.text = data['details_weight'] ?? '';
+    priceController.text = data['price']?.toString() ?? '';
+    sharesController.text = data['shares']?.toString() ?? '';
+
+    // animal_details specific
+    barcodeController.text = data['barcode'] ?? '';
+    // final meatWeight = data['meat_weight'];
+    // final bodyPartsDesc = data['body_parts_description'];
+    // final qurbaniDate = data['qurbani_datetime'];
+
+    // photos (prefer animal_details if present)
+    final photoUrlsRaw =
+        data['details_photo_urls'] ?? data['photo_urls'] ?? [];
+
+    if (photoUrlsRaw is String) {
+      existingPhotoUrls = photoUrlsRaw.contains(',')
+          ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
+          : [photoUrlsRaw];
+    } else if (photoUrlsRaw is List) {
+      existingPhotoUrls = List<String>.from(photoUrlsRaw);
+    } else {
+      existingPhotoUrls = [];
+    }
+
+    setState(() => isLoading = false);
+  } catch (e) {
+    setState(() => isLoading = false);
   }
+}
+
 
   Future<void> pickImages() async {
     final List<XFile>? selectedImages = await _picker.pickMultiImage(
@@ -253,7 +320,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: AppTheme.primaryGreen),
@@ -404,7 +471,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                   label: const Text("Add More Photos"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryGreen,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppTheme.bgGradientEnd,
                     minimumSize: const Size(double.infinity, 45),
                   ),
                 ),
@@ -441,7 +508,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                           : generateBarcode,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryGreen,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppTheme.bgGradientEnd,
                         minimumSize: const Size(100, 45),
                       ),
                       child: const Text("Generate"),
@@ -556,7 +623,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -588,7 +655,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
               ? [
                   const TextSpan(
                     text: ' *',
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(color: AppTheme.warningRed),
                   ),
                 ]
               : [],
@@ -683,8 +750,8 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
             onTap: onDelete,
             child: const CircleAvatar(
               radius: 10,
-              backgroundColor: Colors.red,
-              child: Icon(Icons.close, size: 12, color: Colors.white),
+              backgroundColor: AppTheme.warningRed,
+              child: Icon(Icons.close, size: 12, color: AppTheme.bgGradientEnd),
             ),
           ),
         ),
@@ -739,7 +806,10 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                     const SizedBox(height: 12),
                     const Text(
                       "⚠ These details won’t be editable again.\nKindly confirm before proceeding.",
-                      style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                      style: TextStyle(
+                        color: AppTheme.warningRed,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),

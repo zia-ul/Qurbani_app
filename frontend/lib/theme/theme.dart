@@ -31,9 +31,9 @@ class AppTheme {
       secondary: accentGreen,
       error: warningRed,
       background: bgGradientEnd, // Base for surfaces
-      surface: Colors.white.withOpacity(0.9), // Semi-transparent for depth
-      onPrimary: Colors.white, // Text on primary
-      onSecondary: Colors.white,
+      surface: AppTheme.bgGradientEnd.withOpacity(0.9), // Semi-transparent for depth
+      onPrimary: AppTheme.bgGradientEnd, // Text on primary
+      onSecondary: AppTheme.bgGradientEnd,
       onSurface: Colors.black87, // Dark text on light BG
       onBackground: Colors.black87,
     ),
@@ -42,7 +42,7 @@ class AppTheme {
       backgroundColor: AppTheme.primaryGreen.withOpacity(
         0.9,
       ), // Semi-transparent for gradient feel
-      foregroundColor: Colors.white,
+      foregroundColor: AppTheme.bgGradientEnd,
       elevation: 0,
       centerTitle: true,
       surfaceTintColor: Colors.transparent, // Avoid overlay issues
@@ -51,7 +51,7 @@ class AppTheme {
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTheme.bgGradientEnd,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(vertical: 14),
         elevation: 2,
@@ -68,7 +68,7 @@ class AppTheme {
 
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white.withOpacity(0.8), // Subtle on parchment
+      fillColor: AppTheme.bgGradientEnd.withOpacity(0.8), // Subtle on parchment
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -83,12 +83,12 @@ class AppTheme {
 
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppTheme.primaryGreen,
-      contentTextStyle: const TextStyle(color: Colors.white),
+      contentTextStyle: const TextStyle(color: AppTheme.bgGradientEnd),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     ),
 
     cardTheme: CardThemeData(
-      color: Colors.white.withOpacity(0.95), // Semi-transparent for parchment
+      color: AppTheme.bgGradientEnd.withOpacity(0.95), // Semi-transparent for parchment
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       shadowColor: AppTheme.primaryGreen.withOpacity(0.1),

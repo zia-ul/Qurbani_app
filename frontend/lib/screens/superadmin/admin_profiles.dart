@@ -63,7 +63,9 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.warningRed,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Reject'),
           ),
@@ -97,22 +99,20 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(child: Text(_errorMessage!))
-              : _admins.isEmpty
-                  ? const Center(child: Text('No admins found'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _admins.length,
-                      itemBuilder: (_, i) =>
-                          _adminCard(_admins[i]),
-                    ),
+          ? Center(child: Text(_errorMessage!))
+          : _admins.isEmpty
+          ? const Center(child: Text('No admins found'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _admins.length,
+              itemBuilder: (_, i) => _adminCard(_admins[i]),
+            ),
     );
   }
 
   Widget _adminCard(Map<String, dynamic> admin) {
     final String adminId = admin['id'];
-    final String status =
-        admin['verification_status'] ?? 'not_submitted';
+    final String status = admin['verification_status'] ?? 'not_submitted';
 
     final bool pending = status == 'pending';
 
@@ -120,7 +120,7 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -129,8 +129,7 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor:
-                    AppTheme.primaryGreen.withOpacity(0.1),
+                backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
                 child: Text(
                   admin['name']?[0] ?? 'A',
                   style: TextStyle(color: AppTheme.primaryGreen),
@@ -168,9 +167,7 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
                     context,
                     MaterialPageRoute(
                       builder: (_) =>
-                          AdminVerificationDetailsPage(
-                            adminId: adminId,
-                          ),
+                          AdminVerificationDetailsPage(adminId: adminId),
                     ),
                   );
                 },
@@ -190,7 +187,7 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
                 const SizedBox(width: 8),
                 _actionButton(
                   label: 'REJECT',
-                  color: Colors.red,
+                  color: AppTheme.warningRed,
                   onTap: () => _rejectAdmin(adminId),
                 ),
               ],
@@ -205,7 +202,7 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
     Color color = Colors.grey;
     if (status == 'approved') color = Colors.green;
     if (status == 'pending') color = Colors.orange;
-    if (status == 'rejected') color = Colors.red;
+    if (status == 'rejected') color = AppTheme.warningRed;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -237,13 +234,9 @@ class _SuperAdminAdminsPageState extends State<SuperAdminAdminsPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 11),
-        ),
+        child: Text(label, style: const TextStyle(fontSize: 11)),
       ),
     );
   }

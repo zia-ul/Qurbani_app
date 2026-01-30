@@ -29,9 +29,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   /// Call backend to manually verify email using token
   Future<void> verifyEmail(String token) async {
-    final url = Uri.parse(
-      "$_baseUrl/auth/verify-email?token=$token",
-    );
+    final url = Uri.parse("$_baseUrl/auth/verify-email?token=$token");
 
     try {
       setState(() => isLoading = true);
@@ -107,11 +105,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.email_outlined,
-              size: 100,
-              color: AppTheme.primaryGreen,
-            ),
+            Icon(Icons.email_outlined, size: 100, color: AppTheme.primaryGreen),
             const SizedBox(height: 20),
             const Text(
               "Verify Your Email",
@@ -148,7 +142,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
+                        color: AppTheme.bgGradientEnd,
                         strokeWidth: 2,
                       ),
                     )

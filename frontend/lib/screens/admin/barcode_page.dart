@@ -75,12 +75,15 @@ class _BarcodePageState extends State<BarcodePage> {
       appBar: AppBar(
         title: const Text(
           "Animal Identification",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.bgGradientEnd,
+          ),
         ),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppTheme.bgGradientEnd),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -92,7 +95,7 @@ class _BarcodePageState extends State<BarcodePage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.bgGradientEnd,
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
@@ -139,7 +142,7 @@ class _BarcodePageState extends State<BarcodePage> {
                     horizontal: 20,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppTheme.bgGradientEnd,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: AppTheme.primaryGreen.withOpacity(0.2),
@@ -207,7 +210,7 @@ class _BarcodePageState extends State<BarcodePage> {
     required String label,
     required IconData icon,
     required Color color,
-    Color textColor = Colors.white,
+    Color textColor = AppTheme.bgGradientEnd,
     bool isOutlined = false,
     required VoidCallback onTap,
   }) {

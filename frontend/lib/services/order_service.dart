@@ -2,11 +2,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class OrderService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   /**
    * Places a new order for Qurbani animal shares
@@ -27,9 +26,11 @@ class OrderService {
     required String userId,
     required String adminId,
     required String paymentMethod,
+    required String paymentStatus, 
     required List<Map<String, dynamic>> shareholders,
     required double totalAmount,
   }) async {
+    print("My pay s $paymentStatus");
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -42,11 +43,12 @@ class OrderService {
       body: jsonEncode({
         'adminId': adminId,
         'paymentMethod': paymentMethod,
+        'paymentStatus': paymentStatus, // SEND TO BACKEND
         'shareholders': shareholders,
         'totalAmount': totalAmount,
       }),
     );
-
+    print("payent status testing..${res.body}");
     if (res.statusCode != 201) {
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to place order';
       throw Exception(msg);
@@ -218,7 +220,7 @@ class OrderService {
 
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   /**
    * Retrieves detailed order information for admin review

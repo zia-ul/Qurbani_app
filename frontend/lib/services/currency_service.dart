@@ -7,7 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CurrencyService {
   static const Duration _updateInterval = Duration(minutes: 45);
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   static final CurrencyService _instance = CurrencyService._internal();
   factory CurrencyService() => _instance;
@@ -25,7 +25,7 @@ class CurrencyService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   // ---------------------------------------------------------------------------
-  // ✅ PUBLIC GETTERS (THIS FIXES ALL YOUR ERRORS)
+  // PUBLIC GETTERS (THIS FIXES ALL YOUR ERRORS)
   // ---------------------------------------------------------------------------
 
   /// All exchange rates

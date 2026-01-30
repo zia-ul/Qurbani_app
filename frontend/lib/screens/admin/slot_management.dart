@@ -21,7 +21,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
   bool isSaving = false;
 
   /// 🔴 CHANGE THIS
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   final Color scaffoldBg = const Color(0xffF4F7F4);
   final Color accentGold = const Color(0xffD1C4A9);
@@ -90,7 +90,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
         Fluttertoast.showToast(
           msg: "Saved slots for $selectedDay",
           backgroundColor: AppTheme.primaryGreen,
-          textColor: Colors.white,
+          textColor: AppTheme.bgGradientEnd,
         );
       } else {
         ToastUtils.showError("Failed to save slots");
@@ -159,7 +159,7 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
       appBar: AppBar(
         title: const Text("Manage Eid Slots"),
         backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppTheme.bgGradientEnd,
       ),
       body: Column(
         children: [
@@ -248,7 +248,9 @@ class _AdminSlotPageState extends State<AdminSlotPage> {
         ),
         subtitle: Text(
           slot["status"],
-          style: TextStyle(color: booked ? Colors.red : AppTheme.primaryGreen),
+          style: TextStyle(
+            color: booked ? AppTheme.warningRed : AppTheme.primaryGreen,
+          ),
         ),
         trailing: booked
             ? const Icon(Icons.lock)

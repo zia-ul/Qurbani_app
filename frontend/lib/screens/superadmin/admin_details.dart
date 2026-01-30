@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:intl/intl.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// A page widget that displays detailed verification information for a specific admin.
 class AdminVerificationDetailsPage extends StatefulWidget {
@@ -23,7 +24,7 @@ class AdminVerificationDetailsPage extends StatefulWidget {
 class _AdminVerificationDetailsPageState
     extends State<AdminVerificationDetailsPage> {
   /// Future that holds the verification data fetched from the service.
-  Future<Map<String, dynamic>>? _verificationFuture;
+  Future<Map<String, dynamic>?>? _verificationFuture;
 
   @override
   void initState() {
@@ -53,20 +54,36 @@ class _AdminVerificationDetailsPageState
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
+      body: FutureBuilder<Map<String, dynamic>?>(
         future: _verificationFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('${snapshot.error}'));
           }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No verification data found'));
+          if (!snapshot.hasData) {
+            // No verification submitted yet
+            return const Center(
+              child: Text(
+                'No verification documents submitted yet',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            );
           }
 
           final data = snapshot.data!;
+          final bool hasDocuments =
+              data['govt_id_url'] != null ||
+              data['business_proof_url'] != null ||
+              data['bank_proof_url'] != null ||
+              data['farm_photo_url'] != null;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -92,13 +109,39 @@ class _AdminVerificationDetailsPageState
                 _buildSectionCard(
                   title: 'Verification Documents',
                   icon: Icons.description,
-                  children: [
-                    _documentTile('Government ID', data['govt_id_url']),
-                    _documentTile('Business Proof', data['business_proof_url']),
-                    _documentTile('Bank Proof', data['bank_proof_url']),
-                    _documentTile('Farm Photo', data['farm_photo_url']),
-                  ],
+                  children: hasDocuments
+                      ? [
+                          _documentTile('Government ID', data['govt_id_url']),
+                          _documentTile(
+                            'Business Proof',
+                            data['business_proof_url'],
+                          ),
+                          _documentTile('Bank Proof', data['bank_proof_url']),
+                          _documentTile('Farm Photo', data['farm_photo_url']),
+                        ]
+                      : [
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: const [
+                                Icon(Icons.info_outline, color: Colors.grey),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'No verification documents submitted yet',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                 ),
+
                 const SizedBox(height: 16),
                 _buildReviewSection(data),
               ],
@@ -112,11 +155,11 @@ class _AdminVerificationDetailsPageState
   Widget _buildStatusHeader(String? status) {
     Color color = status == 'approved'
         ? Colors.green
-        : (status == 'pending' ? Colors.orange : Colors.red);
+        : (status == 'pending' ? Colors.orange : AppTheme.warningRed);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
       ),
@@ -159,7 +202,7 @@ class _AdminVerificationDetailsPageState
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -221,15 +264,27 @@ class _AdminVerificationDetailsPageState
   }
 
   Widget _documentTile(String label, String? url) {
+    if (url == null) return const SizedBox.shrink();
+
     return ListTile(
       leading: const Icon(Icons.file_present, color: Colors.grey),
       title: Text(label, style: const TextStyle(fontSize: 14)),
       trailing: TextButton(
-        onPressed: url == null
-            ? null
-            : () {
-                /* Open URL */
-              },
+        onPressed: () async {
+          final uri = Uri.parse(url);
+
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(
+              uri,
+              mode:
+                  LaunchMode.externalApplication, // opens in browser/pdf viewer
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not open document')),
+            );
+          }
+        },
         child: const Text('VIEW'),
       ),
     );

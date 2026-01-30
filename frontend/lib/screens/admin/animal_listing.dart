@@ -20,7 +20,7 @@ class AnimalListingPage extends StatefulWidget {
 
 class _AnimalListingPageState extends State<AnimalListingPage> {
   final _storage = const FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
   List animals = [];
   bool isLoading = false;
 
@@ -74,7 +74,10 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+            child: const Text(
+              "Delete",
+              style: TextStyle(color: AppTheme.warningRed),
+            ),
           ),
         ],
       ),
@@ -233,7 +236,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                       label: const Text("View"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryGreen,
-                        foregroundColor: Colors.white,
+                        foregroundColor: AppTheme.bgGradientEnd,
                         padding: const EdgeInsets.symmetric(vertical: 6),
                       ),
                     ),
@@ -255,7 +258,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                   IconButton(
                     onPressed: () => deleteAnimal(animal['id']),
                     icon: const Icon(Icons.delete, size: 20),
-                    color: Colors.red,
+                    color: AppTheme.warningRed,
                   ),
                 ],
               ),

@@ -106,10 +106,12 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       child: AppBar(
                         backgroundColor: Colors.transparent,
                         elevation: 0,
-                        leading: const BackButton(color: Colors.white),
+                        leading: const BackButton(
+                          color: AppTheme.bgGradientEnd,
+                        ),
                         title: const Text(
                           "Admin Profile",
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(color: AppTheme.bgGradientEnd),
                         ),
                       ),
                     ),
@@ -118,7 +120,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.bgGradientEnd,
                           shape: BoxShape.circle,
                         ),
                         child: CircleAvatar(
@@ -233,7 +235,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                     //               vertical: 6,
                     //             ),
                     //             decoration: BoxDecoration(
-                    //               color: Colors.white,
+                    //               color: AppTheme.bgGradientEnd,
                     //               borderRadius: BorderRadius.circular(20),
                     //               boxShadow: const [
                     //                 BoxShadow(
@@ -286,7 +288,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                             child: const Text(
                               "Place Order",
                               style: TextStyle(
-                                color: Colors.white,
+                                color: AppTheme.bgGradientEnd,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -299,7 +301,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                             "No more orders accepting",
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.redAccent,
+                              color: AppTheme.warningRed,
                             ),
                           ),
                         ],
@@ -323,7 +325,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -360,7 +362,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),

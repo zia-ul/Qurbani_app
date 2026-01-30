@@ -234,7 +234,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
           "Review Order",
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         elevation: 0,
         centerTitle: true,
       ),
@@ -317,7 +317,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
 
   Widget _buildStepperHeader() {
     return Container(
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -341,10 +341,13 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
               ? AppTheme.primaryGreen
               : (active ? AppTheme.primaryGreen : Colors.grey[300]),
           child: completed
-              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              ? const Icon(Icons.check, size: 14, color: AppTheme.bgGradientEnd)
               : Text(
                   num,
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppTheme.bgGradientEnd,
+                    fontSize: 12,
+                  ),
                 ),
         ),
         const SizedBox(height: 4),
@@ -377,7 +380,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
       padding: const EdgeInsets.all(16),
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color(0xFFD1C4A9).withOpacity(0.5)),
       ),
@@ -416,12 +419,12 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
         children: [
           const Text(
             "Grand Total",
-            style: TextStyle(color: Colors.white, fontSize: 18),
+            style: TextStyle(color: AppTheme.bgGradientEnd, fontSize: 18),
           ),
           Text(
             "₹${widget.orderData['totalAmount']}",
             style: const TextStyle(
-              color: Colors.white,
+              color: AppTheme.bgGradientEnd,
               fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
@@ -437,7 +440,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
       ),
       child: SafeArea(
@@ -461,13 +464,13 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
               ),
             ),
             child: isPlacingOrder
-                ? const CircularProgressIndicator(color: Colors.white)
+                ? const CircularProgressIndicator(color: AppTheme.bgGradientEnd)
                 : const Text(
                     "Confirm & Place Order",
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppTheme.bgGradientEnd,
                     ),
                   ),
           ),

@@ -401,7 +401,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 padding: EdgeInsets.only(left: 12, top: 4),
                 child: Text(
                   "⚠ Select at least one payment method",
-                  style: TextStyle(color: Colors.red, fontSize: 12),
+                  style: TextStyle(color: AppTheme.warningRed, fontSize: 12),
                 ),
               ),
           ],

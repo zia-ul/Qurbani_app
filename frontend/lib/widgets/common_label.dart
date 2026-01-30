@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 
 class CommonLabel extends StatelessWidget {
@@ -28,7 +29,7 @@ class CommonLabel extends StatelessWidget {
               ? [
                   const TextSpan(
                     text: ' *',
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(color: AppTheme.warningRed),
                   ),
                 ]
               : [],

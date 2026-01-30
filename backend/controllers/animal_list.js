@@ -89,13 +89,17 @@ exports.deleteAnimal = async (req, res) => {
 exports.getAnimalById = async (req, res) => {
   const adminId = req.user?.id;
   const animalId = req.params.id;
+  const orderId = req.query.orderId;          // new
+  const shareholderId = req.query.shareholderId; // optional, if you track this
+
+  console.log("Animal details fetching by id");
 
   if (!adminId) {
     logger.warn("Unauthorized attempt to fetch animal", { animalId });
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  logger.info("Admin fetching animal by ID", { adminId, animalId });
+  logger.info("Admin fetching animal by ID", { adminId, animalId, orderId });
 
   try {
     const [rows] = await db.query(
@@ -115,16 +119,19 @@ exports.getAnimalById = async (req, res) => {
         ad.meat_weight,
         ad.body_parts_description
       FROM animals a
-      LEFT JOIN animal_details ad ON ad.animal_id = a.id
+      LEFT JOIN animal_details ad 
+        ON ad.animal_id = a.id
+       AND ad.order_id = ? 
+       ${shareholderId ? 'AND ad.shareholder_id = ?' : ''}
       WHERE a.id = ? AND a.admin_id = ?
       `,
-      [animalId, adminId]
+      shareholderId ? [orderId, shareholderId, animalId, adminId] : [orderId, animalId, adminId]
     );
 
-    console.log("testing edit animal",rows);
+    console.log("Animal details fetched:", rows);
 
     if (!rows.length) {
-      logger.warn("Animal not found for admin", { adminId, animalId });
+      logger.warn("Animal not found for admin/order", { adminId, animalId, orderId });
       return res.status(404).json({ message: "Animal not found" });
     }
 
@@ -133,6 +140,7 @@ exports.getAnimalById = async (req, res) => {
     logger.error("Error fetching animal by ID", {
       adminId,
       animalId,
+      orderId,
       error: err.message,
       stack: err.stack,
     });

@@ -46,7 +46,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   String _currency = 'USD';
   double _currencyRate = 1.0; // USD base
   bool _currencyLoaded = false;
-static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
+  DateTime? _codDeadline;
 
   @override
   void initState() {
@@ -68,9 +69,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
   Future<void> _fetchPaymentSettings() async {
     try {
       final res = await http.get(
-        Uri.parse(
-          "$_baseUrl/admins/${widget.adminId}/payment-settings",
-        ),
+        Uri.parse("$_baseUrl/admins/${widget.adminId}/payment-settings"),
       );
 
       if (res.statusCode != 200) {
@@ -82,6 +81,10 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
       setState(() {
         _allowCOD = data['allow_cod'] == 1;
         _allowOnline = data['allow_online'] == 1;
+
+        _codDeadline = data['cod_deadline'] != null
+            ? DateTime.parse(data['cod_deadline'])
+            : null;
 
         // Default payment method
         if (_allowOnline) {
@@ -95,7 +98,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
     } catch (e) {
       Fluttertoast.showToast(
         msg: "Error loading payment settings",
-        backgroundColor: Colors.red,
+        backgroundColor: AppTheme.warningRed,
       );
     }
   }
@@ -144,7 +147,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
       debugPrint("Error fetching animals: $e");
       Fluttertoast.showToast(
         msg: "Error fetching animals: $e",
-        backgroundColor: Colors.red,
+        backgroundColor: AppTheme.warningRed,
       );
     }
   }
@@ -160,6 +163,11 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
       _shareholders[index].dispose();
       _shareholders.removeAt(index);
     });
+  }
+
+  bool get isCODExpired {
+    if (_codDeadline == null) return false;
+    return DateTime.now().isAfter(_codDeadline!);
   }
 
   // Calculate total price: sum of animal prices + delivery fees
@@ -181,6 +189,12 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
     }
 
     return subtotal + deliveryTotal;
+  }
+
+  String _formatCodDeadline(DateTime date) {
+    return "${date.day}/${date.month}/${date.year} "
+        "${date.hour.toString().padLeft(2, '0')}:"
+        "${date.minute.toString().padLeft(2, '0')}";
   }
 
   // Get allowed payment methods from selected animals
@@ -210,7 +224,10 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
       appBar: AppBar(
         title: const Text(
           "Order Details",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.bgGradientEnd,
+          ),
         ),
         backgroundColor: AppTheme.primaryGreen,
         elevation: 0,
@@ -294,7 +311,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
         boxShadow: [
@@ -326,7 +343,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
                 IconButton(
                   icon: const Icon(
                     Icons.remove_circle_outline,
-                    color: Colors.redAccent,
+                    color: AppTheme.warningRed,
                   ),
                   onPressed: () => _removeShareholder(index),
                 ),
@@ -411,7 +428,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
                 selectedColor: AppTheme.primaryGreen,
                 onSelected: (_) => setState(() => shareholder.qurbaniDay = day),
                 labelStyle: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black,
+                  color: isSelected ? AppTheme.bgGradientEnd : Colors.black,
                 ),
                 backgroundColor: Colors.grey[100],
                 shape: RoundedRectangleBorder(
@@ -448,7 +465,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
     final totalPrice = subtotal + deliveryTotal;
 
-    // 2️⃣ Convert AFTER calculation
+    //  Convert AFTER calculation
     final convertedSubtotal = subtotal * _currencyRate;
     final convertedDelivery = deliveryTotal * _currencyRate;
     final convertedTotal = totalPrice * _currencyRate;
@@ -458,7 +475,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
       ),
@@ -470,13 +487,41 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
                 : Icons.account_balance_wallet_outlined;
 
             return RadioListTile<String>(
-              title: Text(
-                method == 'Cash' ? 'Cash on Delivery' : 'Online Payment',
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    method == 'Cash' ? 'Cash on Delivery' : 'Online Payment',
+                  ),
+
+                  // 👇 COD deadline text (only when Cash is selected)
+                  if (method == 'Cash' &&
+                      _paymentMethod == 'Cash' &&
+                      _codDeadline != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        isCODExpired
+                            ? "COD expired on ${_formatCodDeadline(_codDeadline!)}"
+                            : "COD available till ${_formatCodDeadline(_codDeadline!)}",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isCODExpired
+                              ? AppTheme.warningRed
+                              : Colors.black54,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                ],
               ),
+
               secondary: Icon(icon, color: AppTheme.primaryGreen),
               value: method,
               groupValue: _paymentMethod,
-              onChanged: (val) => setState(() => _paymentMethod = val!),
+              onChanged: (method == 'Cash' && isCODExpired)
+                  ? null
+                  : (val) => setState(() => _paymentMethod = val!),
               activeColor: AppTheme.primaryGreen,
             );
           }),
@@ -578,7 +623,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         boxShadow: [
           BoxShadow(
             color: Colors.black12,
@@ -599,7 +644,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
           ),
           child: const Text(
             "Confirm & Place Order",
-            style: TextStyle(fontSize: 18, color: Colors.white),
+            style: TextStyle(fontSize: 18, color: AppTheme.bgGradientEnd),
           ),
         ),
       ),
@@ -612,6 +657,14 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
     if (!allowedMethods.contains(_paymentMethod)) {
       Fluttertoast.showToast(
         msg: "Selected payment method is not allowed",
+        backgroundColor: AppTheme.warningRed,
+      );
+      return;
+    }
+
+    if (_paymentMethod == 'Cash' && isCODExpired) {
+      Fluttertoast.showToast(
+        msg: "Cash on Delivery deadline has passed",
         backgroundColor: Colors.red,
       );
       return;
@@ -623,7 +676,7 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
           s.selectedAnimalId == null) {
         Fluttertoast.showToast(
           msg: "Please fill all fields, including selecting an animal",
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.warningRed,
         );
         return;
       }
@@ -678,12 +731,17 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
         }
       }
 
+      final String paymentStatus = _paymentMethod == 'Online'
+          ? 'pending'
+          : 'unpaid';
+
       final result = await OrderService.placeOrder(
         userId: '',
         adminId: widget.adminId,
         paymentMethod: _paymentMethod,
         shareholders: shareholdersData,
         totalAmount: _calculateTotalPrice(),
+        paymentStatus: paymentStatus,
       );
 
       if (_paymentMethod == 'Online') {
@@ -699,12 +757,15 @@ static final String? _baseUrl =  dotenv.env['BASE_URL'];
       } else {
         Fluttertoast.showToast(
           msg: "Order placed successfully!",
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.accentGreen,
         );
         Navigator.pop(context);
       }
     } catch (e) {
-      Fluttertoast.showToast(msg: "Error: $e", backgroundColor: Colors.red);
+      Fluttertoast.showToast(
+        msg: "Error: $e",
+        backgroundColor: AppTheme.warningRed,
+      );
     } finally {
       setState(() => _isLoading = false);
     }

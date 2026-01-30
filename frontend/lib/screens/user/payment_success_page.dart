@@ -237,7 +237,7 @@ class _PaymentSuccessPageState extends State<PaymentSuccessPage> {
                   label: const Text("Download & Share Receipt"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xff3D6B4E),
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppTheme.bgGradientEnd,
                     padding: const EdgeInsets.all(16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

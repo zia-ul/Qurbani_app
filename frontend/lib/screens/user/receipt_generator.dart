@@ -10,8 +10,10 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
 
   final pdf = pw.Document();
 
-  // ✅ Correct keys from your API
-  final orderId = orderData['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
+  // Correct keys from your API
+  final orderId =
+      orderData['id']?.toString() ??
+      DateTime.now().millisecondsSinceEpoch.toString();
   final paymentStatus = orderData['payment_status'] ?? 'N/A';
   final deliveryStatus = orderData['delivery_status'] ?? 'N/A';
   final adminName = orderData['admin_name'] ?? 'N/A';
@@ -31,10 +33,7 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
           children: [
             pw.Text(
               "Qurbani Receipt",
-              style: pw.TextStyle(
-                fontSize: 24,
-                fontWeight: pw.FontWeight.bold,
-              ),
+              style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold),
             ),
 
             pw.SizedBox(height: 10),
@@ -94,7 +93,7 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
     ),
   );
 
-  // ✅ Ensure directory exists
+  // Ensure directory exists
   final dir = await getApplicationDocumentsDirectory();
   if (!await dir.exists()) {
     await dir.create(recursive: true);

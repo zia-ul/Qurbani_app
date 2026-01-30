@@ -44,22 +44,38 @@ class _BookedPageState extends State<BookedPage> {
     if (mounted) setState(() {});
   }
 
+  bool _isCodExpired(Map<String, dynamic> order) {
+    if (order['paymentMethod'] != 'Cash') return false;
+    if (order['paymentStatus'] != 'unpaid') return false;
+    if (order['cod_deadline'] == null) return false;
+
+    final deadline = DateTime.tryParse(order['cod_deadline']);
+    if (deadline == null) return false;
+
+    return DateTime.now().isAfter(deadline);
+  }
+
   Future<void> fetchOrders() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
-      // Use OrderService instead of direct http calls
+      orders = await OrderService.getUserOrders();
+
+      for (final order in orders) {
+        if (_isCodExpired(order) && order['processingStatus'] != 'cancelled') {
+          // 🔥 Call backend to cancel
+          await OrderService.cancelOrder(order['id']);
+        }
+      }
+
+      // Re-fetch after cancellations
       orders = await OrderService.getUserOrders();
     } catch (e) {
-      print('Exception fetching orders: $e');
-      // Optionally show a snackbar or dialog for errors
+      debugPrint('Exception fetching orders: $e');
     } finally {
-      if (mounted)
-        setState(() {
-          isLoading = false;
-        });
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -134,7 +150,7 @@ class _BookedPageState extends State<BookedPage> {
               hintText: "Search Order ID...",
               prefixIcon: const Icon(Icons.search, color: Colors.black38),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: AppTheme.bgGradientEnd,
               isDense: true,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -146,7 +162,7 @@ class _BookedPageState extends State<BookedPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.bgGradientEnd,
               borderRadius: BorderRadius.circular(8),
             ),
             child: DropdownButtonHideUnderline(
@@ -173,7 +189,9 @@ class _BookedPageState extends State<BookedPage> {
     print("order......checking....$order");
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['created_at'] ?? '');
-    final String pStatus = order['processingStatus'] ?? 'Pending';
+    final String pStatus = _isCodExpired(order)
+        ? 'Cancelled'
+        : (order['processingStatus'] ?? 'Pending');
 
     // Safely handle orderId for display
     String orderIdStr = (order['id'] ?? '').toString();
@@ -322,16 +340,18 @@ class _BookedPageState extends State<BookedPage> {
   }
 
   Widget _statusBadge(String label) {
+    final isCancelled = label.toLowerCase() == 'cancelled';
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.primaryGreen,
+        color: isCancelled ? AppTheme.warningRed : AppTheme.primaryGreen,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: Colors.white,
+          color: AppTheme.bgGradientEnd,
           fontSize: 10,
           fontWeight: FontWeight.bold,
         ),

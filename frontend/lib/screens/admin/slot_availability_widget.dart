@@ -56,7 +56,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                     margin: const EdgeInsets.only(right: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppTheme.bgGradientEnd,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
                         color: AppTheme.primaryGreen,
@@ -91,7 +91,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
                         _buildStatRow(
                           "Booked",
                           booked.toString(),
-                          color: Colors.red,
+                          color: AppTheme.warningRed,
                         ),
                         const Spacer(),
                         if (total > 0)
@@ -140,7 +140,7 @@ class SlotAvailabilityWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Card(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
           side: const BorderSide(color: AppTheme.primaryGreen, width: 1),

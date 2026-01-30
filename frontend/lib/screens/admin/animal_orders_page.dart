@@ -107,7 +107,7 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                         label: const Text('Add Details'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppTheme.bgGradientEnd,
                           minimumSize: const Size(double.infinity, 36),
                         ),
                       ),

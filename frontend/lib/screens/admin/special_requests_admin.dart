@@ -19,7 +19,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   String activeFilter = 'All';
   final Color scaffoldBg = const Color(0xFFF4F7F4);
   final _storage = const FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   List<Map<String, dynamic>> requests = [];
   bool isLoading = true;
@@ -113,7 +113,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
             },
             child: const Text(
               'Send Reply',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: AppTheme.bgGradientEnd),
             ),
           ),
         ],
@@ -177,7 +177,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.bgGradientEnd,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Color(0xFF2D4F32)),
@@ -231,7 +231,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: AppTheme.bgGradientEnd,
                           borderRadius: BorderRadius.circular(15),
                           boxShadow: [
                             BoxShadow(
@@ -269,7 +269,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                                 child: Text(
                                   status,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: AppTheme.bgGradientEnd,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -401,8 +401,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                                             label: const Text("Close"),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor:
-                                                  Colors.red.shade400,
-                                              foregroundColor: Colors.white,
+                                                  AppTheme.warningRed,
+                                              foregroundColor:
+                                                  AppTheme.bgGradientEnd,
                                               elevation: 0,
                                             ),
                                           ),

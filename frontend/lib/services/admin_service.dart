@@ -9,7 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// Service class for handling admin-related API calls.
 class AdminService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   /// Fetch admin profile
   static Future<Map<String, dynamic>> getAdminProfile(String adminId) async {
@@ -60,7 +60,7 @@ class AdminService {
     return List<Map<String, dynamic>>.from(data['notifications']);
   }
 
-  /// ✅ MARK notification as notified (CORRECT)
+  /// MARK notification as notified (CORRECT)
   static Future<void> markNotificationNotified(String id) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');

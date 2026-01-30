@@ -28,8 +28,6 @@ class _ProfilePageState extends State<ProfilePage> {
   final addressController = TextEditingController();
   final descriptionController = TextEditingController();
   DateTime? _orderDeadline;
-  String? _completePhoneNumber; // +countryCode + number
-  String? _initialCountryCode; // e.g. IN, US, GB
 
   // Backup data for cancel functionality
   String _oldName = "";
@@ -263,7 +261,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                     decoration: InputDecoration(
                                       filled: true,
                                       fillColor: _isEditing
-                                          ? Colors.white
+                                          ? AppTheme.bgGradientEnd
                                           : Colors.grey.shade50,
                                       labelText: 'Phone Number',
                                       labelStyle: const TextStyle(
@@ -508,7 +506,7 @@ class _ProfilePageState extends State<ProfilePage> {
       width: double.infinity,
       padding: const EdgeInsets.only(top: 60, bottom: 20),
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.bgGradientEnd,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
       child: Column(
@@ -538,7 +536,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: const Icon(
                         Icons.camera_alt,
                         size: 16,
-                        color: Colors.white,
+                        color: AppTheme.bgGradientEnd,
                       ),
                     ),
                   ),
@@ -566,19 +564,23 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: Icon(
                 _isEditing ? Icons.close : Icons.edit,
                 size: 20,
-                color: _isEditing ? Colors.white : AppTheme.primaryGreen,
+                color: _isEditing
+                    ? AppTheme.bgGradientEnd
+                    : AppTheme.primaryGreen,
               ),
               label: Text(
                 _isEditing ? "Cancel" : "Edit Profile",
                 style: TextStyle(
-                  color: _isEditing ? Colors.white : AppTheme.primaryGreen,
+                  color: _isEditing
+                      ? AppTheme.bgGradientEnd
+                      : AppTheme.primaryGreen,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isEditing
                     ? const Color(0xff9e1c1c)
-                    : Colors.white,
+                    : AppTheme.bgGradientEnd,
                 elevation: 2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -604,7 +606,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: const Text(
                 "Update Profile",
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppTheme.bgGradientEnd,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -617,7 +619,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       borderRadius: BorderRadius.circular(15),
       border: Border.all(color: const Color(0xFFD1C4A9).withOpacity(0.5)),
       boxShadow: [

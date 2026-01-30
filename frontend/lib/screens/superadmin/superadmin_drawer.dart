@@ -36,7 +36,7 @@ class SuperadminDrawer extends StatelessWidget {
                 //     if (snapshot.connectionState == ConnectionState.waiting) {
                 //       return const CircleAvatar(
                 //         radius: 35,
-                //         backgroundColor: Colors.white,
+                //         backgroundColor: AppTheme.bgGradientEnd,
                 //         child: CircularProgressIndicator(
                 //           color: AppTheme.primaryGreen,
                 //           strokeWidth: 2,
@@ -49,7 +49,7 @@ class SuperadminDrawer extends StatelessWidget {
                 //     if (profilePicture != null && profilePicture.isNotEmpty) {
                 //       return CircleAvatar(
                 //         radius: 35,
-                //         backgroundColor: Colors.white,
+                //         backgroundColor: AppTheme.bgGradientEnd,
                 //         backgroundImage: NetworkImage(profilePicture),
                 //         child: profilePicture.isEmpty
                 //             ? const Icon(
@@ -62,7 +62,7 @@ class SuperadminDrawer extends StatelessWidget {
                 //     } else {
                 //       return CircleAvatar(
                 //         radius: 35,
-                //         backgroundColor: Colors.white,
+                //         backgroundColor: AppTheme.bgGradientEnd,
                 //         child: const Icon(
                 //           Icons.person,
                 //           size: 40,
@@ -83,7 +83,7 @@ class SuperadminDrawer extends StatelessWidget {
                       const Text(
                         "Welcome Superadmin",
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: AppTheme.bgGradientEnd,
                           fontSize: 14,
                           fontWeight: FontWeight.normal,
                         ),
@@ -130,8 +130,11 @@ class SuperadminDrawer extends StatelessWidget {
           ),
           const Spacer(),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text("Logout", style: TextStyle(color: Colors.red)),
+            leading: const Icon(Icons.logout, color: AppTheme.warningRed),
+            title: const Text(
+              "Logout",
+              style: TextStyle(color: AppTheme.warningRed),
+            ),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,

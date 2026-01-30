@@ -335,7 +335,8 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       `UPDATE orders
        SET delivery_status='cancelled',
            payment_status='cancelled',
-           processing_status='cancelled',
+           processing_status='pending',
+           status='cancelled',
            cancelled_at=NOW()
        WHERE id=?`,
       [orderId],
@@ -585,7 +586,7 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
       });
     }
 
-    // 2️⃣ Update order status
+    //  Update order status
     await conn.execute(
       `UPDATE orders
          SET processing_status = 'confirmed'

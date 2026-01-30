@@ -1,3 +1,4 @@
+import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -24,8 +25,10 @@ class ToastUtils {
       toastLength: Toast.LENGTH_SHORT, // Duration: short (2-3 seconds)
       gravity: ToastGravity.BOTTOM, // Position: bottom of screen
       timeInSecForIosWeb: 1, // iOS/Web duration
-      backgroundColor: type == ToastType.success ? Colors.green : Colors.red,
-      textColor: Colors.white,
+      backgroundColor: type == ToastType.success
+          ? Colors.green
+          : AppTheme.warningRed,
+      textColor: AppTheme.bgGradientEnd,
       fontSize: 16.0,
     );
   }

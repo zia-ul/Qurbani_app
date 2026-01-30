@@ -207,7 +207,7 @@ class _DeliveryPersonDetailsPageState
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
-      color: Colors.white,
+      color: AppTheme.bgGradientEnd,
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: Colors.grey.shade200),
     );
