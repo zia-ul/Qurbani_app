@@ -30,7 +30,7 @@ const app = express();
 // Global rate limiter (applies to all requests)
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per window
+  max: 500, // limit each IP to 200 requests per window
   message: {
     message: "Too many requests from this IP, please try again later."
   },
@@ -39,7 +39,6 @@ const globalLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-
 
 // Cross-Origin Resource Sharing
 app.use(cors());

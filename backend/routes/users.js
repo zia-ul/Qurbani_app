@@ -64,7 +64,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 
   try {
     const [users] = await pool.execute(
-      "SELECT name, email, phone, address, description, role, order_deadline, photo_url FROM users WHERE id = ?",
+      "SELECT name, email, phone, address, description, role, order_deadline, photo_url, currency FROM users WHERE id = ?",
       [userId],
     );
 

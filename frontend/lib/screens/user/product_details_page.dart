@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -287,24 +289,30 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     final breed = animal['breed'] ?? 'N/A';
                     final type = animal['animal_type'] ?? 'N/A';
                     final price = animal['price']?.toString() ?? 'N/A';
-                    final age = animal['details_age']?.toString() ?? 'N/A';
-                    final weight =
-                        animal['details_weight']?.toString() ?? 'N/A';
+                    final age = animal['age']?.toString() ?? 'N/A';
+                    // final weight =
+                    //     animal['details_weight']?.toString() ?? 'N/A';
                     final barcode = animal['barcode'] ?? 'N/A';
                     final qurbani_datetime =
                         animal['qurbani_datetime'] ?? 'N/A';
-                    final photoUrlsRaw = animal['photo_urls'] ?? [];
+                    final photoUrlsRaw = animal['photo_urls'];
                     List<String> photoUrls = [];
 
-                    if (photoUrlsRaw is String) {
-                      photoUrls = photoUrlsRaw.contains(',')
-                          ? photoUrlsRaw
-                                .split(',')
-                                .map((e) => e.trim())
-                                .toList()
-                          : [photoUrlsRaw];
-                    } else if (photoUrlsRaw is List) {
-                      photoUrls = List<String>.from(photoUrlsRaw);
+                    if (photoUrlsRaw is List) {
+                      photoUrls = photoUrlsRaw.cast<String>();
+                    } else if (photoUrlsRaw is String) {
+                      try {
+                        final decoded = jsonDecode(photoUrlsRaw);
+                        if (decoded is List) {
+                          photoUrls = decoded.cast<String>();
+                        } else if (photoUrlsRaw.startsWith('http')) {
+                          photoUrls = [photoUrlsRaw];
+                        }
+                      } catch (_) {
+                        if (photoUrlsRaw.startsWith('http')) {
+                          photoUrls = [photoUrlsRaw];
+                        }
+                      }
                     }
 
                     return Padding(
@@ -318,7 +326,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           ),
                           Text("Price: $price"),
                           Text("Age: $age"),
-                          Text("Weight: $weight"),
+                          // Text("Weight: $weight"),
                           Text("Barcode: $barcode"),
                           Text("Qurbani Time: $qurbani_datetime"),
                           if (photoUrls.isNotEmpty)
@@ -336,6 +344,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         width: 80,
                                         height: 80,
                                         fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Container(
+                                          width: 80,
+                                          height: 80,
+                                          color: Colors.grey[300],
+                                          child: const Icon(
+                                            Icons.image_not_supported,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   );
@@ -402,11 +418,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     Icons.check_circle,
                     "Payment Status",
                     order['payment_status'],
-                  ),
-                  _buildInfoRow(
-                    Icons.check_circle,
-                    "Payment Status",
-                    order['payment_status'] ?? 'pending',
                   ),
 
                   _buildInfoRow(

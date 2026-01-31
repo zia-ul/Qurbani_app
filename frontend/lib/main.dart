@@ -8,11 +8,11 @@ import 'package:Qurbani/services/currency_service.dart';
 import 'wrapper_screen.dart';
 import 'theme/theme.dart';
 
-
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 void main() async {
+  
   WidgetsFlutterBinding.ensureInitialized();
   // await currencyService.initialize(); // Fetch rates and load cached data
 

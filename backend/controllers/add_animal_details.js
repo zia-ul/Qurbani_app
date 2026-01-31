@@ -1,66 +1,83 @@
 const { v4: uuidv4 } = require("uuid");
-const db = require("../config/db");
+const pool = require("../config/db");
 const logger = require("../middleware/logger");
 
-exports.addAnimal = async (adminId, data) => {
-  const id = uuidv4();
+exports.addAnimal = async function addAnimal(adminId, data) {
+  const {
+    animalType,
+    price,
+    currency,
+    shares,
+    lastBookedDate,
+    deliveryType,
+    deliveryFee,
+    deliveryThreshold,
+  } = data;
 
-  const lastBookedDate = data.lastBookedDate
-    ? new Date(data.lastBookedDate).toISOString().split("T")[0]
-    : null;
+  console.log(
+    "[ADD ANIMAL] Incoming price:",
+    price,
+    currency,
+  );
 
-  logger.info("Adding animal to database", {
-    adminId,
-    animalId: id,
-    animalType: data.animalType,
-    price: data.price,
-    shares: data.shares,
-    deliveryType: data.deliveryType,
-  });
+  // 1️⃣ Get system base currency (USD)
+  const [[meta]] = await pool.execute(
+    "SELECT base_currency FROM currency_meta WHERE id = 1",
+  );
 
-  try {
-    await db.query(
+  const baseCurrency = meta.base_currency;
+
+  let finalPrice = price;
+
+  // 2️⃣ Convert if needed
+  if (currency !== baseCurrency) {
+    const [[rateRow]] = await pool.execute(
       `
-      INSERT INTO animals (
-        id,
-        admin_id,
-        animal_type,
-        price,
-        shares,
-        delivery_type,
-        delivery_fee,
-        delivery_threshold,
-        last_booked_date
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      SELECT rate
+      FROM currency_rates
+      WHERE currency_code = ?
+        AND base_currency = ?
       `,
-      [
-        id,
-        adminId,
-        data.animalType,
-        data.price,
-        data.shares || 1,
-        data.deliveryType || "Free",
-        data.deliveryFee || 0,
-        data.deliveryThreshold || 0,
-        lastBookedDate,
-      ]
+      [currency, baseCurrency],
     );
 
-    logger.info("Animal inserted successfully", {
-      adminId,
-      animalId: id,
-    });
+    if (!rateRow) {
+      throw new Error(`Missing exchange rate for ${currency}`);
+    }
 
-    return id;
-  } catch (err) {
-    logger.error("Failed to insert animal", {
-      adminId,
-      animalId: id,
-      error: err.message,
-      stack: err.stack,
-    });
+    finalPrice = price / rateRow.rate;
 
-    throw err;
+    console.log(
+      `[ADD ANIMAL] Converted ${price} ${currency} → ${finalPrice} ${baseCurrency}`,
+    );
   }
+
+  // 3️⃣ Store ONLY base price
+  const animalId = crypto.randomUUID();
+
+  await pool.execute(
+    `
+    INSERT INTO animals
+    (id, admin_id, animal_type, price, shares, last_booked_date,
+     delivery_type, delivery_fee, delivery_threshold)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      animalId,
+      adminId,
+      animalType,
+      finalPrice, // 👈 BASE PRICE ONLY
+      shares,
+      lastBookedDate,
+      deliveryType,
+      deliveryFee,
+      deliveryThreshold,
+    ],
+  );
+
+  console.log(
+    `[ADD ANIMAL] Stored base price: ${finalPrice} ${baseCurrency}`,
+  );
+
+  return animalId;
 };

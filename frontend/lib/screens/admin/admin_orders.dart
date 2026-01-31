@@ -38,10 +38,12 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     setState(() => _isLoading = true);
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
+      
+      print("Fetched orders:");
       print(_allOrders);
     } catch (e) {
       print('Error fetching orders: $e');
-      // Optionally show a SnackBar
+      
     } finally {
       setState(() => _isLoading = false);
     }

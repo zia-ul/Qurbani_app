@@ -13,6 +13,7 @@ async function fetchAndStoreRates() {
   const conn = await pool.getConnection();
   try {
     const res = await axios.get(API_URL);
+    // console.log(`[CURRENCY] Fetched rates from Open Exchange Rates API`, res.data);
     const { rates, base } = res.data;
     const now = new Date();
 
@@ -25,13 +26,17 @@ async function fetchAndStoreRates() {
 
     for (const [code, rate] of Object.entries(rates)) {
       await conn.execute(
-        `
-          INSERT INTO currency_rates (currency_code, rate, updated_at)
-          VALUES (?, ?, ?)
-          ON DUPLICATE KEY UPDATE rate=VALUES(rate), updated_at=VALUES(updated_at)
-        `,
-        [code, rate, now],
-      );
+  `
+  INSERT INTO currency_rates (currency_code, base_currency, rate, updated_at)
+  VALUES (?, ?, ?, ?)
+  ON DUPLICATE KEY UPDATE
+    base_currency = VALUES(base_currency),
+    rate = VALUES(rate),
+    updated_at = VALUES(updated_at)
+  `,
+  [code, base, rate, now],
+);
+
     }
 
     await conn.commit();

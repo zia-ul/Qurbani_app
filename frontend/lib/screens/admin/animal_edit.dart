@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -50,6 +49,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   List<String> selectedPaymentMethods = [];
   String? selectedAnimalType;
   String? selectedDeliveryType; // add this
+  bool isDeliveryLocked = false;
 
   // When loading animal details
   // selectedDeliveryType = data['delivery_type'] ?? 'Free';
@@ -141,71 +141,83 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   // }
 
   Future<void> _loadAnimalDetails() async {
-  try {
-    final token = await _storage.read(key: "token");
-    if (token == null) return;
+    try {
+      final token = await _storage.read(key: "token");
+      if (token == null) return;
 
-    // Pass orderId as query param
-    final uri = Uri.parse("$_baseUrl/animals/${widget.animalId}")
-        .replace(queryParameters: {
-      'orderId': widget.orderId,
-      // 'shareholderId': someShareholderId, // optional if needed
-    });
+      // Pass orderId as query param
+      final uri = Uri.parse("$_baseUrl/animals/${widget.animalId}").replace(
+        queryParameters: {
+          'orderId': widget.orderId,
+          // 'shareholderId': someShareholderId, // optional if needed
+        },
+      );
 
-    final res = await http.get(
-      uri,
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
-    );
+      final res = await http.get(
+        uri,
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
 
-    if (res.statusCode != 200) {
+      if (res.statusCode != 200) {
+        setState(() => isLoading = false);
+        return;
+      }
+
+      final data = jsonDecode(res.body);
+
+      // delivery setup (LOCK if already chosen)
+      if (data['delivery_type'] != null) {
+        selectedDeliveryType = data['delivery_type']; // "Free" or "Paid"
+        isDeliveryLocked = true;
+
+        if (selectedDeliveryType == "Paid") {
+          deliveryFeeController.text = data['delivery_fee']?.toString() ?? '';
+          deliveryThresholdController.text =
+              data['delivery_threshold']?.toString() ?? '';
+        }
+      }
+
+      print("data on frontend...animal edit: $data");
+
+      // from animals table
+      animalTypeController.text = data['animal_type'] ?? '';
+      breedController.text = data['details_breed'] ?? data['breed'] ?? '';
+      descriptionController.text =
+          data['details_description'] ?? data['description'] ?? '';
+      ageController.text = data['details_age'] ?? '';
+      heightController.text = data['details_height'] ?? '';
+      weightController.text = data['details_weight'] ?? '';
+      priceController.text = data['price']?.toString() ?? '';
+      sharesController.text = data['shares']?.toString() ?? '';
+
+      // animal_details specific
+      barcodeController.text = data['barcode'] ?? '';
+      // final meatWeight = data['meat_weight'];
+      // final bodyPartsDesc = data['body_parts_description'];
+      // final qurbaniDate = data['qurbani_datetime'];
+
+      // photos (prefer animal_details if present)
+      final photoUrlsRaw =
+          data['details_photo_urls'] ?? data['photo_urls'] ?? [];
+
+      if (photoUrlsRaw is String) {
+        existingPhotoUrls = photoUrlsRaw.contains(',')
+            ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
+            : [photoUrlsRaw];
+      } else if (photoUrlsRaw is List) {
+        existingPhotoUrls = List<String>.from(photoUrlsRaw);
+      } else {
+        existingPhotoUrls = [];
+      }
+
       setState(() => isLoading = false);
-      return;
+    } catch (e) {
+      setState(() => isLoading = false);
     }
-
-    final data = jsonDecode(res.body);
-
-    print("data on frontend...animal edit: $data");
-
-    // from animals table
-    animalTypeController.text = data['animal_type'] ?? '';
-    breedController.text = data['details_breed'] ?? data['breed'] ?? '';
-    descriptionController.text =
-        data['details_description'] ?? data['description'] ?? '';
-    ageController.text = data['details_age'] ?? '';
-    heightController.text = data['details_height'] ?? '';
-    weightController.text = data['details_weight'] ?? '';
-    priceController.text = data['price']?.toString() ?? '';
-    sharesController.text = data['shares']?.toString() ?? '';
-
-    // animal_details specific
-    barcodeController.text = data['barcode'] ?? '';
-    // final meatWeight = data['meat_weight'];
-    // final bodyPartsDesc = data['body_parts_description'];
-    // final qurbaniDate = data['qurbani_datetime'];
-
-    // photos (prefer animal_details if present)
-    final photoUrlsRaw =
-        data['details_photo_urls'] ?? data['photo_urls'] ?? [];
-
-    if (photoUrlsRaw is String) {
-      existingPhotoUrls = photoUrlsRaw.contains(',')
-          ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
-          : [photoUrlsRaw];
-    } else if (photoUrlsRaw is List) {
-      existingPhotoUrls = List<String>.from(photoUrlsRaw);
-    } else {
-      existingPhotoUrls = [];
-    }
-
-    setState(() => isLoading = false);
-  } catch (e) {
-    setState(() => isLoading = false);
   }
-}
-
 
   Future<void> pickImages() async {
     final List<XFile>? selectedImages = await _picker.pickMultiImage(
@@ -536,18 +548,20 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                     Switch(
                       value: isDeliveryPaid,
                       activeColor: AppTheme.primaryGreen,
-                      onChanged: (val) {
-                        setState(() {
-                          selectedDeliveryType = val ? "Paid" : "Free";
+                      onChanged: isDeliveryLocked
+                          ? null // 🔒 completely disables switch
+                          : (val) {
+                              setState(() {
+                                selectedDeliveryType = val ? "Paid" : "Free";
 
-                          // Clear fee and threshold if switched to Free
-                          if (!val) {
-                            deliveryFeeController.clear();
-                            deliveryThresholdController.clear();
-                          }
-                        });
-                      },
+                                if (!val) {
+                                  deliveryFeeController.clear();
+                                  deliveryThresholdController.clear();
+                                }
+                              });
+                            },
                     ),
+
                     Text(
                       "Paid Delivery",
                       style: TextStyle(
@@ -564,13 +578,35 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: deliveryFeeController,
+                    enabled: !isDeliveryLocked,
                     keyboardType: TextInputType.number,
-                    decoration: _inputDecoration("Delivery Fee Amount"),
+                    decoration: _inputDecoration("Delivery Fee Amount")
+                        .copyWith(
+                          fillColor: isDeliveryLocked
+                              ? Colors.grey[100]
+                              : Colors.grey[50],
+                        ),
                     validator: (v) =>
-                        (isDeliveryPaid && (v == null || v.isEmpty))
+                        (isDeliveryPaid &&
+                            !isDeliveryLocked &&
+                            (v == null || v.isEmpty))
                         ? "Required for paid delivery"
                         : null,
                   ),
+
+                  if (isDeliveryLocked)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        "Delivery setup already finalized and cannot be changed.",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: deliveryThresholdController,

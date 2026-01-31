@@ -1,9 +1,11 @@
+import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/services/user_service.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 class AdminOrderDetailPage extends StatefulWidget {
   final String orderId;
@@ -28,7 +30,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   String? selectedDeliveryBoyId;
   List<Map<String, dynamic>> deliveryBoys = [];
   bool loadingDeliveryBoys = true;
-  
 
   @override
   void initState() {
@@ -125,11 +126,14 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
+    final currencyNotifier = context.watch<CurrencyNotifier>();
+
+    if (isLoading || !currencyNotifier.isReady) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final data = orderData!;
+    print("order details......$data");
     final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
@@ -140,11 +144,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _orderDetailsCard(data),
+          _orderDetailsCard(data, currencyNotifier),
           if (shareholders.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _shareholdersCard(shareholders),
-        ],
+            const SizedBox(height: 16),
+            _shareholdersCard(shareholders),
+          ],
           const SizedBox(height: 16),
 
           _processingTimeline(),
@@ -160,7 +164,17 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   // -------------------- CARDS --------------------
 
-  Widget _orderDetailsCard(Map<String, dynamic> data) {
+  Widget _orderDetailsCard(
+    Map<String, dynamic> data,
+    CurrencyNotifier currencyNotifier,
+  ) {
+    final double baseTotal =
+        double.tryParse(data['total_amount'].toString()) ?? 0.0;
+
+    final double convertedTotal = currencyNotifier.convert(baseTotal);
+
+    final String currencyCode = currencyNotifier.currency;
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -172,8 +186,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             _cardTitle('Order Information'),
             _infoRow('Order ID', widget.orderId),
             _infoRow('User', data['user_name']),
-            _infoRow('Animal', data['animal_type']),
-            _infoRow('Price', data['total_amount'].toString()),
+            _infoRow('Animal Type', data['animal_type']),
+            _infoRow(
+              'Price',
+              '$currencyCode ${convertedTotal.toStringAsFixed(2)}',
+            ),
+
             _infoRow('Payment', data['payment_status']),
             // _infoRow('Address', data['delivery_address']),
             _infoRow('Contact', data['contact_no']),
@@ -184,49 +202,48 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Widget _shareholdersCard(List shareholders) {
-  return Card(
-    elevation: 4,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardTitle('Shareholders'),
-          const SizedBox(height: 12),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _cardTitle('Shareholders'),
+            const SizedBox(height: 12),
 
-          ...shareholders.asMap().entries.map((entry) {
-            final i = entry.key + 1;
-            final s = entry.value;
+            ...shareholders.asMap().entries.map((entry) {
+              final i = entry.key + 1;
+              final s = entry.value;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Shareholder $i',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  _infoRow('Name', s['shareholder_name']),
-                  _infoRow('Guardian', s['guardian_name']),
-                  _infoRow('Qurbani Day', s['qurbani_day']),
-                ],
-              ),
-            );
-          }).toList(),
-        ],
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Shareholder $i',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    _infoRow('Name', s['shareholder_name']),
+                    _infoRow('Guardian', s['guardian_name']),
+                    _infoRow('Qurbani Day', s['qurbani_day']),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   Widget _processingTimeline() {
     final isPending = processing == 'pending';
@@ -339,6 +356,31 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Widget _deliveryCard() {
+    final data = orderData!;
+    final bool isAssigned = data['delivery_person_id'] != null;
+
+    if (isAssigned) {
+      return _actionCard(
+        title: 'Delivery Assigned',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '🚚 Delivery Boy assigned successfully',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            _deliveryBoyProfileCard(data),
+          ],
+        ),
+      );
+    }
+
+    // fallback: assignment UI
     return _actionCard(
       title: 'Step 3: Assign Delivery',
       child: loadingDeliveryBoys
@@ -354,18 +396,59 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   items: deliveryBoys
                       .map<DropdownMenuItem<String>>(
                         (e) => DropdownMenuItem<String>(
-                          value: e['id'].toString(), // 🔥 force String
+                          value: e['id'].toString(),
                           child: Text(e['name'].toString()),
                         ),
                       )
                       .toList(),
                   onChanged: (v) => setState(() => selectedDeliveryBoyId = v),
                 ),
-
                 const SizedBox(height: 16),
                 _saveButton(_saveDelivery),
               ],
             ),
+    );
+  }
+
+  Widget _deliveryBoyProfileCard(Map<String, dynamic> data) {
+    return Card(
+      color: Colors.grey.shade100,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: AppTheme.primaryGreen,
+              child: Text(
+                (data['delivery_person_name'] ?? 'D')[0].toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontSize: 20),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data['delivery_person_name'] ?? 'Delivery Boy',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    data['delivery_person_phone'] ?? 'Phone not available',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

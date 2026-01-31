@@ -22,7 +22,6 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/authentication/login_page.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/terms_condition_dialog.dart';
-import 'package:Qurbani/verify_email.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
 
@@ -142,12 +141,7 @@ class _RegisterPageState extends State<RegisterPage> {
         'Registration successful. Please verify your email.',
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerifyEmailPage(emailController.text.trim()),
-        ),
-      );
+     
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LoginScreen()),

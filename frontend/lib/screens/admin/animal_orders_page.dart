@@ -84,7 +84,6 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      Text("User: ${order['order_id']}"),
                       Text("Payment: ${order['payment_status']}"),
                       Text("Processing: ${order['processing_status']}"),
                       Text("Delivery: ${order['delivery_status']}"),

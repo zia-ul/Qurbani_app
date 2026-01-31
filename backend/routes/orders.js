@@ -296,6 +296,8 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
 
     const order = orders[0];
 
+    console.log(order);
+
     // Step 2: Evaluate cancellation eligibility based on business rules
     const isDelivered = order.delivery_status === "delivered";
     const isCancelled = order.delivery_status === "cancelled";
@@ -333,11 +335,10 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
     // Sets all statuses to 'cancelled' and records cancellation timestamp
     await pool.execute(
       `UPDATE orders
-       SET delivery_status='cancelled',
-           payment_status='cancelled',
+       SET delivery_status='pending',
+           payment_status='pending',
            processing_status='pending',
            status='cancelled',
-           cancelled_at=NOW()
        WHERE id=?`,
       [orderId],
     );

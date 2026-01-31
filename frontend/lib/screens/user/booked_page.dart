@@ -1,8 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:Qurbani/screens/user/product_details_page.dart';
-import 'package:Qurbani/screens/user/currency_notifier.dart';
 import 'package:Qurbani/services/order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
@@ -24,25 +22,17 @@ class _BookedPageState extends State<BookedPage> {
   String searchQuery = "";
   String selectedStatus = "All";
 
-  static const Color primaryGreen = AppTheme.primaryGreen;
-  static const Color parchmentBg = Color(0xffF2E8D5);
-
   @override
   void initState() {
     super.initState();
-    // currencyNotifier.addListener(_onCurrencyChanged);
     fetchOrders();
   }
 
   @override
   void dispose() {
-    // currencyNotifier.removeListener(_onCurrencyChanged);
     super.dispose();
   }
 
-  void _onCurrencyChanged() {
-    if (mounted) setState(() {});
-  }
 
   bool _isCodExpired(Map<String, dynamic> order) {
     if (order['paymentMethod'] != 'Cash') return false;
@@ -60,9 +50,10 @@ class _BookedPageState extends State<BookedPage> {
 
     try {
       orders = await OrderService.getUserOrders();
+      // print(orders);
 
       for (final order in orders) {
-        if (_isCodExpired(order) && order['processingStatus'] != 'cancelled') {
+        if (_isCodExpired(order) && order['status'] != 'cancelled') {
           // 🔥 Call backend to cancel
           await OrderService.cancelOrder(order['id']);
         }
@@ -92,7 +83,7 @@ class _BookedPageState extends State<BookedPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: parchmentBg,
+      backgroundColor: AppTheme.bgGradientStart,
       appBar: AppBar(
         title: const Text(
           "My Qurbani Bookings",
@@ -246,7 +237,7 @@ class _BookedPageState extends State<BookedPage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        "${order['paymentStatus'] ?? 'Paid'}",
+                        "Payment status: ${order['payment_status']}",
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 11),
                       ),
@@ -281,7 +272,7 @@ class _BookedPageState extends State<BookedPage> {
                         style: TextStyle(
                           fontSize: 11,
                           color: _getDeliveryStatusColor(
-                            order['deliveryStatus'] ?? 'Pending',
+                            order['delivery_status'] ?? 'Pending',
                           ),
                           fontWeight: FontWeight.bold,
                         ),
@@ -298,7 +289,7 @@ class _BookedPageState extends State<BookedPage> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            "Code: ${order['deliveryCode']}",
+                            "Code: ${order['delivery_code']}",
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.orange,

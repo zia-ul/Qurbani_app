@@ -101,7 +101,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
             );
 
           case 'super_admin':
-            return SuperAdminDashboard();
+            return SuperAdminDashboard(id: user.id, name: user.name);
 
           default:
             return const OnboardingScreen();

@@ -48,6 +48,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print(data);
         setState(() => animals = data['animals'] ?? []);
       } else {
         ToastUtils.showError("Failed to fetch animals: ${response.body}");

@@ -74,6 +74,10 @@ router.post(
     body("animalType").notEmpty().withMessage("animalType is required"),
 
     body("price").isNumeric().withMessage("price must be a number"),
+    body("currency")
+  .isLength({ min: 3, max: 3 })
+  .withMessage("currency must be a 3-letter code"),
+
 
     body("shares")
       .isInt({ min: 1 })
@@ -144,28 +148,60 @@ router.post("/:animalId", async (req, res) => {
   } = req.body;
 
   if (!animalId || !orderId) {
-    return res.status(400).json({ error: "animalId and orderId are required" });
+    return res.status(400).json({
+      error: "animalId and orderId are required",
+    });
   }
 
   try {
+    // 1️⃣ Fetch a valid shareholder_id for this animal + order
+    const [shareholders] = await pool.query(
+      `SELECT id 
+       FROM order_shareholders 
+       WHERE animal_id = ? AND order_id = ?
+       LIMIT 1`,
+      [animalId, orderId]
+    );
+
+    if (!shareholders.length) {
+      return res.status(400).json({
+        error: "No shareholder found for this animal and order",
+      });
+    }
+
+    const shareholderId = shareholders[0].id;
     const id = crypto.randomUUID();
 
+    // 2️⃣ Insert animal_details with shareholder_id
     await pool.query(
       `INSERT INTO animal_details
-       (id, animal_id, order_id, barcode, breed, description, age, height, weight, photo_urls)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (
+         id,
+         animal_id,
+         order_id,
+         shareholder_id,
+         barcode,
+         breed,
+         description,
+         age,
+         height,
+         weight,
+         photo_urls
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         animalId,
         orderId,
+        shareholderId,
         barcode,
         breed,
         description,
         age,
         height,
         weight,
-        photoUrls,
-      ],
+        JSON.stringify(photoUrls || []),
+      ]
     );
 
     return res.status(200).json({
@@ -173,8 +209,10 @@ router.post("/:animalId", async (req, res) => {
       id,
     });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error("Animal details insert failed:", err);
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
 });
 

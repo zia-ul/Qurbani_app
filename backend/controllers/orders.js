@@ -12,10 +12,26 @@ router.get("/my", authMiddleware, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.status, o.created_at,
-              u.name as admin_name, u.email as admin_email, o.delivery_status
+      `SELECT 
+          o.id,
+          o.user_id,
+          o.admin_id,
+          o.payment_method,
+          o.total_shares,
+          o.status,
+          o.created_at,
+          o.delivery_status,
+          o.payment_status,
+
+          u.name AS admin_name,
+          u.email AS admin_email,
+
+          aps.cod_deadline   -- ✅ added
        FROM orders o
-       JOIN users u ON o.admin_id = u.id
+       JOIN users u 
+         ON o.admin_id = u.id
+       LEFT JOIN admin_payment_settings aps
+         ON aps.admin_id = o.admin_id
        WHERE o.user_id = ?
        ORDER BY o.created_at DESC`,
       [userId],
@@ -33,11 +49,13 @@ router.get("/my", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
+
 
 // POST /api/orders
 router.post("/", authMiddleware, async (req, res) => {
@@ -206,30 +224,33 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { meat_weight, body_parts_description } = req.body;
 
-//   if (
-//   meat_weight === undefined ||
-//   body_parts_description === undefined ||
-//   String(body_parts_description).trim() === ""
-// ) {
-//   return res.status(400).json({ message: "Incomplete meat details" });
-// }
-
-  console.log("Meat check");
   try {
-    // UPSERT animal details
-    await pool.execute(
-      `INSERT INTO animal_details (order_id, meat_weight, body_parts_description)
-         VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-           meat_weight = VALUES(meat_weight),
-           body_parts_description = VALUES(body_parts_description)`,
-      [orderId, meat_weight, body_parts_description],
+    // 1️⃣ Fetch all shareholders for this order
+    const [shareholders] = await pool.query(
+      `SELECT id FROM order_shareholders WHERE order_id = ?`,
+      [orderId]
     );
 
-    // Mark order completed
+    if (!shareholders.length) {
+      return res.status(404).json({
+        message: "No shareholders found for this order",
+      });
+    }
+
+    // 2️⃣ Update animal_details for EACH shareholder
+    for (const s of shareholders) {
+      await pool.execute(
+        `UPDATE animal_details
+         SET meat_weight = ?, body_parts_description = ?
+         WHERE order_id = ? AND shareholder_id = ?`,
+        [meat_weight, body_parts_description, orderId, s.id]
+      );
+    }
+
+    // 3️⃣ Mark order completed
     await pool.execute(
       `UPDATE orders SET processing_status = 'completed' WHERE id = ?`,
-      [orderId],
+      [orderId]
     );
 
     res.json({ message: "Meat details saved successfully" });
@@ -238,6 +259,7 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to save meat details" });
   }
 });
+
 
 router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -272,12 +294,23 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
   console.log("coming here");
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.processing_status, o.created_at,
-              u.name as admin_name, u.email as admin_email
-       FROM orders o
-       JOIN users u ON o.admin_id = u.id
-       WHERE o.admin_id = ?
-       ORDER BY o.created_at DESC`,
+      `SELECT
+        o.id,
+        o.user_id,
+        o.admin_id,
+        o.payment_method,
+        o.total_shares,
+        o.processing_status,
+        o.created_at,
+        u.name AS admin_name,
+        u.email AS admin_email,
+        a.photo_urls
+      FROM orders o
+      JOIN users u ON o.admin_id = u.id
+      LEFT JOIN animal_details a ON a.order_id = o.id
+      WHERE o.admin_id = ?
+      ORDER BY o.created_at DESC
+      `,
       [adminId],
     );
 

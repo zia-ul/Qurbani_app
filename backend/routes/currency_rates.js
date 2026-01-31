@@ -34,6 +34,33 @@ router.get("/currencies", async (req, res) => {
   }
 });
 
+/**
+ * GET /users/me/currency
+ * Returns the logged-in user's currency
+ */
+router.get('/:userId/currency', async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const [user] = await db.query(
+      'SELECT currency FROM users WHERE id = ? LIMIT 1',
+      [userId]
+    );
+
+    if (!user || user.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json({
+      currency: user[0].currency || 'USD', // default USD if null
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 router.put("/profile/currency", authMiddleware, async (req, res) => {
   const { currency } = req.body;
   const userId = req.user.id;

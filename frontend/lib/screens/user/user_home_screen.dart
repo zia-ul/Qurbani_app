@@ -1,11 +1,7 @@
-import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/user/marketplace.dart';
 import 'package:Qurbani/screens/user/booked_page.dart';
-import 'package:Qurbani/screens/user/currency_notifier.dart';
 import 'package:Qurbani/theme/theme.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,8 +21,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final Color bgGradientStart = const Color(0xffF2E8D5); // Parchment style
-  final Color bgGradientEnd = const Color(0xffFFFFFF);
 
   @override
   void initState() {
@@ -121,7 +115,7 @@ class _HomePageState extends State<HomePage> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [bgGradientStart, bgGradientEnd],
+            colors: [AppTheme.bgGradientStart, AppTheme.bgGradientEnd],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),

@@ -25,7 +25,7 @@ class CurrencyService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   // ---------------------------------------------------------------------------
-  // PUBLIC GETTERS (THIS FIXES ALL YOUR ERRORS)
+  // PUBLIC GETTERS
   // ---------------------------------------------------------------------------
 
   /// All exchange rates
@@ -74,6 +74,27 @@ class CurrencyService {
     }
   }
 
+  /// Fetch user currency from backend
+  // Future<String> fetchUserCurrency(String userId) async {
+  //   final url = Uri.parse('$_baseUrl/users/$userId/currency');
+
+  //   final res = await http.get(url);
+
+  //   if (res.statusCode != 200) {
+  //     throw Exception('Failed to fetch user currency');
+  //   }
+
+  //   final data = jsonDecode(res.body);
+  //   final currency = data['currency'] ?? 'USD';
+  //   print("testing user currency ....$currency");
+
+  //   if (!supportedCurrencies.contains(currency)) {
+  //     return baseCurrency;
+  //   }
+
+  //   return currency;
+  // }
+
   // ---------------------------------------------------------------------------
   // FETCH
   // ---------------------------------------------------------------------------
@@ -83,7 +104,7 @@ class CurrencyService {
     _isFetching = true;
 
     try {
-      final res = await http.get(Uri.parse('$_baseUrl/api/users/currencies'));
+      final res = await http.get(Uri.parse('$_baseUrl/users/currencies'));
       if (res.statusCode != 200) {
         debugPrint("Currency fetch failed: ${res.body}");
         return;

@@ -1,12 +1,11 @@
+import 'package:Qurbani/screens/superadmin/superadmin_welcome_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Qurbani/authentication/login_page.dart';
 import 'package:Qurbani/services/auth_service.dart';
 
 // Admin Pages
 import 'package:Qurbani/screens/admin/animal_listing.dart';
-import 'package:Qurbani/screens/admin/slot_management.dart';
 
 // User Pages
 import 'package:Qurbani/profile_page.dart';
@@ -59,6 +58,8 @@ class MasterDrawer extends StatelessWidget {
 
   String _getWelcomeText() {
     switch (role) {
+      case 'super_admin':
+        return "Welcome Super Admin";
       case 'admin':
         return "Welcome Admin";
       case 'delivery':
@@ -149,6 +150,33 @@ class MasterDrawer extends StatelessWidget {
               ],
             ),
           ),
+
+          if (role == 'super_admin') ...[
+            _drawerItem(
+              context,
+              Icons.dashboard,
+              "Dashboard",
+              SuperAdminDashboard(id: id, name: name),
+            ),
+            _drawerItem(
+              context,
+              Icons.lock_reset,
+              "Reset Password",
+              const ResetPasswordPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.person_add,
+              "Invite Friend",
+              const InviteFriendPage(),
+            ),
+            _drawerItem(
+              context,
+              Icons.star,
+              "Qurbani Features",
+              const AboutUsPage(),
+            ),
+          ],
 
           // Menu Items
           if (role == 'admin') ...[
@@ -265,7 +293,10 @@ class MasterDrawer extends StatelessWidget {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: AppTheme.warningRed),
-            title: const Text("Logout", style: TextStyle(color: AppTheme.warningRed)),
+            title: const Text(
+              "Logout",
+              style: TextStyle(color: AppTheme.warningRed),
+            ),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,

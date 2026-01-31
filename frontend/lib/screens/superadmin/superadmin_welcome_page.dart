@@ -1,12 +1,12 @@
 /// This file contains the Super Admin Dashboard screen, which allows super admins
 /// to view and manage users, filter by roles, and approve or reject admin verifications.
 
+import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/superadmin/delivery_details';
 import 'package:Qurbani/screens/superadmin/user_details.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:Qurbani/screens/superadmin/admin_details.dart';
-import 'package:Qurbani/screens/superadmin/superadmin_drawer.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 
@@ -15,11 +15,19 @@ enum RoleFilter { all, user, admin, delivery }
 
 /// The main dashboard widget for super admins to manage users and verifications.
 class SuperAdminDashboard extends StatefulWidget {
-  const SuperAdminDashboard({super.key});
+  final String id;
+  final String name;
+
+  const SuperAdminDashboard({
+    super.key,
+    required this.id,
+    required this.name,
+  });
 
   @override
   State<SuperAdminDashboard> createState() => _SuperAdminDashboardState();
 }
+
 
 class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   RoleFilter _selectedFilter = RoleFilter.all;
@@ -234,7 +242,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           ),
         ],
       ),
-      drawer: const SuperadminDrawer(),
+      drawer: MasterDrawer(name: widget.name, id: widget.id, role: 'super_admin'),
       body: Column(
         children: [
           _buildSummaryHeader(),
@@ -529,33 +537,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           label,
           style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
         ),
-      ),
-    );
-  }
-
-  Widget _filterDropdown() {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: DropdownButton<RoleFilter>(
-        value: _selectedFilter,
-        dropdownColor: AppTheme.bgGradientEnd,
-        underline: const SizedBox(),
-        icon: const Icon(Icons.filter_list, color: AppTheme.bgGradientEnd),
-        items: RoleFilter.values.map((filter) {
-          return DropdownMenuItem(
-            value: filter,
-            child: Text(
-              filter.name.toUpperCase(),
-              style: const TextStyle(fontSize: 12, color: Colors.black),
-            ),
-          );
-        }).toList(),
-        onChanged: (value) {
-          if (value != null) {
-            setState(() => _selectedFilter = value);
-            _fetchUsers();
-          }
-        },
       ),
     );
   }

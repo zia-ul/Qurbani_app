@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 
 class AddAnimalPage extends StatefulWidget {
   const AddAnimalPage({super.key});
@@ -85,11 +87,18 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     setState(() => isLoading = true);
 
     try {
+      final currencyNotifier = context.read<CurrencyNotifier>();
+      print("currency getting printed........${currencyNotifier.currency}");
+
       final body = {
         "animalType": selectedAnimalType == "Others"
             ? customAnimalTypeController.text.trim()
             : selectedAnimalType,
+
         "price": double.parse(priceController.text.trim()),
+
+        "currency": currencyNotifier.currency,
+
         "shares": int.parse(sharesController.text.trim()),
         "lastBookedDate": lastBookedDate!.toIso8601String(),
         "deliveryType": isDeliveryPaid ? "paid" : "free",
@@ -101,8 +110,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             ? double.parse(deliveryThresholdController.text.trim())
             : null,
       };
-
-      ;
 
       final res = await http.post(
         Uri.parse('$_baseUrl/animals'),
