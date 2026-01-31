@@ -56,14 +56,139 @@ router.get("/my", authMiddleware, async (req, res) => {
   }
 });
 
+router.get(
+  "/:orderId/delivery-boy/:deliveryBoyId",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { orderId, deliveryBoyId } = req.params;
+
+      // ensure order exists
+      const order = await pool.query(
+        "SELECT id, delivery_person_id FROM orders WHERE id = ?",
+        [orderId],
+      );
+
+      console.log(order);
+
+      if (order.rowCount === 0) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // ensure correct delivery boy
+      // if (order[0].delivery_person_id !== deliveryBoyId) {
+      //   return res
+      //     .status(403)
+      //     .json({ message: "Delivery boy not assigned to this order" });
+      // }
+
+      // fetch delivery boy
+      const deliveryBoy = await pool.query(
+        `
+      SELECT 
+        id,
+        name,
+        phone
+      FROM users
+      WHERE id = ? AND role = 'delivery'
+      `,
+        [deliveryBoyId],
+      );
+
+      console.log(deliveryBoy);
+
+      if (deliveryBoy.rowCount === 0) {
+        return res.status(404).json({ message: "Delivery boy not found" });
+      }
+
+      res.json({
+        deliveryBoy: deliveryBoy[0],
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
+
+// PUT /api/orders/:orderId/mark-paid
+router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
+  const adminId = req.user.id;
+  const { orderId } = req.params;
+
+  logger.info("Admin marking COD order as paid", {
+    adminId,
+    orderId,
+  });
+
+  try {
+    // 1️⃣ Fetch order & validate
+    const [rows] = await pool.execute(
+      `
+      SELECT id, payment_method, payment_status, processing_status
+      FROM orders
+      WHERE id = ? AND admin_id = ?
+      `,
+      [orderId, adminId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: "Order not found or unauthorized",
+      });
+    }
+
+    const order = rows[0];
+
+    if (order.payment_method !== "Cash") {
+      return res.status(400).json({
+        message: "Only Cash on Delivery orders can be marked as paid",
+      });
+    }
+
+    if (order.payment_status === "paid") {
+      return res.status(400).json({
+        message: "Order already marked as paid",
+      });
+    }
+
+    // 2️⃣ Update order
+    await pool.execute(
+      `
+      UPDATE orders
+      SET payment_status = 'paid',
+          processing_status = 'completed'
+      WHERE id = ?
+      `,
+      [orderId],
+    );
+
+    logger.info("COD order marked as paid", { orderId });
+
+    res.json({
+      message: "Order marked as paid successfully",
+    });
+  } catch (err) {
+    logger.error("Failed to mark COD order as paid", {
+      adminId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
+    res.status(500).json({
+      message: "Failed to mark order as paid",
+    });
+  }
+});
 
 // POST /api/orders
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } = req.body;
+  const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
+    req.body;
 
   console.log("Print pay status", paymentStatus);
-
 
   if (
     !adminId ||
@@ -85,7 +210,15 @@ router.post("/", authMiddleware, async (req, res) => {
     await connection.execute(
       `INSERT INTO orders (id, user_id, admin_id, payment_method, total_shares, payment_status, total_amt)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [orderId, userId, adminId, paymentMethod, shareholders.length, paymentStatus, totalAmount],
+      [
+        orderId,
+        userId,
+        adminId,
+        paymentMethod,
+        shareholders.length,
+        paymentStatus,
+        totalAmount,
+      ],
     );
 
     // Insert order_shareholders (WITH animal_id)
@@ -131,7 +264,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
        FROM orders o
        JOIN users u ON o.admin_id = u.id
        WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (orders.length === 0) {
@@ -146,7 +279,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
        FROM animal_details ad
        JOIN animals a ON ad.animal_id = a.id
        WHERE ad.order_id = ?`,
-      [orderId]
+      [orderId],
     );
 
     // Respond with order + animals
@@ -155,7 +288,6 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Something went wrong." });
   }
 });
-
 
 //api/orders/:id
 router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
@@ -228,7 +360,7 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
     // 1️⃣ Fetch all shareholders for this order
     const [shareholders] = await pool.query(
       `SELECT id FROM order_shareholders WHERE order_id = ?`,
-      [orderId]
+      [orderId],
     );
 
     if (!shareholders.length) {
@@ -243,14 +375,14 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
         `UPDATE animal_details
          SET meat_weight = ?, body_parts_description = ?
          WHERE order_id = ? AND shareholder_id = ?`,
-        [meat_weight, body_parts_description, orderId, s.id]
+        [meat_weight, body_parts_description, orderId, s.id],
       );
     }
 
     // 3️⃣ Mark order completed
     await pool.execute(
       `UPDATE orders SET processing_status = 'completed' WHERE id = ?`,
-      [orderId]
+      [orderId],
     );
 
     res.json({ message: "Meat details saved successfully" });
@@ -259,7 +391,6 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Failed to save meat details" });
   }
 });
-
 
 router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -290,58 +421,81 @@ router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
 
 // GET /api/orders/admin/my - Get all orders for the authenticated admin
 router.get("/admin/my", authMiddleware, async (req, res) => {
-  const adminId = req.user.id; // Assuming JWT provides admin's user ID
-  console.log("coming here");
+  const adminId = req.user.id;
+
+  logger.info("Admin fetching own orders", { adminId });
+  console.log("coming here....");
+
   try {
     const [orders] = await pool.execute(
-      `SELECT
+      `
+      SELECT
         o.id,
         o.user_id,
         o.admin_id,
         o.payment_method,
         o.total_shares,
         o.processing_status,
+        o.payment_status,
+        o.delivery_status,
         o.created_at,
-        u.name AS admin_name,
-        u.email AS admin_email,
-        a.photo_urls
+        a.photo_urls,
+        aps.cod_deadline
       FROM orders o
-      JOIN users u ON o.admin_id = u.id
-      LEFT JOIN animal_details a ON a.order_id = o.id
+      LEFT JOIN animal_details a 
+        ON a.order_id = o.id
+      LEFT JOIN admin_payment_settings aps
+        ON aps.admin_id = o.admin_id
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
       [adminId],
     );
 
-    console.log(orders);
+    logger.info("Admin orders raw", { orders });
 
-    // For each order, fetch shareholders and map to expected structure
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
         const [shareholders] = await pool.execute(
-          `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
+          `
+          SELECT id, shareholder_name, guardian_name, qurbani_day
+          FROM order_shareholders
+          WHERE order_id = ?
+          `,
           [order.id],
         );
 
-        // Map to Flutter-expected structure (add defaults for missing fields)
         return {
           orderId: order.id,
           adminId: order.admin_id,
-          deliveryStatus: "pending", // Default; add column to orders table if needed
-          processingStatus: order.processing_status, // Maps to status (pending, confirmed, etc.)
-          isCompleted: order.processing_status === "completed", // For filtering
+          paymentMethod: order.payment_method,
+          processingStatus: order.processing_status,
+          paymentStatus: order.payment_status,
+          deliveryStatus: order.delivery_status,
+          isCompleted: order.processing_status === "completed",
           createdAt: order.created_at,
-          contact: { primary: "" }, // Placeholder; join users table for phone if available
-          shareholders, // Include for details if needed
-          // Add other fields as needed (e.g., totalShares: order.total_shares)
+
+          cod_deadline: order.cod_deadline,
+
+          photoUrls: order.photo_urls,
+          shareholders,
         };
       }),
     );
 
+    logger.info("Admin orders fetched", {
+      adminId,
+      orderCount: ordersWithDetails.length,
+    });
+
     res.json({ orders: ordersWithDetails });
   } catch (err) {
-    console.error("Error fetching admin orders:", err);
+    logger.error("Failed to fetch admin orders", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -529,7 +683,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
     const [orders] = await pool.execute(
       `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.created_at,
               u.name as user_name, u.email as user_email, u.phone as contact_no,
-              a.name as admin_name
+              a.name as admin_name, o.payment_status, u.address
        FROM orders o
        JOIN users u ON o.user_id = u.id
        JOIN users a ON o.admin_id = a.id
@@ -557,16 +711,18 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
     const orderWithDetails = {
       orderId: order.id,
       user_name: order.user_name,
+      address: order.address,
       animal_type: "Sheep", // Dummy, as per schema
       parts: shareholders.map((s) => s.name).join(", "), // Map to parts
       total_amount: 100 * order.total_shares, // Dummy calculation
-      payment_status: "Paid", // Default
+      payment_status: order.payment_status, // Default
       delivery_address: "N/A", // Default; add to schema if needed
       contact_no: order.contact_no || "N/A",
       processing_status: order.processing_status,
       delivery_status: order.delivery_status || "pending",
       delivery_person_id: order.delivery_person_id,
       shareholders, // Include for reference
+      paymentMethod: order.payment_method,
     };
 
     res.json({ order: orderWithDetails });
@@ -611,6 +767,108 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
     res.json({ message: "Order updated successfully" });
   } catch (err) {
     console.error("Error updating order:", err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
+  }
+});
+
+// PUT /api/orders/:orderId/cancel
+router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
+  // Extract order ID from URL parameters and get authenticated user's ID
+  const { orderId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    // Step 1: Verify order exists and belongs to user
+    // Fetch current order status and creation time for cancellation validation
+    const [orders] = await pool.execute(
+      `SELECT delivery_status, created_at FROM orders WHERE id = ? AND user_id = ?`,
+      [orderId, userId],
+    );
+
+    // If order doesn't exist or doesn't belong to user, return error
+    if (!orders.length) {
+      logger.warn(
+        "Order cancellation attempt on non-existent or non-owned order",
+        {
+          userId,
+          orderId,
+          reason: "Order not found or doesn't belong to user",
+        },
+      );
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const order = orders[0];
+
+    console.log(order);
+
+    // Step 2: Evaluate cancellation eligibility based on business rules
+    const isDelivered = order.delivery_status === "delivered";
+    const isCancelled = order.delivery_status === "cancelled";
+
+    // Cancellation allowed within 24 hours AND order not delivered/cancelled
+    // Time calculation: current time minus order creation time
+    const timeSinceOrder = Date.now() - new Date(order.created_at).getTime();
+    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+    const canCancel = within24Hours && !isDelivered && !isCancelled;
+
+    // If cancellation not allowed, return appropriate error
+    if (!canCancel) {
+      logger.warn(
+        "Invalid order cancellation attempt - business rules violation",
+        {
+          userId,
+          orderId,
+          orderStatus: order.delivery_status,
+          timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)), // hours
+          within24Hours,
+          isDelivered,
+          isCancelled,
+          reason: !within24Hours
+            ? "Outside 24-hour window"
+            : isDelivered
+              ? "Order already delivered"
+              : "Order already cancelled",
+        },
+      );
+      return res.status(400).json({ message: "Cannot cancel this order" });
+    }
+
+    // Step 3: Execute cancellation by updating all order statuses
+    // Sets all statuses to 'cancelled' and records cancellation timestamp
+    await pool.execute(
+      `UPDATE orders
+       SET delivery_status='pending',
+           payment_status='pending',
+           processing_status='pending',
+           status='cancelled',
+       WHERE id=?`,
+      [orderId],
+    );
+
+    // Step 4: Log successful cancellation for audit trail
+    logger.info("Order successfully cancelled by user", {
+      userId,
+      orderId,
+      orderAge: Math.floor(timeSinceOrder / (1000 * 60)), // minutes since order
+      cancellationType: "user_initiated",
+      previousStatus: order.delivery_status,
+    });
+
+    // Return success response
+    res.json({ message: "Order cancelled successfully" });
+  } catch (err) {
+    // Log error with comprehensive context for debugging
+    logger.error("Error processing order cancellation", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+    // Return generic error message to client
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });

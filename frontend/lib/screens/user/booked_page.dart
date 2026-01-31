@@ -54,7 +54,7 @@ class _BookedPageState extends State<BookedPage> {
 
       for (final order in orders) {
         if (_isCodExpired(order) && order['status'] != 'cancelled') {
-          // 🔥 Call backend to cancel
+          // Call backend to cancel
           await OrderService.cancelOrder(order['id']);
         }
       }

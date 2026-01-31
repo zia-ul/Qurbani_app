@@ -4,7 +4,6 @@ import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/services/user_service.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 class AdminOrderDetailPage extends StatefulWidget {
@@ -86,11 +85,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   }
 
   Future<void> _saveMeatDetails() async {
-    // if (meatWeightCtrl.text.isEmpty || bodyPartsCtrl.text.isEmpty) {
-    //   ToastUtils.showError('Fill all fields');
-    //   return;
-    // }
-
     try {
       await AdminOrderService.updateMeatDetails(
         widget.orderId,
@@ -101,6 +95,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       _fetchOrderDetails();
     } catch (e) {
       print(e);
+      ToastUtils.showError(e.toString());
+    }
+  }
+
+  Future<void> _markCodAsPaid() async {
+    try {
+      await AdminOrderService.markCodOrderAsPaid(widget.orderId);
+
+      ToastUtils.showSuccess('Order marked as paid');
+      await _fetchOrderDetails();
+      setState(() {});
+    } catch (e) {
       ToastUtils.showError(e.toString());
     }
   }
@@ -118,6 +124,10 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       );
       ToastUtils.showSuccess('Delivery assigned');
       _fetchOrderDetails();
+      await AdminOrderService.getDeliveryBoyDetails(
+        widget.orderId,
+        selectedDeliveryBoyId!,
+      );
     } catch (e) {
       print(e);
       ToastUtils.showError(e.toString());
@@ -175,6 +185,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
     final String currencyCode = currencyNotifier.currency;
 
+    print("...pay....m...${data['paymentMethod']}");
+    final bool showMarkAsPaidButton =
+        (data['paymentMethod'] ?? '').toString().toLowerCase().trim() ==
+            'cash' &&
+        data['payment_status'] == 'unpaid';
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -186,6 +201,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             _cardTitle('Order Information'),
             _infoRow('Order ID', widget.orderId),
             _infoRow('User', data['user_name']),
+            _infoRow('Address', data['address']),
             _infoRow('Animal Type', data['animal_type']),
             _infoRow(
               'Price',
@@ -193,6 +209,49 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             ),
 
             _infoRow('Payment', data['payment_status']),
+
+            if (showMarkAsPaidButton) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Mark as Paid'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Confirm Payment'),
+                        content: const Text(
+                          'Are you sure you want to mark this Cash on Delivery order as paid?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Confirm'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await _markCodAsPaid();
+                    }
+                  },
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+
             // _infoRow('Address', data['delivery_address']),
             _infoRow('Contact', data['contact_no']),
           ],

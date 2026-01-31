@@ -34,6 +34,18 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     super.dispose();
   }
 
+  bool _isCodExpired(Map<String, dynamic> order) {
+  if (order['payment_method'] != 'Cash') return false;
+  if (order['paymentStatus'] != 'unpaid') return false;
+  if (order['cod_deadline'] == null) return false;
+
+  final deadline = DateTime.tryParse(order['cod_deadline']);
+  if (deadline == null) return false;
+
+  return DateTime.now().isAfter(deadline);
+}
+
+
   Future<void> _fetchOrders() async {
     setState(() => _isLoading = true);
     try {
@@ -41,6 +53,21 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       
       print("Fetched orders:");
       print(_allOrders);
+
+      // 🔥 AUTO CANCEL EXPIRED COD ORDERS
+    for (final order in _allOrders) {
+      final isExpired = _isCodExpired(order);
+      final isAlreadyCancelled =
+          order['processingStatus'] == 'cancelled';
+
+      if (isExpired && !isAlreadyCancelled) {
+        print("Auto-cancelling COD order: ${order['orderId']}");
+        await AdminOrderService.cancelOrder(order['orderId']);
+      }
+    }
+
+    // 🔄 Re-fetch to get updated statuses
+    _allOrders = await AdminOrderService.getAdminOrders();
     } catch (e) {
       print('Error fetching orders: $e');
       
@@ -163,7 +190,13 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         final data = filteredOrders[index];
         final orderId = data['orderId'] ?? '';
         final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
-        final processingStatus = data['processingStatus'] ?? 'Pending';
+        final processingStatus =
+    data['processingStatus'] == 'cancelled'
+        ? 'Cancelled'
+        : _isCodExpired(data)
+            ? 'Cancelled'
+            : (data['processingStatus'] ?? 'Pending');
+
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),

@@ -18,39 +18,56 @@ router.get("/my", auth, adminOnly, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT
+      `
+      SELECT
         o.id,
         o.user_id,
         o.admin_id,
         o.payment_method,
         o.total_shares,
         o.processing_status,
+        o.payment_status,
+        o.delivery_status,
         o.created_at,
-        a.photo_urls
+        a.photo_urls,
+        aps.cod_deadline
       FROM orders o
-      LEFT JOIN animal_details a ON a.order_id = o.id
+      LEFT JOIN animal_details a 
+        ON a.order_id = o.id
+      LEFT JOIN admin_payment_settings aps
+        ON aps.admin_id = o.admin_id
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
       [adminId],
     );
 
-    logger.info("Admin orders", { orders });
+    logger.info("Admin orders raw", { orders });
 
     const ordersWithDetails = await Promise.all(
       orders.map(async (order) => {
         const [shareholders] = await pool.execute(
-          `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
+          `
+          SELECT id, shareholder_name, guardian_name, qurbani_day
+          FROM order_shareholders
+          WHERE order_id = ?
+          `,
           [order.id],
         );
 
         return {
           orderId: order.id,
           adminId: order.admin_id,
-          deliveryStatus: "pending",
+          paymentMethod: order.payment_method,
           processingStatus: order.processing_status,
+          paymentStatus: order.payment_status,
+          deliveryStatus: order.delivery_status,
           isCompleted: order.processing_status === "completed",
           createdAt: order.created_at,
+
+          cod_deadline: order.cod_deadline,
+
+          photoUrls: order.photo_urls,
           shareholders,
         };
       }),
@@ -76,10 +93,13 @@ router.get("/my", auth, adminOnly, async (req, res) => {
 });
 
 
+
 // GET /api/orders/admin/:orderId
 router.get("/:orderId", auth, adminOnly, async (req, res) => {
   const { orderId } = req.params;
   const adminId = req.user.id;
+
+  console.log("We are here in admin/:orderId")
 
   logger.info("Admin fetching order details", {
     adminId,
@@ -88,7 +108,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id
+      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.payment_status
        FROM orders o
        WHERE o.id = ? AND o.admin_id = ?`,
       [orderId, adminId],

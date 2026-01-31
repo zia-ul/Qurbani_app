@@ -28,6 +28,86 @@ class AdminOrderService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  /// MARK CASH ON DELIVERY ORDER AS PAID
+static Future<void> markCodOrderAsPaid(String orderId) async {
+  final token = await _storage.read(key: 'token');
+  if (token == null) throw Exception('Not authenticated');
+
+  print("Marking COD order as paid: $orderId");
+
+  final res = await http.put(
+    Uri.parse('$_baseUrl/orders/$orderId/mark-paid'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  print("Mark paid response status: ${res.statusCode}");
+  print("Mark paid response body: ${res.body}");
+
+  if (res.statusCode != 200) {
+    final msg =
+        jsonDecode(res.body)['message'] ?? 'Failed to mark order as paid';
+    throw Exception(msg);
+  }
+}
+
+
+  /// CANCEL ORDER (AUTO / MANUAL)
+  static Future<void> cancelOrder(
+    String orderId, {
+    String reason = "COD deadline expired",
+  }) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    print("Cancelling order: $orderId");
+    print("Reason: $reason");
+
+    final res = await http.put(
+      Uri.parse('$_baseUrl/orders/$orderId/cancel'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'reason': reason}),
+    );
+
+    print("Cancel response status: ${res.statusCode}");
+    print("Cancel response body: ${res.body}");
+
+    if (res.statusCode != 200) {
+      final msg = jsonDecode(res.body)['message'] ?? 'Failed to cancel order';
+      throw Exception(msg);
+    }
+  }
+
+  /// GET DELIVERY BOY DETAILS (after assignment)
+static Future<Map<String, dynamic>> getDeliveryBoyDetails(
+  String orderId,
+  String deliveryBoyId,
+) async {
+  final token = await _storage.read(key: 'token');
+  if (token == null) throw Exception('Not authenticated');
+
+  final res = await http.get(
+    Uri.parse('$_baseUrl/orders/$orderId/delivery-boy/$deliveryBoyId'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (res.statusCode != 200) {
+    final msg =
+        jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boy';
+    throw Exception(msg);
+  }
+
+  return Map<String, dynamic>.from(jsonDecode(res.body)['deliveryBoy']);
+}
+
+
   /// GET SINGLE ORDER DETAILS
   static Future<Map<String, dynamic>> getAdminOrderById(String orderId) async {
     final token = await _storage.read(key: 'token');
