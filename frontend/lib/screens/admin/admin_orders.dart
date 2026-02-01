@@ -35,42 +35,50 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   bool _isCodExpired(Map<String, dynamic> order) {
-  if (order['payment_method'] != 'Cash') return false;
-  if (order['paymentStatus'] != 'unpaid') return false;
-  if (order['cod_deadline'] == null) return false;
+    print("Order Check for expiry, ${order['cod_deadline']}");
+    print(order);
+    if (order['paymentMethod'] != 'Cash') return false;
+    if (order['paymentStatus'] != 'unpaid') return false;
+    if (order['cod_deadline'] == null) return false;
 
-  final deadline = DateTime.tryParse(order['cod_deadline']);
-  if (deadline == null) return false;
+    final deadline = DateTime.tryParse(order['cod_deadline']);
+    print("date....$deadline, ${DateTime.now()}");
+    if (deadline == null) return false;
 
-  return DateTime.now().isAfter(deadline);
-}
+    // print("date....$deadline, ${DateTime.now()}");
 
+    return DateTime.now().isAfter(deadline);
+  }
 
   Future<void> _fetchOrders() async {
     setState(() => _isLoading = true);
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
-      
+      print(_allOrders.length);
+
       // print("Fetched orders:");
       // print(_allOrders);
 
       // 🔥 AUTO CANCEL EXPIRED COD ORDERS
-    for (final order in _allOrders) {
-      final isExpired = _isCodExpired(order);
-      final isAlreadyCancelled =
-          order['processingStatus'] == 'cancelled';
+      for (final order in _allOrders) {
+        final isExpired = _isCodExpired(order);
+        final isAlreadyCancelled = order['processingStatus'] == 'cancelled';
 
-      if (isExpired && !isAlreadyCancelled) {
-        print("Auto-cancelling COD order: ${order['orderId']}");
-        await AdminOrderService.cancelOrder(order['orderId']);
+        print("Checking Cancelled orders");
+        print(isAlreadyCancelled);
+        print(isExpired);
+
+        if (isExpired && !isAlreadyCancelled) {
+          print("Auto-cancelling COD order: ${order['orderId']}");
+          await AdminOrderService.cancelOrder(order['orderId']);
+        }
       }
-    }
 
-    // 🔄 Re-fetch to get updated statuses
-    _allOrders = await AdminOrderService.getAdminOrders();
+      // 🔄 Re-fetch to get updated statuses
+      _allOrders = await AdminOrderService.getAdminOrders();
+      print(_allOrders.length);
     } catch (e) {
       // print('Error fetching orders: $e');
-      
     } finally {
       setState(() => _isLoading = false);
     }
@@ -190,13 +198,11 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         final data = filteredOrders[index];
         final orderId = data['orderId'] ?? '';
         final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
-        final processingStatus =
-    data['processingStatus'] == 'cancelled'
-        ? 'Cancelled'
-        : _isCodExpired(data)
+        final processingStatus = data['processingStatus'] == 'cancelled'
+            ? 'Cancelled'
+            : _isCodExpired(data)
             ? 'Cancelled'
             : (data['processingStatus'] ?? 'Pending');
-
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),

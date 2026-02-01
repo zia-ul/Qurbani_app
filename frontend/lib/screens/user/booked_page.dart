@@ -33,10 +33,10 @@ class _BookedPageState extends State<BookedPage> {
     super.dispose();
   }
 
-
   bool _isCodExpired(Map<String, dynamic> order) {
-    if (order['paymentMethod'] != 'Cash') return false;
-    if (order['paymentStatus'] != 'unpaid') return false;
+    print(order);
+    if (order['payment_method'] != 'Cash') return false;
+    if (order['payment_status'] != 'unpaid') return false;
     if (order['cod_deadline'] == null) return false;
 
     final deadline = DateTime.tryParse(order['cod_deadline']);
@@ -55,6 +55,7 @@ class _BookedPageState extends State<BookedPage> {
       for (final order in orders) {
         if (_isCodExpired(order) && order['status'] != 'cancelled') {
           // Call backend to cancel
+          print("$order cancelled");
           await OrderService.cancelOrder(order['id']);
         }
       }
