@@ -1,3 +1,4 @@
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/admin/order_details.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
@@ -34,9 +35,18 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     super.dispose();
   }
 
+  String shortId(String id, {int length = 8}) {
+    if (id.length <= length) return id;
+    return id.substring(id.length - length); // last N chars
+  }
+
   bool _isCodExpired(Map<String, dynamic> order) {
-    print("Order Check for expiry, ${order['cod_deadline']}");
-    print(order);
+    AppLogger.debug("Checking COD expiry", {
+      "orderId": order['orderId'],
+      "paymentMethod": order['paymentMethod'],
+      "paymentStatus": order['paymentStatus'],
+      "deadline": order['cod_deadline'],
+    });
     if (order['paymentMethod'] != 'Cash') return false;
     if (order['paymentStatus'] != 'unpaid') return false;
     if (order['cod_deadline'] == null) return false;
@@ -44,8 +54,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     final deadline = DateTime.tryParse(order['cod_deadline']);
     print("date....$deadline, ${DateTime.now()}");
     if (deadline == null) return false;
-
-    // print("date....$deadline, ${DateTime.now()}");
 
     return DateTime.now().isAfter(deadline);
   }
@@ -56,10 +64,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       _allOrders = await AdminOrderService.getAdminOrders();
       print(_allOrders.length);
 
-      // print("Fetched orders:");
-      // print(_allOrders);
+      AppLogger.info("Orders fetched: ${_allOrders.length}");
 
-      // 🔥 AUTO CANCEL EXPIRED COD ORDERS
+      // AUTO CANCEL EXPIRED COD ORDERS
       for (final order in _allOrders) {
         final isExpired = _isCodExpired(order);
         final isAlreadyCancelled = order['processingStatus'] == 'cancelled';
@@ -69,16 +76,18 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         print(isExpired);
 
         if (isExpired && !isAlreadyCancelled) {
-          print("Auto-cancelling COD order: ${order['orderId']}");
+          AppLogger.warning(
+            "Auto-cancelling expired COD order: ${order['orderId']}",
+          );
           await AdminOrderService.cancelOrder(order['orderId']);
         }
       }
 
-      // 🔄 Re-fetch to get updated statuses
+      // Re-fetch to get updated statuses
       _allOrders = await AdminOrderService.getAdminOrders();
-      print(_allOrders.length);
-    } catch (e) {
-      // print('Error fetching orders: $e');
+      AppLogger.info("Orders reloaded after cancellation cleanup");
+    } catch (e, stack) {
+      AppLogger.error("Failed to fetch admin orders", e, stack);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -232,7 +241,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                               text: "ID: ",
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            TextSpan(text: "#$orderId"),
+                            TextSpan(text: "#${shortId(orderId)}"),
+
                           ],
                         ),
                       ),

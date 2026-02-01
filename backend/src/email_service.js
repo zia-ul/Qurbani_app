@@ -4,31 +4,29 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const _baseUrl = process.env.BASE_URL;
+
 // Create transporter with Gmail SMTP (SSL)
-const createTransporter = async () => {
-  // const testAccount = await nodemailer.createTestAccount();
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false, // TLS
-    auth: {
-      user: 'conor.cruickshank78@ethereal.email',
-      pass: 'xMcAWCNv9VvtXSzubP'
-    },
-  });
-};
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com', 
+  port: 587,
+  secure: false, // TLS
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
-createTransporter();
+
 
 // Verify connection configuration
-// transporter.verify(function (error, success) {
-//   if (error) {
-//     console.error('Nodemailer transporter error:', error);
-//   } else {
-//     console.log('Nodemailer is ready to send emails');
-//   }
-// });
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Nodemailer error:', error);
+  } else {
+    console.log('✅ Nodemailer ready to send emails');
+  }
+});
 
 /**
  * Send verification email to user

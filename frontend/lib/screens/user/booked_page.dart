@@ -33,6 +33,7 @@ class _BookedPageState extends State<BookedPage> {
     super.dispose();
   }
 
+
   bool _isCodExpired(Map<String, dynamic> order) {
     print(order);
     if (order['payment_method'] != 'Cash') return false;
@@ -44,6 +45,7 @@ class _BookedPageState extends State<BookedPage> {
 
     return DateTime.now().isAfter(deadline);
   }
+
 
   Future<void> fetchOrders() async {
     setState(() => isLoading = true);
@@ -233,7 +235,7 @@ class _BookedPageState extends State<BookedPage> {
                     const Icon(
                       Icons.check_circle,
                       size: 14,
-                      color: Colors.green,
+                      color: AppTheme.primaryGreen,
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -263,7 +265,7 @@ class _BookedPageState extends State<BookedPage> {
                     const Icon(
                       Icons.local_shipping_outlined,
                       size: 14,
-                      color: Colors.blue,
+                      color: AppTheme.primaryGreen,
                     ),
                     const SizedBox(width: 4),
                     Expanded(

@@ -1,3 +1,4 @@
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -30,12 +31,18 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     _adminFuture = _fetchAdminProfile();
   }
 
-  Future<Map<String, dynamic>> _fetchAdminProfile() async {
-    final token = await _storage.read(key: "token");
-    if (token == null) {
-      throw Exception("No token found. User not logged in.");
-    }
+Future<Map<String, dynamic>> _fetchAdminProfile() async {
+  AppLogger.debug(
+    "Fetching admin profile | adminId=${widget.adminId}",
+  );
 
+  final token = await _storage.read(key: "token");
+  if (token == null) {
+    AppLogger.error("No auth token found while loading admin profile");
+    throw Exception("No token found. User not logged in.");
+  }
+
+  try {
     final res = await http.get(
       Uri.parse('$_baseUrl/auth/adminprofile/${widget.adminId}'),
       headers: {
@@ -44,12 +51,34 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
       },
     );
 
+    AppLogger.debug(
+      "Admin profile API response | statusCode=${res.statusCode}",
+    );
+
     if (res.statusCode == 200) {
-      return jsonDecode(res.body) as Map<String, dynamic>;
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+
+      AppLogger.info(
+        "Admin profile loaded successfully | adminId=${widget.adminId}",
+      );
+
+      return data;
     } else {
+      AppLogger.error(
+        "Failed to load admin profile | statusCode=${res.statusCode} | body=${res.body}",
+      );
       throw Exception('Failed to load admin profile');
     }
+  } catch (e, stack) {
+    AppLogger.error(
+      "Exception while fetching admin profile | adminId=${widget.adminId}",
+      e,
+      stack,
+    );
+    rethrow;
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +92,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           }
 
           if (snapshot.hasError) {
+            AppLogger.error(
+    "Admin profile load failed | adminId=${widget.adminId}",
+    snapshot.error,
+  );
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 

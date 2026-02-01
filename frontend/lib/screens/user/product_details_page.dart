@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -414,6 +413,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     order['id'],
                     isCopyable: false,
                   ),
+                  // _buildInfoRow(
+                  //   Icons.fingerprint,
+                  //   "Order ID",
+                  //   IdUtils.shorten(order['id']),
+                  //   isCopyable: true,
+                  // ),
                   _buildInfoRow(
                     Icons.check_circle,
                     "Payment Status",
@@ -433,7 +438,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   ),
 
                   _buildInfoRow(
-                    Icons.code,
+                    Icons.security,
                     "Delivery Code",
                     order['delivery_code'] ?? 'Not assigned',
                     isCopyable: order['delivery_code'] != null,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
@@ -44,10 +45,19 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       _errorMessage = null;
     });
 
+      AppLogger.debug("Fetching delivery orders");
+
     try {
       _orders = await DeliveryService.getOrders();
-      // print(_orders);
-    } catch (e) {
+      AppLogger.info(
+      "Delivery orders loaded | count=${_orders.length}",
+    );
+    } catch (e, stack) {
+    AppLogger.error(
+      "Failed to fetch delivery orders",
+      e,
+      stack,
+    );
       setState(() {
         _errorMessage = e.toString();
       });
@@ -58,53 +68,94 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     }
   }
 
-  Future<bool> _requestPermissionsIfNeeded() async {
-    final statuses = await [
-      Permission.location,
-      Permission.camera,
-      Permission.notification,
-    ].request();
+ Future<bool> _requestPermissionsIfNeeded() async {
+  AppLogger.debug("Requesting delivery permissions");
 
-    final allGranted = statuses.values.every((status) => status.isGranted);
-    if (!allGranted) {
-      ToastUtils.showError("Some permissions were denied");
-    }
-    return allGranted;
+  final statuses = await [
+    Permission.location,
+    Permission.camera,
+    Permission.notification,
+  ].request();
+
+  final allGranted = statuses.values.every((status) => status.isGranted);
+
+  if (!allGranted) {
+    AppLogger.warning("Some delivery permissions denied");
+    ToastUtils.showError("Some permissions were denied");
+  } else {
+    AppLogger.info("All delivery permissions granted");
   }
 
-  Future<void> _updateStatus(String orderId, String status) async {
-    try {
-      final result = await DeliveryService.updateStatus(orderId, status);
-      if (status == 'sent') {
-        // Show code to delivery person (backend handles user notification)
-        ToastUtils.showSuccess('Code sent to user');
+  return allGranted;
+}
 
-        // Local notification
-        AwesomeNotifications().createNotification(
-          content: NotificationContent(
-            id: Random().nextInt(10000),
-            channelKey: 'delivery_alerts',
-            title: 'Delivery Started',
-            body: 'Order $orderId is on the way',
-          ),
-        );
-      }
-      _fetchOrders(); // Refresh list
-    } catch (e) {
-      ToastUtils.showError("Error: $e");
-    }
-  }
+Future<void> _updateStatus(String orderId, String status) async {
+  AppLogger.info(
+    "Updating delivery status | orderId=$orderId | status=$status",
+  );
 
-  Future<void> _verifyCode(String orderId, String code) async {
-    try {
-      await DeliveryService.verifyCode(orderId, code);
-      Navigator.pop(context);
-      ToastUtils.showSuccess("Order marked as Delivered!");
-      _fetchOrders();
-    } catch (e) {
-      ToastUtils.showError("Error: $e");
+  try {
+    final result = await DeliveryService.updateStatus(orderId, status);
+
+    AppLogger.debug(
+      "Delivery status update success | orderId=$orderId | status=$status",
+    );
+
+    if (status == 'sent') {
+      ToastUtils.showSuccess('Code sent to user');
+
+      AppLogger.info(
+        "Delivery started notification triggered | orderId=$orderId",
+      );
+
+      AwesomeNotifications().createNotification(
+        content: NotificationContent(
+          id: Random().nextInt(10000),
+          channelKey: 'delivery_alerts',
+          title: 'Delivery Started',
+          body: 'Order $orderId is on the way',
+        ),
+      );
     }
+
+    _fetchOrders();
+  } catch (e, stack) {
+    AppLogger.error(
+      "Failed to update delivery status | orderId=$orderId | status=$status",
+      e,
+      stack,
+    );
+
+    ToastUtils.showError("Error: $e");
   }
+}
+
+Future<void> _verifyCode(String orderId, String code) async {
+  AppLogger.info(
+    "Verifying delivery code | orderId=$orderId | codeLength=${code.length}",
+  );
+
+  try {
+    await DeliveryService.verifyCode(orderId, code);
+
+    AppLogger.info(
+      "Delivery completed successfully | orderId=$orderId",
+    );
+
+    Navigator.pop(context);
+    ToastUtils.showSuccess("Order marked as Delivered!");
+    _fetchOrders();
+  } catch (e, stack) {
+    AppLogger.error(
+      "Delivery code verification failed | orderId=$orderId",
+      e,
+      stack,
+    );
+
+    ToastUtils.showError("Error: $e");
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {

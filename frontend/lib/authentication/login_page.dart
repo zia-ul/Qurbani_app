@@ -14,6 +14,7 @@
  * - Automatic redirect to wrapper screen on successful login
  */
 
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
@@ -53,7 +54,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // LOGIN FUNCTION
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppLogger.warning("Login validation failed");
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -91,6 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       );
+
+      AppLogger.error("Login failed", e, StackTrace.current);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

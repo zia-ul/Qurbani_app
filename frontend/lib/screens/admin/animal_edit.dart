@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -76,74 +77,13 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
     return c.text.trim().isNotEmpty;
   }
 
-  // Future<void> _loadAnimalDetails() async {
-  //   try {
-  //     final token = await _storage.read(key: "token");
-  //     if (token == null) return;
-
-  //     final res = await http.get(
-  //       Uri.parse("$_baseUrl/animals/${widget.animalId}"),
-  //       headers: {
-  //         "Authorization": "Bearer $token",
-  //         "Content-Type": "application/json",
-  //       },
-  //     );
-
-  //     if (res.statusCode != 200) {
-  //       setState(() => isLoading = false);
-  //       return;
-  //     }
-
-  //     final data = jsonDecode(res.body);
-
-  //     print("data on fronent...animal edit: $data");
-
-  //     // from animals table
-  //     animalTypeController.text = data['animal_type'] ?? '';
-  //     breedController.text = data['details_breed'] ?? data['breed'] ?? '';
-  //     descriptionController.text =
-  //         data['details_description'] ?? data['description'] ?? '';
-  //     ageController.text = data['details_age'] ?? '';
-  //     heightController.text = data['details_height'] ?? '';
-  //     weightController.text = data['details_weight'] ?? '';
-  //     priceController.text = data['price']?.toString() ?? '';
-  //     sharesController.text = data['shares']?.toString() ?? '';
-
-  //     // animal_details specific
-  //     barcodeController.text = data['barcode'] ?? '';
-  //     final meatWeight = data['meat_weight'];
-  //     final bodyPartsDesc = data['body_parts_description'];
-  //     final qurbaniDate = data['qurbani_datetime'];
-
-  //     // photos (prefer animal_details if present)
-  //     // Robust handling of details_photo_urls
-  //     final photoUrlsRaw =
-  //         data['details_photo_urls'] ?? data['photo_urls'] ?? [];
-
-  //     if (photoUrlsRaw is String) {
-  //       existingPhotoUrls = photoUrlsRaw.contains(',')
-  //           ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
-  //           : [photoUrlsRaw];
-  //     } else if (photoUrlsRaw is List) {
-  //       existingPhotoUrls = List<String>.from(photoUrlsRaw);
-  //     } else {
-  //       existingPhotoUrls = [];
-  //     }
-
-  //     // selectedPaymentMethods = List<String>.from(
-  //     //   jsonDecode(data['payment_methods'] ?? "[]"),
-  //     // );
-
-  //     setState(() => isLoading = false);
-  //   } catch (e) {
-  //     setState(() => isLoading = false);
-  //   }
-  // }
-
   Future<void> _loadAnimalDetails() async {
     try {
       final token = await _storage.read(key: "token");
-      if (token == null) return;
+      if (token == null) {
+        AppLogger.warning("Token missing while loading animal details");
+        return;
+      }
 
       // Pass orderId as query param
       final uri = Uri.parse("$_baseUrl/animals/${widget.animalId}").replace(
@@ -161,13 +101,16 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
         },
       );
 
+      AppLogger.debug("Animal details response", {"status": res.statusCode});
+
       if (res.statusCode != 200) {
+        AppLogger.error("Failed to load animal details", res.body);
         setState(() => isLoading = false);
         return;
       }
 
       final data = jsonDecode(res.body);
-
+      AppLogger.debug("Animal data parsed successfully");
       // delivery setup (LOCK if already chosen)
       if (data['delivery_type'] != null) {
         selectedDeliveryType = data['delivery_type']; // "Free" or "Paid"
@@ -200,21 +143,32 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
       // final qurbaniDate = data['qurbani_datetime'];
 
       // photos (prefer animal_details if present)
-      final photoUrlsRaw =
-          data['details_photo_urls'] ?? data['photo_urls'] ?? [];
+      final raw = data['details_photo_urls'] ?? data['photo_urls'];
 
-      if (photoUrlsRaw is String) {
-        existingPhotoUrls = photoUrlsRaw.contains(',')
-            ? photoUrlsRaw.split(',').map((e) => e.trim()).toList()
-            : [photoUrlsRaw];
-      } else if (photoUrlsRaw is List) {
-        existingPhotoUrls = List<String>.from(photoUrlsRaw);
-      } else {
-        existingPhotoUrls = [];
+      List<String> parsedUrls = [];
+
+      if (raw is String && raw.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) {
+            parsedUrls = decoded.cast<String>();
+          } else if (raw.startsWith('http')) {
+            parsedUrls = [raw];
+          }
+        } catch (_) {
+          if (raw.startsWith('http')) {
+            parsedUrls = [raw];
+          }
+        }
+      } else if (raw is List) {
+        parsedUrls = raw.cast<String>();
       }
 
+      existingPhotoUrls = parsedUrls;
+
       setState(() => isLoading = false);
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Exception while loading animal details", e, stack);
       setState(() => isLoading = false);
     }
   }
@@ -243,15 +197,23 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
 
       final response = await request.send();
       if (response.statusCode == 200) {
-        final decoded = jsonDecode(await response.stream.bytesToString());
-        uploadedUrls.add(decoded['secure_url']);
-      }
+      final decoded = jsonDecode(await response.stream.bytesToString());
+      uploadedUrls.add(decoded['secure_url']);
+      AppLogger.debug("Image uploaded successfully");
+    } else {
+      AppLogger.warning("Image upload failed: ${response.statusCode}");
     }
+    }
+
+    AppLogger.info("Image upload complete | uploaded=${uploadedUrls.length}");
     return uploadedUrls;
   }
 
   Future<void> updateAnimal() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+    AppLogger.warning("Form validation failed");
+    return;
+  }
 
     final confirmed = await _showConfirmationDialog();
 
@@ -274,7 +236,14 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
 
       final newUrls = await _uploadNewImages();
       final allImages = [...existingPhotoUrls, ...newUrls];
-
+AppLogger.debug(
+      "Updating animal",
+      {
+        "animalId": widget.animalId,
+        "orderId": widget.orderId,
+        "images": allImages.length,
+      },
+    );
       final res = await http.post(
         Uri.parse("$_baseUrl/animals/${widget.animalId}"),
         headers: {
@@ -301,15 +270,18 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
         }),
       );
 
+      AppLogger.info("Update response status: ${res.statusCode}");
+
       if (res.statusCode == 200) {
         if (!mounted) return;
         ToastUtils.showSuccess('Animal updated successfully');
         Navigator.pop(context);
       } else {
-        // print(res.body); 
+        AppLogger.error("Update failed", res.body);
         throw res.body;
       }
-    } catch (e) {
+    } catch (e, stack) {
+    AppLogger.error("Error updating animal", e, stack);
       ToastUtils.showError("Error: $e");
     } finally {
       setState(() => isUpdating = false);
@@ -752,7 +724,24 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.broken_image),
+                ),
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
               ),
+
               () => setState(() => existingPhotoUrls.removeAt(entry.key)),
             ),
           ),

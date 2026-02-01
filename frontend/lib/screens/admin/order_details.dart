@@ -253,6 +253,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           children: [
             _cardTitle('Order Information'),
             _infoRow('Order ID', widget.orderId),
+            
             _infoRow('User', data['user_name']),
             _infoRow('Address', data['address']),
             _infoRow('Animal Type', data['animal_type']),

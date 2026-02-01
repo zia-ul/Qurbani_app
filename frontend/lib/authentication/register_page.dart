@@ -17,6 +17,7 @@
  * - Address collection
  */
 
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/authentication/login_page.dart';
@@ -104,18 +105,22 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // ---------------- REGISTER ----------------
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppLogger.warning('Register form validation failed');
+      return;
+    }
 
     _formKey.currentState!.save();
 
     if (phoneNumber == null || countryCode == null) {
+      AppLogger.warning('Register failed: phone number missing');
       ToastUtils.showError('Please enter phone number');
       return;
     }
 
     if (!termsAccepted) {
+      AppLogger.warning('Register failed: terms not accepted');
       ToastUtils.showError('Please accept Terms & Conditions');
-
       return;
     }
 
@@ -137,24 +142,21 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (!mounted) return;
 
+      AppLogger.info('User registered successfully');
+
       ToastUtils.showSuccess(
         'Registration successful. Please verify your email.',
       );
 
-     
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => LoginScreen()),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error('Register API failed', e, stack);
       ToastUtils.showError(
         "${e.toString().replaceAll('Exception:', '').trim()}",
       );
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text(e.toString().replaceAll('Exception:', '').trim()),
-      //   ),
-      // );
     } finally {
       if (mounted) setState(() => isLoading = false);
     }

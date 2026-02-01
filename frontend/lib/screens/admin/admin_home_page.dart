@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:convert';
 import 'dart:async'; // For Timer
 
+import 'package:Qurbani/utils/logger.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -54,7 +55,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
   @override
   void dispose() {
     _notificationTimer?.cancel();
-    _statsTimer?.cancel(); // 🔥 Cancel stats timer
+    _statsTimer?.cancel(); // Cancel stats timer
     super.dispose();
   }
 
@@ -64,125 +65,87 @@ class _AdminHomePageState extends State<AdminHomePage> {
     });
   }
 
-  Future<void> _checkNotificationPermission() async {
-    final isAllowed = await AwesomeNotifications().isNotificationAllowed();
-    if (!isAllowed) {
-      await AwesomeNotifications().requestPermissionToSendNotifications();
-    }
+Future<void> _checkNotificationPermission() async {
+  AppLogger.debug("Checking notification permission");
+
+  final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+  if (!isAllowed) {
+    AppLogger.warning("Notification permission not granted. Requesting...");
+    await AwesomeNotifications().requestPermissionToSendNotifications();
   }
+}
+
 
   Future<void> _loadStats() async {
     try {
+
+      AppLogger.debug("Fetching dashboard stats from backend");
+
       final stats =
           await AdminService.getDashboardStats(); // fetch from backend
+
+           AppLogger.info("Dashboard stats loaded: $stats");
+
       setState(() {
         _stats = stats; // update UI
       });
-    } catch (e) {
-      debugPrint("Error loading stats: $e");
+    } catch (e, stack) {
+    AppLogger.error("Failed to load dashboard stats", e, stack);
       // optional: show toast or ignore
     }
   }
 
   // ---------------------------------------------------------
-  // POLLING FOR NOTIFICATIONS (Replaces Firestore Listeners)
-  // ---------------------------------------------------------
-
-  // void _startNotificationPolling() {
-  //   _notificationTimer = Timer.periodic(const Duration(seconds: 30), (
-  //     timer,
-  //   ) async {
-  //     try {
-  //       final notifications = await AdminService.getNotifications();
-  //       for (final notification in notifications) {
-  //         String title = '';
-  //         String body = '';
-
-  //         switch (notification['type']) {
-  //           case 'new_order':
-  //             title = "💰 New Order Received";
-  //             body = "Order #${notification['order_id']} has been placed.";
-  //             break;
-  //           case 'delivery_update':
-  //             title = "🚚 Delivery Update";
-  //             body = "Order #${notification['order_id']} status updated.";
-  //             break;
-  //           case 'rating':
-  //             title = "⭐ New Rating";
-  //             body = "Order #${notification['order_id']} received a rating.";
-  //             break;
-  //         }
-
-  //         if (title.isNotEmpty) {
-  //           _triggerAdminNotification(title: title, body: body);
-  //           // Mark as notified in backend
-  //           await AdminService.markNotificationNotified(notification['id']);
-  //         }
-  //       }
-  //     } catch (e) {
-  //       // Handle silently to avoid spam
-  //       debugPrint("Error polling notifications: $e");
-  //     }
-  //   });
-  // }
-
-  // ---------------------------------------------------------
-  // NOTIFICATIONS
-  // ---------------------------------------------------------
-
-  // void _triggerAdminNotification({
-  //   required String title,
-  //   required String body,
-  // }) {
-  //   AwesomeNotifications().createNotification(
-  //     content: NotificationContent(
-  //       id: Random().nextInt(100000),
-  //       channelKey: 'admin_alerts',
-  //       title: title,
-  //       body: body,
-  //       wakeUpScreen: true,
-  //       criticalAlert: true,
-  //       notificationLayout: NotificationLayout.Default,
-  //       backgroundColor: AppTheme.primaryGreen,
-  //     ),
-  //   );
-  // }
-
-  // ---------------------------------------------------------
   // PERMISSIONS
   // ---------------------------------------------------------
 
-  Future<void> _checkPermissions() async {
-    await [
-      Permission.notification,
-      Permission.camera,
-      Permission.location,
-    ].request();
-  }
+ Future<void> _checkPermissions() async {
+  AppLogger.debug("Requesting permissions: notification, camera, location");
+
+  await [
+    Permission.notification,
+    Permission.camera,
+    Permission.location,
+  ].request();
+}
 
   // ---------------------------------------------------------
   // BACKEND LOCATION CHECK (JWT BASED)
   // ---------------------------------------------------------
 
-  Future<void> _ensureLocationSelected() async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) return;
-
-    final res = await http.get(
-      Uri.parse("$_baseUrl/admin/profile"),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
-      if (data['city'] == null) {
-        // TODO: Show location picker
-      }
-    }
+Future<void> _ensureLocationSelected() async {
+  final token = await _storage.read(key: 'token');
+  if (token == null) {
+    AppLogger.warning("No token found while checking admin location");
+    return;
   }
+
+  AppLogger.debug("Checking admin profile for location");
+
+  final res = await http.get(
+    Uri.parse("$_baseUrl/admin/profile"),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
+
+  if (res.statusCode == 200) {
+    final data = jsonDecode(res.body);
+    AppLogger.info("Admin profile loaded: city=${data['city']}");
+
+    if (data['city'] == null) {
+      AppLogger.warning("Admin has no city selected");
+      // TODO: show location picker
+    }
+  } else {
+    AppLogger.error(
+      "Failed to fetch admin profile",
+      res.body,
+    );
+  }
+}
+
 
   // ---------------------------------------------------------
   // UI

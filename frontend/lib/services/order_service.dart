@@ -26,7 +26,7 @@ class OrderService {
     required String userId,
     required String adminId,
     required String paymentMethod,
-    required String paymentStatus, 
+    required String paymentStatus,
     required List<Map<String, dynamic>> shareholders,
     required double totalAmount,
   }) async {
@@ -55,6 +55,24 @@ class OrderService {
     }
 
     return Map<String, dynamic>.from(jsonDecode(res.body));
+  }
+
+  // Fetch barcode for a specific animal order
+  static Future<String> getOrderBarcode(String orderId) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+    // final res = await http.get(Uri.parse('$_baseUrl/orders/$orderId/barcode'));
+    final res = await http.get(
+      Uri.parse('$_baseUrl/orders/$orderId/barcode'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      return data['barcode']; // should be a string
+    } else {
+      throw Exception('Failed to fetch barcode');
+    }
   }
 
   /// GET ANIMALS FOR ADMIN

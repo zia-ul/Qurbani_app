@@ -55,6 +55,8 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       );
       Navigator.pop(context); // Back to order page or home
     } catch (e) {
+      print("testing error here");
+      print(e);
       Fluttertoast.showToast(
         msg: "Payment recorded, but error updating: $e",
         backgroundColor: Colors.orange,

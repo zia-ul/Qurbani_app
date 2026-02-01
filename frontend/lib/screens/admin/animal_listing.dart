@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-import 'package:Qurbani/screens/admin/animal_edit.dart';
 import 'package:Qurbani/screens/admin/animal_orders_page.dart'; // New page
 import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/theme/theme.dart';
@@ -48,7 +46,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        // print(data);
+        print(data);
         setState(() => animals = data['animals'] ?? []);
       } else {
         ToastUtils.showError("Failed to fetch animals: ${response.body}");
@@ -161,31 +159,31 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Image placeholder or actual image
-              Container(
-                height: 80,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: animal['image_url'] != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          animal['image_url'],
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          size: 40,
-                          color: Colors.grey,
-                        ),
-                      ),
-              ),
-              const SizedBox(height: 8),
+              // Container(
+              //   height: 80,
+              //   width: double.infinity,
+              //   decoration: BoxDecoration(
+              //     color: Colors.grey.shade200,
+              //     borderRadius: BorderRadius.circular(8),
+              //   ),
+              //   child: animal['image_url'] != null
+              //       ? ClipRRect(
+              //           borderRadius: BorderRadius.circular(8),
+              //           child: Image.network(
+              //             animal['image_url'],
+              //             fit: BoxFit.cover,
+              //           ),
+              //         )
+              //       : Container(
+              //           color: Colors.grey.shade200,
+              //           child: const Icon(
+              //             Icons.image_not_supported,
+              //             size: 40,
+              //             color: Colors.grey,
+              //           ),
+              //         ),
+              // ),
+              // const SizedBox(height: 8),
               Text(
                 "${animal['breed'] ?? ''} (${animal['animal_type'] ?? ''})",
                 style: const TextStyle(
@@ -234,7 +232,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
                         );
                       },
                       icon: const Icon(Icons.visibility, size: 16),
-                      label: const Text("View"),
+                      label: const Text("View Orders"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryGreen,
                         foregroundColor: AppTheme.bgGradientEnd,

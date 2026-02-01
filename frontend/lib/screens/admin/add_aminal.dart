@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:Qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -57,6 +58,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     );
 
     if (picked != null) {
+      AppLogger.info('Last booked date selected: ${picked.toIso8601String()}');
       setState(() {
         lastBookedDate = picked;
         lastBookedDateController.text =
@@ -66,20 +68,27 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   }
 
   Future<void> addAnimal() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      AppLogger.warning('Add animal form validation failed');
+      return;
+    }
 
     if (selectedAnimalType == null) {
+      AppLogger.warning('Add animal failed: animal type missing');
       ToastUtils.showError("Animal type is required");
       return;
     }
 
     if (lastBookedDate == null) {
+      AppLogger.warning('Add animal failed: last booked date missing');
       ToastUtils.showError("Last booking date is required");
       return;
     }
 
     final token = await _storage.read(key: "token");
+
     if (token == null) {
+      AppLogger.error('Add animal failed: user not authenticated');
       ToastUtils.showError("Not authenticated");
       return;
     }
@@ -119,14 +128,20 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
         },
         body: jsonEncode(body),
       );
+      AppLogger.debug('Add animal API response', {
+        'statusCode': res.statusCode,
+      });
 
       if (res.statusCode != 201) {
         throw Exception(jsonDecode(res.body)["message"]);
       }
 
+      AppLogger.info('Animal added successfully');
+
       ToastUtils.showSuccess("Animal added successfully");
       if (mounted) Navigator.pop(context);
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error('Failed to add animal', e, stack);
       ToastUtils.showError("Failed to add animal: $e");
     } finally {
       if (mounted) setState(() => isLoading = false);

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:Qurbani/services/service_profile.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -55,6 +56,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<void> _fetchUserProfile() async {
     try {
       final profile = await ProfileService.getProfile();
+
+      AppLogger.info("Profile fetched successfully");
       setState(() {
         orgController.text = profile['organization_name'] ?? '';
         phoneController.text = profile['phone'] ?? '';
@@ -62,18 +65,31 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
         expController.text = "0"; // default experience
         fetchingProfile = false;
       });
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Failed to fetch admin profile", e, stack);
       setState(() => fetchingProfile = false);
       ToastUtils.showError("Failed to fetch profile: $e");
     }
   }
 
   Future<XFile?> pickImage() async {
-    return await ImagePicker().pickImage(source: ImageSource.gallery);
+    AppLogger.debug("Opening image picker");
+    final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      AppLogger.info("Image selected: ${image.path}");
+    } else {
+      AppLogger.warning("Image picker cancelled by user");
+    }
+
+    return image;
   }
 
   Future<String?> upload(XFile? image) async {
     if (image == null) return null;
+
+    AppLogger.debug("Uploading image", {"file": image.path});
+
     try {
       final req =
           http.MultipartRequest(
@@ -87,17 +103,32 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
       final res = await req.send();
       final body = await res.stream.bytesToString();
-      if (res.statusCode != 200) throw Exception("Image upload failed");
-      return jsonDecode(body)['secure_url'];
-    } catch (e) {
-      // debugPrint("Upload error: $e");
+
+      if (res.statusCode != 200) {
+        AppLogger.error("Image upload failed", {
+          "status": res.statusCode,
+          "body": body,
+        });
+        throw Exception("Image upload failed");
+      }
+
+      final url = jsonDecode(body)['secure_url'];
+      AppLogger.info("Image uploaded successfully");
+
+      return url;
+    } catch (e, stack) {
+      AppLogger.error("Image upload error", e, stack);
       rethrow;
     }
   }
 
   Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (govtId == null || businessProof == null) {
+      AppLogger.warning(
+        "Verification submit blocked: missing required documents",
+      );
       ToastUtils.showError("Please upload required documents");
       return;
     }
@@ -116,7 +147,11 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
         "farm_photo_url": await upload(farmPhoto),
       };
 
+      AppLogger.debug("Verification payload prepared");
+
       await AdminVerificationService.submitVerification(data);
+
+      AppLogger.info("Admin verification submitted successfully");
 
       ToastUtils.showSuccess("Verification submitted");
 
@@ -131,7 +166,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Admin verification submission failed", e, stack);
       ToastUtils.showError(e.toString());
     } finally {
       setState(() => loading = false);

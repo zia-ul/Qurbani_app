@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:barcode_widget/barcode_widget.dart';
+import 'package:barcode_widget/barcode_widget.dart' as bw;
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:printing/printing.dart';
 import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
@@ -19,9 +20,17 @@ class BarcodePage extends StatefulWidget {
 
 class _BarcodePageState extends State<BarcodePage> {
   final GlobalKey _globalKey = GlobalKey();
+  String? scannedCode;
 
-  // Theme Colors from reference
   final Color bgParchment = const Color(0xffF2E8D5);
+
+  /// Show only last 12 digits for display
+  String get displayBarcode {
+    if (widget.barcodeValue.length > 12) {
+      return widget.barcodeValue.substring(widget.barcodeValue.length - 12);
+    }
+    return widget.barcodeValue;
+  }
 
   Future<void> _printBarcode() async {
     try {
@@ -53,7 +62,7 @@ class _BarcodePageState extends State<BarcodePage> {
                 pw.Image(pwImage, width: 400),
                 pw.SizedBox(height: 10),
                 pw.Text(
-                  "ID: ${widget.barcodeValue}",
+                  "ID: ${displayBarcode}", // Display last 12 digits
                   style: pw.TextStyle(fontSize: 16),
                 ),
               ],
@@ -66,6 +75,62 @@ class _BarcodePageState extends State<BarcodePage> {
     } catch (e) {
       debugPrint("Print error: $e");
     }
+  }
+
+  /// Open scanner and get barcode
+  void _scanBarcode() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: const Text("Scan Animal Barcode"),
+            backgroundColor: AppTheme.primaryGreen,
+          ),
+          body: MobileScanner(
+            onDetect: (capture) {
+              final barcode = capture.barcodes.first.rawValue;
+              if (barcode == null) return;
+
+              // Stop scanning after first detection
+              Navigator.pop(context);
+
+              _showScannedDialog(barcode);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showScannedDialog(String code) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Scanned Barcode'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Full Barcode: $code"),
+            const SizedBox(height: 12),
+            Text(
+              "Last 12 digits: ${code.length > 12 ? code.substring(code.length - 12) : code}",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Use this code to fetch order/user details from backend.",
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -133,7 +198,7 @@ class _BarcodePageState extends State<BarcodePage> {
               ),
               const SizedBox(height: 30),
 
-              // Barcode Card (The RepaintBoundary covers the white area for clean printing)
+              // Barcode Card
               RepaintBoundary(
                 key: _globalKey,
                 child: Container(
@@ -151,18 +216,18 @@ class _BarcodePageState extends State<BarcodePage> {
                   ),
                   child: Column(
                     children: [
-                      BarcodeWidget(
-                        barcode: Barcode.code128(), // Highly scanable standard
-                        data: widget.barcodeValue,
+                      bw.BarcodeWidget(
+                        barcode: bw.Barcode.code128(),
+                        data: widget.barcodeValue, // full value for scanning
                         width: double.infinity,
                         height: 140,
-                        drawText:
-                            false, // We draw text manually below for better styling
+                        drawText: false,
                         padding: const EdgeInsets.all(10),
                       ),
+
                       const SizedBox(height: 20),
                       Text(
-                        widget.barcodeValue,
+                        displayBarcode,
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -189,6 +254,13 @@ class _BarcodePageState extends State<BarcodePage> {
                 icon: Icons.print_rounded,
                 color: AppTheme.primaryGreen,
                 onTap: _printBarcode,
+              ),
+              const SizedBox(height: 12),
+              _buildActionButton(
+                label: "Scan Barcode",
+                icon: Icons.qr_code_scanner,
+                color: Colors.orange,
+                onTap: _scanBarcode,
               ),
               const SizedBox(height: 12),
               _buildActionButton(

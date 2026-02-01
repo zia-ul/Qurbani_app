@@ -1,3 +1,4 @@
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -49,6 +50,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        AppLogger.info(
+        "Special requests loaded | count=${data['requests']?.length ?? 0}",
+      );
         setState(() {
           requests = List<Map<String, dynamic>>.from(data['requests']);
         });
@@ -57,7 +61,12 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
           jsonDecode(res.body)['message'] ?? 'Failed to fetch requests',
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+    AppLogger.error(
+      "Failed to fetch special requests",
+      e,
+      stack,
+    );
       setState(() {
         errorMessage = e.toString();
       });
@@ -122,6 +131,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   }
 
   Future<void> _closeRequest(String requestId) async {
+    AppLogger.warning("Closing request | requestId=$requestId");
     await _updateRequest(requestId, 'close');
     _fetchRequests(); // Refresh
   }
@@ -131,6 +141,10 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
     String action, {
     String? replyMessage,
   }) async {
+
+        AppLogger.debug(
+      "Updating request | id=$requestId | action=$action",
+    );
     try {
       final token = await _storage.read(key: 'token');
       if (token == null) throw Exception('Not authenticated');

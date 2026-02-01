@@ -1,3 +1,4 @@
+import 'package:Qurbani/faq_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:Qurbani/services/admin_payment_service.dart';
@@ -211,8 +212,15 @@ class _SettingsPageState extends State<SettingsPage> {
           ListTile(
             leading: const Icon(Icons.help_outline),
             title: const Text("FAQ"),
-            onTap: () => _openLink("https://example.com/faq"),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FaqPage()),
+              );
+            },
           ),
+
           const Divider(),
 
           _sectionHeader("Rate & Feedback"),
