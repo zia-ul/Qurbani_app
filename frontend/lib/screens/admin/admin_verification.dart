@@ -90,7 +90,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
       if (res.statusCode != 200) throw Exception("Image upload failed");
       return jsonDecode(body)['secure_url'];
     } catch (e) {
-      debugPrint("Upload error: $e");
+      // debugPrint("Upload error: $e");
       rethrow;
     }
   }

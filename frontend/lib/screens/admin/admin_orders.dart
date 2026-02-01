@@ -51,8 +51,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
       
-      print("Fetched orders:");
-      print(_allOrders);
+      // print("Fetched orders:");
+      // print(_allOrders);
 
       // 🔥 AUTO CANCEL EXPIRED COD ORDERS
     for (final order in _allOrders) {
@@ -69,7 +69,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     // 🔄 Re-fetch to get updated statuses
     _allOrders = await AdminOrderService.getAdminOrders();
     } catch (e) {
-      print('Error fetching orders: $e');
+      // print('Error fetching orders: $e');
       
     } finally {
       setState(() => _isLoading = false);

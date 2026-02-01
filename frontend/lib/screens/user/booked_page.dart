@@ -62,7 +62,7 @@ class _BookedPageState extends State<BookedPage> {
       // Re-fetch after cancellations
       orders = await OrderService.getUserOrders();
     } catch (e) {
-      debugPrint('Exception fetching orders: $e');
+      // debugPrint('Exception fetching orders: $e');
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -177,7 +177,7 @@ class _BookedPageState extends State<BookedPage> {
     Map<String, dynamic> order,
     Map<String, Map<String, dynamic>> adminMap,
   ) {
-    print("order......checking....$order");
+    // print("order......checking....$order");
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['created_at'] ?? '');
     final String pStatus = _isCodExpired(order)

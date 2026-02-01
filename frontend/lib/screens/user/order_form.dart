@@ -144,7 +144,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
       // debugPrint("Fetched animals: $_animals, currency: $_currency");
     } catch (e) {
-      debugPrint("Error fetching animals: $e");
+      // debugPrint("Error fetching animals: $e");
       Fluttertoast.showToast(
         msg: "Error fetching animals: $e",
         backgroundColor: AppTheme.warningRed,
@@ -193,8 +193,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
     final total = subtotal + deliveryTotal;
 
-    debugPrint("[TOTAL BASE] total=$total");
-    return total; // ✅ BASE currency only
+    // debugPrint("[TOTAL BASE] total=$total");
+    return total; // BASE currency only
   }
 
   String _formatCodDeadline(DateTime date) {

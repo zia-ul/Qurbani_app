@@ -68,7 +68,7 @@ class _ProceedPageState extends State<ProceedPage> {
         });
       }
     } catch (e) {
-      debugPrint("Error fetching user data: $e");
+      // debugPrint("Error fetching user data: $e");
     }
   }
 
@@ -105,7 +105,7 @@ class _ProceedPageState extends State<ProceedPage> {
         isLoading = false;
       });
     } catch (e) {
-      debugPrint("Error preparing shareholders: $e");
+      // debugPrint("Error preparing shareholders: $e");
       setState(() => isLoading = false);
     }
   }
@@ -128,7 +128,7 @@ class _ProceedPageState extends State<ProceedPage> {
         addressController.text = "${p.street}, ${p.locality}, ${p.country}";
       });
     } catch (e) {
-      debugPrint("Geocoding error: $e");
+      // debugPrint("Geocoding error: $e");
     }
   }
 

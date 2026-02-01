@@ -48,13 +48,13 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print(data);
+        // print(data);
         setState(() => animals = data['animals'] ?? []);
       } else {
         ToastUtils.showError("Failed to fetch animals: ${response.body}");
       }
     } catch (e) {
-      print(e);
+      // print(e);
       ToastUtils.showError("Something went wrong");
     } finally {
       setState(() => isLoading = false);
@@ -106,7 +106,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
         ToastUtils.showError("Failed to delete animal: ${response.body}");
       }
     } catch (e) {
-      print(e);
+      // print(e);
       ToastUtils.showError("Something went wrong");
     }
   }

@@ -99,8 +99,6 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
   const { orderId } = req.params;
   const adminId = req.user.id;
 
-  console.log("We are here in admin/:orderId")
-
   logger.info("Admin fetching order details", {
     adminId,
     orderId,

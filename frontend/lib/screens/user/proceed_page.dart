@@ -65,7 +65,7 @@ class _ProceedPageState extends State<ProceedPage> {
         });
       }
     } catch (e) {
-      debugPrint("Error fetching user: $e");
+      // debugPrint("Error fetching user: $e");
     }
   }
 

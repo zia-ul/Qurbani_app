@@ -20,9 +20,10 @@ void main() async {
 
   try {
     await currencyService.initialize();
-    debugPrint("CurrencyService initialized in main");
+    // logger
+    // debugPrint("CurrencyService initialized in main");
   } catch (e) {
-    debugPrint("CurrencyService initialization failed: $e");
+    // debugPrint("CurrencyService initialization failed: $e");
     // Continue anyway, it will use cached rates or defaults
   }
 
@@ -37,7 +38,7 @@ void main() async {
   await flutterLocalNotificationsPlugin.initialize(
     initSettings,
     onDidReceiveNotificationResponse: (details) {
-      debugPrint("Notification clicked: ${details.payload}");
+      // debugPrint("Notification clicked: ${details.payload}");
     },
   );
 

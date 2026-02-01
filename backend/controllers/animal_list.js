@@ -92,8 +92,6 @@ exports.getAnimalById = async (req, res) => {
   const orderId = req.query.orderId;          // new
   const shareholderId = req.query.shareholderId; // optional, if you track this
 
-  console.log("Animal details fetching by id");
-
   if (!adminId) {
     logger.warn("Unauthorized attempt to fetch animal", { animalId });
     return res.status(401).json({ message: "Unauthorized" });
@@ -127,8 +125,6 @@ exports.getAnimalById = async (req, res) => {
       `,
       shareholderId ? [orderId, shareholderId, animalId, adminId] : [orderId, animalId, adminId]
     );
-
-    console.log("Animal details fetched:", rows);
 
     if (!rows.length) {
       logger.warn("Animal not found for admin/order", { adminId, animalId, orderId });
@@ -270,7 +266,6 @@ exports.getDeliveryOrders = async (req, res) => {
       orders,
     });
   } catch (error) {
-    console.error('Delivery Orders Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch delivery orders',

@@ -1,4 +1,3 @@
-// routes/orders.js
 const express = require("express");
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
@@ -6,7 +5,6 @@ const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 
-// GET /api/orders/my - Get all orders for the authenticated user
 router.get("/my", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
@@ -111,7 +109,6 @@ router.get(
   },
 );
 
-// PUT /api/orders/:orderId/mark-paid
 router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
   const { orderId } = req.params;
@@ -152,7 +149,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       });
     }
 
-    // 2️⃣ Update order
+    // Update order
     await pool.execute(
       `
       UPDATE orders
@@ -182,13 +179,13 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/orders
+
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
     req.body;
 
-  console.log("Print pay status", paymentStatus);
+  // console.log("Print pay status", paymentStatus);
 
   if (
     !adminId ||
@@ -253,7 +250,6 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/orders/:orderId - Get a single order by ID for the authenticated user
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const userId = req.user.id;
@@ -289,7 +285,6 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
-//api/orders/:id
 router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { qurbani_time } = req.body;
@@ -419,7 +414,6 @@ router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/orders/admin/my - Get all orders for the authenticated admin
 router.get("/admin/my", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
@@ -502,7 +496,6 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/ratings/:orderId/:userId - Fetch ratings and order details for the user
 router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
   const { orderId, userId } = req.params;
   const authUserId = req.user.id; // Ensure user can only fetch their own ratings
@@ -558,7 +551,6 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/ratings - Submit ratings
 router.post("/ratings", authMiddleware, async (req, res) => {
   const { orderId, userId, ratings } = req.body; // ratings: [{adminId, adminRating, deliveryRating, feedback}]
   const authUserId = req.user.id;
@@ -617,7 +609,6 @@ router.post("/ratings", authMiddleware, async (req, res) => {
   }
 });
 
-// POST /api/requests - Submit a special request
 router.post("/requests", authMiddleware, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
   const authUserId = req.user.id; // Ensure user can only submit their own requests
@@ -646,7 +637,6 @@ router.post("/requests", authMiddleware, async (req, res) => {
   }
 });
 
-// Optional: GET /api/requests/:orderId/:userId - Fetch requests for the user (if needed for viewing)
 router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
   const { orderId, userId } = req.params;
   const authUserId = req.user.id;
@@ -672,7 +662,6 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/orders/admin/:orderId - Get a single order by ID for the authenticated admin
 router.get("/admin/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const adminId = req.user.id; // Admin's user ID from JWT
@@ -734,7 +723,6 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/orders/admin/:orderId - Update order details (for admin)
 router.put("/admin/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { processingStatus, deliveryStatus, deliveryPersonId } = req.body;
@@ -773,7 +761,6 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
-// PUT /api/orders/:orderId/cancel
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   // Extract order ID from URL parameters and get authenticated user's ID
   const { orderId } = req.params;

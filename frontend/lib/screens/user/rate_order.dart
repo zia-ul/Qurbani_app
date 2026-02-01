@@ -41,7 +41,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
       final order = data?['order'];
       final ratings = data?['ratings'] ?? {};
 
-      print("order....rating...$order");
+      // print("order....rating...$order");
 
       if (order != null) {
         adminId = order['admin_id'];

@@ -146,7 +146,6 @@ router.get("/verify-email", async (req, res) => {
     conn.release();
     res.send("Email verified successfully! You can now login.");
   } catch (err) {
-    console.error(err);
     res.status(500).send(err.message);
   }
 });

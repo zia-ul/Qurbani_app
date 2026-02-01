@@ -46,7 +46,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       _orderData = await OrderService.getOrderDetails(widget.orderId);
-      print(_orderData);
+      // print(_orderData);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();

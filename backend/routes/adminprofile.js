@@ -1,11 +1,22 @@
+
+
+// routes/admin.js
+const express = require("express");
+const db = require("../config/db"); // Your MySQL connection
+const authMiddleware = require("../middleware/authmiddleware"); // JWT verification middleware
+const logger = require("../middleware/logger"); // Logger middleware
+const router = express.Router();
+
+
 /**
  * @swagger
  * /api/auth/admin/{id}:
  *   get:
  *     summary: Get admin profile and order statistics
  *     description: >
- *       Returns admin user details along with total and completed order statistics.
- *       Requires a valid JWT token in the Authorization header.
+ *       Fetches an admin user's profile details along with total
+ *       and completed order statistics. Requires a valid JWT token
+ *       in the Authorization header.
  *     tags:
  *       - Admin
  *     security:
@@ -15,8 +26,9 @@
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: Admin user ID
+ *           type: string
+ *           format: uuid
+ *         description: Admin user ID (UUID)
  *     responses:
  *       200:
  *         description: Admin profile fetched successfully
@@ -26,23 +38,33 @@
  *               type: object
  *               properties:
  *                 id:
- *                   type: integer
- *                   example: 1
+ *                   type: string
+ *                   format: uuid
+ *                   example: "573b7cb3-a55e-40e8-a3c8-40369b5e83ec"
  *                 name:
  *                   type: string
- *                   example: Admin User
+ *                   example: "Admin User"
  *                 email:
  *                   type: string
- *                   example: admin@example.com
+ *                   example: "admin@example.com"
  *                 phone:
  *                   type: string
  *                   example: "+923001234567"
  *                 address:
  *                   type: string
- *                   example: Main Street
+ *                   example: "Main Street"
+ *                 description:
+ *                   type: string
+ *                   example: "Platform administrator"
  *                 city:
  *                   type: string
- *                   example: Lahore
+ *                   example: "Lahore"
+ *                 order_deadline:
+ *                   type: string
+ *                   example: "18:00"
+ *                 photo_url:
+ *                   type: string
+ *                   example: "https://example.com/photo.jpg"
  *                 totalOrders:
  *                   type: integer
  *                   example: 25
@@ -50,20 +72,13 @@
  *                   type: integer
  *                   example: 18
  *       401:
- *         description: Unauthorized (missing or invalid JWT)
+ *         description: Unauthorized – missing or invalid JWT token
  *       404:
  *         description: Admin not found
  *       500:
  *         description: Something went wrong. Please try again later.
  */
 
-
-// routes/admin.js
-const express = require("express");
-const db = require("../config/db"); // Your MySQL connection
-const authMiddleware = require("../middleware/authmiddleware"); // JWT verification middleware
-const logger = require("../middleware/logger"); // Logger middleware
-const router = express.Router();
 
 /**
  * GET /api/auth/admin/:id

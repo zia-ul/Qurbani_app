@@ -51,7 +51,7 @@ class MasterDrawer extends StatelessWidget {
           profile['profile_image'] ??
           profile['image'];
     } catch (e) {
-      debugPrint("Error fetching profile picture: $e");
+      // debugPrint("Error fetching profile picture: $e");
       return null;
     }
   }

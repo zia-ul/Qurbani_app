@@ -6,7 +6,6 @@ const logger = require("../middleware/logger");
 
 const { v4: uuidv4 } = require("uuid");
 
-// GET /api/orders/my
 router.get("/my", auth, async (req, res) => {
   const userId = req.user.id;
 
@@ -94,13 +93,12 @@ router.get("/:orderId", auth, async (req, res) => {
   }
 });
 
-// POST /api/orders - Place order
 router.post("/", auth, async (req, res) => {
   const { adminId, paymentMethod, paymentStatus, shareholders } = req.body;
 
   const allowedStatuses = ["pending", "paid", "unpaid"];
 
-  console.log("Print pay status", paymentStatus);
+  // console.log("Print pay status", paymentStatus);
 
   const finalPaymentStatus = allowedStatuses.includes(paymentStatus)
     ? paymentStatus

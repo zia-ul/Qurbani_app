@@ -67,8 +67,6 @@ app.use("/api/ratings", require("../routes/rating_routes"));
 // Special Requests Routes
 app.use("/api/requests", require("../routes/requests_routes"));
 
-app.use("/api/slots", require("../routes/slots")); // Mount the slots routes
-
 // Admin payment settings
 app.use("/api/admin/payment-settings", adminPaymentRoutes);
 app.use("/api/admin", require("../routes/admin_payment_routes"));

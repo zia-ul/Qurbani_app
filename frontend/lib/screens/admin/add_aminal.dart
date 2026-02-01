@@ -88,7 +88,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
 
     try {
       final currencyNotifier = context.read<CurrencyNotifier>();
-      print("currency getting printed........${currencyNotifier.currency}");
+      // print("currency getting printed........${currencyNotifier.currency}");
 
       final body = {
         "animalType": selectedAnimalType == "Others"

@@ -76,7 +76,7 @@ class _ProfilePageState extends State<ProfilePage> {
         descriptionController.text = profile['description'] ?? '';
         _photoUrl = profile['photo_url'];
         _isAdmin = profile['isAdmin'] ?? false;
-        print(_photoUrl);
+        // print(_photoUrl);
         if (profile['orderDeadline'] != null) {
           _orderDeadline = DateTime.tryParse(profile['orderDeadline']);
         }
@@ -151,7 +151,7 @@ class _ProfilePageState extends State<ProfilePage> {
         return decoded['secure_url'];
       }
     } catch (e) {
-      debugPrint("Cloudinary Upload Error: $e");
+      // debugPrint("Cloudinary Upload Error: $e");
     }
     return null;
   }
@@ -494,14 +494,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildHeaderArea() {
     ImageProvider? imageProvider;
-    debugPrint("🖼 selectedImage: $_selectedImage");
-    debugPrint("🌐 photoUrl: $_photoUrl");
+    // debugPrint("🖼 selectedImage: $_selectedImage");
+    // debugPrint("🌐 photoUrl: $_photoUrl");
     if (_selectedImage != null) {
       imageProvider = FileImage(_selectedImage!);
     } else if (_photoUrl != null && _photoUrl!.isNotEmpty) {
       imageProvider = NetworkImage(_photoUrl!);
     }
-    debugPrint("📦 imageProvider: $imageProvider");
+    // debugPrint("📦 imageProvider: $imageProvider");
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.only(top: 60, bottom: 20),

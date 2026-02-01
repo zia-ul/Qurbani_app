@@ -19,13 +19,13 @@ class AuthService {
 
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {
-    print("AuthService: getCurrentUser called");
+    // print("AuthService: getCurrentUser called");
 
     final token = await _storage.read(key: 'token');
-    print("AuthService: token = $token");
+    // print("AuthService: token = $token");
 
     if (token == null) {
-      print("AuthService: No token found");
+      // print("AuthService: No token found");
       return null;
     }
 
@@ -34,11 +34,11 @@ class AuthService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
-    print("AuthService: /auth/me status = ${res.statusCode}");
-    print("AuthService: /auth/me body = ${res.body}");
+    // print("AuthService: /auth/me status = ${res.statusCode}");
+    // print("AuthService: /auth/me body = ${res.body}");
 
     if (res.statusCode != 200) {
-      print("AuthService: Invalid token, deleting it");
+      // print("AuthService: Invalid token, deleting it");
       await _storage.delete(key: 'token');
       await _storage.delete(key: 'userId');
       return null;
@@ -47,7 +47,7 @@ class AuthService {
     final decoded = jsonDecode(res.body);
 
     if (decoded['user'] == null) {
-      print("AuthService: user key missing in response");
+      // print("AuthService: user key missing in response");
       return null;
     }
 
@@ -73,7 +73,7 @@ class AuthService {
       body: jsonEncode(data),
     );
 
-    print(res.body);
+    // print(res.body);
 
     if (res.statusCode != 201) {
       final msg = jsonDecode(res.body)['message'] ?? 'Registration failed';
@@ -93,7 +93,7 @@ class AuthService {
    * @throws Exception if login fails with server error message
    */
   static Future<UserModel> login(Map<String, dynamic> data) async {
-    print(data);
+    // print(data);
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},

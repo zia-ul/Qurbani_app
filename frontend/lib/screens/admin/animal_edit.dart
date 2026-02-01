@@ -59,7 +59,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
   @override
   void initState() {
     super.initState();
-    print("order id being printed......$widget.orderId");
+    // print("order id being printed......$widget.orderId");
     _loadAnimalDetails();
   }
 
@@ -180,7 +180,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
         }
       }
 
-      print("data on frontend...animal edit: $data");
+      // print("data on frontend...animal edit: $data");
 
       // from animals table
       animalTypeController.text = data['animal_type'] ?? '';
@@ -306,7 +306,7 @@ class _AnimalEditPageState extends State<AnimalEditPage> {
         ToastUtils.showSuccess('Animal updated successfully');
         Navigator.pop(context);
       } else {
-        print(res.body); // 👈 debug help
+        // print(res.body); 
         throw res.body;
       }
     } catch (e) {

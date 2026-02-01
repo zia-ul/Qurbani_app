@@ -28,7 +28,7 @@ class ApiServices {
 
     final credentials = base64Encode(utf8.encode('$key:$secret'));
 
-    print("Razorpay Request Body: $body");
+    // print("Razorpay Request Body: $body");
 
     final response = await http.post(
       uri,
@@ -39,8 +39,8 @@ class ApiServices {
       body: body,
     );
 
-    print("Razorpay Response Status: ${response.statusCode}");
-    print("Razorpay Response Body: ${response.body}");
+    // print("Razorpay Response Status: ${response.statusCode}");
+    // print("Razorpay Response Body: ${response.body}");
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return {"status": "success", "body": jsonDecode(response.body)};

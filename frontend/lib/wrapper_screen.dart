@@ -30,7 +30,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
 
     // Check if user is logged in via JWT
     _userFuture = AuthService.getCurrentUser();
-    print("WrapperScreen: Checking current user...$_userFuture");
+    // print("WrapperScreen: Checking current user...$_userFuture");
   }
 
   @override
@@ -38,10 +38,10 @@ class _WrapperScreenState extends State<WrapperScreen> {
     return FutureBuilder<UserModel?>(
       future: _userFuture,
       builder: (context, snapshot) {
-        print("WrapperScreen snapshot state: ${snapshot.connectionState}");
-        print("WrapperScreen snapshot hasData: ${snapshot.hasData}");
-        print("WrapperScreen snapshot data: ${snapshot.data}");
-        print("WrapperScreen snapshot error: ${snapshot.error}");
+        // print("WrapperScreen snapshot state: ${snapshot.connectionState}");
+        // print("WrapperScreen snapshot hasData: ${snapshot.hasData}");
+        // print("WrapperScreen snapshot data: ${snapshot.data}");
+        // print("WrapperScreen snapshot error: ${snapshot.error}");
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -54,7 +54,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
         }
 
         final user = snapshot.data!;
-        print("WrapperScreen: Logged in as ${user.role} (${user.name})");
+        // print("WrapperScreen: Logged in as ${user.role} (${user.name})");
 
         // Route based on role
         switch (user.role) {

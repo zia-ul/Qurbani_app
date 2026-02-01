@@ -125,7 +125,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
           'userDeliveryNotified': false,
         });
       } catch (e) {
-        print("Admin order creation failed (permission issue): $e");
+        // print("Admin order creation failed (permission issue): $e");
         // Fallback: Create a simplified admin order without notification flags
         try {
           await _firestore.collection('admin_orders').doc(orderId).set({
@@ -133,7 +133,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
             'newOrderPlaced': true,
           });
         } catch (fallbackError) {
-          print("Fallback admin order creation also failed: $fallbackError");
+          // print("Fallback admin order creation also failed: $fallbackError");
           // If admin order creation fails completely, continue with order placement
           // The order will still be visible to admins through the main orders collection
         }
@@ -174,7 +174,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
             tx.update(animalRef, updateData);
           });
         } catch (e) {
-          print("Error updating animal shares: $e");
+          // print("Error updating animal shares: $e");
           // Continue with other items even if one fails
         }
       }
@@ -189,7 +189,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
               s['selectedSlot'],
             );
           } catch (e) {
-            print("Error booking slot: $e");
+            // print("Error booking slot: $e");
           }
         }
       }
@@ -205,7 +205,7 @@ class _ReviewOrderPageState extends State<ReviewOrderPage> {
           await doc.reference.delete();
         }
       } catch (e) {
-        print("Error clearing cart: $e");
+        // print("Error clearing cart: $e");
       }
 
       if (!mounted) return;

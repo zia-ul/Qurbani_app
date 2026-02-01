@@ -16,20 +16,46 @@ class AdminOrderDetailPage extends StatefulWidget {
 }
 
 class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
+  /// Holds the detailed data of the order fetched from the server, including user info, payment status, etc.
   Map<String, dynamic>? orderData;
+
+  /// Indicates whether the order details are currently being loaded from the server.
   bool isLoading = true;
 
+  /// Represents the current processing status of the order (e.g., 'pending', 'confirmed', 'completed').
   String processing = 'pending';
+
+  /// Stores the selected date for the Qurbani event.
   DateTime? qurbaniDate;
+
+  /// Stores the selected time for the Qurbani event.
   TimeOfDay? qurbaniTime;
 
+  /// Controller for the text field input of meat weight in kilograms.
   final TextEditingController meatWeightCtrl = TextEditingController();
+
+  /// Controller for the text field input describing body parts distribution.
   final TextEditingController bodyPartsCtrl = TextEditingController();
 
+  /// ID of the selected delivery boy for assignment to this order.
   String? selectedDeliveryBoyId;
+
+  /// List of available delivery boys, each represented as a map with their details (id, name, etc.).
   List<Map<String, dynamic>> deliveryBoys = [];
+
+  /// Indicates whether the list of delivery boys is currently being loaded.
   bool loadingDeliveryBoys = true;
 
+  /// ID of the delivery person assigned to this order.
+  // String deliveryPersonId = '';
+
+  // /// Name of the delivery person assigned to this order.
+  // String deliveryPersonName = '';
+
+  // /// Phone number of the delivery person assigned to this order.
+  // String deliveryPersonPhone = '';
+
+  /// Initializes the state of the widget by fetching order details and delivery boys list.
   @override
   void initState() {
     super.initState();
@@ -37,12 +63,13 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     _fetchDeliveryBoys();
   }
 
+  /// Fetches the detailed information of the order from the server using the order ID.
   Future<void> _fetchOrderDetails() async {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
       processing = orderData!['processing_status'];
-      print("RAW STATUS => '$orderData'");
-      print("NORMALIZED => '$processing'");
+
+      selectedDeliveryBoyId = orderData!['delivery_person_id']?.toString();
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
     } finally {
@@ -50,6 +77,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
+  /// Fetches the list of available delivery boys from the server.
   Future<void> _fetchDeliveryBoys() async {
     try {
       deliveryBoys = await UserService.getDeliveryBoys();
@@ -60,6 +88,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
+  /// Saves the scheduled date and time for the Qurbani event to the server.
   Future<void> _saveSchedule() async {
     if (qurbaniDate == null || qurbaniTime == null) {
       ToastUtils.showError('Select date & time');
@@ -79,11 +108,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       ToastUtils.showSuccess('Qurbani scheduled');
       _fetchOrderDetails();
     } catch (e) {
-      print("issue occured $e");
+      // print("issue occured $e");
       ToastUtils.showError(e.toString());
     }
   }
 
+  /// Saves the meat weight and body parts details for the order to the server.
   Future<void> _saveMeatDetails() async {
     try {
       await AdminOrderService.updateMeatDetails(
@@ -94,11 +124,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       ToastUtils.showSuccess('Meat details saved');
       _fetchOrderDetails();
     } catch (e) {
-      print(e);
+      // print(e);
       ToastUtils.showError(e.toString());
     }
   }
 
+  /// Marks a Cash on Delivery order as paid on the server.
   Future<void> _markCodAsPaid() async {
     try {
       await AdminOrderService.markCodOrderAsPaid(widget.orderId);
@@ -111,6 +142,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
+  /// Assigns a selected delivery boy to the order and updates the delivery person details.
   Future<void> _saveDelivery() async {
     if (selectedDeliveryBoyId == null) {
       ToastUtils.showError('Select delivery boy');
@@ -122,15 +154,34 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         widget.orderId,
         selectedDeliveryBoyId!,
       );
+
+      // 🔥 fetch delivery boy details explicitly
+      // final deliveryBoy = await AdminOrderService.getDeliveryBoyDetails(
+      //   widget.orderId,
+      //   selectedDeliveryBoyId!,
+      // );
+      // // print(deliveryBoy);
+      // setState(() {
+      //   deliveryPersonId = deliveryBoy['id'] ?? '';
+      //   deliveryPersonName = deliveryBoy['name'] ?? '';
+      //   deliveryPersonPhone = deliveryBoy['phone'] ?? '';
+      // });
+
       ToastUtils.showSuccess('Delivery assigned');
-      _fetchOrderDetails();
-      await AdminOrderService.getDeliveryBoyDetails(
-        widget.orderId,
-        selectedDeliveryBoyId!,
-      );
     } catch (e) {
-      print(e);
       ToastUtils.showError(e.toString());
+    }
+  }
+
+  Map<String, dynamic>? get selectedDeliveryBoy {
+    if (selectedDeliveryBoyId == null || deliveryBoys.isEmpty) return null;
+
+    try {
+      return deliveryBoys.firstWhere(
+        (boy) => boy['id'].toString() == selectedDeliveryBoyId,
+      );
+    } catch (_) {
+      return null;
     }
   }
 
@@ -143,7 +194,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
 
     final data = orderData!;
-    print("order details......$data");
+    // print("order details......$data");
     final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
@@ -174,6 +225,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   // -------------------- CARDS --------------------
 
+  /// Builds a card displaying the main order information, including user details, price, payment status, and a button to mark as paid if applicable.
   Widget _orderDetailsCard(
     Map<String, dynamic> data,
     CurrencyNotifier currencyNotifier,
@@ -185,11 +237,12 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
     final String currencyCode = currencyNotifier.currency;
 
-    print("...pay....m...${data['paymentMethod']}");
+    // print("...pay....m...${data['paymentMethod']}");
     final bool showMarkAsPaidButton =
         (data['paymentMethod'] ?? '').toString().toLowerCase().trim() ==
             'cash' &&
         data['payment_status'] == 'unpaid';
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -238,6 +291,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                             onPressed: () => Navigator.pop(context, true),
                             child: const Text('Confirm'),
                           ),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     );
@@ -250,8 +304,6 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               ),
             ],
 
-            const SizedBox(height: 12),
-
             // _infoRow('Address', data['delivery_address']),
             _infoRow('Contact', data['contact_no']),
           ],
@@ -260,6 +312,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
+  /// Builds a card displaying the list of shareholders associated with the order, showing their names, guardians, and Qurbani days.
   Widget _shareholdersCard(List shareholders) {
     return Card(
       elevation: 4,
@@ -304,6 +357,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
+  /// Builds a timeline widget showing the current processing status of the order with visual indicators for pending, confirmed, and completed stages.
   Widget _processingTimeline() {
     final isPending = processing == 'pending';
     final isConfirmed = processing == 'confirmed';
@@ -327,6 +381,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
+  /// Builds a card for the pending status, allowing the admin to schedule the Qurbani date and time.
   Widget _pendingCard() {
     return _actionCard(
       title: 'Step 1: Schedule Qurbani',
@@ -386,6 +441,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
+  /// Builds a card for the confirmed status, allowing the admin to input meat weight and body parts details.
   Widget _confirmedCard() {
     return _actionCard(
       title: 'Step 2: Meat Details',
@@ -414,6 +470,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
+  /// Builds a card for the completed status, showing delivery assignment or allowing assignment if not yet done.
   Widget _deliveryCard() {
     final data = orderData!;
     final bool isAssigned = data['delivery_person_id'] != null;
@@ -433,7 +490,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             ),
             const SizedBox(height: 12),
 
-            _deliveryBoyProfileCard(data),
+            if (selectedDeliveryBoy != null)
+              _deliveryBoyProfileCard(selectedDeliveryBoy!),
           ],
         ),
       );
@@ -469,7 +527,8 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
-  Widget _deliveryBoyProfileCard(Map<String, dynamic> data) {
+  /// Builds a profile card for the assigned delivery boy, displaying their name and phone number.
+  Widget _deliveryBoyProfileCard(Map<String, dynamic> deliveryBoy) {
     return Card(
       color: Colors.grey.shade100,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -481,7 +540,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
               radius: 28,
               backgroundColor: AppTheme.primaryGreen,
               child: Text(
-                (data['delivery_person_name'] ?? 'D')[0].toUpperCase(),
+                deliveryBoy['name']?[0]?.toUpperCase() ?? 'D',
                 style: const TextStyle(color: Colors.white, fontSize: 20),
               ),
             ),
@@ -491,7 +550,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    data['delivery_person_name'] ?? 'Delivery Boy',
+                    deliveryBoy['name'] ?? 'Delivery Person',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -499,9 +558,16 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    data['delivery_person_phone'] ?? 'Phone not available',
+                    deliveryBoy['phone'] ?? 'Phone not available',
                     style: const TextStyle(fontSize: 12),
                   ),
+                  if (deliveryBoy['address'] != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      deliveryBoy['address'],
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
             ),
