@@ -1,8 +1,10 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/user/marketplace.dart';
 import 'package:Qurbani/screens/user/booked_page.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomePage extends StatefulWidget {
   final String id;
@@ -26,7 +28,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // _checkPermissions();
+      _checkPermissions();
     });
     // Notification Listeners
     // _listenForStatusUpdates();
@@ -99,14 +101,14 @@ class _HomePageState extends State<HomePage> {
   //       .catchError((e) => print("Notification flag update failed: $e"));
   // }
 
-  // Future<void> _checkPermissions() async {
-  //   await [Permission.notification, Permission.location].request();
+  Future<void> _checkPermissions() async {
+    await [Permission.notification, Permission.location].request();
 
-  //   bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
-  //   if (!isAllowed) {
-  //     AwesomeNotifications().requestPermissionToSendNotifications();
-  //   }
-  // }
+    bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!isAllowed) {
+      AwesomeNotifications().requestPermissionToSendNotifications();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

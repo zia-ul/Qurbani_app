@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class RequestService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   /// SUBMIT SPECIAL REQUEST
   static Future<void> submitRequest(
@@ -38,6 +38,8 @@ class RequestService {
     }
   }
 
+  static Future<List<Map<String, dynamic>>> Function()? mockGetUserRequests;
+
   /**
    * Retrieves all special requests submitted by the authenticated user
    *
@@ -48,6 +50,10 @@ class RequestService {
    * @throws Exception if fetch fails or user is not authenticated
    */
   static Future<List<Map<String, dynamic>>> getUserRequests() async {
+    if (mockGetUserRequests != null) {
+      return mockGetUserRequests!();
+    }
+
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 

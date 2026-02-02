@@ -45,19 +45,13 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       _errorMessage = null;
     });
 
-      AppLogger.debug("Fetching delivery orders");
+    AppLogger.debug("Fetching delivery orders");
 
     try {
       _orders = await DeliveryService.getOrders();
-      AppLogger.info(
-      "Delivery orders loaded | count=${_orders.length}",
-    );
+      AppLogger.info("Delivery orders loaded | count=${_orders.length}");
     } catch (e, stack) {
-    AppLogger.error(
-      "Failed to fetch delivery orders",
-      e,
-      stack,
-    );
+      AppLogger.error("Failed to fetch delivery orders", e, stack);
       setState(() {
         _errorMessage = e.toString();
       });
@@ -68,94 +62,91 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     }
   }
 
- Future<bool> _requestPermissionsIfNeeded() async {
-  AppLogger.debug("Requesting delivery permissions");
+  Future<bool> _requestPermissionsIfNeeded() async {
+    AppLogger.debug("Requesting delivery permissions");
 
-  final statuses = await [
-    Permission.location,
-    Permission.camera,
-    Permission.notification,
-  ].request();
+    final statuses = await [
+      Permission.location,
+      Permission.camera,
+      Permission.notification,
+    ].request();
 
-  final allGranted = statuses.values.every((status) => status.isGranted);
+    final allGranted = statuses.values.every((status) => status.isGranted);
 
-  if (!allGranted) {
-    AppLogger.warning("Some delivery permissions denied");
-    ToastUtils.showError("Some permissions were denied");
-  } else {
-    AppLogger.info("All delivery permissions granted");
-  }
-
-  return allGranted;
-}
-
-Future<void> _updateStatus(String orderId, String status) async {
-  AppLogger.info(
-    "Updating delivery status | orderId=$orderId | status=$status",
-  );
-
-  try {
-    final result = await DeliveryService.updateStatus(orderId, status);
-
-    AppLogger.debug(
-      "Delivery status update success | orderId=$orderId | status=$status",
-    );
-
-    if (status == 'sent') {
-      ToastUtils.showSuccess('Code sent to user');
-
-      AppLogger.info(
-        "Delivery started notification triggered | orderId=$orderId",
-      );
-
-      AwesomeNotifications().createNotification(
-        content: NotificationContent(
-          id: Random().nextInt(10000),
-          channelKey: 'delivery_alerts',
-          title: 'Delivery Started',
-          body: 'Order $orderId is on the way',
-        ),
-      );
+    if (!allGranted) {
+      AppLogger.warning("Some delivery permissions denied");
+      ToastUtils.showError("Some permissions were denied");
+    } else {
+      AppLogger.info("All delivery permissions granted");
     }
 
-    _fetchOrders();
-  } catch (e, stack) {
-    AppLogger.error(
-      "Failed to update delivery status | orderId=$orderId | status=$status",
-      e,
-      stack,
-    );
-
-    ToastUtils.showError("Error: $e");
+    return allGranted;
   }
-}
 
-Future<void> _verifyCode(String orderId, String code) async {
-  AppLogger.info(
-    "Verifying delivery code | orderId=$orderId | codeLength=${code.length}",
-  );
-
-  try {
-    await DeliveryService.verifyCode(orderId, code);
-
+  Future<void> _updateStatus(String orderId, String status) async {
     AppLogger.info(
-      "Delivery completed successfully | orderId=$orderId",
+      "Updating delivery status | orderId=$orderId | status=$status",
     );
 
-    Navigator.pop(context);
-    ToastUtils.showSuccess("Order marked as Delivered!");
-    _fetchOrders();
-  } catch (e, stack) {
-    AppLogger.error(
-      "Delivery code verification failed | orderId=$orderId",
-      e,
-      stack,
-    );
+    try {
+      final result = await DeliveryService.updateStatus(orderId, status);
 
-    ToastUtils.showError("Error: $e");
+      AppLogger.debug(
+        "Delivery status update success | orderId=$orderId | status=$status",
+      );
+
+      if (status == 'sent') {
+        ToastUtils.showSuccess('Code sent to user');
+
+        AppLogger.info(
+          "Delivery started notification triggered | orderId=$orderId",
+        );
+
+        AwesomeNotifications().createNotification(
+          content: NotificationContent(
+            id: Random().nextInt(10000),
+            channelKey: 'delivery_alerts',
+            title: 'Delivery Started',
+            body: 'Order $orderId is on the way',
+          ),
+        );
+      }
+
+      _fetchOrders();
+    } catch (e, stack) {
+      AppLogger.error(
+        "Failed to update delivery status | orderId=$orderId | status=$status",
+        e,
+        stack,
+      );
+
+      ToastUtils.showError("Error: $e");
+    }
   }
-}
 
+  Future<void> _verifyCode(String orderId, String code) async {
+    AppLogger.info(
+      "Verifying delivery code | orderId=$orderId | codeLength=${code.length}",
+    );
+
+    try {
+      await DeliveryService.verifyCode(orderId, code);
+
+      AppLogger.info("Delivery completed successfully | orderId=$orderId");
+
+      Navigator.pop(context);
+      ToastUtils.showSuccess("Order marked as Delivered!");
+      _fetchOrders();
+    } catch (e, stack) {
+      AppLogger.error(
+        "Delivery code verification failed | orderId=$orderId",
+        e,
+        stack,
+      );
+
+      ToastUtils.showError("Error: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -514,14 +505,23 @@ Future<void> _verifyCode(String orderId, String code) async {
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
-            ),
-            onPressed: () => _verifyCode(orderId, ctrl.text),
-            child: const Text(
-              "Verify & Deliver",
-              style: TextStyle(color: AppTheme.bgGradientEnd),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+            ), // 👈 left & right
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24, // 👈 inner left/right padding
+                  vertical: 12,
+                ),
+              ),
+              onPressed: () => _verifyCode(orderId, ctrl.text),
+              child: const Text(
+                "Verify & Deliver",
+                style: TextStyle(color: AppTheme.bgGradientEnd),
+              ),
             ),
           ),
         ],

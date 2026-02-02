@@ -57,6 +57,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
+  String shortenOrderId(String id, {int length = 10}) {
+    if (id.length <= length) return id;
+    return id.substring(0, length);
+  }
+
+  String lastDigits(String value, {int length = 12}) {
+    if (value.length <= length) return value;
+    return value.substring(value.length - length);
+  }
+
   Future<void> _cancelOrder(BuildContext context) async {
     bool? confirm = await showDialog(
       context: context,
@@ -326,7 +336,23 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           Text("Price: $price"),
                           Text("Age: $age"),
                           // Text("Weight: $weight"),
-                          Text("Barcode: $barcode"),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text("Barcode: ${lastDigits(barcode)}"),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 16),
+                                onPressed: () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: barcode),
+                                  );
+                                  ToastUtils.showSuccess("Barcode copied!");
+                                },
+                              ),
+                            ],
+                          ),
+
                           Text("Qurbani Time: $qurbani_datetime"),
                           if (photoUrls.isNotEmpty)
                             SizedBox(
@@ -410,15 +436,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   _buildInfoRow(
                     Icons.fingerprint,
                     "Order ID",
-                    order['id'],
+                    shortenOrderId(order['id']),
                     isCopyable: false,
                   ),
-                  // _buildInfoRow(
-                  //   Icons.fingerprint,
-                  //   "Order ID",
-                  //   IdUtils.shorten(order['id']),
-                  //   isCopyable: true,
-                  // ),
+
                   _buildInfoRow(
                     Icons.check_circle,
                     "Payment Status",

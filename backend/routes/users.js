@@ -987,7 +987,7 @@ router.put("/delivery/orders/:id/verify", authMiddleware, async (req, res) => {
     // Update order status to 'delivered' and clear the verification code
     // This prevents further verification attempts and marks the order as complete
     await pool.execute(
-      `UPDATE orders SET delivery_status = 'delivered', delivery_code = NULL WHERE id = ?`,
+      `UPDATE orders SET delivery_status = 'delivered' WHERE id = ?`,
       [id],
     );
 

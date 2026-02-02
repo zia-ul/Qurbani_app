@@ -17,6 +17,9 @@ class AuthService {
   // Base URL for API endpoints (development server)
   static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
+  static Future<void> Function(String current, String next)?
+      mockChangePassword;
+
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {
     // print("AuthService: getCurrentUser called");
@@ -144,6 +147,11 @@ class AuthService {
     String currentPassword,
     String newPassword,
   ) async {
+
+    if (mockChangePassword != null) {
+      return mockChangePassword!(currentPassword, newPassword);
+    }
+    
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 

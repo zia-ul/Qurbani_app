@@ -154,9 +154,9 @@ class MasterDrawer extends StatelessWidget {
           if (role == 'super_admin') ...[
             _drawerItem(
               context,
-              Icons.dashboard,
-              "Dashboard",
-              SuperAdminDashboard(id: id, name: name),
+              Icons.person,
+              "Profile",
+              ProfilePage(),
             ),
             _drawerItem(
               context,

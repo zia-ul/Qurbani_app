@@ -16,6 +16,11 @@ class SettingsPage extends StatefulWidget {
   final String userId;
   final String role;
 
+    static Future<Map<String, dynamic>> Function()? mockProfile;
+  static Future<List<String>> Function()? mockCurrencies;
+  static Future<Map<String, dynamic>> Function()? mockPaymentSettings;
+  static Future<void> Function(String url)? mockOpenLink;
+
   const SettingsPage({super.key, required this.userId, required this.role});
 
   @override
@@ -53,8 +58,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Load admin payment settings
   Future<void> _loadPaymentSettings() async {
+
+    
     try {
-      final data = await PaymentService.getPaymentSettings();
+      final data = SettingsPage.mockPaymentSettings != null
+        ? await SettingsPage.mockPaymentSettings!()
+        : await PaymentService.getPaymentSettings();
+
       setState(() {
         _selectedPaymentMethods = [];
         if (data['allow_cod'] == 1) _selectedPaymentMethods.add('cod');
@@ -70,6 +80,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Load user currency from CurrencyNotifier
   Future<void> _loadUserCurrency() async {
+
+    if (SettingsPage.mockCurrencies != null &&
+        SettingsPage.mockProfile != null) {
+      _availableCurrencies = await SettingsPage.mockCurrencies!();
+      final profile = await SettingsPage.mockProfile!();
+      setState(() => _selectedCurrency = profile['currency']);
+      return;
+    }
     try {
       await currencyService.ensureInitialized();
       _availableCurrencies = currencyService.supportedCurrencies;
@@ -149,6 +167,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Open external links
   Future<void> _openLink(String url) async {
+
+      if (SettingsPage.mockOpenLink != null) {
+    return SettingsPage.mockOpenLink!(url);
+  }
     if (await canLaunch(url)) {
       await launch(url);
     } else {

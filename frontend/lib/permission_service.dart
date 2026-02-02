@@ -1,5 +1,7 @@
 import 'package:permission_handler/permission_handler.dart';
 
+import 'package:awesome_notifications/awesome_notifications.dart';
+
 class PermissionService {
 
   static Future<bool> hasPermissions() async {
@@ -7,7 +9,9 @@ class PermissionService {
     final camera = await Permission.camera.status;
     final photos = await Permission.photos.status; // iOS/Android 13+
     
-    return location.isGranted && camera.isGranted && photos.isGranted;
+    final notifications = await AwesomeNotifications().isNotificationAllowed();
+    
+    return location.isGranted && camera.isGranted && photos.isGranted && notifications;
   }
 
   static Future<bool> requestPermissions() async {
@@ -17,7 +21,13 @@ class PermissionService {
       Permission.photos,
     ].request();
 
-    return result.values.every((status) => status.isGranted);
+    // Request notification separately
+    final notifAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!notifAllowed) {
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+    }
+
+    return result.values.every((status) => status.isGranted) && notifAllowed;
   }
 
   static Future<bool> permanentlyDenied() async {

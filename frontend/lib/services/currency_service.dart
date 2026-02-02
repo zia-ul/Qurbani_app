@@ -8,7 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class CurrencyService {
   static const Duration _updateInterval = Duration(minutes: 45);
   static final String? _baseUrl = dotenv.env['BASE_URL'];
-
+  static bool disableAutoUpdateForTests = false;
   static final CurrencyService _instance = CurrencyService._internal();
   factory CurrencyService() => _instance;
   CurrencyService._internal();
@@ -181,7 +181,12 @@ class CurrencyService {
   // ---------------------------------------------------------------------------
 
   void _startAutoUpdate() {
-    _updateTimer = Timer.periodic(_updateInterval, (_) => _fetchRates());
+    if (disableAutoUpdateForTests) return;
+
+    _updateTimer = Timer.periodic(
+      const Duration(minutes: 45),
+      (_) => _fetchRates(),
+    );
   }
 
   void dispose() {

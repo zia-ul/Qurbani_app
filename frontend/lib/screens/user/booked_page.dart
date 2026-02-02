@@ -33,7 +33,6 @@ class _BookedPageState extends State<BookedPage> {
     super.dispose();
   }
 
-
   bool _isCodExpired(Map<String, dynamic> order) {
     print(order);
     if (order['payment_method'] != 'Cash') return false;
@@ -45,7 +44,6 @@ class _BookedPageState extends State<BookedPage> {
 
     return DateTime.now().isAfter(deadline);
   }
-
 
   Future<void> fetchOrders() async {
     setState(() => isLoading = true);
@@ -75,10 +73,16 @@ class _BookedPageState extends State<BookedPage> {
 
   List<Map<String, dynamic>> get filteredOrders {
     return orders.where((order) {
-      final orderId = (order['orderId'] ?? '').toString().toLowerCase();
-      final status = (order['processingStatus'] ?? 'Pending').toString();
+      final orderId = (order['id'] ?? '').toString().toLowerCase();
+
+      final derivedStatus = _resolveOrderStatus(order);
+
       final matchesSearch = orderId.contains(searchQuery.toLowerCase());
-      final matchesStatus = selectedStatus == "All" || status == selectedStatus;
+
+      final matchesStatus =
+          selectedStatus == 'All' ||
+          derivedStatus.toLowerCase() == selectedStatus.toLowerCase();
+
       return matchesSearch && matchesStatus;
     }).toList();
   }
@@ -138,21 +142,21 @@ class _BookedPageState extends State<BookedPage> {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          TextField(
-            onChanged: (val) => setState(() => searchQuery = val),
-            decoration: InputDecoration(
-              hintText: "Search Order ID...",
-              prefixIcon: const Icon(Icons.search, color: Colors.black38),
-              filled: true,
-              fillColor: AppTheme.bgGradientEnd,
-              isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
+          // TextField(
+          //   onChanged: (val) => setState(() => searchQuery = val),
+          //   decoration: InputDecoration(
+          //     hintText: "Search Order ID...",
+          //     prefixIcon: const Icon(Icons.search, color: Colors.black38),
+          //     filled: true,
+          //     fillColor: AppTheme.bgGradientEnd,
+          //     isDense: true,
+          //     border: OutlineInputBorder(
+          //       borderRadius: BorderRadius.circular(8),
+          //       borderSide: BorderSide.none,
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
@@ -163,7 +167,7 @@ class _BookedPageState extends State<BookedPage> {
               child: DropdownButton<String>(
                 value: selectedStatus,
                 isExpanded: true,
-                items: ["All", "Pending", "Completed", "Processing"].map((s) {
+                items: ["All", "Active", "Completed", "Cancelled"].map((s) {
                   return DropdownMenuItem(value: s, child: Text("Status: $s"));
                 }).toList(),
                 onChanged: (val) => setState(() => selectedStatus = val!),
@@ -183,9 +187,7 @@ class _BookedPageState extends State<BookedPage> {
     // print("order......checking....$order");
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['created_at'] ?? '');
-    final String pStatus = _isCodExpired(order)
-        ? 'Cancelled'
-        : (order['processingStatus'] ?? 'Pending');
+    final String pStatus = _resolveOrderStatus(order);
 
     // Safely handle orderId for display
     String orderIdStr = (order['id'] ?? '').toString();
@@ -333,13 +335,55 @@ class _BookedPageState extends State<BookedPage> {
     );
   }
 
+  String _resolveOrderStatus(Map<String, dynamic> order) {
+    // COD expired → cancelled
+    if (_isCodExpired(order)) {
+      return 'Cancelled';
+    }
+
+    final paymentStatus = (order['payment_status'] ?? '')
+        .toString()
+        .toLowerCase();
+    final deliveryStatus = (order['delivery_status'] ?? '')
+        .toString()
+        .toLowerCase();
+    final orderStatus = (order['status'] ?? '').toString().toLowerCase();
+
+    // Completed rule
+    if (paymentStatus == 'paid' && deliveryStatus == 'delivered') {
+      return 'Completed';
+    }
+
+    // Cancelled from backend
+    if (orderStatus == 'cancelled') {
+      return 'Cancelled';
+    }
+
+    // Otherwise active
+    return 'Active';
+  }
+
   Widget _statusBadge(String label) {
-    final isCancelled = label.toLowerCase() == 'cancelled';
+    Color bgColor;
+
+    switch (label.toLowerCase()) {
+      case 'completed':
+        bgColor = Colors.green;
+        break;
+      case 'cancelled':
+        bgColor = AppTheme.warningRed;
+        break;
+      case 'active':
+        bgColor = Colors.orange;
+        break;
+      default:
+        bgColor = AppTheme.primaryGreen;
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isCancelled ? AppTheme.warningRed : AppTheme.primaryGreen,
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

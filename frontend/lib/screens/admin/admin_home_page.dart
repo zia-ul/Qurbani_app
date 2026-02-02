@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'dart:convert';
 import 'dart:async'; // For Timer
-
 import 'package:Qurbani/utils/logger.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
@@ -54,7 +53,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   void dispose() {
-    _notificationTimer?.cancel();
+    _notificationTimer?.cancel();  
     _statsTimer?.cancel(); // Cancel stats timer
     super.dispose();
   }
@@ -65,32 +64,30 @@ class _AdminHomePageState extends State<AdminHomePage> {
     });
   }
 
-Future<void> _checkNotificationPermission() async {
-  AppLogger.debug("Checking notification permission");
+  Future<void> _checkNotificationPermission() async {
+    AppLogger.debug("Checking notification permission");
 
-  final isAllowed = await AwesomeNotifications().isNotificationAllowed();
-  if (!isAllowed) {
-    AppLogger.warning("Notification permission not granted. Requesting...");
-    await AwesomeNotifications().requestPermissionToSendNotifications();
+    final isAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!isAllowed) {
+      AppLogger.warning("Notification permission not granted. Requesting...");
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+    }
   }
-}
-
 
   Future<void> _loadStats() async {
     try {
-
       AppLogger.debug("Fetching dashboard stats from backend");
 
       final stats =
           await AdminService.getDashboardStats(); // fetch from backend
 
-           AppLogger.info("Dashboard stats loaded: $stats");
+      AppLogger.info("Dashboard stats loaded: $stats");
 
       setState(() {
         _stats = stats; // update UI
       });
     } catch (e, stack) {
-    AppLogger.error("Failed to load dashboard stats", e, stack);
+      AppLogger.error("Failed to load dashboard stats", e, stack);
       // optional: show toast or ignore
     }
   }
@@ -99,53 +96,56 @@ Future<void> _checkNotificationPermission() async {
   // PERMISSIONS
   // ---------------------------------------------------------
 
- Future<void> _checkPermissions() async {
-  AppLogger.debug("Requesting permissions: notification, camera, location");
+  Future<void> _checkPermissions() async {
+    AppLogger.debug("Checking camera permission");
+    final camStatus = await Permission.camera.request();
+    AppLogger.debug("Camera permission: $camStatus");
 
-  await [
-    Permission.notification,
-    Permission.camera,
-    Permission.location,
-  ].request();
-}
+    AppLogger.debug("Checking location permission");
+    final locStatus = await Permission.location.request();
+    AppLogger.debug("Location permission: $locStatus");
+
+    AppLogger.debug("Checking notification permission");
+    final notifAllowed = await AwesomeNotifications().isNotificationAllowed();
+    if (!notifAllowed) {
+      AppLogger.debug("Requesting notification permission");
+      await AwesomeNotifications().requestPermissionToSendNotifications();
+    }
+  }
 
   // ---------------------------------------------------------
   // BACKEND LOCATION CHECK (JWT BASED)
   // ---------------------------------------------------------
 
-Future<void> _ensureLocationSelected() async {
-  final token = await _storage.read(key: 'token');
-  if (token == null) {
-    AppLogger.warning("No token found while checking admin location");
-    return;
-  }
-
-  AppLogger.debug("Checking admin profile for location");
-
-  final res = await http.get(
-    Uri.parse("$_baseUrl/admin/profile"),
-    headers: {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    },
-  );
-
-  if (res.statusCode == 200) {
-    final data = jsonDecode(res.body);
-    AppLogger.info("Admin profile loaded: city=${data['city']}");
-
-    if (data['city'] == null) {
-      AppLogger.warning("Admin has no city selected");
-      // TODO: show location picker
+  Future<void> _ensureLocationSelected() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) {
+      AppLogger.warning("No token found while checking admin location");
+      return;
     }
-  } else {
-    AppLogger.error(
-      "Failed to fetch admin profile",
-      res.body,
-    );
-  }
-}
 
+    AppLogger.debug("Checking admin profile for location");
+
+    final res = await http.get(
+      Uri.parse("$_baseUrl/admin/profile"),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      AppLogger.info("Admin profile loaded: city=${data['city']}");
+
+      if (data['city'] == null) {
+        AppLogger.warning("Admin has no city selected");
+        // TODO: show location picker
+      }
+    } else {
+      AppLogger.error("Failed to fetch admin profile", res.body);
+    }
+  }
 
   // ---------------------------------------------------------
   // UI

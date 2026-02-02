@@ -373,17 +373,30 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           const SizedBox(height: 15),
           DropdownButtonFormField<String>(
             value: shareholder.selectedAnimalId,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: "Select Animal",
+              // prefixIcon: const Icon(
+              //   Icons.online_prediction_rounded,
+              //   color: AppTheme.primaryGreen,
+              //   size: 20,
+              // ),
+              filled: true,
+              fillColor: const Color(0xffF8F9FA), // SAME as text fields
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppTheme.primaryGreen),
+              ),
+            ),
+            hint: const Text("Choose an animal"),
             items: _animals.map((animal) {
               final basePrice =
                   double.tryParse(animal['price'].toString()) ?? 0.0;
-
               final convertedPrice = currency.convert(basePrice);
-
-              debugPrint(
-                "[ANIMAL] id=${animal['id']} "
-                "base=$basePrice ${currency.baseCurrency} → "
-                "$convertedPrice ${currency.currency}",
-              );
 
               return DropdownMenuItem<String>(
                 value: animal['id'],
@@ -398,7 +411,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                 shareholder.selectedAnimalId = value;
               });
             },
-            hint: const Text("Choose an animal"),
           ),
 
           const SizedBox(height: 20),

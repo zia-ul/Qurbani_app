@@ -8,7 +8,8 @@ import 'package:Qurbani/screens/user/order_form.dart';
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
-
+  // TEST HOOK
+  static Future<List<dynamic>> Function()? mockFetchVerifiedAdmins;
   @override
   State<AdminDirectoryPage> createState() => _AdminDirectoryPageState();
 }
@@ -28,6 +29,10 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
 
   /// Fetch verified admins from Node(backend), MySQL
   Future<List<dynamic>> fetchVerifiedAdmins() async {
+    if (AdminDirectoryPage.mockFetchVerifiedAdmins != null) {
+      return AdminDirectoryPage.mockFetchVerifiedAdmins!();
+    }
+
     final res = await http.get(Uri.parse("$_baseUrl/admins/verified"));
 
     if (res.statusCode != 200) {
@@ -85,6 +90,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 }
 
                 return GridView.builder(
+                  key: ValueKey(searchText), // ✅ THIS FIXES YOUR TEST
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,

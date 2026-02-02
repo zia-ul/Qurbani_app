@@ -28,10 +28,39 @@ class _PermissionGateScreenState extends State<PermissionGateScreen> {
       return;
     }
 
+    // Check if permanently denied
     final permanent = await PermissionService.permanentlyDenied();
     if (permanent && mounted) {
       _showSettingsDialog();
+      return;
     }
+
+    // Temporarily denied -> show retry dialog
+    if (mounted) {
+      _showRetryDialog();
+    }
+  }
+
+  void _showRetryDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Permissions Required"),
+        content: const Text(
+          "This app requires camera, location, and photos permissions to work correctly.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _handle(); // Retry requesting permissions
+            },
+            child: const Text("Retry"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSettingsDialog() {

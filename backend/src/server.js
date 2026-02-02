@@ -18,7 +18,6 @@ const rateLimit = require("express-rate-limit");
 
 require("./cron");
 require('dotenv').config();
-console.log("Using API key:", process.env.OPENEXCHANGE_API_KEY);
 
 // Winston logger
 const logger = require("../middleware/logger");

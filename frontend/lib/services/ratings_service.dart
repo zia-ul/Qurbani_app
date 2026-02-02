@@ -8,6 +8,17 @@ class RatingService {
   static const _storage = FlutterSecureStorage();
   static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
+  static Future<Map<String, dynamic>> Function(
+    String orderId,
+    String userId,
+  )? mockGetRatings;
+
+  static Future<void> Function(
+    String orderId,
+    String userId,
+    List<Map<String, dynamic>> ratings,
+  )? mockSubmitRatings;
+
   /**
    * Retrieves existing ratings and order details for a specific order
    *
@@ -24,6 +35,11 @@ class RatingService {
     String orderId,
     String userId,
   ) async {
+
+     if (mockGetRatings != null) {
+    return mockGetRatings!(orderId, userId);
+  }
+
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -46,6 +62,11 @@ class RatingService {
     String userId,
     List<Map<String, dynamic>> ratings,
   ) async {
+
+    if (mockSubmitRatings != null) {
+    return mockSubmitRatings!(orderId, userId, ratings);
+  }
+
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 

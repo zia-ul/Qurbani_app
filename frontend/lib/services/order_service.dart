@@ -7,6 +7,11 @@ class OrderService {
   static const _storage = FlutterSecureStorage();
   static final String? _baseUrl = dotenv.env['BASE_URL'];
 
+  static Future<Map<String, dynamic>> Function(String orderId)?
+  mockGetOrderDetails;
+
+  static Future<void> Function(String orderId)? mockCancelOrder;
+
   /**
    * Places a new order for Qurbani animal shares
    *
@@ -178,6 +183,9 @@ class OrderService {
   }
 
   static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
+    if (mockGetOrderDetails != null) {
+      return mockGetOrderDetails!(orderId);
+    }
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -196,6 +204,9 @@ class OrderService {
   }
 
   static Future<void> cancelOrder(String orderId) async {
+    if (mockCancelOrder != null) {
+      return mockCancelOrder!(orderId);
+    }
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 

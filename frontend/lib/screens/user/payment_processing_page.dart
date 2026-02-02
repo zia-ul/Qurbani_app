@@ -1,3 +1,5 @@
+import 'package:Qurbani/screens/user/marketplace.dart';
+import 'package:Qurbani/screens/user/user_home_screen.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -53,7 +55,11 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
         backgroundColor: Colors.green,
         textColor: AppTheme.bgGradientEnd,
       );
-      Navigator.pop(context); // Back to order page or home
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => AdminDirectoryPage()),
+        (route) => false, // 🔥 clears entire back stack
+      );
     } catch (e) {
       print("testing error here");
       print(e);
