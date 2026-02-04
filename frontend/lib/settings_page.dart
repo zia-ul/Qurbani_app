@@ -16,7 +16,7 @@ class SettingsPage extends StatefulWidget {
   final String userId;
   final String role;
 
-    static Future<Map<String, dynamic>> Function()? mockProfile;
+  static Future<Map<String, dynamic>> Function()? mockProfile;
   static Future<List<String>> Function()? mockCurrencies;
   static Future<Map<String, dynamic>> Function()? mockPaymentSettings;
   static Future<void> Function(String url)? mockOpenLink;
@@ -58,12 +58,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Load admin payment settings
   Future<void> _loadPaymentSettings() async {
-
-    
     try {
       final data = SettingsPage.mockPaymentSettings != null
-        ? await SettingsPage.mockPaymentSettings!()
-        : await PaymentService.getPaymentSettings();
+          ? await SettingsPage.mockPaymentSettings!()
+          : await PaymentService.getPaymentSettings();
 
       setState(() {
         _selectedPaymentMethods = [];
@@ -80,7 +78,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Load user currency from CurrencyNotifier
   Future<void> _loadUserCurrency() async {
-
     if (SettingsPage.mockCurrencies != null &&
         SettingsPage.mockProfile != null) {
       _availableCurrencies = await SettingsPage.mockCurrencies!();
@@ -167,10 +164,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Open external links
   Future<void> _openLink(String url) async {
-
-      if (SettingsPage.mockOpenLink != null) {
-    return SettingsPage.mockOpenLink!(url);
-  }
+    if (SettingsPage.mockOpenLink != null) {
+      return SettingsPage.mockOpenLink!(url);
+    }
     if (await canLaunch(url)) {
       await launch(url);
     } else {
@@ -347,7 +343,7 @@ class _SettingsPageState extends State<SettingsPage> {
             CheckboxListTile(
               value: _selectedPaymentMethods.contains('cod'),
               activeColor: AppTheme.primaryGreen,
-              title: const Text("Cash on Delivery"),
+              title: const Text("Cash"),
               controlAffinity: ListTileControlAffinity.leading,
               onChanged: (checked) {
                 final methods = List<String>.from(_selectedPaymentMethods);

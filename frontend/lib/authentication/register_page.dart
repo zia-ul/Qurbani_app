@@ -18,6 +18,7 @@
  */
 
 import 'package:Qurbani/utils/logger.dart';
+import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/authentication/login_page.dart';
@@ -25,6 +26,7 @@ import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/terms_condition_dialog.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:country_state_city/country_state_city.dart' as csc;
 
 /**
  * RegisterPage Widget
@@ -57,7 +59,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final phoneController = TextEditingController();
   final passController = TextEditingController();
   final confirmPassController = TextEditingController();
-  final addressController = TextEditingController();
+  // final addressController = TextEditingController();
+  final countryController = TextEditingController();
+  final cityController = TextEditingController();
+  final postalCodeController = TextEditingController();
 
   // User selection and preference variables
   String selectedRole = 'user'; // Default role selection
@@ -73,6 +78,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
   String? countryISO; // Country ISO code for phone validation
   String selectedCurrency = 'USD'; // Default currency preference
+  String? selectedCountryName;
+  // String? selectedCity;
+
+  List<csc.State> states = [];
+  List<csc.City> cities = [];
+
+  csc.State? selectedState;
+  csc.City? selectedCity;
 
   // ---------------- PASSWORD ----------------
   String _checkPasswordStrength(String password) {
@@ -134,7 +147,11 @@ class _RegisterPageState extends State<RegisterPage> {
         "phone": phoneNumber,
         "country_code": countryCode,
         "country_iso": countryISO,
-        "address": addressController.text.trim(),
+        // "address": addressController.text.trim(),
+        "country": countryController.text.trim(),
+        "city": cityController.text.trim(),
+        "postal_code": postalCodeController.text.trim(),
+
         "gender": selectedGender,
         "role": selectedRole,
         "currency": selectedCurrency,
@@ -213,6 +230,33 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  String? _validatePostalCode(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return "Postal code is required";
+    }
+
+    // India (PIN)
+    if (countryISO == 'IN') {
+      return RegExp(r'^[1-9][0-9]{5}$').hasMatch(value)
+          ? null
+          : "Enter valid 6-digit PIN code";
+    }
+
+    // USA
+    if (countryISO == 'US') {
+      return RegExp(r'^\d{5}(-\d{4})?$').hasMatch(value)
+          ? null
+          : "Enter valid ZIP code";
+    }
+
+    // Generic fallback
+    if (value.length < 4) {
+      return "Invalid postal code";
+    }
+
+    return null;
+  }
+
   @override
   void dispose() {
     nameController.dispose();
@@ -220,7 +264,10 @@ class _RegisterPageState extends State<RegisterPage> {
     phoneController.dispose();
     passController.dispose();
     confirmPassController.dispose();
-    addressController.dispose();
+    // addressController.dispose();
+    countryController.dispose();
+    cityController.dispose();
+    postalCodeController.dispose();
     super.dispose();
   }
 
@@ -435,7 +482,16 @@ class _RegisterPageState extends State<RegisterPage> {
                                                 countryCode = phone.countryCode;
                                                 countryISO =
                                                     phone.countryISOCode;
+
+                                                if (countryController
+                                                    .text
+                                                    .isEmpty) {
+                                                  countryController.text =
+                                                      phone.countryISOCode ??
+                                                      '';
+                                                }
                                               },
+
                                               validator: (phone) {
                                                 if (phone == null ||
                                                     phone.number.isEmpty) {
@@ -450,10 +506,184 @@ class _RegisterPageState extends State<RegisterPage> {
                                           ),
 
                                           // Address
+                                          // _field(
+                                          //   addressController,
+                                          //   "Address",
+                                          //   Icons.location_on,
+                                          // ),
+                                          // Country
+                                          InkWell(
+                                            onTap: () {
+                                              showCountryPicker(
+                                                context: context,
+                                                onSelect: (country) async {
+                                                  // 1️⃣ Set selected country
+                                                  setState(() {
+                                                    selectedCountryName =
+                                                        country.name;
+                                                    countryISO =
+                                                        country.countryCode;
+                                                    countryController.text =
+                                                        country.name;
+
+                                                    // Reset state & city
+                                                    selectedState = null;
+                                                    selectedCity = null;
+                                                    states = [];
+                                                    cities = [];
+                                                    cityController.clear();
+                                                  });
+
+                                                  // 2️⃣ Load states for selected country
+                                                  states = await csc
+                                                      .getStatesOfCountry(
+                                                        country.countryCode,
+                                                      );
+
+                                                  // 3️⃣ Refresh UI
+                                                  if (mounted) {
+                                                    setState(() {});
+                                                  }
+                                                },
+                                              );
+                                            },
+
+                                            child: AbsorbPointer(
+                                              child: _field(
+                                                countryController,
+                                                "Select Country",
+                                                Icons.public,
+                                                // helperText: "Select country",
+                                              ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          DropdownButtonFormField<csc.State>(
+                                            value: selectedState,
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 13,
+                                            ),
+                                            items: states
+                                                .map(
+                                                  (s) =>
+                                                      DropdownMenuItem<
+                                                        csc.State
+                                                      >(
+                                                        value: s,
+                                                        child: Text(
+                                                          s.name,
+                                                          style:
+                                                              const TextStyle(
+                                                                color: Colors
+                                                                    .black,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                )
+                                                .toList(),
+                                            onChanged: (value) async {
+                                              setState(() {
+                                                selectedState = value;
+                                                selectedCity = null;
+                                                cities = [];
+                                                cityController.clear();
+                                              });
+
+                                              if (value != null) {
+                                                cities = await csc
+                                                    .getStateCities(
+                                                      value.countryCode,
+                                                      value.isoCode,
+                                                    );
+                                                if (mounted) setState(() {});
+                                              }
+                                            },
+                                            decoration: const InputDecoration(
+                                              labelText: "State",
+                                              prefixIcon: Icon(Icons.map),
+                                              filled: true,
+                                              fillColor: Color.fromARGB(
+                                                255,
+                                                255,
+                                                255,
+                                                255,
+                                              ), // ✅ THIS
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.all(
+                                                  Radius.circular(12),
+                                                ),
+                                              ),
+                                            ),
+                                            validator: (v) => v == null
+                                                ? "Please select state"
+                                                : null,
+                                          ),
+
+                                          // City
+                                          // _field(
+                                          //   cityController,
+                                          //   "City for Qurbani Service",
+                                          //   Icons.location_city,
+                                          //   // helperText:
+                                          //   //     "City for Qurbani service",
+                                          // ),
+                                          DropdownButtonFormField<csc.City>(
+                                            value: selectedCity,
+                                            style: const TextStyle(
+                                              color: Colors
+                                                  .black, // selected text color
+                                              fontSize: 13,
+                                            ),
+                                            items: cities
+                                                .map(
+                                                  (c) =>
+                                                      DropdownMenuItem<
+                                                        csc.City
+                                                      >(
+                                                        value: c,
+                                                        child: Text(c.name),
+                                                      ),
+                                                )
+                                                .toList(),
+                                            onChanged: (value) {
+                                              setState(() {
+                                                selectedCity = value;
+                                                cityController.text =
+                                                    value?.name ?? '';
+                                              });
+                                            },
+                                            decoration: const InputDecoration(
+                                              labelText:
+                                                  "City for Qurbani Service",
+                                              prefixIcon: Icon(
+                                                Icons.location_city,
+                                              ),
+                                              filled: true,
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.all(
+                                                  Radius.circular(12),
+                                                ),
+                                              ),
+                                            ),
+                                            validator: (v) => v == null
+                                                ? "Please select city"
+                                                : null,
+                                          ),
+
+                                          const SizedBox(height: 5),
+
+                                          // Postal / Zip Code
                                           _field(
-                                            addressController,
-                                            "Address",
-                                            Icons.location_on,
+                                            postalCodeController,
+                                            "Postal / Zip Code",
+                                            Icons.markunread_mailbox,
+                                            // helperText: countryISO == 'IN'
+                                            //     ? "6-digit PIN code"
+                                            //     : "ZIP / Postal code",
+                                            validator: _validatePostalCode,
                                           ),
 
                                           const SizedBox(height: 5),

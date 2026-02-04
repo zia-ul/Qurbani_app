@@ -496,9 +496,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         children: [
           ...allowedMethods.map((method) {
             return RadioListTile<String>(
-              title: Text(
-                method == 'Cash' ? 'Cash on Delivery' : 'Online Payment',
-              ),
+              title: Text(method == 'Cash' ? 'Cash' : 'Online Payment'),
               value: method,
               groupValue: _paymentMethod,
               onChanged: (method == 'Cash' && isCODExpired)
@@ -651,7 +649,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
     if (_paymentMethod == 'Cash' && isCODExpired) {
       Fluttertoast.showToast(
-        msg: "Cash on Delivery deadline has passed",
+        msg: "Cash deadline has passed",
         backgroundColor: Colors.red,
       );
       return;
@@ -702,7 +700,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             title: const Text("Confirm Order"),
             content: Text(
               "Total: ${currency.currency} ${displayTotal.toStringAsFixed(2)}\n"
-              "Place order with Cash on Delivery?",
+              "Place order with Cash?",
             ),
             actions: [
               TextButton(

@@ -1,7 +1,7 @@
 /**
  * Controller for managing admin payment settings.
  * This module handles CRUD operations for admin-specific payment configurations,
- * including settings for Cash on Delivery (COD) and online payments.
+ * including settings for Cash (COD) and online payments.
  * It provides endpoints for admins to manage their settings and for public access to view them.
  */
 

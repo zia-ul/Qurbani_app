@@ -64,6 +64,15 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Text(
+              "Each city has one verified admin to ensure quality, transparency, and proper Qurbani management.",
+              style: TextStyle(fontSize: 12, color: AppTheme.darkBgGradientStart),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
           _buildSearchHeader(),
           Expanded(
             child: FutureBuilder<List<dynamic>>(

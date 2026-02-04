@@ -26,7 +26,7 @@ class AboutUsPage extends StatelessWidget {
         icon: Icons.payment,
         title: "Cash & Online Payments",
         description:
-            "Flexible payment options including online payment and cash on delivery.",
+            "Flexible payment options including online payment and Cash.",
       ),
       AboutFeature(
         icon: Icons.lock,

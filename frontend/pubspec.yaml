@@ -78,6 +78,9 @@ dependencies:
   awesome_notifications: ^0.10.1
   logger: ^2.6.2
   mobile_scanner: ^7.1.4
+  country_picker: ^2.0.27
+  dropdown_search: ^6.0.2
+  country_state_city: ^0.1.6
 
 flutter_launcher_icons:
   android: true

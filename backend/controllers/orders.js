@@ -228,7 +228,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
 
     if (order.payment_method !== "Cash") {
       return res.status(400).json({
-        message: "Only Cash on Delivery orders can be marked as paid",
+        message: "Only Cash orders can be marked as paid",
       });
     }
 

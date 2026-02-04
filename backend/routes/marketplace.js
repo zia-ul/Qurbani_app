@@ -211,7 +211,7 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
       [adminId]
     );
 
-    //find cash on delivery last payment date
+    //find Cash last payment date
 
     res.json({
       admin_currency: admin.currency, 

@@ -34,72 +34,7 @@ class _HomePageState extends State<HomePage> {
     // _listenForStatusUpdates();
   }
 
-  // --- Notification Logic ---
-  // Consolidated listener to handle both processing and delivery updates efficiently
-  // void _listenForStatusUpdates() {
-  //   FirebaseFirestore.instance
-  //       .collection('admin_orders')
-  //       .where('userId', isEqualTo: widget.id)
-  //       .snapshots()
-  //       .listen((snapshot) {
-  //         for (var docChange in snapshot.docChanges) {
-  //           if (docChange.type == DocumentChangeType.modified) {
-  //             final data = docChange.doc.data();
-  //             if (data == null) continue;
 
-  //             final orderId = docChange.doc.id;
-
-  //             // 1. Check Processing Status Change
-  //             final bool procNotified = data['userProcessingNotified'] ?? false;
-  //             final String procStatus = data['processingStatus'] ?? '';
-  //             if (procStatus.isNotEmpty && !procNotified) {
-  //               _triggerNotification(
-  //                 id: 100,
-  //                 title: '⚙️ Order Processing',
-  //                 body: 'Order #$orderId status: "$procStatus"',
-  //               );
-  //               _markAsNotified(docChange.doc.id, 'userProcessingNotified');
-  //             }
-
-  //             // 2. Check Delivery Status Change
-  //             final bool delNotified = data['userDeliveryNotified'] ?? false;
-  //             final String delStatus = data['deliveryStatus'] ?? '';
-  //             if (delStatus.isNotEmpty && !delNotified) {
-  //               _triggerNotification(
-  //                 id: 200,
-  //                 title: '🚚 Delivery Update',
-  //                 body: 'Order #$orderId delivery: "$delStatus"',
-  //               );
-  //               _markAsNotified(docChange.doc.id, 'userDeliveryNotified');
-  //             }
-  //           }
-  //         }
-  //       });
-  // }
-
-  // void _triggerNotification({
-  //   required int id,
-  //   required String title,
-  //   required String body,
-  // }) {
-  //   AwesomeNotifications().createNotification(
-  //     content: NotificationContent(
-  //       id: id + DateTime.now().millisecond,
-  //       channelKey: 'user_orders',
-  //       title: title,
-  //       body: body,
-  //       notificationLayout: NotificationLayout.Default,
-  //     ),
-  //   );
-  // }
-
-  // void _markAsNotified(String docId, String field) {
-  //   FirebaseFirestore.instance
-  //       .collection('admin_orders')
-  //       .doc(docId)
-  //       .update({field: true})
-  //       .catchError((e) => print("Notification flag update failed: $e"));
-  // }
 
   Future<void> _checkPermissions() async {
     await [Permission.notification, Permission.location].request();
@@ -174,9 +109,9 @@ class _HomePageState extends State<HomePage> {
                         Expanded(
                           child: _buildActionCard(
                             title: "Marketplace",
-                            subtitle: "Explore & book animals",
+                            subtitle: "Choose and book your Qurbani animal",
                             icon: Icons.storefront,
-                            color: const Color(0xff4CAF50),
+                            color: AppTheme.primaryGreen,
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -189,8 +124,8 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(width: 15),
                         Expanded(
                           child: _buildActionCard(
-                            title: "My Bookings",
-                            subtitle: "Track your orders",
+                            title: "My Qurbani",
+                            subtitle: "View animal details and track delivery",
                             icon: Icons.assignment_turned_in_outlined,
                             color: const Color(0xff2196F3),
                             onTap: () => Navigator.push(

@@ -129,7 +129,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
-  /// Marks a Cash on Delivery order as paid on the server.
+  /// Marks a Cash order as paid on the server.
   Future<void> _markCodAsPaid() async {
     try {
       await AdminOrderService.markCodOrderAsPaid(widget.orderId);
@@ -253,7 +253,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           children: [
             _cardTitle('Order Information'),
             _infoRow('Order ID', widget.orderId),
-            
+
             _infoRow('User', data['user_name']),
             _infoRow('Address', data['address']),
             _infoRow('Animal Type', data['animal_type']),
@@ -281,7 +281,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                       builder: (_) => AlertDialog(
                         title: const Text('Confirm Payment'),
                         content: const Text(
-                          'Are you sure you want to mark this Cash on Delivery order as paid?',
+                          'Are you sure you want to mark this Cash order as paid?',
                         ),
                         actions: [
                           TextButton(
