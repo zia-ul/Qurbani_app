@@ -14,6 +14,13 @@ exports.addAnimal = async function addAnimal(adminId, data) {
     deliveryThreshold,
   } = data;
 
+  console.log(
+    "[ADD ANIMAL] Incoming price:",
+    price,
+    currency,
+  );
+
+  // 1️⃣ Get system base currency (USD)
   const [[meta]] = await pool.execute(
     "SELECT base_currency FROM currency_meta WHERE id = 1",
   );
@@ -22,6 +29,7 @@ exports.addAnimal = async function addAnimal(adminId, data) {
 
   let finalPrice = price;
 
+  // 2️⃣ Convert if needed
   if (currency !== baseCurrency) {
     const [[rateRow]] = await pool.execute(
       `
@@ -38,8 +46,13 @@ exports.addAnimal = async function addAnimal(adminId, data) {
     }
 
     finalPrice = price / rateRow.rate;
+
+    console.log(
+      `[ADD ANIMAL] Converted ${price} ${currency} → ${finalPrice} ${baseCurrency}`,
+    );
   }
 
+  // 3️⃣ Store ONLY base price
   const animalId = crypto.randomUUID();
 
   await pool.execute(
@@ -53,13 +66,17 @@ exports.addAnimal = async function addAnimal(adminId, data) {
       animalId,
       adminId,
       animalType,
-      finalPrice,
+      finalPrice, 
       shares,
       lastBookedDate,
       deliveryType,
       deliveryFee,
       deliveryThreshold,
     ],
+  );
+
+  console.log(
+    `[ADD ANIMAL] Stored base price: ${finalPrice} ${baseCurrency}`,
   );
 
   return animalId;

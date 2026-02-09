@@ -11,6 +11,45 @@ class AdminService {
   static const _storage = FlutterSecureStorage();
   static final String? _baseUrl = dotenv.env['BASE_URL'];
 
+  static Future<List<dynamic>> getDeliveryRequests() async {
+    final token = await _storage.read(key: 'token');
+
+    final res = await http.get(
+      Uri.parse("$_baseUrl/admins/delivery-requests"),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    return jsonDecode(res.body)['requests'];
+  }
+
+  static Future<void> updateDeliveryRequest(String id, String status) async {
+    final token = await _storage.read(key: 'token');
+
+    await http.put(
+      Uri.parse("$_baseUrl/admins/delivery-requests/$id"),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'status': status}),
+    );
+  }
+
+  // This method is used to trigger the backend to sync delivery requests from the database.
+  static Future<void> syncDeliveryRequests() async {
+    // final token = await const FlutterSecureStorage().read(key: 'token');
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+    
+    await http.post(
+      Uri.parse("$_baseUrl/admins/sync-delivery-requests"),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+  }
+
   /// Fetch admin profile
   static Future<Map<String, dynamic>> getAdminProfile(String adminId) async {
     final token = await _storage.read(key: 'token');

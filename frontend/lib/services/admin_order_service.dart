@@ -28,6 +28,46 @@ class AdminOrderService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  /// SAVE / UPDATE ADMIN (VENDOR) SHARE SETUP
+  static Future<void> saveShareSetup(Map<String, dynamic> payload) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.post(
+      Uri.parse('$_baseUrl/admins/share-setup'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (res.statusCode != 200 && res.statusCode != 201) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['message'] ?? 'Failed to save share setup');
+    }
+  }
+
+  /// GET EXISTING SHARE SETUP (optional but recommended)
+  static Future<Map<String, dynamic>?> getShareSetup() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.get(
+      Uri.parse('$_baseUrl/admins/share-setup'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (res.statusCode == 404) return null;
+
+    if (res.statusCode != 200) {
+      final body = jsonDecode(res.body);
+      throw Exception(body['message'] ?? 'Failed to fetch share setup');
+    }
+
+    return Map<String, dynamic>.from(jsonDecode(res.body)['data']);
+  }
+
   /// MARK Cash ORDER AS PAID
   static Future<void> markCodOrderAsPaid(String orderId) async {
     final token = await _storage.read(key: 'token');

@@ -1,3 +1,25 @@
+/**
+ * Orders Controller
+ *
+ * This module handles all order-related API endpoints for the application.
+ * It includes routes for users to view, create, and manage their orders,
+ * as well as admin-specific routes for managing orders.
+ *
+ * Key Features:
+ * - User order management (view, create, cancel)
+ * - Admin order management (view, update, mark as paid)
+ * - Order scheduling and delivery assignment
+ * - Ratings and feedback system
+ * - Special requests handling
+ *
+ * Dependencies:
+ * - express: Web framework for routing
+ * - uuid: For generating unique order IDs
+ * - mysql2/promise: Database connection pool
+ * - authMiddleware: Authentication middleware
+ * - logger: Logging utility for audit trails
+ */
+
 const express = require("express");
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
@@ -54,95 +76,11 @@ router.get("/my", authMiddleware, async (req, res) => {
   }
 });
 
-
 /**
- * @swagger
- * /api/orders/{orderId}/payment-success:
- *   put:
- *     summary: Update order payment status after online payment
- *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: orderId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - paymentId
- *             properties:
- *               paymentId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Payment updated successfully
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Something went wrong. Please try again later.
+ * GET /api/orders/:orderId/delivery-boy/:deliveryBoyId
+ * Retrieves delivery boy details for a specific order.
+ * Validates order existence and delivery boy assignment.
  */
-
-// PUT /api/orders/:orderId/payment-success - Update order payment status after online payment completion
-// Called by payment gateway webhook or frontend after successful payment processing
-// Marks order as paid and stores payment gateway reference ID for reconciliation
-// Critical for order fulfillment workflow and financial tracking
-router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
-  // Extract order ID from URL parameters
-  const { orderId } = req.params;
-  // Extract payment gateway ID from request body
-  const { paymentId } = req.body;
-  // Get authenticated user's ID for security validation
-  const userId = req.user.id;
-
-  try {
-    // Step 1: Update order payment status in database
-    // Sets payment_status to 'paid' and stores payment gateway reference
-    // Security: WHERE clause ensures users can only update their own orders
-    await pool.execute(
-      `UPDATE orders
-       SET payment_status='paid', payment_id=?
-       WHERE id=? AND user_id=?`,
-      [paymentId, orderId, userId],
-    );
-
-    // Step 2: Log successful payment update for audit trail and financial tracking
-    logger.info("Order payment status updated to paid successfully", {
-      userId,
-      orderId,
-      paymentId,
-      paymentMethod: "online_payment",
-      updateType: "payment_success_callback",
-      previousStatus: "pending/unpaid", // Assumed based on context
-      newStatus: "paid",
-    });
-
-    // Return success response to payment gateway or frontend
-    res.json({ message: "Payment status updated successfully" });
-  } catch (err) {
-    // Log error with comprehensive context for payment reconciliation debugging
-    logger.error("Error updating order payment status", {
-      userId,
-      orderId,
-      paymentId,
-      error: err.message,
-      stack: err.stack,
-      impact:
-        "Payment may not be properly recorded - manual reconciliation required",
-    });
-    // Return generic error message to client
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
-  }
-});
-
 router.get(
   "/:orderId/delivery-boy/:deliveryBoyId",
   authMiddleware,
@@ -150,7 +88,7 @@ router.get(
     try {
       const { orderId, deliveryBoyId } = req.params;
 
-      // ensure order exists
+      // Check if order exists
       const order = await pool.query(
         "SELECT id, delivery_person_id FROM orders WHERE id = ?",
         [orderId],
@@ -162,17 +100,17 @@ router.get(
         return res.status(404).json({ message: "Order not found" });
       }
 
-      // ensure correct delivery boy
+      // Note: Delivery boy validation commented out for now
       // if (order[0].delivery_person_id !== deliveryBoyId) {
       //   return res
       //     .status(403)
       //     .json({ message: "Delivery boy not assigned to this order" });
       // }
 
-      // fetch delivery boy
+      // Fetch delivery boy details
       const deliveryBoy = await pool.query(
         `
-      SELECT 
+      SELECT
         id,
         name,
         phone
@@ -228,7 +166,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
 
     if (order.payment_method !== "Cash") {
       return res.status(400).json({
-        message: "Only Cash orders can be marked as paid",
+        message: "Only Cash on Delivery orders can be marked as paid",
       });
     }
 
@@ -238,7 +176,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       });
     }
 
-    // Update order
+    // 2️⃣ Update order
     await pool.execute(
       `
       UPDATE orders
@@ -266,15 +204,16 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       message: "Failed to mark order as paid",
     });
   }
-});
+}
 
+);
 
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
     req.body;
 
-  // console.log("Print pay status", paymentStatus);
+  console.log("Print pay status", paymentStatus);
 
   if (
     !adminId ||
@@ -950,58 +889,5 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
-
-/**
- * GET /orders/:orderId/barcode
- * Returns barcode and order details for a given order
- */
-router.get('/:orderId/barcode', authMiddleware, async (req, res) => {
-  const { orderId } = req.params;
-
-  try {
-    const query = `
-      SELECT
-        id,
-        animal_id,
-        order_id,
-        barcode,
-        breed,
-        description,
-        age,
-        height,
-        weight,
-        photo_urls,
-        created_at,
-        qurbani_datetime,
-        meat_weight,
-        body_parts_description,
-        shareholder_id
-      FROM animal_details
-      WHERE order_id = ?
-      LIMIT 1
-    `;
-
-    // Destructure rows and fields from MySQL2 query
-    const [rows] = await pool.query(query, [orderId]);
-
-    console.log(rows); // Check what MySQL returns
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-    const order = rows[0];
-
-    res.json({
-      barcode: order.barcode,
-      orderDetails: order,
-    });
-  } catch (err) {
-    console.error('Error fetching barcode:', err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
 
 module.exports = router;

@@ -15,18 +15,28 @@ const router = express.Router();
 // Validates input, checks for existing email, hashes password, creates user, and sends verification email
 router.post(
   "/register",
-  registerLimiter, // Apply rate limiting to prevent abuse
+  registerLimiter,
   [
     body("name").notEmpty(),
     body("email").isEmail(),
     body("password").isLength({ min: 8 }),
     body("role").isIn(["user", "admin", "delivery"]),
-    body("phone").notEmpty().isNumeric(),
+
+    body("phone").notEmpty(),
     body("country_code")
       .notEmpty()
       .matches(/^\+\d{1,4}$/),
     body("country_iso").notEmpty().isLength({ min: 2, max: 2 }),
+
+    body("country").notEmpty(),
+    body("state").optional({ nullable: true, checkFalsy: true }).isString(),
+    body("city").optional({ nullable: true, checkFalsy: true }).isString(),
+    body("postal_code").notEmpty().isLength({ min: 3, max: 20 }),
+
+    body("currency").optional().isLength({ min: 3, max: 3 }),
+    body("gender").optional().isIn(["Male", "Female"]),
   ],
+
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -41,11 +51,16 @@ router.post(
       phone,
       country_code,
       country_iso,
+
+      country,
+      state,
+      city,
+      postal_code,
       address,
+
       gender,
       role,
       currency,
-      city,
     } = req.body;
 
     try {
@@ -56,6 +71,8 @@ router.post(
         "SELECT id FROM users WHERE email = ?",
         [email],
       );
+
+      console.log(existing);
 
       if (existing.length > 0) {
         logger.warn("Registration failed: email already registered", { email });
@@ -70,10 +87,26 @@ router.post(
       const verificationToken = uuidv4();
 
       await db.query(
-        `INSERT INTO users
-        (id, name, email, password_hash, phone, country_code, country_iso, address, gender, role,
-        admin_status, currency, city, is_verified, verification_token)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO users (
+          id,
+          name,
+          email,
+          password_hash,
+          phone,
+          country_code,
+          country_iso,
+          country,
+          state,
+          city,
+          postal_code,
+          address,
+          gender,
+          role,
+          admin_status,
+          currency,
+          is_verified,
+          verification_token
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           name,
@@ -82,18 +115,115 @@ router.post(
           phone,
           country_code,
           country_iso,
-          address,
-          gender,
+          country,
+          state || null,
+          city,
+          postal_code,
+          address || null,
+          gender || null,
           role,
           adminStatus,
           currency || "USD",
-          city || null,
           false,
           verificationToken,
         ],
       );
 
       logger.info("User registered successfully", { userId, role });
+
+      // --------------------------------------------------
+      // SYNC DELIVERY REQUESTS (BIDIRECTIONAL)
+      // --------------------------------------------------
+      // if (role === "delivery") {
+      //   // Delivery registered → notify matching admins
+      //   logger.info("Creating delivery requests for matching admins");
+
+      //   const [admins] = await db.query(
+      //     `
+      //     SELECT id
+      //     FROM users
+      //     WHERE role = 'admin'
+      //       AND admin_status = 'approved'
+      //       AND country = ?
+      //       AND state <=> ?
+      //       AND city <=> ?
+      //     `,
+      //     [country, state, city],
+      //   );
+
+      // console.log(admins);
+
+
+      //   if (admins.length > 0) {
+      //     const requests = admins.map((admin) => [
+      //       uuidv4(),
+      //       userId, // delivery_user_id
+      //       admin.id, // admin_user_id
+      //       country,
+      //       state,
+      //       city,
+      //     ]);
+
+      //     await db.query(
+      //       `
+      // INSERT IGNORE INTO delivery_requests
+      // (id, delivery_user_id, admin_user_id, country, state, city)
+      // VALUES ?
+      // `,
+      //       [requests],
+      //     );
+
+      //     logger.info("Delivery requests created for delivery user", {
+      //       deliveryUserId: userId,
+      //       adminCount: admins.length,
+      //     });
+      //   }
+      // }
+
+      // if (role === "admin" || role === "pending_admin") {
+      //   // Admin registered → notify matching delivery users
+      //   logger.info("Creating delivery requests for matching delivery users");
+
+      //   const [deliveries] = await db.query(
+      //     `
+      //     SELECT id
+      //     FROM users
+      //     WHERE role = 'delivery'
+      //       AND country = ?
+      //       AND state <=> ?
+      //       AND city <=> ?
+      //     `,
+      //     [country, state, city],
+      //   );
+
+      // console.log(deliveries);
+
+
+      //   if (deliveries.length > 0) {
+      //     const requests = deliveries.map((delivery) => [
+      //       uuidv4(),
+      //       delivery.id, // delivery_user_id
+      //       userId, // admin_user_id
+      //       country,
+      //       state,
+      //       city,
+      //     ]);
+
+      //     await db.query(
+      //       `
+      // INSERT IGNORE INTO delivery_requests
+      // (id, delivery_user_id, admin_user_id, country, state, city)
+      // VALUES ?
+      // `,
+      //       [requests],
+      //     );
+
+      //     logger.info("Delivery requests created for admin", {
+      //       adminUserId: userId,
+      //       deliveryCount: deliveries.length,
+      //     });
+      //   }
+      // }
 
       try {
         await sendVerificationEmail(email, verificationToken);

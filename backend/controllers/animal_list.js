@@ -2,7 +2,7 @@ const db = require("../config/db");
 const logger = require("../middleware/logger");
 
 /**
- * GET /api/animals
+ * GET /api, 
  * List all animals added by the logged-in admin
  */
 exports.getAnimals = async (req, res) => {

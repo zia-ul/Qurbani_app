@@ -1,5 +1,6 @@
 import 'dart:convert'; // For JSON parsing
 // import 'package:Qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -7,20 +8,60 @@ import 'package:Qurbani/services/order_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Qurbani/screens/user/payment_processing_page.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 // import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:location/location.dart' as loc;
+
+// class Shareholder {
+//   final TextEditingController nameController = TextEditingController();
+//   final TextEditingController guardianController = TextEditingController();
+//   final TextEditingController addressController = TextEditingController();
+
+//   String qurbaniDay = 'Day 1';
+//   String? selectedAnimalId;
+
+//   bool useLiveLocation = false;
+//   double? latitude;
+//   double? longitude;
+
+//   void dispose() {
+//     nameController.dispose();
+//     guardianController.dispose();
+//     addressController.dispose();
+//   }
+// }
+
+import 'package:country_state_city/country_state_city.dart' as csc;
 
 class Shareholder {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController guardianController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
+  final TextEditingController postalCodeController = TextEditingController();
+
+  bool useLiveLocation = false;
+  double? latitude;
+  double? longitude;
   String qurbaniDay = 'Day 1';
-  String? selectedAnimalId; // Use ID for selection
+  //
+  String? selectedCountryName;
+  String? countryISO;
+
+  List<csc.State> states = [];
+  List<csc.City> cities = [];
+
+  csc.State? selectedState;
+  csc.City? selectedCity;
 
   void dispose() {
     nameController.dispose();
     guardianController.dispose();
+    addressController.dispose();
+    postalCodeController.dispose();
   }
 }
 
@@ -40,19 +81,21 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   final List<Shareholder> _shareholders = [];
   String _paymentMethod = 'Cash'; // Will be updated dynamically
   bool _isLoading = false;
-  List<Map<String, dynamic>> _animals =
-      []; // Includes price, payment_methods, delivery_fee, etc.
+  // List<Map<String, dynamic>> _animals =
+  // []; // Includes price, payment_methods, delivery_fee, etc.
   bool _allowCOD = false;
   bool _allowOnline = true;
   bool _paymentSettingsLoaded = false;
 
   static final String? _baseUrl = dotenv.env['BASE_URL'];
   DateTime? _codDeadline;
+  Map<String, dynamic>? _pricing;
 
   @override
   void initState() {
     super.initState();
-    _fetchAnimals();
+    // _fetchAnimals();
+    _fetchPricing();
     _fetchPaymentSettings();
     _addShareholder();
     // _fetchCurrency();
@@ -64,6 +107,24 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       s.dispose();
     }
     super.dispose();
+  }
+
+  Map<String, dynamic>? _savedAddress;
+
+  Future<void> _fetchSavedAddress() async {
+    final res = await http.get(
+      Uri.parse("$_baseUrl/user/profile/address"),
+      headers: {
+        "Authorization":
+            "Bearer ${await FlutterSecureStorage().read(key: 'token')}",
+      },
+    );
+
+    if (res.statusCode == 200) {
+      setState(() {
+        _savedAddress = jsonDecode(res.body);
+      });
+    }
   }
 
   Future<void> _fetchPaymentSettings() async {
@@ -103,50 +164,112 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     }
   }
 
-  // Future<void> _fetchCurrency() async {
+  Future<void> _getLiveLocation(Shareholder shareholder) async {
+    final loc.Location location = loc.Location();
+
+    bool serviceEnabled;
+    loc.PermissionStatus permissionGranted;
+
+    // Check if location service is enabled
+    serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+      if (!serviceEnabled) {
+        Fluttertoast.showToast(
+          msg: "Location services are disabled",
+          backgroundColor: AppTheme.warningRed,
+        );
+        return;
+      }
+    }
+
+    // Check permission
+    permissionGranted = await location.hasPermission();
+    if (permissionGranted == loc.PermissionStatus.denied) {
+      permissionGranted = await location.requestPermission();
+      if (permissionGranted != loc.PermissionStatus.granted) {
+        Fluttertoast.showToast(
+          msg: "Location permission denied",
+          backgroundColor: AppTheme.warningRed,
+        );
+        return;
+      }
+    }
+
+    final loc.LocationData locationData = await location.getLocation();
+
+    // 🔥 Reverse geocoding
+    final placemarks = await placemarkFromCoordinates(
+      locationData.latitude!,
+      locationData.longitude!,
+    );
+
+    final place = placemarks.first;
+
+    final address = [
+      place.street,
+      place.subLocality,
+      place.locality,
+      place.administrativeArea,
+      place.postalCode,
+      place.country,
+    ].where((e) => e != null && e!.isNotEmpty).join(', ');
+
+    setState(() {
+      shareholder.latitude = locationData.latitude;
+      shareholder.longitude = locationData.longitude;
+      shareholder.addressController.text = address;
+    });
+  }
+
+  // Future<void> _fetchAnimals() async {
   //   try {
-  //     final res = await http.get(
-  //       Uri.parse("$_baseUrl/admins/${widget.adminId}/currency"),
-  //     );
-
-  //     if (res.statusCode != 200) {
-  //       throw Exception("Currency fetch failed");
-  //     }
-
-  //     final data = jsonDecode(res.body);
+  //     final result = await OrderService.getAnimals(widget.adminId);
+  //     // result contains: {'admin_currency': 'USD', 'animals': [...]}
+  //     final animals = List<Map<String, dynamic>>.from(result['animals']);
 
   //     setState(() {
-  //       _currency = data['admin_currency'] ?? 'USD';
-  //       _currencyRate = (data['rate'] ?? 1).toDouble();
-  //       _currencyLoaded = true;
+  //       _animals = animals;
   //     });
+
+  //     // debugPrint("Fetched animals: $_animals, currency: $_currency");
   //   } catch (e) {
-  //     debugPrint("Currency error: $e");
-  //     setState(() {
-  //       _currencyLoaded = true; // fallback
-  //     });
+  //     // debugPrint("Error fetching animals: $e");
+  //     Fluttertoast.showToast(
+  //       msg: "Error fetching animals: $e",
+  //       backgroundColor: AppTheme.warningRed,
+  //     );
   //   }
   // }
 
-  // double _convert(double amount) {
-  //   return amount * _currencyRate;
-  // }
-
-  Future<void> _fetchAnimals() async {
+  Future<void> _fetchPricing() async {
     try {
-      final result = await OrderService.getAnimals(widget.adminId);
-      // result contains: {'admin_currency': 'USD', 'animals': [...]}
-      final animals = List<Map<String, dynamic>>.from(result['animals']);
+      final token = await AuthService.getToken();
+
+      if (token == null) {
+        throw Exception("Not authenticated");
+      }
+
+      final res = await http.get(
+        Uri.parse("$_baseUrl/admins/${widget.adminId}/share-pricing"),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (res.statusCode != 200) {
+        debugPrint("Pricing API error: ${res.statusCode}");
+        debugPrint(res.body);
+        throw Exception("Failed to load pricing");
+      }
 
       setState(() {
-        _animals = animals;
+        _pricing = jsonDecode(res.body);
       });
-
-      // debugPrint("Fetched animals: $_animals, currency: $_currency");
     } catch (e) {
-      // debugPrint("Error fetching animals: $e");
       Fluttertoast.showToast(
-        msg: "Error fetching animals: $e",
+        msg: "Error loading price per share",
         backgroundColor: AppTheme.warningRed,
       );
     }
@@ -172,29 +295,22 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   // Calculate total price: sum of animal prices + delivery fees
   double _calculateTotalPrice() {
-    double subtotal = 0.0;
-    double deliveryTotal = 0.0;
+    if (_pricing == null) return 0.0;
 
-    for (var shareholder in _shareholders) {
-      if (shareholder.selectedAnimalId != null) {
-        final animal = _animals.firstWhere(
-          (a) => a['id'] == shareholder.selectedAnimalId,
-          orElse: () => {'price': 0.0, 'delivery_fee': 0.0},
-        );
+    final double pricePerShare =
+        double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
 
-        subtotal += double.tryParse(animal['price'].toString()) ?? 0.0;
+    final int shareCount = _shareholders.length;
 
-        if (animal['delivery_type'] == 'Paid') {
-          deliveryTotal +=
-              double.tryParse(animal['delivery_fee'].toString()) ?? 0.0;
-        }
-      }
+    double subtotal = pricePerShare * shareCount;
+
+    double deliveryFee = 0.0;
+    if (_pricing!['delivery_type'] == 'paid') {
+      deliveryFee =
+          double.tryParse(_pricing!['delivery_fee'].toString()) ?? 0.0;
     }
 
-    final total = subtotal + deliveryTotal;
-
-    // debugPrint("[TOTAL BASE] total=$total");
-    return total; // BASE currency only
+    return subtotal + deliveryFee;
   }
 
   String _formatCodDeadline(DateTime date) {
@@ -371,77 +487,145 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             icon: Icons.family_restroom_outlined,
           ),
           const SizedBox(height: 15),
-          DropdownButtonFormField<String>(
-            value: shareholder.selectedAnimalId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: "Select Animal",
-              // prefixIcon: const Icon(
-              //   Icons.online_prediction_rounded,
-              //   color: AppTheme.primaryGreen,
-              //   size: 20,
-              // ),
-              filled: true,
-              fillColor: const Color(0xffF8F9FA), // SAME as text fields
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: AppTheme.primaryGreen),
-              ),
-            ),
-            hint: const Text("Choose an animal"),
-            items: _animals.map((animal) {
-              final basePrice =
-                  double.tryParse(animal['price'].toString()) ?? 0.0;
-              final convertedPrice = currency.convert(basePrice);
 
-              return DropdownMenuItem<String>(
-                value: animal['id'],
-                child: Text(
-                  "${animal['animal_type']} - "
-                  "${currency.currency} ${convertedPrice.toStringAsFixed(2)}",
-                ),
-              );
-            }).toList(),
-            onChanged: (value) {
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              "Use Live Location",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+            value: shareholder.useLiveLocation,
+            activeColor: AppTheme.primaryGreen,
+            onChanged: (val) async {
               setState(() {
-                shareholder.selectedAnimalId = value;
+                shareholder.useLiveLocation = val;
+                if (!val) {
+                  shareholder.latitude = null;
+                  shareholder.longitude = null;
+                  shareholder.addressController.clear();
+                }
               });
+
+              if (val) {
+                await _getLiveLocation(shareholder);
+              }
             },
           ),
 
-          const SizedBox(height: 20),
-          const Text(
-            "Select Qurbani Day",
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
+          if (!shareholder.useLiveLocation && _savedAddress != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.home),
+                label: const Text("Use Saved Address"),
+                onPressed: () {
+                  setState(() {
+                    shareholder.selectedCountryName = _savedAddress!['country'];
+                    shareholder.selectedState = _savedAddress!['state'];
+                    shareholder.selectedCity = _savedAddress!['city'];
+
+                    shareholder.postalCodeController.text =
+                        _savedAddress!['postal_code'] ?? '';
+                    shareholder.addressController.text =
+                        _savedAddress!['address'] ?? '';
+                  });
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: ['Day 1', 'Day 2', 'Day 3'].map((day) {
-              bool isSelected = shareholder.qurbaniDay == day;
-              return ChoiceChip(
-                label: Text(day),
-                selected: isSelected,
-                selectedColor: AppTheme.primaryGreen,
-                onSelected: (_) => setState(() => shareholder.qurbaniDay = day),
-                labelStyle: TextStyle(
-                  color: isSelected ? AppTheme.bgGradientEnd : Colors.black,
-                ),
-                backgroundColor: Colors.grey[100],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              );
-            }).toList(),
-          ),
+
+          const SizedBox(height: 10),
+
+          // _customTextField(
+          //   controller: shareholder.addressController,
+          //   label: "Address",
+          //   icon: Icons.location_on_outlined,
+          //   enabled: !shareholder.useLiveLocation,
+          // ),
+          if (!shareholder.useLiveLocation) ...[
+            _customTextField(
+              controller: shareholder.addressController,
+              label: "Address",
+              icon: Icons.location_on,
+            ),
+            _customTextField(
+              controller: shareholder.postalCodeController,
+              label: "Postal Code",
+              icon: Icons.markunread_mailbox,
+            ),
+
+            // const SizedBox(height: 15),
+            // DropdownButtonFormField<String>(
+            //   value: shareholder.selectedAnimalId,
+            //   isExpanded: true,
+            //   decoration: InputDecoration(
+            //     labelText: "Select Animal",
+            //     // prefixIcon: const Icon(
+            //     //   Icons.online_prediction_rounded,
+            //     //   color: AppTheme.primaryGreen,
+            //     //   size: 20,
+            //     // ),
+            //     filled: true,
+            //     fillColor: const Color(0xffF8F9FA), // SAME as text fields
+            //     border: OutlineInputBorder(
+            //       borderRadius: BorderRadius.circular(12),
+            //       borderSide: BorderSide.none,
+            //     ),
+            //     focusedBorder: OutlineInputBorder(
+            //       borderRadius: BorderRadius.circular(12),
+            //       borderSide: BorderSide(color: AppTheme.primaryGreen),
+            //     ),
+            //   ),
+            //   hint: const Text("Choose an animal"),
+            //   items: _animals.map((animal) {
+            //     final basePrice =
+            //         double.tryParse(animal['price'].toString()) ?? 0.0;
+            //     final convertedPrice = currency.convert(basePrice);
+
+            //     return DropdownMenuItem<String>(
+            //       value: animal['id'],
+            //       child: Text(
+            //         "${animal['animal_type']} - "
+            //         "${currency.currency} ${convertedPrice.toStringAsFixed(2)}",
+            //       ),
+            //     );
+            //   }).toList(),
+            //   onChanged: (value) {
+            //     setState(() {
+            //       shareholder.selectedAnimalId = value;
+            //     });
+            //   },
+            // ),
+            // const SizedBox(height: 20),
+            Text(
+              "Select Qurbani Day",
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: ['Day 1', 'Day 2', 'Day 3'].map((day) {
+                bool isSelected = shareholder.qurbaniDay == day;
+                return ChoiceChip(
+                  label: Text(day),
+                  selected: isSelected,
+                  selectedColor: AppTheme.primaryGreen,
+                  onSelected: (_) =>
+                      setState(() => shareholder.qurbaniDay = day),
+                  labelStyle: TextStyle(
+                    color: isSelected ? AppTheme.bgGradientEnd : Colors.black,
+                  ),
+                  backgroundColor: Colors.grey[100],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
         ],
       ),
     );
@@ -452,30 +636,49 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     print(currency.currency);
     print(currency.baseCurrency);
 
-    double subtotal = 0.0;
-    double deliveryTotal = 0.0;
+    // double subtotal = 0.0;
+    // double deliveryTotal = 0.0;
 
-    for (var shareholder in _shareholders) {
-      if (shareholder.selectedAnimalId != null) {
-        final animal = _animals.firstWhere(
-          (a) => a['id'] == shareholder.selectedAnimalId,
-          orElse: () => {'price': 0.0, 'delivery_fee': 0.0},
-        );
+    // for (var shareholder in _shareholders) {
+    //   if (shareholder.selectedAnimalId != null) {
+    //     final animal = _animals.firstWhere(
+    //       (a) => a['id'] == shareholder.selectedAnimalId,
+    //       orElse: () => {'price': 0.0, 'delivery_fee': 0.0},
+    //     );
 
-        subtotal += double.tryParse(animal['price'].toString()) ?? 0.0;
+    //     subtotal += double.tryParse(animal['price'].toString()) ?? 0.0;
 
-        if (animal['delivery_type'] == 'Paid') {
-          deliveryTotal +=
-              double.tryParse(animal['delivery_fee'].toString()) ?? 0.0;
-        }
-      }
+    //     if (animal['delivery_type'] == 'Paid') {
+    //       deliveryTotal +=
+    //           double.tryParse(animal['delivery_fee'].toString()) ?? 0.0;
+    //     }
+    //   }
+    // }
+
+    if (_pricing == null) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    final totalBase = subtotal + deliveryTotal;
+    final double pricePerShare =
+        double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
 
-    // ✅ Convert ONLY for display
+    final int shareCount = _shareholders.length;
+
+    final double subtotal = pricePerShare * shareCount;
+
+    double deliveryFee = 0.0;
+    if (_pricing!['delivery_type'] == 'paid') {
+      deliveryFee =
+          double.tryParse(_pricing!['delivery_fee'].toString()) ?? 0.0;
+    }
+
+    final double totalBase = subtotal + deliveryFee;
+
+    // final totalBase = subtotal + deliveryTotal;
+
+    // Convert ONLY for display
     final convertedSubtotal = currency.convert(subtotal);
-    final convertedDelivery = currency.convert(deliveryTotal);
+    final convertedDelivery = currency.convert(totalBase);
     final convertedTotal = currency.convert(totalBase);
 
     debugPrint(
@@ -564,28 +767,30 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     );
   }
 
-  Widget _paymentOption(String title, String value, IconData icon) {
-    return RadioListTile<String>(
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-      ),
-      secondary: Icon(icon, color: AppTheme.primaryGreen),
-      value: value,
-      groupValue: _paymentMethod,
-      onChanged: (val) => setState(() => _paymentMethod = val!),
-      activeColor: AppTheme.primaryGreen,
-      contentPadding: EdgeInsets.zero,
-    );
-  }
+  // Widget _paymentOption(String title, String value, IconData icon) {
+  //   return RadioListTile<String>(
+  //     title: Text(
+  //       title,
+  //       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+  //     ),
+  //     secondary: Icon(icon, color: AppTheme.primaryGreen),
+  //     value: value,
+  //     groupValue: _paymentMethod,
+  //     onChanged: (val) => setState(() => _paymentMethod = val!),
+  //     activeColor: AppTheme.primaryGreen,
+  //     contentPadding: EdgeInsets.zero,
+  //   );
+  // }
 
   Widget _customTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
+    bool enabled = true,
   }) {
     return TextField(
       controller: controller,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: AppTheme.primaryGreen, size: 20),
@@ -639,6 +844,14 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     final allowedMethods = _getAllowedPaymentMethods();
     final currency = context.read<CurrencyNotifier>();
 
+    if (_pricing == null) {
+      Fluttertoast.showToast(
+        msg: "Pricing not loaded",
+        backgroundColor: AppTheme.warningRed,
+      );
+      return;
+    }
+
     if (!allowedMethods.contains(_paymentMethod)) {
       Fluttertoast.showToast(
         msg: "Selected payment method is not allowed",
@@ -655,51 +868,49 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       return;
     }
 
+    // ✅ Validate shareholders
     for (var s in _shareholders) {
       if (s.nameController.text.trim().isEmpty ||
           s.guardianController.text.trim().isEmpty ||
-          s.selectedAnimalId == null) {
+          s.addressController.text.trim().isEmpty) {
         Fluttertoast.showToast(
-          msg: "Please fill all fields, including selecting an animal",
+          msg: "Please fill all fields",
           backgroundColor: AppTheme.warningRed,
         );
         return;
       }
     }
+
     setState(() => _isLoading = true);
+
     try {
+      final double pricePerShare =
+          double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
+
+      // ✅ Shareholders payload (NO animals)
       final shareholdersData = _shareholders.map((s) {
-        final animal = _animals.firstWhere(
-          (a) => a['id'] == s.selectedAnimalId,
-          orElse: () => throw Exception("Animal not found for shareholder"),
-        );
-
-        final double price = double.tryParse(animal['price'].toString()) ?? 0.0;
-
-        final double deliveryFee = animal['delivery_type'] == 'Paid'
-            ? double.tryParse(animal['delivery_fee'].toString()) ?? 0.0
-            : 0.0;
-
         return {
           'name': s.nameController.text.trim(),
           'guardianName': s.guardianController.text.trim(),
           'qurbaniDay': s.qurbaniDay,
-          'animalId': s.selectedAnimalId,
-          'price': price, // per-animal price
-          // 'deliveryFee': deliveryFee,
+          'address': s.addressController.text.trim(),
+          'postalCode': s.postalCodeController.text.trim(),
+          'price': pricePerShare,
         };
       }).toList();
 
-      if (_paymentMethod == 'Cash') {
-        final baseTotal = _calculateTotalPrice();
-        final displayTotal = currency.convert(baseTotal);
+      final double baseTotal = _calculateTotalPrice();
+      final double displayTotal = currency.convert(baseTotal);
 
+      // ✅ Cash confirmation
+      if (_paymentMethod == 'Cash') {
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text("Confirm Order"),
             content: Text(
-              "Total: ${currency.currency} ${displayTotal.toStringAsFixed(2)}\n"
+              "Total: ${currency.currency} "
+              "${displayTotal.toStringAsFixed(2)}\n\n"
               "Place order with Cash?",
             ),
             actions: [
@@ -714,6 +925,11 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             ],
           ),
         );
+
+        if (confirm != true) {
+          setState(() => _isLoading = false);
+          return;
+        }
       }
 
       final String paymentStatus = _paymentMethod == 'Online'
@@ -725,17 +941,18 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         adminId: widget.adminId,
         paymentMethod: _paymentMethod,
         shareholders: shareholdersData,
-        totalAmount: _calculateTotalPrice(),
+        totalAmount: baseTotal,
         paymentStatus: paymentStatus,
       );
 
+      // ✅ Payment flow
       if (_paymentMethod == 'Online') {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => PaymentProcessingPage(
               orderId: result['orderId'],
-              totalAmount: _calculateTotalPrice(),
+              totalAmount: baseTotal,
             ),
           ),
         );

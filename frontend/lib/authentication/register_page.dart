@@ -10,7 +10,7 @@
  * - Password strength checking and confirmation
  * - International phone number input
  * - Terms and conditions acceptance
- * - Role-based registration (User/Admin/Delivery)
+ * - Role-based registration (User/Admin)
  * - Email verification flow after registration
  * - Currency preference selection
  * - Gender selection
@@ -144,12 +144,14 @@ class _RegisterPageState extends State<RegisterPage> {
         "name": nameController.text.trim(),
         "email": emailController.text.trim(),
         "password": passController.text.trim(),
+
         "phone": phoneNumber,
         "country_code": countryCode,
         "country_iso": countryISO,
-        // "address": addressController.text.trim(),
-        "country": countryController.text.trim(),
-        "city": cityController.text.trim(),
+
+        "country": selectedCountryName,
+        "state": selectedState?.name,
+        "city": selectedCity?.name,
         "postal_code": postalCodeController.text.trim(),
 
         "gender": selectedGender,
@@ -517,7 +519,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                               showCountryPicker(
                                                 context: context,
                                                 onSelect: (country) async {
-                                                  // 1️⃣ Set selected country
+                                                  // Set selected country
                                                   setState(() {
                                                     selectedCountryName =
                                                         country.name;
@@ -534,13 +536,13 @@ class _RegisterPageState extends State<RegisterPage> {
                                                     cityController.clear();
                                                   });
 
-                                                  // 2️⃣ Load states for selected country
+                                                  // Load states for selected country
                                                   states = await csc
                                                       .getStatesOfCountry(
                                                         country.countryCode,
                                                       );
 
-                                                  // 3️⃣ Refresh UI
+                                                  // Refresh UI
                                                   if (mounted) {
                                                     setState(() {});
                                                   }
@@ -558,10 +560,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                             ),
                                           ),
 
-                                          const SizedBox(height: 5),
+                                          const SizedBox(height: 8),
 
                                           DropdownButtonFormField<csc.State>(
                                             value: selectedState,
+                                            isExpanded: true,
                                             style: const TextStyle(
                                               color: Colors.black,
                                               fontSize: 13,
@@ -617,9 +620,16 @@ class _RegisterPageState extends State<RegisterPage> {
                                                 ),
                                               ),
                                             ),
-                                            validator: (v) => v == null
-                                                ? "Please select state"
-                                                : null,
+                                            validator: (v) {
+                                              // If no states available → allow null
+                                              if (states.isEmpty) return null;
+
+                                              // States exist → selection required
+                                              if (v == null) {
+                                                return "Please select state";
+                                              }
+                                              return null;
+                                            },
                                           ),
 
                                           // City
@@ -630,8 +640,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                           //   // helperText:
                                           //   //     "City for Qurbani service",
                                           // ),
+                                          const SizedBox(height: 8),
+
                                           DropdownButtonFormField<csc.City>(
                                             value: selectedCity,
+                                            isExpanded: true,
                                             style: const TextStyle(
                                               color: Colors
                                                   .black, // selected text color
@@ -668,12 +681,19 @@ class _RegisterPageState extends State<RegisterPage> {
                                                 ),
                                               ),
                                             ),
-                                            validator: (v) => v == null
-                                                ? "Please select city"
-                                                : null,
+                                            validator: (v) {
+                                              // If no cities available → allow null
+                                              if (cities.isEmpty) return null;
+
+                                              // Cities exist → selection required
+                                              if (v == null) {
+                                                return "Please select city";
+                                              }
+                                              return null;
+                                            },
                                           ),
 
-                                          const SizedBox(height: 5),
+                                          const SizedBox(height: 8),
 
                                           // Postal / Zip Code
                                           _field(

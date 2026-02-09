@@ -81,6 +81,7 @@ dependencies:
   country_picker: ^2.0.27
   dropdown_search: ^6.0.2
   country_state_city: ^0.1.6
+  location: ^8.0.1
 
 flutter_launcher_icons:
   android: true

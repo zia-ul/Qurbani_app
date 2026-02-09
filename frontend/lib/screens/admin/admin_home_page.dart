@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:convert';
 import 'dart:async'; // For Timer
+import 'package:Qurbani/screens/admin/admin_share_setup.dart';
+import 'package:Qurbani/screens/admin/delivery_person_requests.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
@@ -45,6 +47,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
       await _checkPermissions();
       await _ensureLocationSelected();
       await _loadStats();
+      // await AdminService.syncDeliveryRequests();
+
       // _startNotificationPolling();
       _startStatsPolling(); // Start live stats polling
       await _checkNotificationPermission();
@@ -53,7 +57,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   void dispose() {
-    _notificationTimer?.cancel();  
+    _notificationTimer?.cancel();
     _statsTimer?.cancel(); // Cancel stats timer
     super.dispose();
   }
@@ -227,20 +231,37 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     // MAIN ACTION CARDS
                     Row(
                       children: [
+                        // Expanded(
+                        //   child: _buildActionCard(
+                        //     title: "Add Animal",
+                        //     subtitle: "List new animals",
+                        //     icon: Icons.add_circle_outline,
+                        //     color: const Color(0xff4CAF50),
+                        //     onTap: () => Navigator.push(
+                        //       context,
+                        //       MaterialPageRoute(
+                        //         builder: (_) => const AddAnimalPage(),
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
                         Expanded(
                           child: _buildActionCard(
-                            title: "Add Animal",
-                            subtitle: "List new animals",
-                            icon: Icons.add_circle_outline,
+                            title: "Shares Setup", // <-- Friendly name
+                            subtitle: "Configure shares and pricing",
+                            icon: Icons
+                                .settings, // You can use a gear icon for settings
                             color: const Color(0xff4CAF50),
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const AddAnimalPage(),
+                                builder: (_) =>
+                                    const AdminShareSetupPage(), // <-- Your new page
                               ),
                             ),
                           ),
                         ),
+
                         const SizedBox(width: 15),
                         Expanded(
                           child: _buildActionCard(
@@ -294,6 +315,21 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         ),
                       ],
                     ),
+                    // const SizedBox(width: 15),
+
+                    // _buildActionCard(
+                    //   title: "Delivery Team",
+                    //   subtitle: "Approve delivery persons",
+                    //   icon: Icons.delivery_dining,
+                    //   color: Colors.teal,
+                    //   onTap: () => Navigator.push(
+                    //     context,
+                    //     MaterialPageRoute(
+                    //       builder: (_) => AdminDeliveryRequestsPage(),
+                    //     ),
+                    //   ),
+                    // ),
+
                     const SizedBox(height: 40),
                     _buildSupportFooter(),
                   ],

@@ -38,6 +38,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   @override
   void initState() {
     super.initState();
+    _selectedFilter = RoleFilter.admin;
     _fetchUsers();
   }
 
@@ -48,9 +49,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     });
 
     try {
-      final filterRole = _selectedFilter == RoleFilter.all
-          ? 'all'
-          : _selectedFilter.name;
+      const filterRole = 'admin';
+
       _users = await SuperAdminService.getUsers(filterRole);
     } catch (e) {
       setState(() {
@@ -497,7 +497,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   Widget _getRoleBadge(String role) {
     Color color = Colors.grey;
     if (role == 'admin') color = Colors.green;
-    if (role == 'delivery') color = Colors.blue;
+    // if (role == 'delivery') color = Colors.blue;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

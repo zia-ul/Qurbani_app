@@ -3,8 +3,153 @@ const { fetchVerifiedAdmins } = require("../controllers/marketplaceAdmin");
 const authMiddleware = require("../middleware/authmiddleware");
 const pool = require("../config/db");
 const logger = require("../middleware/logger");
-
+const { saveVendorShareSetup } = require("../controllers/admin_share_setup");
 const router = express.Router();
+
+router.post("/share-setup", authMiddleware, saveVendorShareSetup);
+
+/**
+ * GET admin share pricing & payment settings
+ * GET /admins/:adminId/share-pricing
+ */
+router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
+  const { adminId } = req.params;
+  console.log("Fetching share pricing for admin:", adminId);
+  try {
+    const [[pricing]] = await pool.query(
+      `
+      SELECT
+        s.total_shares,
+        s.price_per_share,
+        s.late_booking_fee,
+        s.last_booking_date,
+        s.delivery_type,
+        s.delivery_fee,
+        s.free_delivery_threshold,
+        s.currency,
+        s.is_active,
+
+        p.allow_cod,
+        p.allow_online,
+        p.cod_deadline
+      FROM admin_share_setups s
+      LEFT JOIN admin_payment_settings p
+        ON p.admin_id = s.admin_id
+      WHERE s.admin_id = ?
+        AND s.is_active = 1
+      LIMIT 1
+      `,
+      [adminId],
+    );
+
+    if (!pricing) {
+      return res.status(404).json({
+        message: "Share pricing not configured for this admin",
+      });
+    }
+
+    return res.json(pricing);
+  } catch (err) {
+    console.error("Failed to fetch admin pricing:", err);
+    return res.status(500).json({
+      message: "Failed to load pricing",
+    });
+  }
+});
+
+router.post("/sync-delivery-requests", authMiddleware, async (req, res) => {
+  const adminId = req.user.id;
+
+  try {
+    // Get admin location
+    const [[admin]] = await pool.query(
+      `
+      SELECT country, state, city
+      FROM users
+      WHERE id = ? AND role = 'admin'
+      `,
+      [adminId],
+    );
+
+    console.log("🧑 ADMIN FROM DB:", admin);
+    console.log("🧑 ADMIN ID:", adminId);
+
+    if (!admin || !admin.country) {
+      return res.status(200).json({ message: "Admin has no location" });
+    }
+
+    const { country, state, city } = admin;
+
+    console.log("📍 SYNC PARAMS:", {
+      country,
+      state,
+      city,
+      adminId,
+    });
+
+    const [matches] = await pool.query(
+      `
+  SELECT
+    d.id AS delivery_id,
+    d.country,
+    d.state,
+    d.city
+  FROM users d
+  WHERE d.role = 'delivery'
+    AND d.country = ?
+    AND d.state <=> ?
+    AND d.city <=> ?
+    AND NOT EXISTS (
+      SELECT 1
+      FROM delivery_requests dr
+      WHERE dr.delivery_user_id = d.id
+        AND dr.admin_user_id = ?
+    )
+  `,
+      [country, state, city, adminId],
+    );
+
+    console.log("🚚 MATCHING DELIVERY USERS:", matches);
+
+    // Insert missing delivery requests
+    await pool.query(
+      `
+      INSERT INTO delivery_requests (
+        id,
+        delivery_user_id,
+        admin_user_id,
+        country,
+        state,
+        city
+      )
+      SELECT
+        UUID(),
+        d.id,
+        ?,
+        d.country,
+        d.state,
+        d.city
+      FROM users d
+      WHERE d.role = 'delivery'
+        AND d.country = ?
+        AND d.state <=> ?
+        AND d.city <=> ?
+        AND NOT EXISTS (
+          SELECT 1
+          FROM delivery_requests dr
+          WHERE dr.delivery_user_id = d.id
+            AND dr.admin_user_id = ?
+        )
+      `,
+      [adminId, country, state, city, adminId],
+    );
+
+    return res.json({ message: "Delivery requests synced" });
+  } catch (err) {
+    console.error("Sync failed", err);
+    return res.status(500).json({ message: "Sync failed" });
+  }
+});
 
 /**
  * @swagger
@@ -37,12 +182,10 @@ const router = express.Router();
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * PUBLIC – Fetch verified admins
  */
 router.get("/verified", fetchVerifiedAdmins);
-
 
 /**
  * @swagger
@@ -76,7 +219,6 @@ router.get("/verified", fetchVerifiedAdmins);
  *         description: Something went wrong. Please try again later.
  */
 
-
 // GET /api/admin/dashboard-stats - Fetch quick stats for admin dashboard
 router.get("/dashboard-stats", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
@@ -86,12 +228,12 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
   try {
     const [animalResult] = await pool.execute(
       "SELECT COUNT(*) AS count FROM animals WHERE admin_id = ?",
-      [adminId]
+      [adminId],
     );
 
     const [orderResult] = await pool.execute(
       "SELECT COUNT(*) AS count FROM orders WHERE admin_id = ?",
-      [adminId]
+      [adminId],
     );
 
     const [requestResult] = await pool.execute(
@@ -99,7 +241,7 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
        FROM requests r 
        JOIN orders o ON r.order_id = o.id 
        WHERE o.admin_id = ?`,
-      [adminId]
+      [adminId],
     );
 
     const stats = {
@@ -121,10 +263,11 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
-
 
 /**
  * @swagger
@@ -181,7 +324,6 @@ router.get("/dashboard-stats", authMiddleware, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 // GET /api/admins/:adminId/animals - Get Animals for Admin
 router.get("/:adminId/animals", authMiddleware, async (req, res) => {
   const { adminId } = req.params;
@@ -189,7 +331,7 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
   try {
     const [[admin]] = await pool.execute(
       `SELECT currency FROM users WHERE id = ? AND role = 'admin'`,
-      [adminId]
+      [adminId],
     );
 
     if (!admin) {
@@ -208,13 +350,13 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
       FROM animals
       WHERE admin_id = ?
       `,
-      [adminId]
+      [adminId],
     );
 
     //find Cash last payment date
 
     res.json({
-      admin_currency: admin.currency, 
+      admin_currency: admin.currency,
       animals,
     });
   } catch (err) {
@@ -222,5 +364,116 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/delivery-requests", authMiddleware, async (req, res) => {
+  const adminId = req.user.id;
+
+  try {
+    // 1Fetch admin location
+    const [[admin]] = await pool.execute(
+      `SELECT country, state, city FROM admins WHERE id = ?`,
+      [adminId],
+    );
+
+    if (!admin || !admin.city) {
+      return res.status(400).json({
+        message: "Admin location not set",
+      });
+    }
+
+    // Fetch matching delivery requests
+    const [requests] = await pool.execute(
+      `
+      SELECT
+        dr.id,
+        dr.user_id,
+        dr.country,
+        dr.state,
+        dr.city,
+        dr.status,
+        dr.created_at,
+        u.name,
+        u.phone
+      FROM delivery_requests dr
+      JOIN users u ON u.id = dr.user_id
+      WHERE dr.status = 'PENDING'
+        AND dr.country = ?
+        AND dr.state = ?
+        AND dr.city = ?
+      ORDER BY dr.created_at DESC
+      `,
+      [admin.country, admin.state, admin.city],
+    );
+
+    res.json({ requests });
+  } catch (err) {
+    console.error("Fetch delivery requests error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * ======================================================
+ * APPROVE or REJECT delivery request
+ * ======================================================
+ * PUT /api/admin/delivery-requests/:id
+ * body: { status: "APPROVED" | "REJECTED" }
+ */
+router.put("/delivery-requests/:id", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!["APPROVED", "REJECTED"].includes(status)) {
+    return res.status(400).json({
+      message: "Invalid status value",
+    });
+  }
+
+  try {
+    // 1️⃣ Update request status
+    const [result] = await pool.execute(
+      `UPDATE delivery_requests SET status = ? WHERE id = ?`,
+      [status, id],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    // 2️⃣ If approved → add to delivery_persons table
+    if (status === "APPROVED") {
+      const [[request]] = await pool.execute(
+        `SELECT user_id, country, state, city FROM delivery_requests WHERE id = ?`,
+        [id],
+      );
+
+      await pool.execute(
+        `
+        INSERT INTO delivery_persons (
+          id,
+          user_id,
+          country,
+          state,
+          city,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          uuidv4(),
+          request.user_id,
+          request.country,
+          request.state,
+          request.city,
+        ],
+      );
+    }
+
+    res.json({
+      message: `Delivery request ${status.toLowerCase()} successfully`,
+    });
+  } catch (err) {
+    console.error("Update delivery request error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 
 module.exports = router;

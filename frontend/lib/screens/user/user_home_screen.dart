@@ -35,7 +35,6 @@ class _HomePageState extends State<HomePage> {
   }
 
 
-
   Future<void> _checkPermissions() async {
     await [Permission.notification, Permission.location].request();
 

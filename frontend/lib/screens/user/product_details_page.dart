@@ -291,7 +291,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 (order['animals'] as List).isNotEmpty)
               _buildSectionCard(
                 title: "Animals",
-                icon: Icons.pets,
+                icon: Icons.celebration,
                 child: Column(
                   children: (order['animals'] as List<dynamic>).map((animal) {
                     // Handle optional fields safely

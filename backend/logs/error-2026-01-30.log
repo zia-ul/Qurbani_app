@@ -1,4 +1,0 @@
-2026-01-30 11:52:22 [error]: Failed to send verification email to hajra@gmail.com {"error":"transporter is not defined"}
-2026-01-30 11:54:18 [error]: Failed to send verification email to s_admin@gmail.com {"error":"transporter is not defined"}
-2026-01-30 11:55:02 [error]: Failed to send verification email to hajra.mshahid24@gmail.com {"error":"transporter is not defined"}
-2026-01-30 11:55:47 [error]: Failed to send verification email to delivery@gmail.com {"error":"transporter is not defined"}

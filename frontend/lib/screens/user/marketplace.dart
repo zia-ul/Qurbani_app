@@ -49,7 +49,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
       backgroundColor: parchmentBg,
       appBar: AppBar(
         title: const Text(
-          "Verified Admins",
+          "Verified Qasab",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.bgGradientEnd,
@@ -67,7 +67,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Text(
-              "Each city has one verified admin to ensure quality, transparency, and proper Qurbani management.",
+              "Each city has one verified qasab to ensure quality, transparency, and proper Qurbani management.",
               style: TextStyle(fontSize: 12, color: AppTheme.darkBgGradientStart),
               textAlign: TextAlign.center,
             ),
@@ -95,11 +95,11 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 }).toList();
 
                 if (filteredAdmins.isEmpty) {
-                  return const Center(child: Text("No verified admins found"));
+                  return const Center(child: Text("No verified qasabs found"));
                 }
 
                 return GridView.builder(
-                  key: ValueKey(searchText), // ✅ THIS FIXES YOUR TEST
+                  key: ValueKey(searchText), 
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
