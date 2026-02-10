@@ -57,6 +57,56 @@ router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
+  try {
+    const { adminId } = req.params;
+
+    const [rows] = await pool.query(
+      `
+  SELECT
+    s.admin_id,
+    s.total_shares,
+    s.price_per_share,
+    s.late_booking_fee,
+    s.last_booking_date,
+    s.delivery_type,
+    s.delivery_fee,
+    s.free_delivery_threshold,
+    s.currency,
+    IFNULL(SUM(o.total_shares), 0) AS used_shares,
+    (s.total_shares - IFNULL(SUM(o.total_shares), 0)) AS remaining_shares
+  FROM admin_share_setups s
+  LEFT JOIN orders o
+    ON o.admin_id = s.admin_id
+    AND o.status IN ('confirmed', 'paid')
+  WHERE s.admin_id = ?
+    AND s.is_active = 1
+  GROUP BY
+    s.admin_id,
+    s.total_shares,
+    s.price_per_share,
+    s.late_booking_fee,
+    s.last_booking_date,
+    s.delivery_type,
+    s.delivery_fee,
+    s.free_delivery_threshold,
+    s.currency
+  `,
+      [adminId],
+    );
+    console.log("👀 ORDER CONFIG:", rows);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Order config not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("[ORDER CONFIG]", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 router.post("/sync-delivery-requests", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 

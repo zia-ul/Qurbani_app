@@ -9,8 +9,19 @@ exports.getVerifiedAdmins = async () => {
       SELECT 
         id,
         name,
+        country,
+        state,
+        city,
         address,
-        photo_url
+        photo_url,
+        order_deadline,
+
+        CASE
+          WHEN order_deadline IS NOT NULL AND order_deadline < NOW()
+          THEN 1
+          ELSE 0
+        END AS is_order_closed
+
       FROM users
       WHERE role = 'admin'
         AND admin_status = 'approved'

@@ -213,8 +213,6 @@ router.post("/", authMiddleware, async (req, res) => {
   const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
     req.body;
 
-  console.log("Print pay status", paymentStatus);
-
   if (
     !adminId ||
     !paymentMethod ||
@@ -231,10 +229,13 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const orderId = uuidv4();
 
-    // Create order
+    // ✅ Create order
     await connection.execute(
-      `INSERT INTO orders (id, user_id, admin_id, payment_method, total_shares, payment_status, total_amt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `
+      INSERT INTO orders
+        (id, user_id, admin_id, payment_method, total_shares, payment_status, total_amt)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
       [
         orderId,
         userId,
@@ -246,21 +247,37 @@ router.post("/", authMiddleware, async (req, res) => {
       ],
     );
 
-    // Insert order_shareholders (WITH animal_id)
+    // ✅ Insert shareholders WITH ADDRESS (NO animal_id)
     await connection.query(
-      `INSERT INTO order_shareholders
-       (id, order_id, animal_id, shareholder_name, guardian_name, qurbani_day, price)
-       VALUES ?`,
+      `
+      INSERT INTO shareholder_details
+        (
+          id,
+          order_id,
+          shareholder_name,
+          guardian_name,
+          qurbani_day,
+          price,
+          address
+        )
+      VALUES ?
+      `,
       [
-        shareholders.map((s) => [
-          uuidv4(),
-          orderId,
-          s.animalId,
-          s.name,
-          s.guardianName,
-          s.qurbaniDay || "Day 1",
-          s.price,
-        ]),
+        shareholders.map((s) => {
+          if (!s.address || !s.address.address_line) {
+            throw new Error("Address is required for each shareholder");
+          }
+
+          return [
+            uuidv4(),
+            orderId,
+            s.name,
+            s.guardianName,
+            s.qurbaniDay || "Day 1",
+            s.price,
+            JSON.stringify(s.address), // 🔥 IMPORTANT
+          ];
+        }),
       ],
     );
 
@@ -272,11 +289,13 @@ router.post("/", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     await connection.rollback();
-    res.status(500).json({ message: "Something went wrong" });
+    console.error("❌ Order creation failed:", err);
+    res.status(500).json({ message: err.message || "Something went wrong" });
   } finally {
     connection.release();
   }
 });
+
 
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;

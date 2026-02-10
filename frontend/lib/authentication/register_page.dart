@@ -784,23 +784,23 @@ class _RegisterPageState extends State<RegisterPage> {
                                                 ),
                                               ),
                                               DropdownMenuItem(
-                                                value: 'admin',
+                                                value: 'qasab',
                                                 child: Text(
-                                                  "Admin",
+                                                  "Qasab",
                                                   style: TextStyle(
                                                     color: Colors.black,
                                                   ),
                                                 ),
                                               ),
-                                              DropdownMenuItem(
-                                                value: 'delivery',
-                                                child: Text(
-                                                  "Delivery",
-                                                  style: TextStyle(
-                                                    color: Colors.black,
-                                                  ),
-                                                ),
-                                              ),
+                                              // DropdownMenuItem(
+                                              //   value: 'delivery',
+                                              //   child: Text(
+                                              //     "Delivery",
+                                              //     style: TextStyle(
+                                              //       color: Colors.black,
+                                              //     ),
+                                              //   ),
+                                              // ),
                                             ],
                                             onChanged: (v) => setState(
                                               () => selectedRole = v!,

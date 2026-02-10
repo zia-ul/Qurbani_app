@@ -196,4 +196,57 @@ router.put("/profile/currency", authMiddleware, async (req, res) => {
   }
 });
 
+
+router.get('/profile/address', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [rows] = await pool.query(
+      `
+      SELECT
+        country,
+        country_iso,
+        state,
+        city,
+        postal_code,
+        address,
+        order_deadline
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = rows[0];
+
+    // ✅ If no address saved at all
+    if (
+      !user.country &&
+      !user.state &&
+      !user.city &&
+      !user.address
+    ) {
+      return res.json(null);
+    }
+
+    // ✅ Match Flutter expectations exactly
+    return res.json({
+      country: user.country,
+      country_iso: user.country_iso,
+      state: user.state,
+      city: user.city,
+      postal_code: user.postal_code,
+      address: user.address,
+    });
+  } catch (err) {
+    console.error('[PROFILE ADDRESS]', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
