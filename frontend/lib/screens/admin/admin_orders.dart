@@ -35,6 +35,12 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     super.dispose();
   }
 
+  bool isNewOrder(String createdAt) {
+    final created = DateTime.parse(createdAt).toLocal();
+    final now = DateTime.now();
+    return now.difference(created).inHours < 24;
+  }
+
   String shortId(String id, {int length = 8}) {
     if (id.length <= length) return id;
     return id.substring(id.length - length); // last N chars
@@ -168,6 +174,25 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     );
   }
 
+  Widget newBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.redAccent,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Text(
+        "NEW",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
   Widget _buildOrderList({required bool isActive}) {
     final filteredOrders = _allOrders.where((order) {
       final data = order;
@@ -176,7 +201,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       final isCompleted = data['isCompleted'] ?? false;
       final deliveryStatus = data['deliveryStatus'] ?? 'pending';
       final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
-
       // Show in Active: not completed AND not delivered
       // Show in Completed: completed OR delivered
       final matchesStatus = isActive
@@ -206,6 +230,11 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       itemBuilder: (context, index) {
         final data = filteredOrders[index];
         final orderId = data['orderId'] ?? '';
+        final createdAt = data['created_at'];
+
+        final bool showNew =
+            createdAt != null && isNewOrder(createdAt.toString());
+
         final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
         final processingStatus = data['processingStatus'] == 'cancelled'
             ? 'Cancelled'
@@ -229,22 +258,31 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                 Row(
                   children: [
                     Expanded(
-                      child: RichText(
-                        overflow: TextOverflow.ellipsis,
-                        text: TextSpan(
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontSize: 14,
-                          ),
-                          children: [
-                            const TextSpan(
-                              text: "ID: ",
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: RichText(
+                              overflow: TextOverflow.ellipsis,
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 14,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: "ID: ",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  TextSpan(text: "#${shortId(orderId)}"),
+                                ],
+                              ),
                             ),
-                            TextSpan(text: "#${shortId(orderId)}"),
-
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 6),
+                          if (showNew) newBadge(),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -254,9 +292,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => AdminOrderDetailPage(
-                              orderId: orderId, // Pass orderId as string
-                            ),
+                            builder: (_) =>
+                                AdminOrderDetailPage(orderId: orderId),
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -276,6 +313,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                     ),
                   ],
                 ),
+
                 const SizedBox(height: 12),
                 Row(
                   children: [

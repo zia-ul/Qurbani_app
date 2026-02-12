@@ -107,7 +107,7 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.payment_status
+      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.payment_status, o.created_at
        FROM orders o
        WHERE o.id = ? AND o.admin_id = ?`,
       [orderId, adminId],

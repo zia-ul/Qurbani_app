@@ -118,85 +118,91 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
                         ),
                       ),
                       ElevatedButton.icon(
-  onPressed: () async {
-    try {
-      // 1️⃣ Fetch full barcode from server
-      final fullBarcode = await OrderService.getOrderBarcode(order['order_id']);
+                        onPressed: () async {
+                          try {
+                            // Fetch full barcode from server
+                            final fullBarcode =
+                                await OrderService.getOrderBarcode(
+                                  order['order_id'],
+                                );
 
-      // 2️⃣ Shorten barcode for display (last 12 digits)
-      final displayBarcode = fullBarcode.length > 12
-          ? fullBarcode.substring(fullBarcode.length - 12)
-          : fullBarcode;
+                            // Shorten barcode for display (last 12 digits)
+                            final displayBarcode = fullBarcode.length > 12
+                                ? fullBarcode.substring(fullBarcode.length - 12)
+                                : fullBarcode;
 
-      // 3️⃣ Show AlertDialog
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text('Barcode for Order ${order['order_id']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("Scan to get user details"),
-              const SizedBox(height: 12),
-              BarcodeWidget(
-                data: fullBarcode,
-                barcode: Barcode.code128(),
-                width: 200,
-                height: 80,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                displayBarcode, // short display
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  letterSpacing: 2,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
-            ),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.print, size: 18),
-              label: const Text('Print'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () {
-                Navigator.pop(context); // close dialog
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BarcodePage(barcodeValue: fullBarcode),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error fetching barcode: $e'),
-        ),
-      );
-    }
-  },
-  icon: const Icon(Icons.qr_code, size: 18),
-  label: const Text('Print Barcode'),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.orange,
-    foregroundColor: Colors.white,
-    minimumSize: const Size(double.infinity, 36),
-  ),
-),
-
+                            // Show AlertDialog
+                            showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: Text(
+                                  'Barcode for Order ${order['order_id']}',
+                                ),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text("Scan to get user details"),
+                                    const SizedBox(height: 12),
+                                    BarcodeWidget(
+                                      data: fullBarcode,
+                                      barcode: Barcode.code128(),
+                                      width: 200,
+                                      height: 80,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      displayBarcode, // short display
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Close'),
+                                  ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.print, size: 18),
+                                    label: const Text('Print'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryGreen,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.pop(context); // close dialog
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => BarcodePage(
+                                            barcodeValue: fullBarcode,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error fetching barcode: $e'),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.qr_code, size: 18),
+                        label: const Text('Print Barcode'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 36),
+                        ),
+                      ),
                     ],
                   ),
                 ),

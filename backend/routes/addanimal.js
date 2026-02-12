@@ -1,10 +1,12 @@
 const express = require("express");
-const { body } = require("express-validator");
+const { body, validationResult } = require("express-validator");
+
 const auth = require("../controllers/auth");
 const isAdmin = require("../middleware/isAdmin");
 const { addAnimal } = require("../controllers/add_animal_details");
 const logger = require("../middleware/logger");
 const pool = require("../config/db");
+const authMiddleware = require("../middleware/authmiddleware");
 const router = express.Router();
 
 /**
@@ -66,73 +68,142 @@ const router = express.Router();
 /**
  * ADD ANIMAL (Admin only)
  */
+
+const crypto = require("crypto");
+
+// Generate 12 digit numeric barcode
+function generateBarcode() {
+  const timestampPart = Date.now().toString().slice(-6); // last 6 digits of timestamp
+  const randomPart = Math.floor(100000 + Math.random() * 900000); // 6 random digits
+  return timestampPart + randomPart; // total 12 digits
+}
+
 router.post(
   "/",
-  auth,
+  authMiddleware,
   isAdmin,
   [
     body("animalType").notEmpty().withMessage("animalType is required"),
+    body("shares").isInt({ min: 1 }).withMessage("shares must be >= 1"),
 
-    body("price").isNumeric().withMessage("price must be a number"),
-    body("currency")
-  .isLength({ min: 3, max: 3 })
-  .withMessage("currency must be a 3-letter code"),
+    // optional animal_details fields
+    body("breed").optional({ nullable: true }).isString(),
+    body("description").optional({ nullable: true }).isString(),
+    body("age").optional({ nullable: true }).isString(),
+    body("height").optional({ nullable: true }).isString(),
+    body("weight").optional({ nullable: true }).isString(),
+    body("images").optional({ nullable: true }).isArray(),
 
-
-    body("shares")
-      .isInt({ min: 1 })
-      .withMessage("shares must be an integer >= 1"),
-
-    body("lastBookedDate")
-      .notEmpty()
-      .isISO8601()
-      .withMessage("lastBookedDate must be a valid date"),
-
-    body("deliveryType")
-      .isIn(["free", "paid"])
-      .withMessage("deliveryType must be free or paid"),
-
-    body("deliveryFee")
-      .if(body("deliveryType").equals("paid"))
-      .isNumeric()
-      .withMessage("deliveryFee is required for paid delivery"),
-
-    body("deliveryThreshold")
-      .optional()
-      .isNumeric()
-      .withMessage("deliveryThreshold must be numeric"),
   ],
   async (req, res) => {
     const adminId = req.user.id;
+    const errors = validationResult(req);
 
-    logger.info("Add animal request received", {
-      adminId,
-      animalType: req.body.animalType,
-    });
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const barcode = generateBarcode();
+
+
+    const {
+      animalType,
+      shares,
+
+      // details
+      breed,
+      description,
+      age,
+      height,
+      weight,
+      images,
+    } = req.body;
+
+    console.log("Add Animal Request Body:", req.body);
+
+    const animalId = crypto.randomUUID();
+    const animalDetailsId = crypto.randomUUID();
+
+    const connection = await pool.getConnection();
 
     try {
-      const animalId = await addAnimal(adminId, req.body);
+      await connection.beginTransaction();
 
-      logger.info("Animal added successfully", {
-        adminId,
-        animalId,
-      });
+      // INSERT INTO animals (SET UNUSED FIELDS TO NULL)
+      await connection.query(
+        `
+        INSERT INTO animals (
+          id,
+          admin_id,
+          animal_type,
+          price,
+          shares,
+          delivery_type,
+          delivery_fee,
+          delivery_threshold,
+          last_booked_date,
+          created_at
+        )
+        VALUES (?, ?, ?, NULL, ?, NULL, NULL, NULL, NULL, NOW())
+        `,
+        [
+          animalId,
+          adminId,
+          animalType,
+          shares,
+        ]
+      );
 
-      res.status(201).json({
+      // INSERT INTO animal_details
+      await connection.query(
+        `
+        INSERT INTO animal_details (
+          id,
+          barcode,
+          animal_id,
+          breed,
+          description,
+          age,
+          height,
+          weight,
+          photo_urls,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          animalDetailsId,
+          barcode,
+          animalId,
+          breed || null,
+          description || null,
+          age || null,
+          height || null,
+          weight || null,
+          JSON.stringify(images || []),
+        ]
+      );
+
+      await connection.commit();
+
+      return res.status(201).json({
         message: "Animal added successfully",
         animalId,
+        animalDetailsId,
       });
     } catch (err) {
-      logger.error("Error adding animal", {
-        adminId,
-        error: err.message,
-        stack: err.stack,
-      });
+      await connection.rollback();
+      console.error("[ADD ANIMAL ERROR]", err);
 
-      res.status(500).json({ message: err.message });
+      return res.status(500).json({
+        message: "Failed to add animal",
+      });
+    } finally {
+      connection.release();
     }
-  },
+  }
 );
+
 
 router.post("/:animalId", async (req, res) => {
   const { animalId } = req.params;

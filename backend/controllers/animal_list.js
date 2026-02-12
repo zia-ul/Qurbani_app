@@ -17,7 +17,20 @@ exports.getAnimals = async (req, res) => {
 
   try {
     const [animals] = await db.query(
-      "SELECT * FROM animals WHERE admin_id = ?",
+      `
+      SELECT 
+        a.id,
+        a.animal_type,
+        a.shares,
+        a.price,
+        a.created_at,
+        ad.barcode
+      FROM animals a
+      LEFT JOIN animal_details ad 
+        ON ad.animal_id = a.id
+      WHERE a.admin_id = ?
+      ORDER BY a.created_at DESC
+      `,
       [adminId]
     );
 
@@ -29,10 +42,11 @@ exports.getAnimals = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 };
-
 
 
 /**

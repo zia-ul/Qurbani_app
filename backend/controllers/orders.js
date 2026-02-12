@@ -136,6 +136,72 @@ router.get(
   },
 );
 
+router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { animalId } = req.body;
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1️⃣ Update animal_details with order_id
+    await connection.query(
+      `UPDATE animal_details 
+       SET order_id = ?
+       WHERE animal_id = ? AND order_id IS NULL
+       LIMIT 1`,
+      [orderId, animalId],
+    );
+
+    // 2️⃣ Update order with animal_id
+    // await connection.query(
+    //   `UPDATE orders
+    //    SET animal_id = ?
+    //    WHERE id = ?`,
+    //   [animalId, orderId]
+    // );
+
+    // 3️⃣ Count assigned shares
+    const [assignedRows] = await connection.query(
+      `SELECT COUNT(*) as totalAssigned
+       FROM animal_details
+       WHERE animal_id = ? AND order_id IS NOT NULL`,
+      [animalId],
+    );
+
+    const totalAssigned = assignedRows[0].totalAssigned;
+
+    // 4️⃣ Get total shares of animal
+    const [animalRows] = await connection.query(
+      `SELECT shares FROM animals WHERE id = ?`,
+      [animalId],
+    );
+
+    const totalShares = animalRows[0].shares;
+
+    // 5️⃣ If fully booked → mark as sold
+    if (totalAssigned >= totalShares) {
+      await connection.query(
+        `UPDATE animals 
+         SET status = 'sold'
+         WHERE id = ?`,
+        [animalId],
+      );
+    }
+
+    await connection.commit();
+
+    res.json({ message: "Animal assigned successfully" });
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+    res.status(500).json({ message: "Failed to assign animal" });
+  } finally {
+    connection.release();
+  }
+});
+
 router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
   const { orderId } = req.params;
@@ -155,6 +221,8 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       `,
       [orderId, adminId],
     );
+
+    console.log(rows);
 
     if (rows.length === 0) {
       return res.status(404).json({
@@ -177,11 +245,21 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
     }
 
     // 2️⃣ Update order
+    // await pool.execute(
+    //   `
+    //   UPDATE orders
+    //   SET payment_status = 'paid',
+    //       processing_status = 'completed'
+    //   WHERE id = ?
+    //   `,
+    //   [orderId],
+    // );
+
     await pool.execute(
       `
       UPDATE orders
       SET payment_status = 'paid',
-          processing_status = 'completed'
+      processing_status = 'pending'
       WHERE id = ?
       `,
       [orderId],
@@ -204,9 +282,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       message: "Failed to mark order as paid",
     });
   }
-}
-
-);
+});
 
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
@@ -295,7 +371,6 @@ router.post("/", authMiddleware, async (req, res) => {
     connection.release();
   }
 });
-
 
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;

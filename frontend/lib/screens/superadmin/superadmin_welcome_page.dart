@@ -10,27 +10,23 @@ import 'package:Qurbani/screens/superadmin/admin_details.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 
-/// Enum for filtering users by role.
-enum RoleFilter { all, user, admin, delivery }
+enum AdminVerificationFilter { approved, notSubmitted, rejected }
 
 /// The main dashboard widget for super admins to manage users and verifications.
 class SuperAdminDashboard extends StatefulWidget {
   final String id;
   final String name;
 
-  const SuperAdminDashboard({
-    super.key,
-    required this.id,
-    required this.name,
-  });
+  const SuperAdminDashboard({super.key, required this.id, required this.name});
 
   @override
   State<SuperAdminDashboard> createState() => _SuperAdminDashboardState();
 }
 
-
 class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
-  RoleFilter _selectedFilter = RoleFilter.all;
+  AdminVerificationFilter _selectedFilter =
+      AdminVerificationFilter.notSubmitted;
+
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
   String? _errorMessage;
@@ -38,7 +34,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   @override
   void initState() {
     super.initState();
-    _selectedFilter = RoleFilter.admin;
+    _selectedFilter = AdminVerificationFilter.notSubmitted;
     _fetchUsers();
   }
 
@@ -51,7 +47,26 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     try {
       const filterRole = 'admin';
 
-      _users = await SuperAdminService.getUsers(filterRole);
+      final users = await SuperAdminService.getUsers(filterRole);
+
+      setState(() {
+        _users = users.where((user) {
+          final status = user['verification_status'] ?? 'not_submitted';
+
+          switch (_selectedFilter) {
+            case AdminVerificationFilter.approved:
+              return status == 'approved';
+
+            case AdminVerificationFilter.rejected:
+              return status == 'rejected';
+
+            case AdminVerificationFilter.notSubmitted:
+              return status == 'not_submitted' ||
+                  status == null ||
+                  status == '';
+          }
+        }).toList();
+      });
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -112,7 +127,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       );
 
       ToastUtils.showSuccess('Admin rejected');
-      _fetchUsers(); // refresh list
+      _fetchUsers(); 
     } catch (e) {
       ToastUtils.showError('Failed to reject admin');
     }
@@ -124,7 +139,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) {
-        RoleFilter tempFilter = _selectedFilter;
+        AdminVerificationFilter tempFilter = _selectedFilter;
 
         return DraggableScrollableSheet(
           initialChildSize: 0.4,
@@ -142,38 +157,38 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   return ListView(
                     controller: scrollController,
                     children: [
-                      Center(
-                        child: Container(
-                          width: 40,
-                          height: 4,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-
                       const Text(
-                        'Filter Users By Role',
+                        'Filter Admins By Verification Status',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-
                       const SizedBox(height: 12),
 
-                      ...RoleFilter.values.map(
-                        (role) => RadioListTile<RoleFilter>(
-                          value: role,
+                      ...AdminVerificationFilter.values.map((filter) {
+                        String label;
+                        switch (filter) {
+                          case AdminVerificationFilter.approved:
+                            label = "APPROVED";
+                            break;
+                          case AdminVerificationFilter.rejected:
+                            label = "REJECTED";
+                            break;
+                          case AdminVerificationFilter.notSubmitted:
+                            label = "NOT SUBMITTED";
+                            break;
+                        }
+
+                        return RadioListTile<AdminVerificationFilter>(
+                          value: filter,
                           groupValue: tempFilter,
                           activeColor: AppTheme.primaryGreen,
-                          title: Text(role.name.toUpperCase()),
+                          title: Text(label),
                           onChanged: (val) =>
                               setModalState(() => tempFilter = val!),
-                        ),
-                      ),
+                        );
+                      }).toList(),
 
                       const SizedBox(height: 16),
 
@@ -183,7 +198,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                             child: OutlinedButton(
                               onPressed: () {
                                 setState(
-                                  () => _selectedFilter = RoleFilter.all,
+                                  () => _selectedFilter =
+                                      AdminVerificationFilter.notSubmitted,
                                 );
                                 _fetchUsers();
                                 Navigator.pop(context);
@@ -242,13 +258,17 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           ),
         ],
       ),
-      drawer: MasterDrawer(name: widget.name, id: widget.id, role: 'super_admin'),
+      drawer: MasterDrawer(
+        name: widget.name,
+        id: widget.id,
+        role: 'super_admin',
+      ),
       body: Column(
         children: [
           _buildSummaryHeader(),
           const SizedBox(height: 4),
 
-          _roleFilterBar(),
+          _verificationFilterBar(),
 
           const SizedBox(height: 8),
           Expanded(
@@ -307,6 +327,62 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
+  Widget _verificationFilterBar() {
+    return Container(
+      height: 46,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: AdminVerificationFilter.values.map((filter) {
+          final bool isSelected = _selectedFilter == filter;
+
+          String label;
+          switch (filter) {
+            case AdminVerificationFilter.approved:
+              label = "APPROVED";
+              break;
+            case AdminVerificationFilter.rejected:
+              label = "REJECTED";
+              break;
+            case AdminVerificationFilter.notSubmitted:
+              label = "NOT SUBMITTED";
+              break;
+          }
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected
+                      ? AppTheme.primaryGreen
+                      : Colors.grey.shade700,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
+              backgroundColor: AppTheme.bgGradientEnd,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: isSelected
+                      ? AppTheme.primaryGreen
+                      : Colors.grey.shade300,
+                ),
+              ),
+              onSelected: (_) {
+                setState(() => _selectedFilter = filter);
+                _fetchUsers();
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   // Mimics the "Shareholder List" item style
   Widget _userListItem(Map<String, dynamic> data) {
     final String role = data['role'] ?? 'user';
@@ -314,8 +390,12 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     final String verificationStatus =
         data['verification_status'] ?? 'not_submitted';
 
-    final bool needsApproval =
-        role == 'admin' && verificationStatus == 'pending';
+    final bool canApprove =
+        verificationStatus == 'pending' ||
+        verificationStatus == 'not_submitted';
+
+    final bool canReject = verificationStatus != 'rejected';
+
     // (role == 'admin' || role == 'delivery') && verificationStatus == 'pending';
     final bool isVerifiedAdmin =
         role == 'admin' && verificationStatus == 'approved';
@@ -429,21 +509,21 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              if (needsApproval) ...[
-                const Divider(height: 24),
+              if (canApprove)
                 _actionButton(
                   label: 'APPROVE',
                   color: Colors.green,
                   onTap: () => _approveAdmin(context, userId),
                 ),
-              ],
+
               const SizedBox(width: 8),
 
-              _actionButton(
-                label: 'REJECT',
-                color: AppTheme.warningRed,
-                onTap: () => _deleteAdmin(context, userId),
-              ),
+              if (canReject)
+                _actionButton(
+                  label: 'REJECT',
+                  color: AppTheme.warningRed,
+                  onTap: () => _deleteAdmin(context, userId),
+                ),
             ],
           ),
         ],
@@ -451,48 +531,48 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  Widget _roleFilterBar() {
-    return Container(
-      height: 46,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: RoleFilter.values.map((role) {
-          final bool isSelected = _selectedFilter == role;
+  // Widget _roleFilterBar() {
+  //   return Container(
+  //     height: 46,
+  //     margin: const EdgeInsets.symmetric(horizontal: 16),
+  //     child: ListView(
+  //       scrollDirection: Axis.horizontal,
+  //       children: RoleFilter.values.map((role) {
+  //         final bool isSelected = _selectedFilter == role;
 
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(
-                role.name.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? AppTheme.primaryGreen
-                      : Colors.grey.shade700,
-                ),
-              ),
-              selected: isSelected,
-              selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
-              backgroundColor: AppTheme.bgGradientEnd,
-              shape: StadiumBorder(
-                side: BorderSide(
-                  color: isSelected
-                      ? AppTheme.primaryGreen
-                      : Colors.grey.shade300,
-                ),
-              ),
-              onSelected: (_) {
-                setState(() => _selectedFilter = role);
-                _fetchUsers();
-              },
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
+  //         return Padding(
+  //           padding: const EdgeInsets.only(right: 8),
+  //           child: ChoiceChip(
+  //             label: Text(
+  //               role.name.toUpperCase(),
+  //               style: TextStyle(
+  //                 fontSize: 12,
+  //                 fontWeight: FontWeight.w600,
+  //                 color: isSelected
+  //                     ? AppTheme.primaryGreen
+  //                     : Colors.grey.shade700,
+  //               ),
+  //             ),
+  //             selected: isSelected,
+  //             selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
+  //             backgroundColor: AppTheme.bgGradientEnd,
+  //             shape: StadiumBorder(
+  //               side: BorderSide(
+  //                 color: isSelected
+  //                     ? AppTheme.primaryGreen
+  //                     : Colors.grey.shade300,
+  //               ),
+  //             ),
+  //             onSelected: (_) {
+  //               setState(() => _selectedFilter = role);
+  //               _fetchUsers();
+  //             },
+  //           ),
+  //         );
+  //       }).toList(),
+  //     ),
+  //   );
+  // }
 
   Widget _getRoleBadge(String role) {
     Color color = Colors.grey;

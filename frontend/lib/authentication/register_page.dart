@@ -784,7 +784,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                                 ),
                                               ),
                                               DropdownMenuItem(
-                                                value: 'qasab',
+                                                value: 'admin',
                                                 child: Text(
                                                   "Qasab",
                                                   style: TextStyle(

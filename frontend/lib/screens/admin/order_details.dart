@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:Qurbani/screens/admin/add_animal_details.dart';
 import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/services/user_service.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
 class AdminOrderDetailPage extends StatefulWidget {
@@ -45,6 +50,11 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
   /// Indicates whether the list of delivery boys is currently being loaded.
   bool loadingDeliveryBoys = true;
+  List<Map<String, dynamic>> availableAnimals = [];
+  bool loadingAnimals = true;
+  String? selectedAnimalId;
+  int? selectedShareNumber;
+  Map<String, dynamic>? selectedAnimal;
 
   /// ID of the delivery person assigned to this order.
   // String deliveryPersonId = '';
@@ -61,7 +71,21 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     super.initState();
     _fetchOrderDetails();
     _fetchDeliveryBoys();
+    fetchAnimals();
   }
+
+  // -------- STEP STATE GETTERS --------
+
+  bool get isPaid =>
+      orderData != null && orderData!['payment_status'] == 'paid';
+
+  bool get hasAnimal => orderData != null && orderData!['animal_id'] != null;
+
+  bool get hasSchedule =>
+      orderData != null && orderData!['qurbani_datetime'] != null;
+
+  bool get hasDelivery =>
+      orderData != null && orderData!['delivery_person_id'] != null;
 
   /// Fetches the detailed information of the order from the server using the order ID.
   Future<void> _fetchOrderDetails() async {
@@ -142,6 +166,207 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
   }
 
+  final _storage = const FlutterSecureStorage();
+  static final String _baseUrl = dotenv.env['BASE_URL']!;
+
+  Future<void> fetchAnimals() async {
+    setState(() => loadingAnimals = true);
+
+    try {
+      final token = await _storage.read(key: 'token');
+      if (token == null) return;
+
+      final response = await http.get(
+        Uri.parse("$_baseUrl/animals"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List rawAnimals = decoded['animals'] ?? [];
+
+        // 🔥 REMOVE DUPLICATES BY ID
+        final Map<String, Map<String, dynamic>> uniqueAnimals = {};
+
+        for (var animal in rawAnimals) {
+          uniqueAnimals[animal['id'].toString()] = Map<String, dynamic>.from(
+            animal,
+          );
+        }
+
+        setState(() {
+          availableAnimals = uniqueAnimals.values.toList();
+        });
+      } else {
+        ToastUtils.showError("Failed to load animals");
+      }
+    } catch (e) {
+      ToastUtils.showError("Something went wrong");
+    } finally {
+      setState(() => loadingAnimals = false);
+    }
+  }
+
+  Widget _animalStepCard() {
+    if (loadingAnimals) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (availableAnimals.isEmpty) {
+      return _actionCard(
+        title: 'Step 1: Animal Selection',
+        child: const Text('No available animals found'),
+      );
+    }
+
+    // print("========== DROPDOWN DEBUG ==========");
+    // print("SelectedAnimalId: $selectedAnimalId");
+    // print("AvailableAnimals count: ${availableAnimals.length}");
+
+    // for (var a in availableAnimals) {
+    //   print("Animal ID: ${a['id']}");
+    // }
+
+    // final matches = availableAnimals
+    //     .where((a) => a['id'].toString() == selectedAnimalId?.toString())
+    //     .length;
+
+    // print("Matching items count: $matches");
+    // print("=====================================");
+
+    return _actionCard(
+      title: 'Step 1: Select Animal Share',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// Animal Dropdown
+          DropdownButtonFormField<String>(
+            value:
+                availableAnimals
+                        .where(
+                          (a) =>
+                              a['id'].toString() ==
+                              selectedAnimalId?.toString(),
+                        )
+                        .length ==
+                    1
+                ? selectedAnimalId
+                : null,
+            decoration: const InputDecoration(
+              labelText: 'Select Animal',
+              border: OutlineInputBorder(),
+            ),
+            items: availableAnimals.map((animal) {
+              return DropdownMenuItem<String>(
+                value: animal['id'],
+                child: Text(
+                  "${animal['animal_type']}"
+                  "(Remaining: ${animal['remaining_shares'] ?? animal['shares']})",
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                selectedAnimalId = value;
+                selectedAnimal = availableAnimals.firstWhere(
+                  (a) => a['id'] == value,
+                );
+
+                selectedShareNumber = null; // reset share
+              });
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+          /// 🧩 Share Dropdown (only if animal selected)
+          if (selectedAnimal != null)
+            DropdownButtonFormField<int>(
+              value: selectedShareNumber,
+              decoration: const InputDecoration(
+                labelText: 'Select Share',
+                border: OutlineInputBorder(),
+              ),
+              items: List.generate(
+                selectedAnimal!['remaining_shares'] ??
+                    selectedAnimal!['shares'],
+                (index) => DropdownMenuItem<int>(
+                  value: index + 1,
+                  child: Text("Share ${index + 1}"),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() => selectedShareNumber = value);
+              },
+            ),
+
+          const SizedBox(height: 20),
+
+          /// ✅ Assign Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed:
+                  (selectedAnimalId != null && selectedShareNumber != null)
+                  ? () => _assignAnimalShare()
+                  : null,
+              child: const Text("Assign Share"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _assignAnimalShare() async {
+    if (selectedAnimalId == null || selectedShareNumber == null) {
+      ToastUtils.showError("Select animal and share");
+      return;
+    }
+
+    try {
+      final token = await _storage.read(key: 'token');
+      if (token == null) return;
+
+      final response = await http.post(
+        Uri.parse("$_baseUrl/orders/${widget.orderId}/assign-animal"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "animalId": selectedAnimalId,
+          "shareNumber": selectedShareNumber,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        ToastUtils.showSuccess("Share assigned successfully");
+
+        await _fetchOrderDetails();
+        await fetchAnimals();
+
+        setState(() {
+          selectedAnimalId = null;
+          selectedShareNumber = null;
+          selectedAnimal = null;
+        });
+      } else {
+        ToastUtils.showError("Failed to assign share");
+      }
+    } catch (e) {
+      ToastUtils.showError("Something went wrong");
+    }
+  }
+
   /// Assigns a selected delivery boy to the order and updates the delivery person details.
   Future<void> _saveDelivery() async {
     if (selectedDeliveryBoyId == null) {
@@ -194,7 +419,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
 
     final data = orderData!;
-    // print("order details......$data");
+    print("order details......$data");
     final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
@@ -206,18 +431,107 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         padding: const EdgeInsets.all(16),
         children: [
           _orderDetailsCard(data, currencyNotifier),
-          if (shareholders.isNotEmpty) ...[
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
+
+          /// STEP FLOW CONTROLLED BY BACKEND STATE ONLY
+
+          // STEP 0: Payment
+          if (orderData!['payment_status'] != 'paid')
+            _paymentStepCard()
+          // STEP 1: Animal Assignment
+          else if (orderData!['animal_id'] == null)
+            _animalStepCard()
+          // STEP 2: Schedule (after animal assigned)
+          else if (processing == 'pending')
+            _pendingCard()
+          // STEP 3: Meat Details
+          else if (processing == 'confirmed')
+            _confirmedCard()
+          // STEP 4: Delivery
+          else if (processing == 'completed')
+            _deliveryCard(),
+
+          const SizedBox(height: 16),
+
+          // Show shareholders ONLY when animal exists
+          if (orderData!['animal_id'] != null && shareholders.isNotEmpty) ...[
             _shareholdersCard(shareholders),
           ],
-          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
-          _processingTimeline(),
-          const SizedBox(height: 16),
+  Widget _scheduleStep() {
+    return _actionCard(
+      title: 'Step 2: Schedule Qurbani',
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () async {
+                final d = await showDatePicker(
+                  context: context,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 30)),
+                  initialDate: DateTime.now(),
+                );
+                if (d != null) setState(() => qurbaniDate = d);
+              },
+              child: Text(
+                qurbaniDate == null
+                    ? 'Select Date'
+                    : qurbaniDate!.toString().split(' ')[0],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () async {
+                final t = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (t != null) setState(() => qurbaniTime = t);
+              },
+              child: Text(
+                qurbaniTime == null
+                    ? 'Select Time'
+                    : qurbaniTime!.format(context),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: _saveButton(_saveSchedule)),
+        ],
+      ),
+    );
+  }
 
-          if (processing == 'pending') _pendingCard(),
-          if (processing == 'confirmed') _confirmedCard(),
-          if (processing == 'completed') _deliveryCard(),
+  Widget _deliveryStatusStep() {
+    return _actionCard(
+      title: 'Step 3: Delivery Status',
+      child: Column(
+        children: [
+          DropdownButtonFormField<String>(
+            value: selectedDeliveryBoyId,
+            decoration: const InputDecoration(
+              labelText: 'Assign Delivery Boy',
+              border: OutlineInputBorder(),
+            ),
+            items: deliveryBoys
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e['id'].toString(),
+                    child: Text(e['name']),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) => setState(() => selectedDeliveryBoyId = v),
+          ),
+          const SizedBox(height: 16),
+          _saveButton(_saveDelivery),
         ],
       ),
     );
@@ -309,6 +623,35 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
             _infoRow('Contact', data['contact_no']),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _paymentStepCard() {
+    final isCash =
+        (orderData!['paymentMethod'] ?? '').toString().toLowerCase() == 'cash';
+
+    if (!isCash) return const SizedBox();
+
+    return _actionCard(
+      title: 'Step 0: Payment',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Order payment is pending. Please confirm payment to continue.',
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.payment),
+              label: const Text('Mark as Paid'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              onPressed: _markCodAsPaid,
+            ),
+          ),
+        ],
       ),
     );
   }

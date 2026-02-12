@@ -39,6 +39,8 @@ router.post(
 
   async (req, res) => {
     const errors = validationResult(req);
+
+    console.log("Registration Request Body:", req.body, errors);
     if (!errors.isEmpty()) {
       logger.warn("Registration failed: invalid input", { body: req.body });
       return res.status(400).json({ message: "Invalid input" });
