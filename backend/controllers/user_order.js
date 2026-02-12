@@ -35,6 +35,8 @@ router.get("/:orderId", auth, async (req, res) => {
   const { orderId } = req.params;
   const userId = req.user.id;
 
+console.log("Fetching order details for orderId:", orderId, "userId:", userId);
+
   try {
     const [orderRows] = await pool.execute(
       `
@@ -64,12 +66,14 @@ router.get("/:orderId", auth, async (req, res) => {
       `
       SELECT a.id, a.animal_type, a.breed, a.price, a.age, a.weight, a.shares,
              s.shareholder_name, s.guardian_name, s.qurbani_day
-      FROM order_shareholders s
+      FROM shareholder_details s
       JOIN animals a ON s.animal_id = a.id
       WHERE s.order_id = ?
       `,
       [orderId],
     );
+
+    console.log("Fetched animals for order", { animalRows });
 
     order.animals = animalRows;
 

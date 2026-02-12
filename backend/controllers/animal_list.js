@@ -13,8 +13,6 @@ exports.getAnimals = async (req, res) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  logger.info("Admin fetching own animals", { adminId });
-
   try {
     const [animals] = await db.query(
       `
@@ -24,22 +22,38 @@ exports.getAnimals = async (req, res) => {
         a.shares,
         a.price,
         a.created_at,
-        ad.barcode
+        ad.barcode,
+
+        -- 🔥 COUNT assigned shares
+        COUNT(sd.id) AS assigned_shares,
+
+        -- 🔥 CALCULATE remaining shares
+        (a.shares - COUNT(sd.id)) AS remaining_shares
+
       FROM animals a
+
       LEFT JOIN animal_details ad 
         ON ad.animal_id = a.id
+
+      LEFT JOIN shareholder_details sd
+        ON sd.animal_id = a.id
+        AND sd.animal_id IS NOT NULL
+
       WHERE a.admin_id = ?
+
+      GROUP BY a.id
+
       ORDER BY a.created_at DESC
       `,
       [adminId]
     );
 
     res.status(200).json({ animals });
+
   } catch (err) {
     logger.error("Error fetching animals", {
       adminId,
       error: err.message,
-      stack: err.stack,
     });
 
     res.status(500).json({
@@ -47,6 +61,7 @@ exports.getAnimals = async (req, res) => {
     });
   }
 };
+
 
 
 /**

@@ -53,6 +53,7 @@ app.use("/api/animals", animalRoutes);
 app.use("/api/admins", adminRoutes);
 app.use("/api/orders", orderRoutes); 
 app.use("/api/animals", animalListRoutes);
+app.use("/api/shareholders", require("../routes/shareholder"));
 app.use("/api/superadmin", require("../routes/superadmin"));
 
 // Orders

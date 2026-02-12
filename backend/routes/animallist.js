@@ -225,51 +225,32 @@ router.get("/:animalId/orders", authMiddleware, async (req, res) => {
   const { animalId } = req.params;
   const adminId = req.user.id;
 
-  logger.info("Fetching orders for animal", {
-    animalId,
-    adminId,
-  });
-
   try {
-    const [orders] = await pool.execute(
+    const [rows] = await pool.execute(
       `
       SELECT 
-        o.id AS order_id,
-        o.user_id,
-        o.payment_status,
-        o.processing_status,
-        o.delivery_status,
-        o.created_at,
-        u.name AS user_name,
+        s.id AS shareholder_id,
         s.shareholder_name,
-        s.guardian_name,
-        s.qurbani_day,
-        s.price
-      FROM orders o
-      JOIN users u ON o.user_id = u.id
-      JOIN order_shareholders s ON s.order_id = o.id
-      WHERE s.animal_id = ? AND o.admin_id = ?
-      ORDER BY o.created_at DESC
+        s.qurbani_datetime
+
+      FROM shareholder_details s
+      JOIN animals a ON a.id = s.animal_id
+
+      WHERE s.animal_id = ?
+      AND a.admin_id = ?
+
+      ORDER BY s.qurbani_datetime ASC
       `,
       [animalId, adminId]
     );
 
-    logger.info("Orders fetched for animal", {
-      animalId,
-      adminId,
-      orderCount: orders.length,
-    });
+    res.json({ shareholders: rows });
 
-    res.json({ orders });
   } catch (err) {
-    logger.error("Error fetching orders for animal", {
-      animalId,
-      adminId,
-      error: err.message,
-      stack: err.stack,
+    console.error("Error fetching shareholders:", err);
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
     });
-
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

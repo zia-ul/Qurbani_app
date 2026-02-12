@@ -45,7 +45,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       _orderData = await OrderService.getOrderDetails(widget.orderId);
-      // print(_orderData);
+      print(_orderData);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -285,7 +285,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         child: Column(
           children: [
             // Product Info Card
-            // Animals Card
+
             // Animals Card
             if (order['animals'] != null &&
                 (order['animals'] as List).isNotEmpty)
@@ -391,6 +391,40 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ),
               ),
 
+            if (order['shareholders'] != null &&
+                (order['shareholders'] as List).isNotEmpty)
+              _buildSectionCard(
+                title: "Shareholder Details",
+                icon: Icons.group,
+                child: Column(
+                  children: (order['shareholders'] as List<dynamic>).map((s) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s['shareholder_name'] ?? 'N/A',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text("Guardian: ${s['guardian_name'] ?? 'N/A'}"),
+                          Text(
+                            "Share #: ${s['share_number'] ?? 'Not assigned'}",
+                          ),
+                          Text("Payment: ${s['payment_status']}"),
+                          Text("Processing: ${s['processing_status']}"),
+                          Text("Delivery: ${s['delivery_status']}"),
+                          Text(
+                            "Qurbani Time: ${s['qurbani_datetime'] ?? 'Pending'}",
+                          ),
+                          const Divider(),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
             // Admin Details Card
             _buildSectionCard(
               title: "Admin Details",
@@ -402,21 +436,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Text(
-                        //   order['admin_name'] ?? 'Admin',
-                        //   style: const TextStyle(fontWeight: FontWeight.bold),
-                        // ),
-                        // Text(
-                        //   order['admin_phone'] ?? '+91 9876543210',
-                        //   style: const TextStyle(fontSize: 12),
-                        // ),
-                        // Text(
-                        //   order['admin_address'] ?? 'Address',
-                        //   style: const TextStyle(
-                        //     fontSize: 12,
-                        //     color: Colors.grey,
-                        //   ),
-                        // ),
                         Text(order['admin_name'] ?? 'Admin'),
                         Text(order['admin_phone'] ?? 'N/A'),
                         Text(order['admin_address'] ?? 'N/A'),
@@ -458,12 +477,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     deliveryStatus,
                   ),
 
-                  _buildInfoRow(
-                    Icons.security,
-                    "Delivery Code",
-                    order['delivery_code'] ?? 'Not assigned',
-                    isCopyable: order['delivery_code'] != null,
-                  ),
+                  // _buildInfoRow(
+                  //   Icons.security,
+                  //   "Delivery Code",
+                  //   order['delivery_code'] ?? 'Not assigned',
+                  //   isCopyable: order['delivery_code'] != null,
+                  // ),
                   if (orderDate != null)
                     _buildInfoRow(
                       Icons.calendar_today,

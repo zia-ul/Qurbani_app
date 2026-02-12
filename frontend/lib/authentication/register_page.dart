@@ -465,45 +465,106 @@ class _RegisterPageState extends State<RegisterPage> {
                                           const SizedBox(height: 5),
 
                                           // Phone Field
+                                          // ---------------- PHONE WITH COUNTRY CODE ----------------
                                           Padding(
                                             padding: const EdgeInsets.only(
                                               bottom: 8,
                                             ),
-                                            child: IntlPhoneField(
-                                              controller: phoneController,
-                                              initialCountryCode: 'IN',
-                                              onSaved: (phone) {
-                                                phoneNumber = phone?.number;
-                                                countryCode =
-                                                    phone?.countryCode;
-                                                countryISO =
-                                                    phone?.countryISOCode;
-                                              },
-                                              onChanged: (phone) {
-                                                phoneNumber = phone.number;
-                                                countryCode = phone.countryCode;
-                                                countryISO =
-                                                    phone.countryISOCode;
+                                            child: Row(
+                                              children: [
+                                                // Country Code Dropdown
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    showCountryPicker(
+                                                      context: context,
+                                                      showPhoneCode: true,
+                                                      onSelect: (country) {
+                                                        setState(() {
+                                                          countryCode =
+                                                              "+${country.phoneCode}";
+                                                          countryISO = country
+                                                              .countryCode;
+                                                        });
+                                                      },
+                                                    );
+                                                  },
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 14,
+                                                        ),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      border: Border.all(
+                                                        color: Colors
+                                                            .grey
+                                                            .shade400,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      countryCode ?? "+91",
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
 
-                                                if (countryController
-                                                    .text
-                                                    .isEmpty) {
-                                                  countryController.text =
-                                                      phone.countryISOCode ??
-                                                      '';
-                                                }
-                                              },
+                                                const SizedBox(width: 8),
 
-                                              validator: (phone) {
-                                                if (phone == null ||
-                                                    phone.number.isEmpty) {
-                                                  return 'Phone number is required';
-                                                }
-                                                if (!phone.isValidNumber()) {
-                                                  return 'Invalid phone number';
-                                                }
-                                                return null;
-                                              },
+                                                // Phone Number Field
+                                                Expanded(
+                                                  child: TextFormField(
+                                                    controller: phoneController,
+                                                    keyboardType:
+                                                        TextInputType.phone,
+                                                    validator: (v) {
+                                                      if (v == null ||
+                                                          v.trim().isEmpty) {
+                                                        return "Phone number is required";
+                                                      }
+                                                      if (v.length < 7) {
+                                                        return "Invalid phone number";
+                                                      }
+                                                      return null;
+                                                    },
+                                                    onChanged: (value) {
+                                                      phoneNumber = value;
+                                                    },
+                                                    decoration: InputDecoration(
+                                                      filled: true,
+                                                      fillColor: Colors.white,
+                                                      labelText: "Phone Number",
+                                                      prefixIcon: const Icon(
+                                                        Icons.phone,
+                                                        color: AppTheme
+                                                            .primaryGreen,
+                                                      ),
+                                                      contentPadding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 10,
+                                                          ),
+                                                      border:
+                                                          const OutlineInputBorder(
+                                                            borderRadius:
+                                                                BorderRadius.all(
+                                                                  Radius.circular(
+                                                                    12,
+                                                                  ),
+                                                                ),
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
 
@@ -606,7 +667,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                             },
                                             decoration: const InputDecoration(
                                               labelText: "State",
-                                              prefixIcon: Icon(Icons.map),
+                                              prefixIcon: const Icon(
+                                                Icons.map,
+                                                color: AppTheme.primaryGreen,
+                                              ),
+
                                               filled: true,
                                               fillColor: Color.fromARGB(
                                                 255,
@@ -671,9 +736,11 @@ class _RegisterPageState extends State<RegisterPage> {
                                             decoration: const InputDecoration(
                                               labelText:
                                                   "City for Qurbani Service",
-                                              prefixIcon: Icon(
+                                              prefixIcon: const Icon(
                                                 Icons.location_city,
+                                                color: AppTheme.primaryGreen,
                                               ),
+
                                               filled: true,
                                               border: OutlineInputBorder(
                                                 borderRadius: BorderRadius.all(

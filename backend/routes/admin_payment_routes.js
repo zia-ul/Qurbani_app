@@ -27,20 +27,44 @@ router.post('/animals/:id/qrcode', auth, async (req, res) => {
 router.get('/animals/:animalId/orders', auth, async (req, res) => {
   const { animalId } = req.params;
 
-  const [rows] = await pool.execute(`
-    SELECT o.id, u.name AS user_name,
-           o.processing_status, o.payment_status,
-           o.delivery_person, o.qurbani_time,
-           o.created_at
-    FROM orders o
-    JOIN users u ON u.id = o.user_id
-    JOIN order_animals oa ON oa.order_id = o.id
-    WHERE oa.animal_id = ?
-    ORDER BY o.created_at DESC
-  `, [animalId]);
+  try {
+    const [rows] = await pool.execute(
+      `
+      SELECT 
+        s.id AS shareholder_id,
+        s.order_id,
+        s.shareholder_name,
+        s.guardian_name,
+        s.qurbani_day,
+        s.processing_status,
+        s.delivery_status,
+        s.payment_status,
+        s.created_at,
 
-  res.json(rows);
+        o.payment_method,
+        o.created_at AS order_created_at,
+
+        u.name AS user_name
+
+      FROM shareholder_details s
+      JOIN orders o ON o.id = s.order_id
+      JOIN users u ON u.id = o.user_id
+
+      WHERE s.animal_id = ?
+      ORDER BY s.created_at DESC
+      `,
+      [animalId]
+    );
+
+    console.log("Fetched orders for animal", { animalId, rows });
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch animal shareholders' });
+  }
 });
+
 
 
 module.exports = router;

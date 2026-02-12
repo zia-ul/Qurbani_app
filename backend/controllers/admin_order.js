@@ -26,9 +26,6 @@ router.get("/my", auth, adminOnly, async (req, res) => {
         o.admin_id,
         o.payment_method,
         o.total_shares,
-        o.processing_status,
-        o.payment_status,
-        o.delivery_status,
         o.created_at,
         a.photo_urls,
         aps.cod_deadline
@@ -50,11 +47,13 @@ router.get("/my", auth, adminOnly, async (req, res) => {
         const [shareholders] = await pool.execute(
           `
           SELECT id, shareholder_name, guardian_name, qurbani_day
-          FROM order_shareholders
+          FROM shareholder_details
           WHERE order_id = ?
           `,
           [order.id],
         );
+
+        console.log("Shareholders for order", { orderId: order.id, shareholders });
 
         return {
           orderId: order.id,
@@ -100,62 +99,57 @@ router.get("/:orderId", auth, adminOnly, async (req, res) => {
   const { orderId } = req.params;
   const adminId = req.user.id;
 
-  logger.info("Admin fetching order details", {
-    adminId,
-    orderId,
-  });
-
   try {
+    // 1️⃣ Fetch order (ONLY order-level data)
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.payment_status, o.created_at
-       FROM orders o
-       WHERE o.id = ? AND o.admin_id = ?`,
-      [orderId, adminId],
+      `SELECT id, user_id, admin_id, total_shares, payment_status, created_at
+       FROM orders
+       WHERE id = ? AND admin_id = ?`,
+      [orderId, adminId]
     );
 
     if (!orders.length) {
-      logger.warn("Admin tried to access unauthorized order", {
-        adminId,
-        orderId,
+      return res.status(404).json({
+        message: "Order not found or not authorized",
       });
-      return res
-        .status(404)
-        .json({ message: "Order not found or not authorized" });
     }
 
+    // 2️⃣ Fetch FULL shareholder details
     const [shareholders] = await pool.execute(
-      `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
-      [orderId],
+      `SELECT 
+          id,
+          shareholder_name,
+          guardian_name,
+          address,
+          qurbani_day,
+          price,
+          animal_id,
+          share_number,
+          processing_status,
+          delivery_status,
+          delivery_person_id,
+          qurbani_datetime
+       FROM shareholder_details
+       WHERE order_id = ?`,
+      [orderId]
     );
-
-    logger.info("Admin order details fetched", {
-      adminId,
-      orderId,
-      shareholderCount: shareholders.length,
-    });
 
     res.json({
       order: {
-        orderId,
-        processing_status: orders[0].processing_status,
-        delivery_status: orders[0].delivery_status || "pending",
-        delivery_person_id: orders[0].delivery_person_id,
-        shareholders,
+        ...orders[0],   // order-level info
+        shareholders,   // full shareholder data
       },
     });
-  } catch (err) {
-    logger.error("Failed to fetch admin order", {
-      adminId,
-      orderId,
-      error: err.message,
-      stack: err.stack,
-    });
 
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Something went wrong",
+    });
   }
 });
+
+
 
 router.put("/:orderId", auth, adminOnly, async (req, res) => {
   const { orderId } = req.params;

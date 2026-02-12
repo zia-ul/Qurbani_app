@@ -1,6 +1,6 @@
+import 'package:Qurbani/screens/admin/shareholder_order_details.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
-import 'package:Qurbani/screens/admin/order_details.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
@@ -91,6 +91,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
       // Re-fetch to get updated statuses
       _allOrders = await AdminOrderService.getAdminOrders();
+      print("testing orders after cancellation cleanup");
+      print(_allOrders);
+
       AppLogger.info("Orders reloaded after cancellation cleanup");
     } catch (e, stack) {
       AppLogger.error("Failed to fetch admin orders", e, stack);
@@ -174,6 +177,54 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     );
   }
 
+  String _getOverallDeliveryStatus(Map<String, dynamic> order) {
+    final List shareholders = order['shareholders'] ?? [];
+
+    if (shareholders.isEmpty) return 'Pending';
+
+    final statuses = shareholders
+        .map((s) => (s['delivery_status'] ?? '').toString().toLowerCase())
+        .toList();
+
+    if (statuses.every((s) => s == 'delivered')) {
+      return 'Delivered';
+    }
+
+    if (statuses.contains('pending')) {
+      return 'Pending';
+    }
+
+    if (statuses.contains('assigned')) {
+      return 'Assigned';
+    }
+
+    return 'Pending';
+  }
+
+  String _getOverallProcessingStatus(Map<String, dynamic> order) {
+    final List shareholders = order['shareholders'] ?? [];
+
+    if (shareholders.isEmpty) return 'Pending';
+
+    final statuses = shareholders
+        .map((s) => (s['processing_status'] ?? '').toString().toLowerCase())
+        .toList();
+
+    if (statuses.contains('pending')) {
+      return 'Pending';
+    }
+
+    if (statuses.contains('confirmed')) {
+      return 'Confirmed';
+    }
+
+    if (statuses.every((s) => s == 'completed')) {
+      return 'Completed';
+    }
+
+    return 'Pending';
+  }
+
   Widget newBadge() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -196,11 +247,16 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   Widget _buildOrderList({required bool isActive}) {
     final filteredOrders = _allOrders.where((order) {
       final data = order;
-
+      print("data....$data");
       // Filter by completion status - include delivered orders as completed
-      final isCompleted = data['isCompleted'] ?? false;
-      final deliveryStatus = data['deliveryStatus'] ?? 'pending';
+      final deliveryStatus = _getOverallDeliveryStatus(data);
+      final processingStatus = _getOverallProcessingStatus(data);
+
+      final isCompleted = processingStatus.toLowerCase() == 'completed';
+
       final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
+
+      // final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
       // Show in Active: not completed AND not delivered
       // Show in Completed: completed OR delivered
       final matchesStatus = isActive
@@ -230,17 +286,15 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       itemBuilder: (context, index) {
         final data = filteredOrders[index];
         final orderId = data['orderId'] ?? '';
-        final createdAt = data['created_at'];
+        final createdAt = data['createdAt'];
 
         final bool showNew =
             createdAt != null && isNewOrder(createdAt.toString());
 
         final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
-        final processingStatus = data['processingStatus'] == 'cancelled'
+        final processingStatus = _isCodExpired(data)
             ? 'Cancelled'
-            : _isCodExpired(data)
-            ? 'Cancelled'
-            : (data['processingStatus'] ?? 'Pending');
+            : _getOverallProcessingStatus(data);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -293,7 +347,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
-                                AdminOrderDetailPage(orderId: orderId),
+                                ShareholderOrderDetails(orderId: orderId),
                           ),
                         ),
                         style: ElevatedButton.styleFrom(

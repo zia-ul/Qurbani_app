@@ -236,12 +236,19 @@ class OrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch orders';
+      final body = jsonDecode(res.body);
+      final msg = body['message'] ?? 'Failed to fetch orders';
       throw Exception(msg);
     }
 
     final data = jsonDecode(res.body);
-    return List<Map<String, dynamic>>.from(data['orders']);
+
+    // 🔥 IMPORTANT FIX HERE
+    if (data == null || data['shareholders'] == null) {
+      return [];
+    }
+
+    return List<Map<String, dynamic>>.from(data['shareholders']);
   }
 }
 

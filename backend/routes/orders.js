@@ -85,60 +85,103 @@ router.use("/admin", require("../controllers/admin_order"));
 // This endpoint provides comprehensive order details including animal information,
 // admin contact details, and current status for order tracking purposes
 router.get("/:orderId", authMiddleware, async (req, res) => {
-  // Extract order ID from URL parameters and get authenticated user's ID
   const { orderId } = req.params;
   const userId = req.user.id;
 
   try {
-    // Execute complex JOIN query to fetch order with related data
-    // Joins orders with animals table for product details and users table for admin info
-    // Security: WHERE clause ensures users can only access their own orders
+    // 1️⃣ Fetch Order Basic Info
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.delivery_status, o.payment_status,
-              o.processing_status, o.created_at, o.cancelled_at,
-              p.title, p.image_url, p.shares, p.price, p.barcode,
-              a.name AS admin_name, a.phone AS admin_phone, a.address AS admin_address
+      `SELECT 
+          o.id,
+          o.user_id,
+          o.admin_id,
+          o.delivery_status,
+          o.payment_status,
+          o.processing_status,
+          o.delivery_code,
+          o.created_at,
+          o.cancelled_at,
+          a.name AS admin_name,
+          a.phone AS admin_phone,
+          a.address AS admin_address
        FROM orders o
-       JOIN animals p ON o.animal_id = p.id
        JOIN users a ON o.admin_id = a.id
        WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId],
+      [orderId, userId]
     );
 
-    // Check if order exists and belongs to the authenticated user
     if (!orders.length) {
-      logger.warn("Order not found or access denied", {
-        userId,
-        orderId,
-        reason: "Order doesn't exist or doesn't belong to user",
-      });
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Log successful order retrieval for audit trail
-    logger.info("Order details retrieved successfully", {
-      userId,
-      orderId,
-      orderStatus: orders[0].delivery_status,
-      paymentStatus: orders[0].payment_status,
+    const order = orders[0];
+
+    // 2️⃣ Fetch Shareholders
+    const [shareholders] = await pool.execute(
+      `SELECT 
+          s.id,
+          s.shareholder_name,
+          s.guardian_name,
+          s.address,
+          s.share_number,
+          s.payment_status,
+          s.processing_status,
+          s.delivery_status,
+          s.qurbani_datetime,
+          an.id AS animal_id,
+          an.animal_type,
+          an.breed,
+          an.price,
+          an.age,
+          an.barcode,
+          an.photo_urls
+       FROM shareholder_details s
+       LEFT JOIN animals an ON s.animal_id = an.id
+       WHERE s.order_id = ?`,
+      [orderId]
+    );
+
+    console.log("Shareholders fetched:", shareholders);
+
+    // 3️⃣ Group Animals (Unique Animals List)
+    const animalsMap = {};
+
+    shareholders.forEach((s) => {
+      if (s.animal_id) {
+        if (!animalsMap[s.animal_id]) {
+          animalsMap[s.animal_id] = {
+            id: s.animal_id,
+            animal_type: s.animal_type,
+            breed: s.breed,
+            price: s.price,
+            age: s.age,
+            barcode: s.barcode,
+            photo_urls: s.photo_urls,
+            qurbani_datetime: s.qurbani_datetime,
+          };
+        }
+      }
     });
 
-    // Return order details to client
-    res.json({ order: orders[0] });
-  } catch (err) {
-    // Log error with comprehensive context for debugging
-    logger.error("Error retrieving order details", {
-      userId,
-      orderId,
-      error: err.message,
-      stack: err.stack,
+    const animals = Object.values(animalsMap);
+
+    // 4️⃣ Final Response Structure
+    res.json({
+      order: {
+        ...order,
+        animals,
+        shareholders,
+      },
     });
-    // Return generic error message to client
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+
+  } catch (err) {
+    console.error("Error retrieving order details:", err);
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
+
 
 /**
  * @swagger

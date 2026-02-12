@@ -40,8 +40,6 @@ router.get("/my", authMiddleware, async (req, res) => {
           o.total_shares,
           o.status,
           o.created_at,
-          o.delivery_status,
-          o.payment_status,
 
           u.name AS admin_name,
           u.email AS admin_email,
@@ -289,6 +287,9 @@ router.post("/", authMiddleware, async (req, res) => {
   const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
     req.body;
 
+  console.log("order body", req.body);
+  // console.log(res.body);
+
   if (
     !adminId ||
     !paymentMethod ||
@@ -309,8 +310,8 @@ router.post("/", authMiddleware, async (req, res) => {
     await connection.execute(
       `
       INSERT INTO orders
-        (id, user_id, admin_id, payment_method, total_shares, payment_status, total_amt)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (id, user_id, admin_id, payment_method, total_shares, total_amt)
+      VALUES (?, ?, ?, ?, ?, ?)
       `,
       [
         orderId,
@@ -318,7 +319,6 @@ router.post("/", authMiddleware, async (req, res) => {
         adminId,
         paymentMethod,
         shareholders.length,
-        paymentStatus,
         totalAmount,
       ],
     );
@@ -334,7 +334,8 @@ router.post("/", authMiddleware, async (req, res) => {
           guardian_name,
           qurbani_day,
           price,
-          address
+          address,
+          payment_status
         )
       VALUES ?
       `,
@@ -351,7 +352,8 @@ router.post("/", authMiddleware, async (req, res) => {
             s.guardianName,
             s.qurbaniDay || "Day 1",
             s.price,
-            JSON.stringify(s.address), // 🔥 IMPORTANT
+            JSON.stringify(s.address),
+            paymentStatus,
           ];
         }),
       ],
@@ -372,40 +374,61 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
+
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const userId = req.user.id;
 
   try {
     const [orders] = await pool.execute(
-      `SELECT o.*, u.name as admin_name, u.address as admin_address, u.phone as admin_phone
-       FROM orders o
-       JOIN users u ON o.admin_id = u.id
-       WHERE o.id = ? AND o.user_id = ?`,
+      `
+      SELECT o.*, 
+             u.name AS admin_name, 
+             u.address AS admin_address, 
+             u.phone AS admin_phone
+      FROM orders o
+      JOIN users u ON o.admin_id = u.id
+      WHERE o.id = ? AND o.user_id = ?
+      `,
       [orderId, userId],
     );
 
-    if (orders.length === 0) {
+    if (!orders.length) {
       return res.status(404).json({ message: "Order not found" });
     }
 
     const order = orders[0];
 
-    // Fetch animals linked to this order
-    const [animals] = await pool.execute(
-      `SELECT ad.*, a.animal_type, a.price
-       FROM animal_details ad
-       JOIN animals a ON ad.animal_id = a.id
-       WHERE ad.order_id = ?`,
+    const [shareholders] = await pool.execute(
+      `
+        SELECT 
+          s.*,
+          a.animal_type,
+          a.price AS animal_price,
+          ad.breed,
+          ad.age,
+          ad.weight,
+          ad.photo_urls
+        FROM shareholder_details s
+        LEFT JOIN animals a ON s.animal_id = a.id
+        LEFT JOIN animal_details ad ON ad.animal_id = a.id
+        WHERE s.order_id = ?
+        `,
       [orderId],
     );
 
-    // Respond with order + animals
-    res.json({ order: { ...order, animals } });
+    res.json({
+      order: {
+        ...order,
+        shareholders,
+      },
+    });
   } catch (err) {
+    console.error("Fetch order failed:", err);
     res.status(500).json({ message: "Something went wrong." });
   }
 });
+
 
 router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -468,6 +491,7 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
     conn.release();
   }
 });
+
 
 router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -540,71 +564,84 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
   logger.info("Admin fetching own orders", { adminId });
-  console.log("coming here....");
 
   try {
-    const [orders] = await pool.execute(
+    const [rows] = await pool.execute(
       `
       SELECT
-        o.id,
+        o.id AS order_id,
         o.user_id,
         o.admin_id,
         o.payment_method,
         o.total_shares,
-        o.processing_status,
+        o.status,
         o.payment_status,
-        o.delivery_status,
         o.created_at,
-        a.photo_urls,
-        aps.cod_deadline
+
+        aps.cod_deadline,
+
+        s.id AS shareholder_id,
+        s.shareholder_name,
+        s.guardian_name,
+        s.qurbani_day,
+        s.processing_status,
+        s.delivery_status,
+        s.payment_status AS shareholder_payment_status
+
       FROM orders o
-      LEFT JOIN animal_details a 
-        ON a.order_id = o.id
       LEFT JOIN admin_payment_settings aps
         ON aps.admin_id = o.admin_id
+      LEFT JOIN shareholder_details s
+        ON s.order_id = o.id
+
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
-      [adminId],
+      [adminId]
     );
 
-    logger.info("Admin orders raw", { orders });
+    console.log("Admin orders raw data", rows);
+    // Group orders
+    const ordersMap = {};
 
-    const ordersWithDetails = await Promise.all(
-      orders.map(async (order) => {
-        const [shareholders] = await pool.execute(
-          `
-          SELECT id, shareholder_name, guardian_name, qurbani_day
-          FROM order_shareholders
-          WHERE order_id = ?
-          `,
-          [order.id],
-        );
-
-        return {
-          orderId: order.id,
-          adminId: order.admin_id,
-          paymentMethod: order.payment_method,
-          processingStatus: order.processing_status,
-          paymentStatus: order.payment_status,
-          deliveryStatus: order.delivery_status,
-          isCompleted: order.processing_status === "completed",
-          createdAt: order.created_at,
-
-          cod_deadline: order.cod_deadline,
-
-          photoUrls: order.photo_urls,
-          shareholders,
+    rows.forEach((row) => {
+      if (!ordersMap[row.order_id]) {
+        ordersMap[row.order_id] = {
+          orderId: row.order_id,
+          userId: row.user_id,
+          adminId: row.admin_id,
+          paymentMethod: row.payment_method,
+          totalShares: row.total_shares,
+          orderStatus: row.status,
+          orderPaymentStatus: row.payment_status,
+          createdAt: row.created_at,
+          cod_deadline: row.cod_deadline,
+          shareholders: [],
         };
-      }),
-    );
+      }
+
+      if (row.shareholder_id) {
+        ordersMap[row.order_id].shareholders.push({
+          id: row.shareholder_id,
+          shareholder_name: row.shareholder_name,
+          guardian_name: row.guardian_name,
+          qurbani_day: row.qurbani_day,
+          processing_status: row.processing_status,
+          delivery_status: row.delivery_status,
+          payment_status: row.shareholder_payment_status,
+        });
+      }
+    });
+
+    const formattedOrders = Object.values(ordersMap);
 
     logger.info("Admin orders fetched", {
       adminId,
-      orderCount: ordersWithDetails.length,
+      orderCount: formattedOrders.length,
     });
 
-    res.json({ orders: ordersWithDetails });
+    res.json({ orders: formattedOrders });
+
   } catch (err) {
     logger.error("Failed to fetch admin orders", {
       adminId,
@@ -612,11 +649,12 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
+
 
 router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
   const { orderId, userId } = req.params;
@@ -784,27 +822,37 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
   }
 });
 
+// orders/admin/:orderId
 router.get("/admin/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
-  const adminId = req.user.id; // Admin's user ID from JWT
+  const adminId = req.user.id;
 
   console.log("Fetching order for admin:", adminId, "orderId:", orderId);
 
   try {
+    // 1️⃣ Fetch Order (WITHOUT old processing fields)
     const [orders] = await pool.execute(
-      `SELECT o.id, o.user_id, o.admin_id, o.payment_method, o.total_shares, o.processing_status, o.delivery_status, o.delivery_person_id, o.created_at,
-              u.name as user_name, u.email as user_email, u.phone as contact_no,
-              a.name as admin_name, o.payment_status, u.address
+      `SELECT 
+          o.id,
+          o.user_id,
+          o.admin_id,
+          o.payment_method,
+          o.total_shares,
+          o.payment_status,
+          o.created_at,
+          u.name AS user_name,
+          u.email AS user_email,
+          u.phone AS contact_no,
+          u.address,
+          a.name AS admin_name
        FROM orders o
        JOIN users u ON o.user_id = u.id
        JOIN users a ON o.admin_id = a.id
-       WHERE o.id = ? AND o.admin_id = ?`, // Restrict to admin's own orders
+       WHERE o.id = ? AND o.admin_id = ?`,
       [orderId, adminId],
     );
 
-    console.log(orders);
-
-    if (orders.length === 0) {
+    if (!orders.length) {
       return res
         .status(404)
         .json({ message: "Order not found or not authorized" });
@@ -812,36 +860,47 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
 
     const order = orders[0];
 
-    // Fetch shareholders for the order
+    // 2️⃣ Fetch Shareholders WITH management fields
     const [shareholders] = await pool.execute(
-      `SELECT id, shareholder_name, guardian_name, qurbani_day FROM order_shareholders WHERE order_id = ?`,
+      `SELECT 
+      s.id,
+      s.shareholder_name,
+      s.guardian_name,
+      s.animal_id,
+      s.share_number,
+      s.qurbani_datetime,
+      s.address,
+      s.processing_status,
+      s.payment_status,
+      s.delivery_status,
+      s.delivery_person_id,
+      an.animal_type
+   FROM shareholder_details s
+   LEFT JOIN animals an ON s.animal_id = an.id
+   WHERE s.order_id = ?`,
       [order.id],
     );
 
-    // Structure the response to match admin frontend expectations
+    // 3️⃣ Structure Clean Response
     const orderWithDetails = {
       orderId: order.id,
       user_name: order.user_name,
+      email: order.user_email,
+      contact_no: order.contact_no,
       address: order.address,
-      animal_type: "Sheep", // Dummy, as per schema
-      parts: shareholders.map((s) => s.name).join(", "), // Map to parts
-      total_amount: 100 * order.total_shares, // Dummy calculation
-      payment_status: order.payment_status, // Default
-      delivery_address: "N/A", // Default; add to schema if needed
-      contact_no: order.contact_no || "N/A",
-      processing_status: order.processing_status,
-      delivery_status: order.delivery_status || "pending",
-      delivery_person_id: order.delivery_person_id,
-      shareholders, // Include for reference
-      paymentMethod: order.payment_method,
+      total_shares: order.total_shares,
+      payment_status: order.payment_status,
+      payment_method: order.payment_method,
+      created_at: order.created_at,
+      shareholders: shareholders, // FULL detailed shareholder objects
     };
 
     res.json({ order: orderWithDetails });
   } catch (err) {
     console.error("Error fetching admin order:", err);
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
 
