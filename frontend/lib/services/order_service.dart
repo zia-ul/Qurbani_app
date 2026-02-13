@@ -35,7 +35,7 @@ class OrderService {
     required List<Map<String, dynamic>> shareholders,
     required double totalAmount,
   }) async {
-    print("My pay s $paymentStatus");
+
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -53,7 +53,7 @@ class OrderService {
         'totalAmount': totalAmount,
       }),
     );
-    print("payent status testing..${res.body}");
+
     if (res.statusCode != 201) {
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to place order';
       throw Exception(msg);

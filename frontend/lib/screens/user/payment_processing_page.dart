@@ -61,8 +61,6 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
         (route) => false, // 🔥 clears entire back stack
       );
     } catch (e) {
-      print("testing error here");
-      print(e);
       Fluttertoast.showToast(
         msg: "Payment recorded, but error updating: $e",
         backgroundColor: Colors.orange,

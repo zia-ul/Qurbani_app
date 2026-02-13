@@ -35,8 +35,9 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
     deliveryThresholdController.dispose();
     super.dispose();
   }
-
-  Future<void> pickLastBookingDate() async {
+  
+Future<void> pickLastBookingDate() async {
+  try {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
@@ -52,7 +53,11 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
             "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       });
     }
+  } catch (e, stack) {
+    AppLogger.error("Error picking last booking date", e, stack);
+    ToastUtils.showError("Failed to pick date");
   }
+}
 
   Future<void> submitSetup() async {
   if (!_formKey.currentState!.validate()) return;

@@ -1,3 +1,4 @@
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -48,7 +49,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       // Navigate back to settings page
       Navigator.pop(context);
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Password change failed", e, stack);
       String errorMessage = "Failed to change password";
 
       // Map specific errors

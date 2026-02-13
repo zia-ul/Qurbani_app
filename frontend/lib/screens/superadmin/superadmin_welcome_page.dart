@@ -2,8 +2,6 @@
 /// to view and manage users, filter by roles, and approve or reject admin verifications.
 
 import 'package:Qurbani/drawer.dart';
-import 'package:Qurbani/screens/superadmin/delivery_details';
-import 'package:Qurbani/screens/superadmin/user_details.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
 import 'package:Qurbani/screens/superadmin/admin_details.dart';
@@ -484,22 +482,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                             AdminVerificationDetailsPage(adminId: userId),
                       ),
                     );
-                  } else if (role == 'user') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => UserDetailsPage(adminId: userId),
-                      ),
-                    );
-                  } else if (role == 'delivery') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            DeliveryPersonDetailsPage(deliveryPersonId: userId),
-                      ),
-                    );
-                  }
+                  } 
                 },
               ),
             ],
@@ -531,48 +514,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  // Widget _roleFilterBar() {
-  //   return Container(
-  //     height: 46,
-  //     margin: const EdgeInsets.symmetric(horizontal: 16),
-  //     child: ListView(
-  //       scrollDirection: Axis.horizontal,
-  //       children: RoleFilter.values.map((role) {
-  //         final bool isSelected = _selectedFilter == role;
-
-  //         return Padding(
-  //           padding: const EdgeInsets.only(right: 8),
-  //           child: ChoiceChip(
-  //             label: Text(
-  //               role.name.toUpperCase(),
-  //               style: TextStyle(
-  //                 fontSize: 12,
-  //                 fontWeight: FontWeight.w600,
-  //                 color: isSelected
-  //                     ? AppTheme.primaryGreen
-  //                     : Colors.grey.shade700,
-  //               ),
-  //             ),
-  //             selected: isSelected,
-  //             selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
-  //             backgroundColor: AppTheme.bgGradientEnd,
-  //             shape: StadiumBorder(
-  //               side: BorderSide(
-  //                 color: isSelected
-  //                     ? AppTheme.primaryGreen
-  //                     : Colors.grey.shade300,
-  //               ),
-  //             ),
-  //             onSelected: (_) {
-  //               setState(() => _selectedFilter = role);
-  //               _fetchUsers();
-  //             },
-  //           ),
-  //         );
-  //       }).toList(),
-  //     ),
-  //   );
-  // }
+  
 
   Widget _getRoleBadge(String role) {
     Color color = Colors.grey;

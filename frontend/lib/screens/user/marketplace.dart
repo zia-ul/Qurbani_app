@@ -41,7 +41,6 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
     if (res.statusCode != 200) {
       throw Exception("Failed to load admins");
     }
-    // print(res.body);
 
     return jsonDecode(res.body)['admins'];
   }
@@ -70,7 +69,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
       backgroundColor: parchmentBg,
       appBar: AppBar(
         title: const Text(
-          "Verified Qasab",
+          "Verified Qassab",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.bgGradientEnd,
@@ -88,7 +87,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Text(
-              "Each city has one verified qasab to ensure quality, transparency, and proper Qurbani management.",
+              "Each city has one verified qassab to ensure quality, transparency, and proper Qurbani management.",
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.darkBgGradientStart,
@@ -135,7 +134,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 }).toList();
 
                 if (filteredAdmins.isEmpty) {
-                  return const Center(child: Text("No verified qasabs found"));
+                  return const Center(child: Text("No verified qassabs found"));
                 }
 
                 return GridView.builder(
@@ -282,8 +281,6 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
     final String state = admin['state'] ?? '';
     final String city = admin['city'] ?? '';
     final bool isClosed = admin['is_order_closed'] == 1;
-
-    print("testing filter...$admin");
 
     final String adminId = admin['id'];
     final String? photoUrl = admin['photo_url'];

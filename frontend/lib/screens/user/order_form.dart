@@ -3,6 +3,7 @@ import 'dart:convert'; // For JSON parsing
 import 'package:Qurbani/models/admin_order_config.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/currency_notifier.dart';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -15,28 +16,86 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:country_state_city/country_state_city.dart' as csc;
 
+/// Represents a shareholder/participant in the Qurbani order.
+///
+/// This class holds all the personal information and address details
+/// required for a single shareholder to participate in a Qurbani order.
+/// Each shareholder represents one share of an animal that will be
+/// sacrificed on behalf of them during Eid al-Adha.
+///
+/// Properties:
+/// - [nameController]: Text editing controller for the shareholder's full name
+/// - [guardianController]: Text editing controller for father/guardian name
+/// - [addressController]: Text editing controller for street/house address
+/// - [postalCodeController]: Text editing controller for postal code
+/// - [useSavedAddress]: Boolean flag to use the user's saved address instead of entering a new one
+/// - [qurbaniDay]: The day of Qurbani (Day 1, Day 2, or Day 3) - represents when the sacrifice will be performed
+/// - [selectedCountryName]: Name of the selected country
+/// - [countryISO]: ISO country code for API calls
+/// - [states]: List of states/provinces in the selected country
+/// - [cities]: List of cities in the selected state
+/// - [selectedState]: Currently selected state/province
+/// - [selectedCity]: Currently selected city
 class Shareholder {
+  /// Controller for the shareholder's full name input field.
+  /// Used to capture and manage the text input for the shareholder's name.
   final TextEditingController nameController = TextEditingController();
+
+  /// Controller for the father/guardian name input field.
+  /// Required for identification purposes in many Muslim communities.
   final TextEditingController guardianController = TextEditingController();
+
+  /// Controller for the street/house address input field.
+  /// Contains the detailed address information for delivery purposes.
   final TextEditingController addressController = TextEditingController();
+
+  /// Controller for the postal code input field.
+  /// Used for address verification and delivery formatting.
   final TextEditingController postalCodeController = TextEditingController();
 
   // bool useLiveLocation = false;
   // double? latitude;
   // double? longitude;
+
+  /// Flag indicating whether to use the saved address from the user's profile
+  /// instead of manually entering address details.
+  /// When true, address fields will be pre-populated from saved user data.
   bool useSavedAddress = false;
 
+  /// The day on which the Qurbani sacrifice will be performed for this shareholder.
+  /// Options are 'Day 1', 'Day 2', or 'Day 3' corresponding to the three days
+  /// of Eid al-Adha (Days 10, 11, and 12 of Dhul Hijjah).
   String qurbaniDay = 'Day 1';
-  //
+
+  /// The name of the selected country for delivery.
+  /// Used for address construction and delivery calculations.
   String? selectedCountryName;
+
+  /// The ISO 3166-1 alpha-2 country code (e.g., 'US', 'GB', 'PK').
+  /// Required for API calls and country-specific processing.
   String? countryISO;
 
+  /// List of states/provinces available in the selected country.
+  /// Populated asynchronously when a country is selected using the
+  /// country_state_city package API.
   List<csc.State> states = [];
+
+  /// List of cities available in the selected state.
+  /// Populated asynchronously when a state is selected.
   List<csc.City> cities = [];
 
+  /// The currently selected state/province from the available [states] list.
+  /// Used to determine which cities to load and for address construction.
   csc.State? selectedState;
+
+  /// The currently selected city from the available [cities] list.
+  /// Used for address construction and delivery calculations.
   csc.City? selectedCity;
 
+  /// Disposes all TextEditingController resources to prevent memory leaks.
+  /// This method should be called when the Shareholder object is no longer
+  /// needed, typically when removing a shareholder from the order or when
+  /// the order form is closed.
   void dispose() {
     nameController.dispose();
     guardianController.dispose();
@@ -45,44 +104,103 @@ class Shareholder {
   }
 }
 
+/// The main page widget for creating a Qurbani order.
+///
+/// This StatefulWidget allows users to:
+/// - Add one or more shareholders (participants) for the Qurbani order
+/// - Enter personal information and address details for each shareholder
+/// - Select a Qurbani day (Day 1, 2, or 3) for each shareholder
+/// - Choose between payment methods (Cash on Delivery or Online)
+/// - Review pricing and place the order
+///
+/// The widget requires an [adminId] parameter to fetch admin-specific
+/// configuration, pricing, and payment settings.
 class QurbaniOrderPage extends StatefulWidget {
+  /// The unique identifier of the admin/vendor from whom the order is being placed.
+  /// This is used to fetch admin-specific configuration, pricing, and payment settings.
   final String adminId;
 
+  /// Creates a new QurbaniOrderPage widget.
+  ///
+  /// The [adminId] parameter is required and must correspond to a valid
+  /// admin in the system who has configured their order settings.
   const QurbaniOrderPage({super.key, required this.adminId});
 
   @override
   State<QurbaniOrderPage> createState() => _QurbaniOrderPageState();
 }
 
+/// State class for QurbaniOrderPage.
+///
+/// Manages all the state required for the order form including:
+/// - List of shareholders
+/// - Pricing and payment settings from the admin
+/// - Form validation and submission
 class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
+  /// Starting color for the background gradient (warm beige).
+  /// Used to create a visually appealing gradient background.
   final Color bgGradientStart = const Color(0xffF2E8D5);
+
+  /// Ending color for the background gradient (white).
+  /// Creates a smooth transition from warm beige to white.
   final Color bgGradientEnd = const Color(0xffFFFFFF);
 
+  /// List of shareholders to be included in this order.
+  /// Each Shareholder object contains personal info and address details.
   final List<Shareholder> _shareholders = [];
+
+  /// Currently selected payment method.
+  /// Options: 'Cash' (Cash on Delivery) or 'Online' (Online Payment).
+  /// This value is dynamically updated based on admin payment settings.
   String _paymentMethod = 'Cash'; // Will be updated dynamically
+
+  /// Flag indicating whether the form is currently submitting an order.
+  /// When true, the submit button is disabled and a loading indicator is shown.
   bool _isLoading = false;
-  // List<Map<String, dynamic>> _animals =
-  // []; // Includes price, payment_methods, delivery_fee, etc.
+
+  /// Flag indicating whether Cash on Delivery (COD) payment is allowed.
+  /// Determined by admin payment settings fetched from the server.
   bool _allowCOD = false;
+
+  /// Flag indicating whether Online payment is allowed.
+  /// Determined by admin payment settings fetched from the server.
   bool _allowOnline = true;
+
+  /// Flag indicating whether payment settings have been loaded from the server.
+  /// Used to show loading state until all required data is fetched.
   bool _paymentSettingsLoaded = false;
 
+  /// Base URL for API calls, loaded from environment configuration.
+  /// Points to the backend server endpoint.
   static final String? _baseUrl = dotenv.env['BASE_URL'];
+
+  /// Deadline for Cash on Delivery payment.
+  /// If the current date is past this deadline, COD is no longer available
+  /// and a late fee may be applied.
   DateTime? _codDeadline;
+
+  /// Pricing information fetched from the admin.
+  /// Contains:
+  /// - price_per_share: Price for one share of Qurbani
+  /// - delivery_type: 'free' or 'paid'
+  /// - delivery_fee: Fee for delivery if type is 'paid'
   Map<String, dynamic>? _pricing;
+
+  /// Admin order configuration containing available shares and settings.
+  /// Retrieved from the admin's order configuration endpoint.
   AdminOrderConfig? _orderConfig;
+
+  /// Flag indicating whether the order configuration is still being loaded.
+  /// Used to show initial loading state.
   bool _loadingConfig = true;
 
   @override
   void initState() {
     super.initState();
-    // _fetchAnimals();
     _fetchPricing();
     _fetchPaymentSettings();
-    // _addShareholder();
     _fetchSavedAddress();
     _fetchAdminOrderConfig(widget.adminId);
-    // _fetchCurrency();
   }
 
   @override
@@ -114,8 +232,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
       final data = jsonDecode(res.body);
 
-      print("address data: $data");
-
       // 🔒 ensure minimum usable fields
       if (data['country_iso'] == null ||
           data['country'] == null ||
@@ -128,8 +244,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       setState(() {
         _savedAddress = data;
       });
-    } catch (e) {
-      debugPrint("Saved address fetch failed: $e");
+    } catch (e, stack) {
+      AppLogger.error("Failed to fetch saved address", e, stack);
     }
   }
 
@@ -137,7 +253,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     try {
       final token = await AuthService.getToken();
       if (token == null) {
-        debugPrint("No auth token found");
+        AppLogger.error("Admin order config fetch failed: token is null");
         return;
       }
 
@@ -150,13 +266,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       );
 
       if (res.statusCode != 200) {
-        debugPrint("Order config failed: ${res.statusCode}");
+        AppLogger.error(
+          "Failed to fetch admin order config. Status: ${res.statusCode}, Body: ${res.body}",
+        );
         return;
       }
 
       final data = jsonDecode(res.body);
-
-      print("Order config data: $data, $_orderConfig");
 
       if (!mounted) return;
       setState(() {
@@ -167,8 +283,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           _shareholders.add(Shareholder());
         }
       });
-    } catch (e) {
-      debugPrint("Order config fetch failed: $e");
+    } catch (e, stack) {
+      AppLogger.error("Error fetching admin order config", e, stack);
     } finally {
       if (mounted) {
         setState(() => _loadingConfig = false);
@@ -198,7 +314,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
         _paymentMethod = _allowOnline ? 'Online' : 'Cash';
       });
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Failed to load payment settings", e, stack);
+      Fluttertoast.showToast(
+        msg: "Error loading payment settings",
+        backgroundColor: AppTheme.warningRed,
+      );
+
       Fluttertoast.showToast(
         msg: "Error loading payment settings",
         backgroundColor: AppTheme.warningRed,
@@ -228,15 +350,14 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       );
 
       if (res.statusCode != 200) {
-        debugPrint("Pricing API error: ${res.statusCode}");
-        debugPrint(res.body);
         throw Exception("Failed to load pricing");
       }
 
       setState(() {
         _pricing = jsonDecode(res.body);
       });
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Failed to fetch share pricing", e, stack);
       Fluttertoast.showToast(
         msg: "Error loading price per share",
         backgroundColor: AppTheme.warningRed,
@@ -436,7 +557,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                   ),
                   Center(
                     child: TextButton.icon(
-                      onPressed: _addShareholder,
+                      onPressed: remainingShares <= 0 ? null : _addShareholder,
+
                       icon: Icon(
                         Icons.add_circle_outline,
                         color: AppTheme.primaryGreen,
@@ -496,6 +618,11 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     Color bgColor = AppTheme.primaryGreen.withOpacity(0.1);
     Color textColor = AppTheme.primaryGreen;
     IconData icon = Icons.check_circle;
+    if (remaining <= 0) {
+      bgColor = Colors.red.withOpacity(0.15);
+      textColor = Colors.red;
+      icon = Icons.block;
+    }
 
     if (warning) {
       bgColor = Colors.orange.withOpacity(0.15);
@@ -523,9 +650,12 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              error
+              remaining <= 0
+                  ? "All shares are sold out."
+                  : error
                   ? "Only $remaining shares available. Please remove extra shareholders."
                   : "Remaining shares: $after",
+
               style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
             ),
           ),
@@ -1222,6 +1352,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Widget _buildBottomBar() {
+    final bool noSharesLeft = remainingShares <= 0;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1236,7 +1367,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       ),
       child: SafeArea(
         child: ElevatedButton(
-          onPressed: (_isLoading || _isShareLimitExceeded)
+          onPressed: (_isLoading || _isShareLimitExceeded || noSharesLeft)
               ? null
               : _submitOrder,
 
@@ -1248,7 +1379,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             ),
           ),
           child: Text(
-            _isShareLimitExceeded
+            remainingShares <= 0
+                ? "No Shares Available"
+                : _isShareLimitExceeded
                 ? "Too many shareholders"
                 : "Confirm & Place Order",
 
@@ -1296,6 +1429,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         Fluttertoast.showToast(
           msg: "Please fill all required fields",
           backgroundColor: AppTheme.warningRed,
+        );
+        return;
+      }
+      if (remainingShares <= 0) {
+        Fluttertoast.showToast(
+          msg: "No shares available",
+          backgroundColor: Colors.red,
         );
         return;
       }

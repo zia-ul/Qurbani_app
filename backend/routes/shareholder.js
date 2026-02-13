@@ -4,6 +4,46 @@ const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 
+/**
+ * @swagger
+ * /api/shareholders/{id}/payment:
+ *   post:
+ *     summary: Update shareholder payment status
+ *     description: Admin updates the payment status of a shareholder.
+ *     tags: [Shareholders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Shareholder ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - payment_status
+ *             properties:
+ *               payment_status:
+ *                 type: string
+ *                 enum: [pending, paid, unpaid]
+ *                 example: paid
+ *     responses:
+ *       200:
+ *         description: Payment updated successfully
+ *       400:
+ *         description: Invalid payment status
+ *       404:
+ *         description: Shareholder not found
+ *       500:
+ *         description: Something went wrong
+ */
+
 router.post("/:id/payment", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { payment_status } = req.body;
@@ -31,17 +71,59 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
 
     res.json({ message: "Payment updated successfully" });
   } catch (err) {
-    console.error(err);
+    logger.error("Route error", {
+      message: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Something went wrong" });
   }
 });
+
+/**
+ * @swagger
+ * /api/shareholders/{id}/assign-animal:
+ *   post:
+ *     summary: Assign animal to shareholder
+ *     description: Assigns an animal to a paid shareholder and generates share number.
+ *     tags: [Shareholders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - animal_id
+ *             properties:
+ *               animal_id:
+ *                 type: integer
+ *                 example: 5
+ *     responses:
+ *       200:
+ *         description: Animal assigned successfully
+ *       400:
+ *         description: Payment incomplete or no shares available
+ *       404:
+ *         description: Shareholder or Animal not found
+ *       500:
+ *         description: Something went wrong
+ */
 
 router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { animal_id } = req.body;
 
   try {
-    // 1️⃣ Check shareholder
+    // Check shareholder
     const [shareholders] = await pool.execute(
       "SELECT * FROM shareholder_details WHERE id = ?",
       [id],
@@ -57,7 +139,7 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Shareholder not found" });
     }
 
-    // 2️⃣ Check animal
+    // Check animal
     const [animals] = await pool.execute("SELECT * FROM animals WHERE id = ?", [
       animal_id,
     ]);
@@ -82,7 +164,7 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
 
     const shareNumber = countResult[0].count + 1;
 
-    // 4️⃣ Update shareholder
+    // Update shareholder
     await pool.execute(
       `UPDATE shareholder_details
          SET animal_id = ?, share_number = ?, processing_status = 'confirmed'
@@ -90,7 +172,7 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
       [animal_id, shareNumber, id],
     );
 
-    // 5️⃣ Decrease animal remaining shares
+    // Decrease animal remaining shares
     // await pool.execute(
     //   `UPDATE animals
     //      SET remaining_shares = remaining_shares - 1
@@ -100,10 +182,53 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
 
     res.json({ message: "Animal assigned successfully" });
   } catch (err) {
-    console.error(err);
+    logger.error("Route error", {
+      message: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Something went wrong" });
   }
 });
+
+/**
+ * @swagger
+ * /api/shareholders/{id}/schedule:
+ *   post:
+ *     summary: Schedule Qurbani date and time
+ *     description: Sets the Qurbani date/time for a shareholder after animal assignment.
+ *     tags: [Shareholders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - qurbani_datetime
+ *             properties:
+ *               qurbani_datetime:
+ *                 type: string
+ *                 format: date-time
+ *                 example: 2026-06-17T10:30:00Z
+ *     responses:
+ *       200:
+ *         description: Qurbani scheduled successfully
+ *       400:
+ *         description: Animal not assigned
+ *       404:
+ *         description: Shareholder not found
+ *       500:
+ *         description: Something went wrong
+ */
 
 router.post("/:id/schedule", authMiddleware, async (req, res) => {
   const { id } = req.params;
@@ -134,78 +259,186 @@ router.post("/:id/schedule", authMiddleware, async (req, res) => {
 
     res.json({ message: "Qurbani scheduled successfully" });
   } catch (err) {
-    console.error(err);
+    logger.error("Route error", {
+      message: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Something went wrong" });
   }
 });
 
+/**
+ * @swagger
+ * /api/shareholders/{shareholderId}/delivery-status:
+ *   post:
+ *     summary: Update delivery status
+ *     description: Updates delivery status for a shareholder.
+ *     tags: [Shareholders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: shareholderId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - delivery_status
+ *             properties:
+ *               delivery_status:
+ *                 type: string
+ *                 enum: [pending, sent, delivered]
+ *                 example: delivered
+ *     responses:
+ *       200:
+ *         description: Delivery status updated successfully
+ *       400:
+ *         description: Invalid delivery status
+ *       500:
+ *         description: Something went wrong
+ */
 
-router.post("/:shareholderId/delivery-status", authMiddleware, async (req, res) => {
-  const { shareholderId } = req.params;
-  const { delivery_status } = req.body;
+router.post(
+  "/:shareholderId/delivery-status",
+  authMiddleware,
+  async (req, res) => {
+    const { shareholderId } = req.params;
+    const { delivery_status } = req.body;
 
-  const allowedStatuses = ["pending", "sent", "delivered"];
+    const allowedStatuses = ["pending", "sent", "delivered"];
 
-  if (!allowedStatuses.includes(delivery_status)) {
-    return res.status(400).json({ message: "Invalid delivery status" });
-  }
-
-  try {
-    await pool.execute(
-      `
-      UPDATE shareholder_details
-      SET delivery_status = ?,
-      processing_status = 'completed'
-      WHERE id = ?
-      `,
-      [delivery_status, shareholderId]
-    );
-
-    res.json({ message: "Delivery status updated successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Something went wrong" });
-  }
-});
-
-
-router.post("/:id/assign-delivery", authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { delivery_person_id } = req.body;
-
-  try {
-    const [shareholders] = await pool.execute(
-      "SELECT * FROM shareholder_details WHERE id = ?",
-      [id],
-    );
-
-    if (!shareholders.length) {
-      return res.status(404).json({ message: "Shareholder not found" });
+    if (!allowedStatuses.includes(delivery_status)) {
+      return res.status(400).json({ message: "Invalid delivery status" });
     }
 
-    // Optional: validate delivery person
-    const [deliveryUser] = await pool.execute(
-      "SELECT id FROM users WHERE id = ? AND role = 'delivery'",
-      [delivery_person_id],
-    );
+    const connection = await pool.getConnection();
 
-    if (!deliveryUser.length) {
-      return res.status(400).json({ message: "Invalid delivery person" });
+    try {
+      await connection.beginTransaction();
+
+      // Update shareholder delivery + processing
+      await connection.execute(
+        `
+        UPDATE shareholder_details
+        SET delivery_status = ?,
+            processing_status = 'completed'
+        WHERE id = ?
+        `,
+        [delivery_status, shareholderId]
+      );
+
+      // Get order_id of this shareholder
+      const [shareholderRows] = await connection.execute(
+        `SELECT order_id FROM shareholder_details WHERE id = ?`,
+        [shareholderId]
+      );
+
+      if (!shareholderRows.length) {
+        throw new Error("Shareholder not found");
+      }
+
+      const orderId = shareholderRows[0].order_id;
+
+      // Check if ALL shareholders delivered
+      const [allShareholders] = await connection.execute(
+        `
+        SELECT delivery_status
+        FROM shareholder_details
+        WHERE order_id = ?
+        `,
+        [orderId]
+      );
+
+      const allDelivered = allShareholders.every(
+        (s) => s.delivery_status === "delivered"
+      );
+
+      // Check order payment status
+      const [orderRows] = await connection.execute(
+        `SELECT payment_status FROM orders WHERE id = ?`,
+        [orderId]
+      );
+
+      const isPaid =
+        orderRows.length &&
+        orderRows[0].payment_status === "paid";
+
+      // If fully delivered + paid → mark order completed
+      if (allDelivered && isPaid) {
+        await connection.execute(
+          `
+          UPDATE orders
+          SET status = 'completed'
+          WHERE id = ?
+          `,
+          [orderId]
+        );
+
+        logger.info("Order auto-completed", { orderId });
+      }
+
+      await connection.commit();
+
+      res.json({
+        message: "Delivery status updated successfully",
+      });
+
+    } catch (err) {
+      await connection.rollback();
+
+      logger.error("Delivery status update failed", {
+        message: err.message,
+        stack: err.stack,
+      });
+
+      res.status(500).json({ message: "Something went wrong" });
+    } finally {
+      connection.release();
     }
-
-    await pool.execute(
-      `UPDATE shareholder_details
-         SET delivery_person_id = ?, delivery_status = 'assigned'
-         WHERE id = ?`,
-      [delivery_person_id, id],
-    );
-
-    res.json({ message: "Delivery assigned successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Something went wrong" });
   }
-});
+);
+
+
+/**
+ * @swagger
+ * /api/shareholders/{id}/status:
+ *   patch:
+ *     summary: Update delivery status (quick update)
+ *     description: Updates only the delivery status field.
+ *     tags: [Shareholders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - delivery_status
+ *             properties:
+ *               delivery_status:
+ *                 type: string
+ *                 example: sent
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *       500:
+ *         description: Something went wrong
+ */
 
 router.patch("/:id/status", authMiddleware, async (req, res) => {
   const { id } = req.params;
@@ -221,7 +454,11 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
 
     res.json({ message: "Status updated successfully" });
   } catch (err) {
-    console.error(err);
+    logger.error("Route error", {
+      message: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Something went wrong" });
   }
 });

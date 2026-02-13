@@ -10,19 +10,26 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
 
   final pdf = pw.Document();
 
-  // Correct keys from your API
   final orderId =
       orderData['id']?.toString() ??
       DateTime.now().millisecondsSinceEpoch.toString();
+
   final paymentStatus = orderData['payment_status'] ?? 'N/A';
-  final deliveryStatus = orderData['delivery_status'] ?? 'N/A';
+
+  final shareholders = orderData['shareholders'] is List
+      ? List<Map<String, dynamic>>.from(orderData['shareholders'])
+      : [];
+
+  // Take first shareholder for delivery status
+  final firstShareholder =
+      shareholders.isNotEmpty ? shareholders.first : null;
+
+  final deliveryStatus =
+      firstShareholder?['delivery_status'] ?? 'N/A';
+
   final adminName = orderData['admin_name'] ?? 'N/A';
   final adminPhone = orderData['admin_phone'] ?? 'N/A';
   final adminAddress = orderData['admin_address'] ?? 'N/A';
-
-  final animals = orderData['animals'] is List
-      ? List<Map<String, dynamic>>.from(orderData['animals'])
-      : [];
 
   pdf.addPage(
     pw.Page(
@@ -56,25 +63,47 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
             pw.SizedBox(height: 15),
 
             pw.Text(
-              "Animals",
+              "Shareholder Details",
               style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
             ),
 
-            if (animals.isEmpty)
-              pw.Text("No animals found.")
+            if (shareholders.isEmpty)
+              pw.Text("No shareholder data found.")
             else
               pw.Column(
-                children: animals.map((animal) {
+                children: shareholders.map((s) {
+                  final hasAnimal =
+                      s['animal_type'] != null &&
+                      s['animal_type'].toString().isNotEmpty;
+
                   return pw.Padding(
-                    padding: const pw.EdgeInsets.only(bottom: 8),
+                    padding: const pw.EdgeInsets.only(bottom: 12),
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text("Type: ${animal['animal_type'] ?? 'N/A'}"),
-                        pw.Text("Breed: ${animal['breed'] ?? 'N/A'}"),
-                        pw.Text("Price: ₹${animal['price'] ?? 'N/A'}"),
-                        pw.Text("Weight: ${animal['weight'] ?? 'N/A'}"),
-                        pw.Text("Barcode: ${animal['barcode'] ?? 'N/A'}"),
+                        pw.Text(
+                          "Shareholder: ${s['shareholder_name'] ?? 'N/A'}",
+                          style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.Text("Qurbani Day: ${s['qurbani_day'] ?? 'N/A'}"),
+                        pw.Text(
+                            "Processing Status: ${s['processing_status'] ?? 'N/A'}"),
+                        pw.Text(
+                            "Delivery Status: ${s['delivery_status'] ?? 'N/A'}"),
+                        pw.Text("Payment Status: ${s['payment_status'] ?? 'N/A'}"),
+
+                        if (hasAnimal) ...[
+                          pw.SizedBox(height: 5),
+                          pw.Text(
+                            "Animal Details",
+                            style: pw.TextStyle(
+                                fontWeight: pw.FontWeight.bold),
+                          ),
+                          pw.Text(
+                              "Type: ${s['animal_type'] ?? 'N/A'}"),
+                        ],
+
                         pw.Divider(),
                       ],
                     ),
@@ -83,9 +112,12 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
               ),
 
             pw.SizedBox(height: 20),
-            pw.Text(
-              "Thank you for choosing our Qurbani service!",
-              style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+
+            pw.Center(
+              child: pw.Text(
+                "Thank you for choosing our Qurbani service!",
+                style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+              ),
             ),
           ],
         );
@@ -93,14 +125,13 @@ Future<File> generateReceiptPDF(Map<String, dynamic>? orderData) async {
     ),
   );
 
-  // Ensure directory exists
   final dir = await getApplicationDocumentsDirectory();
   if (!await dir.exists()) {
     await dir.create(recursive: true);
   }
 
   final file = File("${dir.path}/Qurbani_Receipt_$orderId.pdf");
-
   await file.writeAsBytes(await pdf.save());
+
   return file;
 }

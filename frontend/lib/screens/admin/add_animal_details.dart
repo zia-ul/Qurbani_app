@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -19,70 +20,55 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
 
   final descriptionController = TextEditingController();
   final breedController = TextEditingController();
-  // final priceController = TextEditingController();
   final sharesController = TextEditingController();
   final customAnimalTypeController = TextEditingController();
   final heightController = TextEditingController();
   final weightController = TextEditingController();
   final ageController = TextEditingController();
-  // final deliveryFeeController = TextEditingController();
-  // final deliveryThresholdController = TextEditingController();
   final _storage = const FlutterSecureStorage();
 
   String? selectedAnimalType;
   bool isLoading = false;
   bool isDeliveryPaid = false;
 
-  // List<String> selectedPaymentMethods = ['cod', 'online'];
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _images = [];
-  // DateTime? lastBookedDate;
-  // final lastBookedDateController = TextEditingController();
 
   final Color lightBg = const Color(0xFFF9FBF9);
 
   @override
   void dispose() {
-    // lastBookedDateController.dispose();
     descriptionController.dispose();
     breedController.dispose();
-    // priceController.dispose();
+
     sharesController.dispose();
     customAnimalTypeController.dispose();
     heightController.dispose();
     weightController.dispose();
     ageController.dispose();
-    // deliveryFeeController.dispose();
-    // deliveryThresholdController.dispose();
+
     super.dispose();
   }
 
-  // Future<void> pickLastBookedDate() async {
-  //   final picked = await showDatePicker(
-  //     context: context,
-  //     initialDate: DateTime.now(),
-  //     firstDate: DateTime(2020),
-  //     lastDate: DateTime(2100),
-  //   );
-
-  //   if (picked != null) {
-  //     setState(() {
-  //       lastBookedDate = picked;
-  //       lastBookedDateController.text =
-  //           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-  //     });
-  //   }
-  // }
-
   Future<void> pickImages() async {
-    final List<XFile> selectedImages = await _picker.pickMultiImage(
-      imageQuality: 80,
-    );
+    try {
+      AppLogger.info("Opening image picker");
 
-    if (selectedImages.isNotEmpty) {
-      setState(() {
-        _images.addAll(selectedImages);
-      });
+      final List<XFile> selectedImages = await _picker.pickMultiImage(
+        imageQuality: 80,
+      );
+
+      if (selectedImages.isNotEmpty) {
+        setState(() {
+          _images.addAll(selectedImages);
+        });
+
+        AppLogger.info("${selectedImages.length} images selected for upload");
+      } else {
+        AppLogger.warning("No images selected");
+      }
+    } catch (e, stack) {
+      AppLogger.error("Image picker failed", e, stack);
     }
   }
 
@@ -91,25 +77,46 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     const uploadPreset = 'qurbani';
     List<String> uploadedUrls = [];
 
-    for (final image in _images) {
-      final uri = Uri.parse(
-        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
-      );
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = uploadPreset
-        ..files.add(await http.MultipartFile.fromPath('file', image.path));
+    AppLogger.info("Starting image upload to Cloudinary");
 
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(await response.stream.bytesToString());
-        uploadedUrls.add(decoded['secure_url']);
+    for (final image in _images) {
+      try {
+        final uri = Uri.parse(
+          'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+        );
+
+        final request = http.MultipartRequest('POST', uri)
+          ..fields['upload_preset'] = uploadPreset
+          ..files.add(await http.MultipartFile.fromPath('file', image.path));
+
+        final response = await request.send();
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(await response.stream.bytesToString());
+
+          uploadedUrls.add(decoded['secure_url']);
+
+          AppLogger.info(
+            "Image uploaded successfully: ${decoded['secure_url']}",
+          );
+        } else {
+          AppLogger.warning(
+            "Cloudinary upload failed | Status: ${response.statusCode}",
+          );
+        }
+      } catch (e, stack) {
+        AppLogger.error("Image upload error", e, stack);
       }
     }
+
+    AppLogger.info("Total uploaded images: ${uploadedUrls.length}");
+
     return uploadedUrls;
   }
 
   Future<void> addAnimal() async {
     if (!_formKey.currentState!.validate()) {
+      AppLogger.warning("Add animal form validation failed");
       return;
     }
 
@@ -119,33 +126,10 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
 
       return;
     }
-    // if (lastBookedDate == null) {
-    //   ToastUtils.showError('Last booked date is required');
-    //   return;
-    // }
-
-    // if (priceController.text.trim().isEmpty) {
-    //   ToastUtils.showError('Price is required');
-    //   return;
-    // }
-    // if (selectedPaymentMethods.isEmpty) {
-    //   ToastUtils.showError('At least one payment method is required');
-
-    //   return;
-    // }
-    // if (_images.isEmpty) {
-    //   ToastUtils.showError('At least one image is required');
-
-    // ScaffoldMessenger.of(context).showSnackBar(
-    //   const SnackBar(content: Text("At least one image is required")),
-    // );
-    // return;
-    // }
 
     final token = await _storage.read(key: "token");
     if (token == null) {
       ToastUtils.showError('Not authenticated');
-
       return;
     }
 
@@ -173,16 +157,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
             ? double.tryParse(weightController.text.trim())
             : null, // Optional
         "shares": int.parse(sharesController.text.trim()),
-        // "paymentMethods": selectedPaymentMethods,
-        // "deliveryType": isDeliveryPaid ? "paid" : "free",
-        // "deliveryFee": isDeliveryPaid
-        //     ? double.tryParse(deliveryFeeController.text) ?? 0
-        //     : 0,
-        // "deliveryThreshold":
-        //     double.tryParse(deliveryThresholdController.text) ??
-        //     null, // Optional
+
         "images": imageUrls,
-        // "lastBookedDate": lastBookedDate!.toIso8601String(),
       };
 
       final res = await http.post(
@@ -193,8 +169,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
         },
         body: jsonEncode(body),
       );
-
-      print("Add Animal Response: ${res.statusCode} - ${res.body}");
 
       if (res.statusCode != 201) {
         throw Exception(
@@ -207,7 +181,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
 
         Navigator.pop(context);
       }
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error("Add animal exception", e, stack);
       ToastUtils.showError("Failed to add animal: ${e.toString()}");
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -519,7 +494,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                     // ]),
 
                     // const SizedBox(height: 30),
-
                     SizedBox(
                       width: double.infinity,
                       height: 55,

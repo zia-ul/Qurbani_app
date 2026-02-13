@@ -17,7 +17,7 @@ class RequestService {
   ) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
-    print("requests.........$orderId, $userId, $title, $description");
+
     final res = await http.post(
       Uri.parse('$_baseUrl/requests'),
       headers: {
@@ -68,7 +68,7 @@ class RequestService {
     }
 
     final data = jsonDecode(res.body);
-    print(data);
+
     return List<Map<String, dynamic>>.from(data['requests']);
   }
 }

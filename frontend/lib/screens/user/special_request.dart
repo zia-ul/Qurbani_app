@@ -20,7 +20,6 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
   bool _loading = false;
 
   // Constants to match the UI screenshot
-  static const Color primaryGreen = Color(0xff3D6B4E);
   static const Color scaffoldBg = Color(0xffF9F4F1);
 
   Future<void> _submitRequest() async {
@@ -37,11 +36,10 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
       );
 
       ToastUtils.showSuccess('Special request submitted successfully');
-      // print(widget.orderData);
+
       final userId = widget.orderData['user_id'] as String;
       final userName = widget.orderData['userName']?.toString() ?? 'User';
       final String role = widget.orderData['role']?.toString() ?? 'user';
-      // print('Navigating to HomePage with role: $role');
 
       Navigator.pushAndRemoveUntil(
         context,

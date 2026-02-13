@@ -225,7 +225,7 @@ router.post("/:animalId", async (req, res) => {
   }
 
   try {
-    // 1️⃣ Fetch a valid shareholder_id for this animal + order
+    // Fetch a valid shareholder_id for this animal + order
     const [shareholders] = await pool.query(
       `SELECT id 
        FROM order_shareholders 
@@ -243,7 +243,7 @@ router.post("/:animalId", async (req, res) => {
     const shareholderId = shareholders[0].id;
     const id = crypto.randomUUID();
 
-    // 2️⃣ Insert animal_details with shareholder_id
+    // Insert animal_details with shareholder_id
     await pool.query(
       `INSERT INTO animal_details
        (

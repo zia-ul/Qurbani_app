@@ -34,7 +34,6 @@ class _BookedPageState extends State<BookedPage> {
   }
 
   bool _isCodExpired(Map<String, dynamic> order) {
-    print(order);
     if (order['payment_method'] != 'Cash') return false;
     if (order['payment_status'] != 'unpaid') return false;
     if (order['cod_deadline'] == null) return false;
@@ -50,12 +49,9 @@ class _BookedPageState extends State<BookedPage> {
 
     try {
       orders = await OrderService.getUserOrders();
-      // print(orders);
 
       for (final order in orders) {
         if (_isCodExpired(order) && order['status'] != 'cancelled') {
-          // Call backend to cancel
-          print("$order cancelled");
           await OrderService.cancelOrder(order['id']);
         }
       }
@@ -63,7 +59,6 @@ class _BookedPageState extends State<BookedPage> {
       // Re-fetch after cancellations
       orders = await OrderService.getUserOrders();
     } catch (e) {
-      // debugPrint('Exception fetching orders: $e');
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -142,21 +137,6 @@ class _BookedPageState extends State<BookedPage> {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          // TextField(
-          //   onChanged: (val) => setState(() => searchQuery = val),
-          //   decoration: InputDecoration(
-          //     hintText: "Search Order ID...",
-          //     prefixIcon: const Icon(Icons.search, color: Colors.black38),
-          //     filled: true,
-          //     fillColor: AppTheme.bgGradientEnd,
-          //     isDense: true,
-          //     border: OutlineInputBorder(
-          //       borderRadius: BorderRadius.circular(8),
-          //       borderSide: BorderSide.none,
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
@@ -184,7 +164,6 @@ class _BookedPageState extends State<BookedPage> {
     Map<String, dynamic> order,
     Map<String, Map<String, dynamic>> adminMap,
   ) {
-    // print("order......checking....$order");
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['created_at'] ?? '');
     final String pStatus = _resolveOrderStatus(order);
@@ -194,6 +173,7 @@ class _BookedPageState extends State<BookedPage> {
     String displayId = orderIdStr.length >= 5
         ? orderIdStr.substring(0, 5).toUpperCase()
         : orderIdStr.toUpperCase();
+    final String paymentStatus = _resolvePaymentStatus(order);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -242,7 +222,7 @@ class _BookedPageState extends State<BookedPage> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        "Payment status: ${order['payment_status']}",
+                        "Payment Status: $paymentStatus",
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 11),
                       ),
@@ -335,8 +315,27 @@ class _BookedPageState extends State<BookedPage> {
     );
   }
 
+  String _resolvePaymentStatus(Map<String, dynamic> order) {
+    final paymentStatus = (order['payment_status'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    if (paymentStatus == 'paid') {
+      return 'Paid';
+    }
+
+    if (paymentStatus == 'partial') {
+      return 'Partial';
+    }
+
+    if (paymentStatus == 'unpaid') {
+      return 'Unpaid';
+    }
+
+    return 'Pending';
+  }
+
   String _resolveOrderStatus(Map<String, dynamic> order) {
-    // COD expired → cancelled
     if (_isCodExpired(order)) {
       return 'Cancelled';
     }
@@ -344,22 +343,30 @@ class _BookedPageState extends State<BookedPage> {
     final paymentStatus = (order['payment_status'] ?? '')
         .toString()
         .toLowerCase();
+
     final deliveryStatus = (order['delivery_status'] ?? '')
         .toString()
         .toLowerCase();
+
+    final paymentMethod = (order['payment_method'] ?? '')
+        .toString()
+        .toLowerCase();
+
     final orderStatus = (order['status'] ?? '').toString().toLowerCase();
 
-    // Completed rule
+    // COD delivered → treat as completed
+    if (paymentMethod == 'cash' && deliveryStatus == 'delivered') {
+      return 'Completed';
+    }
+
     if (paymentStatus == 'paid' && deliveryStatus == 'delivered') {
       return 'Completed';
     }
 
-    // Cancelled from backend
     if (orderStatus == 'cancelled') {
       return 'Cancelled';
     }
 
-    // Otherwise active
     return 'Active';
   }
 

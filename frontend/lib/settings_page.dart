@@ -89,19 +89,12 @@ class _SettingsPageState extends State<SettingsPage> {
       await currencyService.ensureInitialized();
       _availableCurrencies = currencyService.supportedCurrencies;
 
-      // SAFETY CHECK
-      // if (_availableCurrencies.isEmpty) {
-      //   debugPrint("No currencies received from backend");
-      //   setState(() => _selectedCurrency = "USD");
-      //   return;
-      // }
-
       final profile = await ProfileService.getProfile();
       final currency = profile['currency'] ?? _availableCurrencies.first;
 
       setState(() => _selectedCurrency = currency);
     } catch (e) {
-      debugPrint("Currency load failed: $e");
+
 
       // FINAL SAFETY
       if (_availableCurrencies.isNotEmpty) {

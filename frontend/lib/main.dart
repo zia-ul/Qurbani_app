@@ -1,4 +1,5 @@
 import 'package:Qurbani/permission_service.dart';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -15,16 +16,13 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // await currencyService.initialize(); // Fetch rates and load cached data
-
+  await AppLogger.init();
   await dotenv.load(fileName: "assets/.env");
 
   try {
     await currencyService.initialize();
-    // logger
-    // debugPrint("CurrencyService initialized in main");
   } catch (e) {
-    // debugPrint("CurrencyService initialization failed: $e");
-    // Continue anyway, it will use cached rates or defaults
+    AppLogger.error("Currency Service Initialization Failed", e);
   }
 
   /// Local notifications initialization
@@ -38,7 +36,7 @@ void main() async {
   await flutterLocalNotificationsPlugin.initialize(
     initSettings,
     onDidReceiveNotificationResponse: (details) {
-      // debugPrint("Notification clicked: ${details.payload}");
+      ;
     },
   );
 

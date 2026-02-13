@@ -63,49 +63,60 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
 
     const [rows] = await pool.query(
       `
-  SELECT
-    s.admin_id,
-    s.total_shares,
-    s.price_per_share,
-    s.late_booking_fee,
-    s.last_booking_date,
-    s.delivery_type,
-    s.delivery_fee,
-    s.free_delivery_threshold,
-    s.currency,
-    IFNULL(SUM(o.total_shares), 0) AS used_shares,
-    (s.total_shares - IFNULL(SUM(o.total_shares), 0)) AS remaining_shares
-  FROM admin_share_setups s
-  LEFT JOIN orders o
-    ON o.admin_id = s.admin_id
-    AND o.status IN ('confirmed', 'paid')
-  WHERE s.admin_id = ?
-    AND s.is_active = 1
-  GROUP BY
-    s.admin_id,
-    s.total_shares,
-    s.price_per_share,
-    s.late_booking_fee,
-    s.last_booking_date,
-    s.delivery_type,
-    s.delivery_fee,
-    s.free_delivery_threshold,
-    s.currency
-  `,
-      [adminId],
+      SELECT
+        s.admin_id,
+        s.total_shares,
+        s.price_per_share,
+        s.late_booking_fee,
+        s.last_booking_date,
+        s.delivery_type,
+        s.delivery_fee,
+        s.free_delivery_threshold,
+        s.currency,
+
+        -- ✅ Count actual used shares from shareholder_details
+        IFNULL(COUNT(sd.id), 0) AS used_shares,
+
+        (s.total_shares - IFNULL(COUNT(sd.id), 0)) AS remaining_shares
+
+      FROM admin_share_setups s
+
+      LEFT JOIN orders o 
+        ON o.admin_id = s.admin_id
+        AND o.status != 'cancelled'
+
+      LEFT JOIN shareholder_details sd
+        ON sd.order_id = o.id
+
+      WHERE s.admin_id = ?
+        AND s.is_active = 1
+
+      GROUP BY
+        s.admin_id,
+        s.total_shares,
+        s.price_per_share,
+        s.late_booking_fee,
+        s.last_booking_date,
+        s.delivery_type,
+        s.delivery_fee,
+        s.free_delivery_threshold,
+        s.currency
+      `,
+      [adminId]
     );
-    console.log("👀 ORDER CONFIG:", rows);
 
     if (!rows.length) {
       return res.status(404).json({ message: "Order config not found" });
     }
 
     res.json(rows[0]);
+
   } catch (err) {
     console.error("[ORDER CONFIG]", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 router.post("/sync-delivery-requests", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
@@ -479,7 +490,7 @@ router.put("/delivery-requests/:id", authMiddleware, async (req, res) => {
   }
 
   try {
-    // 1️⃣ Update request status
+    // Update request status
     const [result] = await pool.execute(
       `UPDATE delivery_requests SET status = ? WHERE id = ?`,
       [status, id],
@@ -489,7 +500,7 @@ router.put("/delivery-requests/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Request not found" });
     }
 
-    // 2️⃣ If approved → add to delivery_persons table
+    // If approved → add to delivery_persons table
     if (status === "APPROVED") {
       const [[request]] = await pool.execute(
         `SELECT user_id, country, state, city FROM delivery_requests WHERE id = ?`,

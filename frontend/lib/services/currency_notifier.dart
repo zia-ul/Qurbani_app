@@ -28,16 +28,10 @@ class CurrencyNotifier extends ChangeNotifier {
       await _currencyService.initialize();
 
       _baseCurrency = _currencyService.baseCurrency;
-
-      debugPrint(
-        "CurrencyNotifier ready | base=$_baseCurrency | supported=${_currencyService.supportedCurrencies}",
-      );
-
       _isLoading = false;
       _hasError = false;
       notifyListeners();
     } catch (e) {
-      debugPrint("CurrencyNotifier init failed: $e");
       _isLoading = false;
       _hasError = true;
       notifyListeners();
@@ -83,19 +77,5 @@ class CurrencyNotifier extends ChangeNotifier {
     return _currencyService.convert(amountInBaseCurrency, _currency);
   }
 
-  // ================= USER ACTION =================
 
-  /// Called from dropdown / UI
-  // Future<void> setCurrency(String value) async {
-  //   if (_currency == value) return;
-
-  //   _currency = value;
-  //   notifyListeners();
-
-  //   try {
-  //     await CurrencyService.setUserCurrency(value);
-  //   } catch (e) {
-  //     debugPrint("Failed to persist user currency: $e");
-  //   }
-  // }
 }

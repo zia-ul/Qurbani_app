@@ -88,8 +88,10 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const userId = req.user.id;
 
+  console.log("Fetching order details for orderId:", orderId, "userId:", userId);
+
   try {
-    // 1️⃣ Fetch Order Basic Info
+    // Fetch Order Basic Info
     const [orders] = await pool.execute(
       `SELECT 
           o.id,
@@ -116,7 +118,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
     const order = orders[0];
 
-    // 2️⃣ Fetch Shareholders
+    // Fetch Shareholders
     const [shareholders] = await pool.execute(
       `SELECT 
           s.id,
@@ -143,7 +145,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
     console.log("Shareholders fetched:", shareholders);
 
-    // 3️⃣ Group Animals (Unique Animals List)
+    // Group Animals (Unique Animals List)
     const animalsMap = {};
 
     shareholders.forEach((s) => {
@@ -165,7 +167,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
     const animals = Object.values(animalsMap);
 
-    // 4️⃣ Final Response Structure
+    // Final Response Structure
     res.json({
       order: {
         ...order,
@@ -614,7 +616,7 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   try {
     await conn.beginTransaction();
     console.log("schedle updatebegins");
-    // 1️⃣ Update animal_details
+    // Update animal_details
     const [animalResult] = await conn.execute(
       `UPDATE animal_details
          SET qurbani_datetime = ?

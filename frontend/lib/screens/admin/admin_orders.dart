@@ -58,7 +58,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     if (order['cod_deadline'] == null) return false;
 
     final deadline = DateTime.tryParse(order['cod_deadline']);
-    print("date....$deadline, ${DateTime.now()}");
     if (deadline == null) return false;
 
     return DateTime.now().isAfter(deadline);
@@ -68,7 +67,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     setState(() => _isLoading = true);
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
-      print(_allOrders.length);
 
       AppLogger.info("Orders fetched: ${_allOrders.length}");
 
@@ -76,10 +74,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       for (final order in _allOrders) {
         final isExpired = _isCodExpired(order);
         final isAlreadyCancelled = order['processingStatus'] == 'cancelled';
-
-        print("Checking Cancelled orders");
-        print(isAlreadyCancelled);
-        print(isExpired);
 
         if (isExpired && !isAlreadyCancelled) {
           AppLogger.warning(
@@ -91,8 +85,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
       // Re-fetch to get updated statuses
       _allOrders = await AdminOrderService.getAdminOrders();
-      print("testing orders after cancellation cleanup");
-      print(_allOrders);
 
       AppLogger.info("Orders reloaded after cancellation cleanup");
     } catch (e, stack) {
@@ -247,7 +239,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   Widget _buildOrderList({required bool isActive}) {
     final filteredOrders = _allOrders.where((order) {
       final data = order;
-      print("data....$data");
       // Filter by completion status - include delivered orders as completed
       final deliveryStatus = _getOverallDeliveryStatus(data);
       final processingStatus = _getOverallProcessingStatus(data);

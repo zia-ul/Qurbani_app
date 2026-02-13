@@ -44,7 +44,7 @@ router.get("/my", authMiddleware, async (req, res) => {
           u.name AS admin_name,
           u.email AS admin_email,
 
-          aps.cod_deadline   -- ✅ added
+          aps.cod_deadline
        FROM orders o
        JOIN users u 
          ON o.admin_id = u.id
@@ -55,7 +55,65 @@ router.get("/my", authMiddleware, async (req, res) => {
       [userId],
     );
 
-    logger.info("Fetched user orders", {
+    // 🔥 For each order, fetch shareholders and compute overall statuses
+    for (const order of orders) {
+      const [shareholders] = await pool.execute(
+        `SELECT processing_status, delivery_status, payment_status
+   FROM shareholder_details
+   WHERE order_id = ?`,
+        [order.id],
+      );
+
+      order.shareholders = shareholders;
+
+      if (!shareholders.length) {
+        order.delivery_status = "Pending";
+        order.processing_status = "Pending";
+        order.payment_status = "Pending";
+        continue;
+      }
+
+      const deliveryStatuses = shareholders.map((s) =>
+        (s.delivery_status || "").toLowerCase(),
+      );
+
+      const processingStatuses = shareholders.map((s) =>
+        (s.processing_status || "").toLowerCase(),
+      );
+
+      const paymentStatuses = shareholders.map((s) =>
+        (s.payment_status || "").toLowerCase(),
+      );
+
+      // Delivery Logic
+      if (deliveryStatuses.every((s) => s === "delivered")) {
+        order.delivery_status = "Delivered";
+      } else if (deliveryStatuses.includes("assigned")) {
+        order.delivery_status = "Assigned";
+      } else {
+        order.delivery_status = "Pending";
+      }
+
+      // Processing Logic
+      if (processingStatuses.every((s) => s === "completed")) {
+        order.processing_status = "Completed";
+      } else if (processingStatuses.includes("confirmed")) {
+        order.processing_status = "Confirmed";
+      } else {
+        order.processing_status = "Pending";
+      }
+
+      // Payment Logic
+      if (paymentStatuses.every((s) => s === "paid")) {
+        order.payment_status = "Paid";
+      } else if (paymentStatuses.includes("partial")) {
+        order.payment_status = "Partial";
+      } else {
+        order.payment_status = "Pending";
+      }
+    }
+
+    logger.info("Fetched user orders with computed statuses", {
       userId,
       count: orders.length,
     });
@@ -92,8 +150,6 @@ router.get(
         [orderId],
       );
 
-      console.log(order);
-
       if (order.rowCount === 0) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -118,8 +174,6 @@ router.get(
         [deliveryBoyId],
       );
 
-      console.log(deliveryBoy);
-
       if (deliveryBoy.rowCount === 0) {
         return res.status(404).json({ message: "Delivery boy not found" });
       }
@@ -128,7 +182,12 @@ router.get(
         deliveryBoy: deliveryBoy[0],
       });
     } catch (err) {
-      console.error(err);
+      logger.error("Failed to fetch delivery boy details", {
+        orderId,
+        deliveryBoyId,
+        error: err.message,
+        stack: err.stack,
+      });
       res.status(500).json({ message: "Server error" });
     }
   },
@@ -143,7 +202,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // 1️⃣ Update animal_details with order_id
+    // Update animal_details with order_id
     await connection.query(
       `UPDATE animal_details 
        SET order_id = ?
@@ -152,7 +211,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
       [orderId, animalId],
     );
 
-    // 2️⃣ Update order with animal_id
+    // Update order with animal_id
     // await connection.query(
     //   `UPDATE orders
     //    SET animal_id = ?
@@ -160,7 +219,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
     //   [animalId, orderId]
     // );
 
-    // 3️⃣ Count assigned shares
+    // Count assigned shares
     const [assignedRows] = await connection.query(
       `SELECT COUNT(*) as totalAssigned
        FROM animal_details
@@ -170,7 +229,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
     const totalAssigned = assignedRows[0].totalAssigned;
 
-    // 4️⃣ Get total shares of animal
+    // Get total shares of animal
     const [animalRows] = await connection.query(
       `SELECT shares FROM animals WHERE id = ?`,
       [animalId],
@@ -178,7 +237,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
     const totalShares = animalRows[0].shares;
 
-    // 5️⃣ If fully booked → mark as sold
+    // If fully booked → mark as sold
     if (totalAssigned >= totalShares) {
       await connection.query(
         `UPDATE animals 
@@ -193,7 +252,12 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
     res.json({ message: "Animal assigned successfully" });
   } catch (error) {
     await connection.rollback();
-    console.error(error);
+    logger.error("Animal assignment failed", {
+      orderId,
+      animalId,
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({ message: "Failed to assign animal" });
   } finally {
     connection.release();
@@ -210,7 +274,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
   });
 
   try {
-    // 1️⃣ Fetch order & validate
+    // Fetch order & validate
     const [rows] = await pool.execute(
       `
       SELECT id, payment_method, payment_status, processing_status
@@ -219,8 +283,6 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       `,
       [orderId, adminId],
     );
-
-    console.log(rows);
 
     if (rows.length === 0) {
       return res.status(404).json({
@@ -242,7 +304,7 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       });
     }
 
-    // 2️⃣ Update order
+    // Update order
     // await pool.execute(
     //   `
     //   UPDATE orders
@@ -286,9 +348,6 @@ router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
     req.body;
-
-  console.log("order body", req.body);
-  // console.log(res.body);
 
   if (
     !adminId ||
@@ -367,13 +426,17 @@ router.post("/", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     await connection.rollback();
-    console.error("❌ Order creation failed:", err);
+    logger.error("Order creation failed", {
+      userId,
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ message: err.message || "Something went wrong" });
   } finally {
     connection.release();
   }
 });
-
 
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -424,11 +487,15 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Fetch order failed:", err);
+    logger.error("Failed to fetch order details", {
+      orderId,
+      userId,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({ message: "Something went wrong." });
   }
 });
-
 
 router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -443,15 +510,13 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // 1️⃣ Update animal_details
+    // Update animal_details
     const [animalResult] = await conn.execute(
       `UPDATE animal_details
          SET qurbani_datetime = ?
          WHERE order_id = ?`,
       [qurbani_time, orderId],
     );
-
-    console.log("schedule check", animalResult);
 
     if (animalResult.affectedRows === 0) {
       await conn.rollback();
@@ -467,8 +532,6 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
    WHERE id = ?`,
       [orderId],
     );
-
-    console.log("order update result", orderResult);
 
     if (orderResult.affectedRows === 0) {
       await conn.rollback();
@@ -492,13 +555,12 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   }
 });
 
-
 router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { meat_weight, body_parts_description } = req.body;
 
   try {
-    // 1️⃣ Fetch all shareholders for this order
+    // Fetch all shareholders for this order
     const [shareholders] = await pool.query(
       `SELECT id FROM order_shareholders WHERE order_id = ?`,
       [orderId],
@@ -510,7 +572,7 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
       });
     }
 
-    // 2️⃣ Update animal_details for EACH shareholder
+    // Update animal_details for EACH shareholder
     for (const s of shareholders) {
       await pool.execute(
         `UPDATE animal_details
@@ -520,7 +582,7 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
       );
     }
 
-    // 3️⃣ Mark order completed
+    // Mark order completed
     await pool.execute(
       `UPDATE orders SET processing_status = 'completed' WHERE id = ?`,
       [orderId],
@@ -597,10 +659,9 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
-      [adminId]
+      [adminId],
     );
 
-    console.log("Admin orders raw data", rows);
     // Group orders
     const ordersMap = {};
 
@@ -641,7 +702,6 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
     });
 
     res.json({ orders: formattedOrders });
-
   } catch (err) {
     logger.error("Failed to fetch admin orders", {
       adminId,
@@ -654,7 +714,6 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
     });
   }
 });
-
 
 router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
   const { orderId, userId } = req.params;
@@ -704,7 +763,6 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
       submitted: ratings.length > 0, // True if any ratings exist
     });
   } catch (err) {
-    console.error("Error fetching ratings:", err);
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -714,7 +772,7 @@ router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
 router.post("/ratings", authMiddleware, async (req, res) => {
   const { orderId, userId, ratings } = req.body; // ratings: [{adminId, adminRating, deliveryRating, feedback}]
   const authUserId = req.user.id;
-  // console.log();
+
   if (authUserId !== userId) {
     return res.status(403).json({ message: "Unauthorized" });
   }
@@ -729,7 +787,7 @@ router.post("/ratings", authMiddleware, async (req, res) => {
 
     for (const rating of ratings) {
       const { adminId, adminRating, deliveryRating, feedback } = rating;
-      console.log("ratings geting started");
+
       if (
         !adminId ||
         adminRating < 1 ||
@@ -760,7 +818,12 @@ router.post("/ratings", authMiddleware, async (req, res) => {
     res.json({ message: "Ratings submitted successfully" });
   } catch (err) {
     await connection.rollback();
-    console.error("Error submitting ratings:", err);
+    logger.error("Failed to submit ratings", {
+      orderId,
+      userId,
+      error: err.message,
+      stack: err.stack,
+    });
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -790,7 +853,12 @@ router.post("/requests", authMiddleware, async (req, res) => {
 
     res.status(201).json({ message: "Request submitted successfully" });
   } catch (err) {
-    console.error("Error submitting request:", err);
+    logger.error("Failed to submit request", {
+      orderId,
+      userId,
+      error: err.message,
+      stack: err.stack,
+    });
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -815,7 +883,12 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
 
     res.json({ requests });
   } catch (err) {
-    console.error("Error fetching requests:", err);
+    logger.error("Failed to fetch user requests", {
+      orderId,
+      userId,
+      error: err.message,
+      stack: err.stack,
+    });
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -827,10 +900,8 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const adminId = req.user.id;
 
-  console.log("Fetching order for admin:", adminId, "orderId:", orderId);
-
   try {
-    // 1️⃣ Fetch Order (WITHOUT old processing fields)
+    // Fetch Order (WITHOUT old processing fields)
     const [orders] = await pool.execute(
       `SELECT 
           o.id,
@@ -860,7 +931,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
 
     const order = orders[0];
 
-    // 2️⃣ Fetch Shareholders WITH management fields
+    // Fetch Shareholders WITH management fields
     const [shareholders] = await pool.execute(
       `SELECT 
       s.id,
@@ -881,7 +952,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
       [order.id],
     );
 
-    // 3️⃣ Structure Clean Response
+    // Structure Clean Response
     const orderWithDetails = {
       orderId: order.id,
       user_name: order.user_name,
@@ -897,7 +968,12 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
 
     res.json({ order: orderWithDetails });
   } catch (err) {
-    console.error("Error fetching admin order:", err);
+    logger.error("Failed to fetch admin order details", {
+      adminId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({
       message: "Something went wrong. Please try again later.",
     });
@@ -908,8 +984,6 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { processingStatus, deliveryStatus, deliveryPersonId } = req.body;
   const adminId = req.user.id;
-
-  console.log("Updating order for admin:", processingStatus);
 
   if (!processingStatus || !deliveryStatus) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -935,7 +1009,12 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
 
     res.json({ message: "Order updated successfully" });
   } catch (err) {
-    console.error("Error updating order:", err);
+    logger.error("Failed to update admin order", {
+      adminId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -969,8 +1048,6 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
     }
 
     const order = orders[0];
-
-    console.log(order);
 
     // Step 2: Evaluate cancellation eligibility based on business rules
     const isDelivered = order.delivery_status === "delivered";

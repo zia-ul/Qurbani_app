@@ -3,7 +3,6 @@ import 'package:Qurbani/onboarding_screen.dart';
 import 'package:Qurbani/screens/admin/admin_home_page.dart';
 import 'package:Qurbani/screens/admin/admin_verification.dart';
 import 'package:Qurbani/screens/admin/pending_admin.dart';
-import 'package:Qurbani/screens/delivery/delivery_home_page.dart';
 import 'package:Qurbani/screens/superadmin/superadmin_welcome_page.dart';
 import 'package:Qurbani/screens/user/user_home_screen.dart';
 import 'services/auth_service.dart';
@@ -30,7 +29,6 @@ class _WrapperScreenState extends State<WrapperScreen> {
 
     // Check if user is logged in via JWT
     _userFuture = AuthService.getCurrentUser();
-    // print("WrapperScreen: Checking current user...$_userFuture");
   }
 
   @override
@@ -38,10 +36,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
     return FutureBuilder<UserModel?>(
       future: _userFuture,
       builder: (context, snapshot) {
-        // print("WrapperScreen snapshot state: ${snapshot.connectionState}");
-        // print("WrapperScreen snapshot hasData: ${snapshot.hasData}");
-        // print("WrapperScreen snapshot data: ${snapshot.data}");
-        // print("WrapperScreen snapshot error: ${snapshot.error}");
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -54,15 +49,14 @@ class _WrapperScreenState extends State<WrapperScreen> {
         }
 
         final user = snapshot.data!;
-        // print("WrapperScreen: Logged in as ${user.role} (${user.name})");
 
         // Route based on role
         switch (user.role) {
           case 'user':
             return HomePage(id: user.id, name: user.name, role: user.role);
 
-          case 'delivery':
-            return DeliveryHomePage(deliveryId: user.id, name: user.name);
+          // case 'delivery':
+          //   return DeliveryHomePage(deliveryId: user.id, name: user.name);
 
           case 'admin':
             final status = user.verificationStatus;

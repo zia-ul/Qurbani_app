@@ -75,8 +75,6 @@ class AdminOrderService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
-    // print("Marking COD order as paid: $orderId");
-
     final res = await http.put(
       Uri.parse('$_baseUrl/orders/$orderId/mark-paid'),
       headers: {
@@ -84,9 +82,6 @@ class AdminOrderService {
         'Authorization': 'Bearer $token',
       },
     );
-
-    // print("Mark paid response status: ${res.statusCode}");
-    // print("Mark paid response body: ${res.body}");
 
     if (res.statusCode != 200) {
       final msg =
@@ -103,8 +98,6 @@ class AdminOrderService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
-    // print("Cancelling order: $orderId");
-    // print("Reason: $reason");
 
     final res = await http.put(
       Uri.parse('$_baseUrl/orders/$orderId/cancel'),
@@ -114,9 +107,6 @@ class AdminOrderService {
       },
       body: jsonEncode({'reason': reason}),
     );
-
-    // print("Cancel response status: ${res.statusCode}");
-    // print("Cancel response body: ${res.body}");
 
     if (res.statusCode != 200) {
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to cancel order';
@@ -155,7 +145,7 @@ class AdminOrderService {
       Uri.parse('$_baseUrl/orders/admin/$orderId'),
       headers: {'Authorization': 'Bearer $token'},
     );
-    // print("print response data....$res.body");
+
     if (res.statusCode != 200) {
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
       throw Exception(msg);
@@ -271,7 +261,7 @@ class AdminOrderService {
       try {
         final body = jsonDecode(res.body);
         msg = body['message'] ?? msg;
-        // print(msg);
+
       } catch (_) {
         msg = res.body; // fallback for HTML/text
       }

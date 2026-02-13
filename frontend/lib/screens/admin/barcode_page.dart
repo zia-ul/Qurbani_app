@@ -73,7 +73,7 @@ class _BarcodePageState extends State<BarcodePage> {
 
       await Printing.layoutPdf(onLayout: (_) async => pdf.save());
     } catch (e) {
-      debugPrint("Print error: $e");
+
     }
   }
 

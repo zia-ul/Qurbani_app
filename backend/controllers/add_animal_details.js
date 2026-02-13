@@ -20,7 +20,7 @@ exports.addAnimal = async function addAnimal(adminId, data) {
     currency,
   );
 
-  // 1️⃣ Get system base currency (USD)
+  // Get system base currency (USD)
   const [[meta]] = await pool.execute(
     "SELECT base_currency FROM currency_meta WHERE id = 1",
   );
@@ -29,7 +29,7 @@ exports.addAnimal = async function addAnimal(adminId, data) {
 
   let finalPrice = price;
 
-  // 2️⃣ Convert if needed
+  // Convert if needed
   if (currency !== baseCurrency) {
     const [[rateRow]] = await pool.execute(
       `
@@ -52,7 +52,7 @@ exports.addAnimal = async function addAnimal(adminId, data) {
     );
   }
 
-  // 3️⃣ Store ONLY base price
+  // Store ONLY base price
   const animalId = crypto.randomUUID();
 
   await pool.execute(
@@ -74,6 +74,13 @@ exports.addAnimal = async function addAnimal(adminId, data) {
       deliveryThreshold,
     ],
   );
+
+   logger.info("Animal created successfully", {
+      animalId,
+      adminId,
+      storedPrice: finalPrice,
+      baseCurrency,
+    });
 
   console.log(
     `[ADD ANIMAL] Stored base price: ${finalPrice} ${baseCurrency}`,

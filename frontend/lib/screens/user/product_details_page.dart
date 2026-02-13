@@ -29,8 +29,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  final Color bgParchment = const Color(0xffF2E8D5);
-
   @override
   void initState() {
     super.initState();
@@ -45,7 +43,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       _orderData = await OrderService.getOrderDetails(widget.orderId);
-      print(_orderData);
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -221,7 +218,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: bgParchment,
+        backgroundColor: AppTheme.bgGradientStart,
         appBar: AppBar(
           title: const Text("Order Details"),
           backgroundColor: AppTheme.bgGradientEnd,
@@ -232,7 +229,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     if (_errorMessage != null) {
       return Scaffold(
-        backgroundColor: bgParchment,
+        backgroundColor: AppTheme.bgGradientStart,
         appBar: AppBar(
           title: const Text("Order Details"),
           backgroundColor: AppTheme.bgGradientEnd,
@@ -269,7 +266,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
 
     return Scaffold(
-      backgroundColor: bgParchment,
+      backgroundColor: AppTheme.bgGradientStart,
       appBar: AppBar(
         title: const Text(
           "Order Details",
@@ -398,6 +395,26 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 icon: Icons.group,
                 child: Column(
                   children: (order['shareholders'] as List<dynamic>).map((s) {
+                    final photoUrlsRaw = s['photo_urls'];
+                    List<String> photoUrls = [];
+
+                    if (photoUrlsRaw is List) {
+                      photoUrls = photoUrlsRaw.cast<String>();
+                    } else if (photoUrlsRaw is String) {
+                      try {
+                        final decoded = jsonDecode(photoUrlsRaw);
+                        if (decoded is List) {
+                          photoUrls = decoded.cast<String>();
+                        } else if (photoUrlsRaw.startsWith('http')) {
+                          photoUrls = [photoUrlsRaw];
+                        }
+                      } catch (_) {
+                        if (photoUrlsRaw.startsWith('http')) {
+                          photoUrls = [photoUrlsRaw];
+                        }
+                      }
+                    }
+
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
@@ -417,6 +434,27 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           Text(
                             "Qurbani Time: ${s['qurbani_datetime'] ?? 'Pending'}",
                           ),
+                          if (photoUrls.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  photoUrls.first,
+                                  height: 150,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    height: 150,
+                                    color: Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.image_not_supported,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
                           const Divider(),
                         ],
                       ),
@@ -459,23 +497,23 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     isCopyable: false,
                   ),
 
-                  _buildInfoRow(
-                    Icons.check_circle,
-                    "Payment Status",
-                    order['payment_status'],
-                  ),
+                  // _buildInfoRow(
+                  //   Icons.check_circle,
+                  //   "Payment Status",
+                  //   order['payment_status'],
+                  // ),
 
-                  _buildInfoRow(
-                    Icons.timer,
-                    "Processing Status",
-                    order['processing_status'] ?? 'pending',
-                  ),
+                  // _buildInfoRow(
+                  //   Icons.timer,
+                  //   "Processing Status",
+                  //   order['processing_status'] ?? 'pending',
+                  // ),
 
-                  _buildInfoRow(
-                    Icons.local_shipping,
-                    "Delivery Status",
-                    deliveryStatus,
-                  ),
+                  // _buildInfoRow(
+                  //   Icons.local_shipping,
+                  //   "Delivery Status",
+                  //   deliveryStatus,
+                  // ),
 
                   // _buildInfoRow(
                   //   Icons.security,

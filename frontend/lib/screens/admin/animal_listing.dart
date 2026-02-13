@@ -84,11 +84,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
           "Content-Type": "application/json",
         },
       );
-
-      print(
-        "Fetch Animals Response: ${response.statusCode} - ${response.body}",
-      );
-
+      
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
 

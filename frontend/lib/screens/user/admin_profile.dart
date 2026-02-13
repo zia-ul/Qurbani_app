@@ -97,7 +97,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           }
 
           final data = snapshot.data!;
-          // print("....testing.....$data");
+
           final String name = data['name'] ?? 'Unknown Admin';
           final String description = data['description'] ?? 'Not Available';
           final String phone = data['phone'] ?? 'N/A';

@@ -11,9 +11,31 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
+/// Admin page widget for viewing and managing shareholder order details.
+///
+/// This widget displays detailed information about an order including:
+/// - User information and contact details
+/// - Payment status for each shareholder
+/// - Animal assignment (which animal and which share)
+/// - Qurbani schedule (date and time)
+/// - Delivery status tracking
+///
+/// The admin can update each step of the workflow:
+/// 1. Mark payment as paid
+/// 2. Assign an animal and share number
+/// 3. Schedule the Qurbani date and time
+/// 4. Update delivery status
+///
+/// Requires [orderId] to fetch the specific order from the backend.
 class ShareholderOrderDetails extends StatefulWidget {
+  /// The unique identifier of the order to display and manage.
+  /// This ID is used to fetch order details from the AdminOrderService.
   final String orderId;
 
+  /// Creates a new ShareholderOrderDetails widget.
+  ///
+  /// The [orderId] parameter is required and must correspond to a valid
+  /// order in the system.
   const ShareholderOrderDetails({super.key, required this.orderId});
 
   @override
@@ -21,6 +43,11 @@ class ShareholderOrderDetails extends StatefulWidget {
       _ShareholderOrderDetailsState();
 }
 
+/// State class for ShareholderOrderDetails.
+///
+/// Manages all state required for displaying and updating order details,
+/// including shareholder information, payment status, animal assignments,
+/// scheduling, and delivery management.
 class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   /// Holds the detailed data of the order fetched from the server, including user info, payment status, etc.
   Map<String, dynamic>? orderData;
@@ -51,18 +78,40 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
   /// Indicates whether the list of delivery boys is currently being loaded.
   bool loadingDeliveryBoys = true;
+
+  /// List of available animals that can be assigned to shareholders.
+  /// Each animal has details like type, remaining shares, price, etc.
   List<Map<String, dynamic>> availableAnimals = [];
+
+  /// Indicates whether the animal list is currently being loaded.
   bool loadingAnimals = true;
+
+  /// Currently selected animal ID for assignment.
   String? selectedAnimalId;
+
+  /// Currently selected share number within an animal.
   int? selectedShareNumber;
+
+  /// The currently selected animal object containing all its details.
   Map<String, dynamic>? selectedAnimal;
 
-  /// Temporary selected payment values per shareholder
+  /// Temporary storage for payment status changes per shareholder.
+  /// Maps shareholder ID to the new payment status value.
+  /// Used when admin changes payment status but hasn't saved yet.
   final Map<String, String> _tempPaymentStatus = {};
+
+  /// Temporary storage for animal ID selection per shareholder.
+  /// Maps shareholder ID to the selected animal ID.
+  /// Used when admin selects an animal but hasn't saved the assignment yet.
   final Map<String, String> _tempAnimalId = {};
+
+  /// Temporary storage for share number selection per shareholder.
+  /// Maps shareholder ID to the selected share number.
+  /// Used when admin selects a share number but hasn't saved yet.
   final Map<String, int> _tempShareNumber = {};
 
   /// Initializes the state of the widget by fetching order details and delivery boys list.
+  /// Called automatically when the widget is first created.
   @override
   void initState() {
     super.initState();
@@ -103,9 +152,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Future<void> _fetchOrderDetails() async {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
-      // processing = orderData!['processing_status'];
-      print("order data in details page...$orderData");
-      // selectedDeliveryBoyId = orderData!['delivery_person_id']?.toString();
+
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
     } finally {
@@ -167,7 +214,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
         },
       );
 
-      print("fetch animals response...${response.body}");
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -296,7 +342,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     }
 
     final data = orderData!;
-    print("order details......$data");
+
     final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
@@ -360,7 +406,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Widget _shareholderFlowCard(Map<String, dynamic> shareholder) {
     final String shareholderId = shareholder['id'];
 
-    print("shareholder details...$shareholder");
 
     final String paymentStatus = shareholder['payment_status'] ?? 'unpaid';
     final bool isPaid = paymentStatus == 'paid';

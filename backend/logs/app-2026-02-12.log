@@ -4318,3 +4318,907 @@
 2026-02-12 19:23:43 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
 2026-02-12 19:23:55 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.3"}
 2026-02-12 19:23:55 [info]: Profile fetched {"userId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 19:35:12 [info]: Incoming request {"method":"POST","url":"/api/auth/register","ip":"192.168.1.3"}
+2026-02-12 19:35:12 [info]: Registration attempt {"email":"test@gmail.com","role":"user"}
+2026-02-12 19:35:12 [warn]: Registration failed: email already registered {"email":"test@gmail.com"}
+2026-02-12 19:35:18 [info]: Incoming request {"method":"POST","url":"/api/auth/register","ip":"192.168.1.3"}
+2026-02-12 19:35:18 [info]: Registration attempt {"email":"test22@gmail.com","role":"user"}
+2026-02-12 19:35:18 [info]: User registered successfully {"userId":"d58ab32c-1213-40fd-975e-6234f6b84c97","role":"user"}
+2026-02-12 19:35:23 [info]: Verification email sent to test22@gmail.com 
+2026-02-12 20:50:10 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.1.3"}
+2026-02-12 21:05:17 [info]: Application starting 
+2026-02-12 21:07:56 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.1.3"}
+2026-02-12 21:10:59 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.1.3"}
+2026-02-12 21:10:59 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-12 21:11:00 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-12 21:11:00 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.3"}
+2026-02-12 21:11:00 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-12 21:11:03 [info]: Incoming request {"method":"GET","url":"/api/admins/verified","ip":"192.168.1.3"}
+2026-02-12 21:11:06 [info]: Incoming request {"method":"GET","url":"/api/auth/adminprofile/52177dcd-3d76-46a8-a542-d13624b31c7a","ip":"192.168.1.3"}
+2026-02-12 21:11:06 [info]: Fetching admin profile {"adminId":"52177dcd-3d76-46a8-a542-d13624b31c7a"}
+2026-02-12 21:11:06 [info]: Admin profile fetched successfully {"adminId":"52177dcd-3d76-46a8-a542-d13624b31c7a","totalOrders":0,"completedOrders":0}
+2026-02-12 21:11:09 [info]: Incoming request {"method":"GET","url":"/api/auth/adminprofile/573b7cb3-a55e-40e8-a3c8-40369b5e83ec","ip":"192.168.1.3"}
+2026-02-12 21:11:09 [info]: Fetching admin profile {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:11:09 [info]: Admin profile fetched successfully {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","totalOrders":3,"completedOrders":0}
+2026-02-12 21:11:23 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.3"}
+2026-02-12 21:11:23 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-12 21:11:25 [info]: Incoming request {"method":"GET","url":"/api/orders/my","ip":"192.168.1.3"}
+2026-02-12 21:11:25 [info]: Fetched user orders {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","count":3}
+2026-02-12 21:11:25 [info]: Incoming request {"method":"GET","url":"/api/orders/my","ip":"192.168.1.3"}
+2026-02-12 21:11:25 [info]: Fetched user orders {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","count":3}
+2026-02-12 21:11:27 [info]: Incoming request {"method":"GET","url":"/api/orders/df731654-b6d2-4158-8e73-9d74acb68874","ip":"192.168.1.3"}
+2026-02-12 21:11:37 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.3"}
+2026-02-12 21:11:37 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-12 21:11:48 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.1.3"}
+2026-02-12 21:11:48 [info]: Login attempt {"email":"hajra@gmail.com"}
+2026-02-12 21:11:49 [info]: Login successful {"userId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","role":"admin"}
+2026-02-12 21:11:49 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.3"}
+2026-02-12 21:11:49 [debug]: Fetched current user profile {"userId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:11:49 [info]: Incoming request {"method":"GET","url":"/api/admin/profile","ip":"192.168.1.3"}
+2026-02-12 21:11:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:11:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:11:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:11:58 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/my","ip":"192.168.1.3"}
+2026-02-12 21:11:58 [info]: Admin fetching own orders {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:11:59 [info]: Admin orders fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","orderCount":3}
+2026-02-12 21:11:59 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/my","ip":"192.168.1.3"}
+2026-02-12 21:11:59 [info]: Admin fetching own orders {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:11:59 [info]: Admin orders fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","orderCount":3}
+2026-02-12 21:12:03 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/7ef76f1c-ae6a-4ae3-8722-258fb7760251","ip":"192.168.1.3"}
+2026-02-12 21:12:03 [info]: Incoming request {"method":"GET","url":"/api/delivery-boys","ip":"192.168.1.3"}
+2026-02-12 21:12:03 [info]: Incoming request {"method":"GET","url":"/api/animals","ip":"192.168.1.3"}
+2026-02-12 21:12:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:12:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:12:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:12:11 [info]: Incoming request {"method":"POST","url":"/api/shareholders/5aba9fab-63e7-47d7-992b-533e4e7fae05/assign-animal","ip":"192.168.1.3"}
+2026-02-12 21:12:12 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/7ef76f1c-ae6a-4ae3-8722-258fb7760251","ip":"192.168.1.3"}
+2026-02-12 21:12:18 [info]: Incoming request {"method":"POST","url":"/api/shareholders/5aba9fab-63e7-47d7-992b-533e4e7fae05/schedule","ip":"192.168.1.3"}
+2026-02-12 21:12:18 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/7ef76f1c-ae6a-4ae3-8722-258fb7760251","ip":"192.168.1.3"}
+2026-02-12 21:12:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:12:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:12:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:12:21 [info]: Incoming request {"method":"POST","url":"/api/shareholders/5aba9fab-63e7-47d7-992b-533e4e7fae05/delivery-status","ip":"192.168.1.3"}
+2026-02-12 21:12:21 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/7ef76f1c-ae6a-4ae3-8722-258fb7760251","ip":"192.168.1.3"}
+2026-02-12 21:12:26 [info]: Incoming request {"method":"GET","url":"/api/orders/admin/62187f35-df26-4f37-956a-0303c27e72d0","ip":"192.168.1.3"}
+2026-02-12 21:12:26 [info]: Incoming request {"method":"GET","url":"/api/delivery-boys","ip":"192.168.1.3"}
+2026-02-12 21:12:26 [info]: Incoming request {"method":"GET","url":"/api/animals","ip":"192.168.1.3"}
+2026-02-12 21:12:32 [info]: Incoming request {"method":"GET","url":"/api/requests/admin","ip":"192.168.1.3"}
+2026-02-12 21:12:32 [info]: Admin fetched special requests {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","status":"All","count":0}
+2026-02-12 21:12:34 [info]: Incoming request {"method":"GET","url":"/api/animals?page=1&limit=10","ip":"192.168.1.3"}
+2026-02-12 21:12:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:12:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:12:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:12:36 [info]: Incoming request {"method":"GET","url":"/api/animals/1036fc6a-311c-444c-b0b7-0d11e2670889/orders","ip":"192.168.1.3"}
+2026-02-12 21:12:39 [info]: Incoming request {"method":"GET","url":"/api/animals/d518a229-b4b3-455e-9da5-7aac705ee098/orders","ip":"192.168.1.3"}
+2026-02-12 21:12:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:12:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:12:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:13:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:13:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:13:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:13:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:13:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:13:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:13:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:13:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:13:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:13:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:13:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:13:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:14:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:14:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:14:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:14:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:14:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:14:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:14:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:14:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:14:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:14:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:14:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:14:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:15:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:15:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:15:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:15:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:15:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:15:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:15:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:15:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:15:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:15:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:15:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:15:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:16:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:16:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:16:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:16:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:16:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:16:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:16:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:16:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:16:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:16:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:16:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:16:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:17:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:17:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:17:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:17:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:17:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:17:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:17:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:17:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:17:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:17:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:17:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:17:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:18:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:18:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:18:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:18:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:18:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:18:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:18:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:18:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:18:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:18:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:18:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:18:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:19:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:19:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:19:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:19:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:19:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:19:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:19:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:19:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:19:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:19:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:19:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:19:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:20:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:20:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:20:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:20:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:20:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:20:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:20:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:20:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:20:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:20:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:20:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:20:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:21:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:21:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:21:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:21:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:21:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:21:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:21:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:21:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:21:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:21:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:21:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:21:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:22:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:22:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:22:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:22:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:22:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:22:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:22:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:22:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:22:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:22:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:22:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:22:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:23:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:23:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:23:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:23:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:23:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:23:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:23:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:23:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:23:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:23:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:23:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:23:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:24:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:24:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:24:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:24:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:24:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:24:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:24:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:24:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:24:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:24:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:24:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:24:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:25:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:25:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:25:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:25:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:25:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:25:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:25:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:25:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:25:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:25:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:25:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:25:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:26:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:26:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:26:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:26:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:26:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:26:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:26:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:26:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:26:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:26:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:26:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:26:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:27:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:27:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:27:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:27:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:27:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:27:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:27:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:27:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:27:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:27:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:27:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:27:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:28:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:28:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:28:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:28:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:28:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:28:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:28:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:28:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:28:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:28:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:28:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:28:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:29:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:29:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:29:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:29:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:29:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:29:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:29:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:29:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:29:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:29:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:29:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:29:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:30:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:30:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:30:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:30:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:30:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:30:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:30:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:30:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:30:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:30:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:30:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:30:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:31:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:31:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:31:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:31:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:31:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:31:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:31:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:31:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:31:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:31:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:31:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:31:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:32:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:32:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:32:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:32:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:32:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:32:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:32:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:32:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:32:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:32:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:32:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:32:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:33:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:33:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:33:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:33:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:33:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:33:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:33:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:33:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:33:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:33:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:33:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:33:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:34:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:34:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:34:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:34:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:34:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:34:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:34:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:34:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:34:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:34:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:34:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:34:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:35:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:35:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:35:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:35:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:35:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:35:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:35:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:35:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:35:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:35:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:35:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:35:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:36:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:36:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:36:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:36:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:36:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:36:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:36:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:36:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:36:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:36:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:36:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:36:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:37:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:37:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:37:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:37:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:37:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:37:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:37:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:37:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:37:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:37:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:37:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:37:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:38:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:38:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:38:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:51:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:51:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:51:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:51:50 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:51:50 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:51:50 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:51:51 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:51:51 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:51:51 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:51:54 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:51:54 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:51:54 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:52:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:52:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:52:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:52:09 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:52:09 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:52:09 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:52:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:52:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:52:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:52:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:52:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:52:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:52:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:52:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:52:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:52:56 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.1.3"}
+2026-02-12 21:53:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:53:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:53:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:53:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:53:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:53:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:53:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:53:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:53:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:53:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:53:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:53:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:54:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:54:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:54:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:54:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:54:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:54:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:54:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:54:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:54:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:54:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:54:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:54:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:55:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:55:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:55:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:55:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:55:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:55:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:55:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:55:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:55:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:55:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:55:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:55:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:56:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:56:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:56:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:56:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:56:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:56:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:56:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:56:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:56:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:56:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:56:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:56:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:57:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:57:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:57:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:57:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:57:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:57:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:57:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:57:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:57:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:57:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:57:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:57:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:58:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:58:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:58:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:58:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:58:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:58:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:58:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:58:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:58:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:58:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:58:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:58:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:59:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:59:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:59:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:59:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:59:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:59:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:59:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:59:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:59:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 21:59:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 21:59:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 21:59:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:00:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:00:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:00:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:00:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:00:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:00:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:00:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:00:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:00:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:00:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:00:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:00:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:01:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:01:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:01:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:01:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:01:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:01:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:01:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:01:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:01:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:01:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:01:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:01:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:02:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:02:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:02:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:02:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:02:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:02:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:02:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:02:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:02:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:02:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:02:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:02:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:03:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:03:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:03:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:03:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:03:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:03:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:03:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:03:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:03:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:03:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:03:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:03:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:04:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:04:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:04:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:04:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:04:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:04:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:04:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:04:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:04:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:04:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:04:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:04:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:05:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:05:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:05:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:05:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:05:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:05:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:05:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:05:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:05:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:05:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:05:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:05:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:06:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:06:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:06:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:06:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:06:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:06:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:06:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:06:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:06:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:06:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:06:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:06:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:07:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:07:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:07:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:07:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:07:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:07:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:07:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:07:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:07:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:07:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:07:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:07:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:08:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:08:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:08:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:08:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:08:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:08:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:08:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:08:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:08:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:08:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:08:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:08:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:09:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:09:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:09:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:09:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:09:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:09:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:09:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:09:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:09:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:09:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:09:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:09:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:10:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:10:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:10:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:10:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:10:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:10:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:10:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:10:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:10:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:10:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:10:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:10:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:11:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:11:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:11:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:11:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:11:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:11:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:11:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:11:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:11:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:11:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:11:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:11:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:12:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:12:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:12:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:12:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:12:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:12:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:12:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:12:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:12:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:12:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:12:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:12:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:13:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:13:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:13:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:13:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:13:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:13:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:13:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:13:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:13:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:13:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:13:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:13:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:14:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:14:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:14:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:14:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:14:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:14:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:14:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:14:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:14:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:14:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:14:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:14:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:15:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:15:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:15:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:15:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:15:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:15:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:15:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:15:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:15:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:15:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:15:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:15:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:16:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:16:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:16:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:16:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:16:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:16:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:16:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:16:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:16:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:16:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:16:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:16:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:17:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:17:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:17:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:17:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:17:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:17:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:17:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:17:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:17:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:17:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:17:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:17:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:18:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:18:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:18:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:18:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:18:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:18:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:18:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:18:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:18:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:18:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:18:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:18:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:19:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:19:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:19:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:19:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:19:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:19:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:19:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:19:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:19:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:19:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:19:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:19:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:20:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:20:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:20:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:20:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:20:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:20:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:20:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:20:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:20:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:20:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:20:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:20:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:21:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:21:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:21:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:21:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:21:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:21:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:21:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:21:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:21:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:21:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:21:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:21:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:22:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:22:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:22:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:22:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:22:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:22:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:22:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:22:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:22:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:22:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:22:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:22:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:23:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:23:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:23:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:23:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:23:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:23:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:23:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:23:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:23:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:23:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:23:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:23:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:24:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:24:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:24:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:24:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:24:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:24:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:24:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:24:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:24:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:24:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:24:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:24:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:25:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:25:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:25:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:25:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:25:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:25:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:25:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:25:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:25:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:25:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:25:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:25:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:26:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:26:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:26:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:26:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:26:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:26:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:26:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:26:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:26:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:26:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:26:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:26:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:27:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:27:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:27:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:27:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:27:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:27:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:27:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:27:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:27:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:27:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:27:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:27:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:28:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:28:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:28:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:28:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:28:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:28:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:28:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:28:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:28:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:28:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:28:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:28:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:29:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:29:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:29:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:29:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:29:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:29:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:29:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:29:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:29:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:29:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:29:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:29:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:30:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:30:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:30:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:30:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:30:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:30:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:30:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:30:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:30:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:30:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:30:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:30:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:31:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:31:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:31:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:31:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:31:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:31:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:31:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:31:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:31:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:31:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:31:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:31:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:32:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:32:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:32:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:32:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:32:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:32:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:32:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:32:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:32:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:32:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:32:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:32:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:33:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:33:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:33:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:33:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:33:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:33:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:33:34 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:33:34 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:33:34 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:33:49 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:33:49 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:33:49 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:34:04 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:34:04 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:34:04 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}
+2026-02-12 22:34:19 [info]: Incoming request {"method":"GET","url":"/api/admins/dashboard-stats","ip":"192.168.1.3"}
+2026-02-12 22:34:19 [info]: Fetching admin dashboard stats {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec"}
+2026-02-12 22:34:19 [info]: Admin dashboard stats fetched {"adminId":"573b7cb3-a55e-40e8-a3c8-40369b5e83ec","animals":2,"orders":3,"requests":0}

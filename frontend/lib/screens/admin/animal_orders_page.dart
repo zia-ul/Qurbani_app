@@ -30,7 +30,6 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
   void _loadData() {
     _ordersFuture = OrderService.getAnimalOrders(widget.animalId);
 
-    print("Loading orders for animalId $_ordersFuture");
   }
 
   Future<void> _refresh() async {

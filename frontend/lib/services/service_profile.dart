@@ -27,7 +27,6 @@ class ProfileService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
-    print(res.body);
 
     if (res.statusCode != 200) {
       final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch profile';

@@ -45,13 +45,13 @@ class MasterDrawer extends StatelessWidget {
   Future<String?> _getProfilePicture() async {
     try {
       final profile = await ProfileService.getProfile();
-      // print("profileeeee....$profile");
+
       return profile['photo_url'] ??
           profile['photoUrl'] ??
           profile['profile_image'] ??
           profile['image'];
     } catch (e) {
-      // debugPrint("Error fetching profile picture: $e");
+      
       return null;
     }
   }

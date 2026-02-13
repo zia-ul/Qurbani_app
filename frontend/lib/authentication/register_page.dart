@@ -853,7 +853,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                               DropdownMenuItem(
                                                 value: 'admin',
                                                 child: Text(
-                                                  "Qasab",
+                                                  "Qassab",
                                                   style: TextStyle(
                                                     color: Colors.black,
                                                   ),

@@ -37,8 +37,6 @@ class AdminVerificationService {
       body: jsonEncode(data),
     );
 
-    // print(res.body);
-
     if (res.statusCode != 201) {
       try {
         final body = jsonDecode(res.body);

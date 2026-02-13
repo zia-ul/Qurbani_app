@@ -1,0 +1,772 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Feb 13, 2026 at 02:42 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
+
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+--
+-- Database: `qurbani`
+--
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_payment_settings`
+--
+
+CREATE TABLE `admin_payment_settings` (
+  `admin_id` char(36) NOT NULL,
+  `allow_cod` tinyint(1) DEFAULT 0,
+  `allow_online` tinyint(1) DEFAULT 1,
+  `cod_deadline` date DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `admin_payment_settings`
+--
+
+INSERT INTO `admin_payment_settings` (`admin_id`, `allow_cod`, `allow_online`, `cod_deadline`, `updated_at`) VALUES
+('573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 1, 1, '2026-02-13', '2026-02-12 09:42:57');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_share_setups`
+--
+
+CREATE TABLE `admin_share_setups` (
+  `id` char(36) NOT NULL,
+  `admin_id` char(36) NOT NULL,
+  `total_shares` int(11) NOT NULL,
+  `price_per_share` decimal(10,2) NOT NULL,
+  `late_booking_fee` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `last_booking_date` date NOT NULL,
+  `delivery_type` enum('free','paid') NOT NULL DEFAULT 'free',
+  `delivery_fee` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `free_delivery_threshold` decimal(10,2) DEFAULT NULL,
+  `currency` char(3) NOT NULL DEFAULT 'USD',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `admin_share_setups`
+--
+
+INSERT INTO `admin_share_setups` (`id`, `admin_id`, `total_shares`, `price_per_share`, `late_booking_fee`, `last_booking_date`, `delivery_type`, `delivery_fee`, `free_delivery_threshold`, `currency`, `is_active`, `created_at`, `updated_at`) VALUES
+('', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 350, 2356.00, 56.00, '2026-02-09', 'free', 0.00, NULL, 'USD', 1, '2026-02-05 07:54:46', '2026-02-10 13:42:53');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_verification_requests`
+--
+
+CREATE TABLE `admin_verification_requests` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `organization_name` varchar(150) NOT NULL,
+  `phone` varchar(30) NOT NULL,
+  `experience` varchar(50) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `govt_id_url` text NOT NULL,
+  `business_proof_url` text NOT NULL,
+  `bank_proof_url` text NOT NULL,
+  `farm_photo_url` text NOT NULL,
+  `status` enum('pending','approved','rejected') DEFAULT 'pending',
+  `reviewed_by` char(36) DEFAULT NULL,
+  `review_note` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `admin_verification_requests`
+--
+
+INSERT INTO `admin_verification_requests` (`id`, `user_id`, `organization_name`, `phone`, `experience`, `address`, `govt_id_url`, `business_proof_url`, `bank_proof_url`, `farm_photo_url`, `status`, `reviewed_by`, `review_note`, `created_at`, `updated_at`) VALUES
+('63a773d9-df5b-438a-8917-36b159946440', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'jddhjj', '6669988888', '1', 'hshshhhh', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756139/meidwgt8olzxdhgatkgk.jpg', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756142/z98yuwiitzvedyq7e6ef.jpg', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756145/w2o4wxkbqfjap7fg2zzh.jpg', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756147/m8irkyhvj8nfqrzt1u0r.jpg', 'approved', 'b49274a9-df58-4529-b29d-a252f2a33d53', 'Documents verified and approved', '2026-01-30 06:55:48', '2026-01-30 06:57:19'),
+('b829031f-f3af-4c95-80ab-ad4784e41d99', '52177dcd-3d76-46a8-a542-d13624b31c7a', 'test', '9595999999', '1', 'shshh', 'https://res.cloudinary.com/dfezveorl/image/upload/v1770611602/fyhqr0dtlka0ljzjidra.jpg', 'https://res.cloudinary.com/dfezveorl/image/upload/v1770611606/qqnre5re8lhmfpxt5nlw.jpg', 'https://res.cloudinary.com/dfezveorl/image/upload/v1770611609/vtdm9ut2gcxowxkmoo4f.jpg', 'https://res.cloudinary.com/dfezveorl/image/upload/v1770611613/pgzmgkptihijgdwvhgwx.jpg', 'approved', 'b49274a9-df58-4529-b29d-a252f2a33d53', 'Documents verified and approved', '2026-02-09 04:33:33', '2026-02-09 04:33:50');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `animals`
+--
+
+CREATE TABLE `animals` (
+  `id` char(36) NOT NULL,
+  `admin_id` char(36) NOT NULL,
+  `animal_type` varchar(50) NOT NULL,
+  `price` decimal(10,2) DEFAULT NULL,
+  `shares` int(11) DEFAULT 1,
+  `delivery_type` enum('Free','Paid') DEFAULT 'Free',
+  `delivery_fee` decimal(10,2) DEFAULT 0.00,
+  `delivery_threshold` decimal(10,2) DEFAULT 0.00,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `last_booked_date` date DEFAULT NULL,
+  `status` enum('available','partially_sold','sold') NOT NULL DEFAULT 'available'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `animals`
+--
+
+INSERT INTO `animals` (`id`, `admin_id`, `animal_type`, `price`, `shares`, `delivery_type`, `delivery_fee`, `delivery_threshold`, `created_at`, `last_booked_date`, `status`) VALUES
+('1036fc6a-311c-444c-b0b7-0d11e2670889', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Buffalo', NULL, 7, NULL, NULL, NULL, '2026-02-12 11:04:29', NULL, 'available'),
+('d518a229-b4b3-455e-9da5-7aac705ee098', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Goat', NULL, 1, NULL, NULL, NULL, '2026-02-12 09:45:48', NULL, 'available');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `animal_details`
+--
+
+CREATE TABLE `animal_details` (
+  `id` char(36) NOT NULL,
+  `animal_id` char(36) NOT NULL,
+  `order_id` char(36) DEFAULT NULL,
+  `barcode` varchar(100) DEFAULT NULL,
+  `breed` varchar(100) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `age` varchar(50) DEFAULT NULL,
+  `height` varchar(50) DEFAULT NULL,
+  `weight` varchar(50) DEFAULT NULL,
+  `photo_urls` longtext DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `qurbani_datetime` datetime DEFAULT NULL,
+  `meat_weight` varchar(50) DEFAULT NULL,
+  `body_parts_description` text DEFAULT NULL,
+  `shareholder_id` char(36) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `animal_details`
+--
+
+INSERT INTO `animal_details` (`id`, `animal_id`, `order_id`, `barcode`, `breed`, `description`, `age`, `height`, `weight`, `photo_urls`, `created_at`, `qurbani_datetime`, `meat_weight`, `body_parts_description`, `shareholder_id`) VALUES
+('c0956570-7c8d-4aab-a3e2-e1b99eeb81b9', '1036fc6a-311c-444c-b0b7-0d11e2670889', NULL, '269618362047', NULL, NULL, NULL, NULL, NULL, '[\"https://res.cloudinary.com/dfezveorl/image/upload/v1770894267/ih1f1y1wxed771mfbyn6.jpg\"]', '2026-02-12 11:04:29', NULL, NULL, NULL, NULL),
+('f036cb1f-fb69-45cd-983f-3b11e4ca7b04', 'd518a229-b4b3-455e-9da5-7aac705ee098', NULL, '548451168201', NULL, NULL, NULL, NULL, NULL, '[\"https://res.cloudinary.com/dfezveorl/image/upload/v1770889546/hsq1ghdzgohdt5ypxwt7.jpg\"]', '2026-02-12 09:45:48', NULL, NULL, NULL, NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `currency_meta`
+--
+
+CREATE TABLE `currency_meta` (
+  `id` int(11) NOT NULL,
+  `base_currency` varchar(3) NOT NULL,
+  `last_updated` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `currency_meta`
+--
+
+INSERT INTO `currency_meta` (`id`, `base_currency`, `last_updated`) VALUES
+(1, 'USD', '2026-02-06 17:00:02');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `currency_rates`
+--
+
+CREATE TABLE `currency_rates` (
+  `id` int(11) NOT NULL,
+  `base_currency` varchar(10) NOT NULL,
+  `currency_code` varchar(10) NOT NULL,
+  `rate` decimal(18,8) NOT NULL,
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `currency_rates`
+--
+
+INSERT INTO `currency_rates` (`id`, `base_currency`, `currency_code`, `rate`, `updated_at`) VALUES
+(1, 'USD', 'AED', 3.67250000, '2026-02-06 17:00:02'),
+(2, 'USD', 'AFN', 65.49999900, '2026-02-06 17:00:02'),
+(3, 'USD', 'ALL', 82.01242200, '2026-02-06 17:00:02'),
+(4, 'USD', 'AMD', 377.77287600, '2026-02-06 17:00:02'),
+(5, 'USD', 'ANG', 1.79000000, '2026-02-06 17:00:02'),
+(6, 'USD', 'AOA', 912.13310000, '2026-02-06 17:00:02'),
+(7, 'USD', 'ARS', 1442.28110000, '2026-02-06 17:00:02'),
+(8, 'USD', 'AUD', 1.43385500, '2026-02-06 17:00:02'),
+(9, 'USD', 'AWG', 1.80000000, '2026-02-06 17:00:02'),
+(10, 'USD', 'AZN', 1.70000000, '2026-02-06 17:00:02'),
+(11, 'USD', 'BAM', 1.65959500, '2026-02-06 17:00:02'),
+(12, 'USD', 'BBD', 2.00000000, '2026-02-06 17:00:02'),
+(13, 'USD', 'BDT', 122.39494500, '2026-02-06 17:00:02'),
+(14, 'USD', 'BGN', 1.65854800, '2026-02-06 17:00:02'),
+(15, 'USD', 'BHD', 0.37699100, '2026-02-06 17:00:02'),
+(16, 'USD', 'BIF', 2965.60489000, '2026-02-06 17:00:02'),
+(17, 'USD', 'BMD', 1.00000000, '2026-02-06 17:00:02'),
+(18, 'USD', 'BND', 1.27457000, '2026-02-06 17:00:02'),
+(19, 'USD', 'BOB', 6.91481000, '2026-02-06 17:00:02'),
+(20, 'USD', 'BRL', 5.29290000, '2026-02-06 17:00:02'),
+(21, 'USD', 'BSD', 1.00000000, '2026-02-06 17:00:02'),
+(22, 'USD', 'BTC', 0.00001519, '2026-02-06 17:00:02'),
+(23, 'USD', 'BTN', 90.44239200, '2026-02-06 17:00:02'),
+(24, 'USD', 'BWP', 13.24927000, '2026-02-06 17:00:02'),
+(25, 'USD', 'BYN', 2.86665900, '2026-02-06 17:00:02'),
+(26, 'USD', 'BZD', 2.01266900, '2026-02-06 17:00:02'),
+(27, 'USD', 'CAD', 1.36874600, '2026-02-06 17:00:02'),
+(28, 'USD', 'CDF', 2296.69751200, '2026-02-06 17:00:02'),
+(29, 'USD', 'CHF', 0.77776900, '2026-02-06 17:00:02'),
+(30, 'USD', 'CLF', 0.02189400, '2026-02-06 17:00:02'),
+(31, 'USD', 'CLP', 864.51000000, '2026-02-06 17:00:02'),
+(32, 'USD', 'CNH', 6.93727200, '2026-02-06 17:00:02'),
+(33, 'USD', 'CNY', 6.93900000, '2026-02-06 17:00:02'),
+(34, 'USD', 'COP', 3642.28787700, '2026-02-06 17:00:02'),
+(35, 'USD', 'CRC', 496.14763000, '2026-02-06 17:00:02'),
+(36, 'USD', 'CUC', 1.00000000, '2026-02-06 17:00:02'),
+(37, 'USD', 'CUP', 25.75000000, '2026-02-06 17:00:02'),
+(38, 'USD', 'CVE', 93.56505300, '2026-02-06 17:00:02'),
+(39, 'USD', 'CZK', 20.53930100, '2026-02-06 17:00:02'),
+(40, 'USD', 'DJF', 178.21187500, '2026-02-06 17:00:02'),
+(41, 'USD', 'DKK', 6.33240100, '2026-02-06 17:00:02'),
+(42, 'USD', 'DOP', 63.15762600, '2026-02-06 17:00:02'),
+(43, 'USD', 'DZD', 129.92729800, '2026-02-06 17:00:02'),
+(44, 'USD', 'EGP', 46.86330000, '2026-02-06 17:00:02'),
+(45, 'USD', 'ERN', 15.00000000, '2026-02-06 17:00:02'),
+(46, 'USD', 'ETB', 155.93246300, '2026-02-06 17:00:02'),
+(47, 'USD', 'EUR', 0.84804600, '2026-02-06 17:00:02'),
+(48, 'USD', 'FJD', 2.20950000, '2026-02-06 17:00:02'),
+(49, 'USD', 'FKP', 0.73657000, '2026-02-06 17:00:02'),
+(50, 'USD', 'GBP', 0.73657000, '2026-02-06 17:00:02'),
+(51, 'USD', 'GEL', 2.69500000, '2026-02-06 17:00:02'),
+(52, 'USD', 'GGP', 0.73657000, '2026-02-06 17:00:02'),
+(53, 'USD', 'GHS', 10.98783600, '2026-02-06 17:00:02'),
+(54, 'USD', 'GIP', 0.73657000, '2026-02-06 17:00:02'),
+(55, 'USD', 'GMD', 73.00000100, '2026-02-06 17:00:02'),
+(56, 'USD', 'GNF', 8783.34519900, '2026-02-06 17:00:02'),
+(57, 'USD', 'GTQ', 7.67595700, '2026-02-06 17:00:02'),
+(58, 'USD', 'GYD', 209.37050400, '2026-02-06 17:00:02'),
+(59, 'USD', 'HKD', 7.81439000, '2026-02-06 17:00:02'),
+(60, 'USD', 'HNL', 26.43489800, '2026-02-06 17:00:02'),
+(61, 'USD', 'HRK', 6.38920900, '2026-02-06 17:00:02'),
+(62, 'USD', 'HTG', 131.28386700, '2026-02-06 17:00:02'),
+(63, 'USD', 'HUF', 320.91687600, '2026-02-06 17:00:02'),
+(64, 'USD', 'IDR', 16874.68066900, '2026-02-06 17:00:02'),
+(65, 'USD', 'ILS', 3.12664500, '2026-02-06 17:00:02'),
+(66, 'USD', 'IMP', 0.73657000, '2026-02-06 17:00:02'),
+(67, 'USD', 'INR', 90.65550200, '2026-02-06 17:00:02'),
+(68, 'USD', 'IQD', 1311.01325400, '2026-02-06 17:00:02'),
+(69, 'USD', 'IRR', 42086.00000000, '2026-02-06 17:00:02'),
+(70, 'USD', 'ISK', 122.79000000, '2026-02-06 17:00:02'),
+(71, 'USD', 'JEP', 0.73657000, '2026-02-06 17:00:02'),
+(72, 'USD', 'JMD', 156.52364700, '2026-02-06 17:00:02'),
+(73, 'USD', 'JOD', 0.70900000, '2026-02-06 17:00:02'),
+(74, 'USD', 'JPY', 156.96457143, '2026-02-06 17:00:02'),
+(75, 'USD', 'KES', 129.00000000, '2026-02-06 17:00:02'),
+(76, 'USD', 'KGS', 87.45000000, '2026-02-06 17:00:02'),
+(77, 'USD', 'KHR', 4038.99399100, '2026-02-06 17:00:02'),
+(78, 'USD', 'KMF', 419.00030100, '2026-02-06 17:00:02'),
+(79, 'USD', 'KPW', 900.00000000, '2026-02-06 17:00:02'),
+(80, 'USD', 'KRW', 1467.13168400, '2026-02-06 17:00:02'),
+(81, 'USD', 'KWD', 0.30735000, '2026-02-06 17:00:02'),
+(82, 'USD', 'KYD', 0.83395600, '2026-02-06 17:00:02'),
+(83, 'USD', 'KZT', 493.57676300, '2026-02-06 17:00:02'),
+(84, 'USD', 'LAK', 21509.83005800, '2026-02-06 17:00:02'),
+(85, 'USD', 'LBP', 89641.97385500, '2026-02-06 17:00:02'),
+(86, 'USD', 'LKR', 309.69552300, '2026-02-06 17:00:02'),
+(87, 'USD', 'LRD', 186.13728500, '2026-02-06 17:00:02'),
+(88, 'USD', 'LSL', 16.15992600, '2026-02-06 17:00:02'),
+(89, 'USD', 'LYD', 6.33949500, '2026-02-06 17:00:02'),
+(90, 'USD', 'MAD', 9.18535200, '2026-02-06 17:00:02'),
+(91, 'USD', 'MDL', 16.94924800, '2026-02-06 17:00:02'),
+(92, 'USD', 'MGA', 4427.73391200, '2026-02-06 17:00:02'),
+(93, 'USD', 'MKD', 52.27098700, '2026-02-06 17:00:02'),
+(94, 'USD', 'MMK', 2099.90000000, '2026-02-06 17:00:02'),
+(95, 'USD', 'MNT', 3569.00000000, '2026-02-06 17:00:02'),
+(96, 'USD', 'MOP', 8.05317000, '2026-02-06 17:00:02'),
+(97, 'USD', 'MRU', 39.92006700, '2026-02-06 17:00:02'),
+(98, 'USD', 'MUR', 46.06000000, '2026-02-06 17:00:02'),
+(99, 'USD', 'MVR', 15.45000000, '2026-02-06 17:00:02'),
+(100, 'USD', 'MWK', 1735.28767400, '2026-02-06 17:00:02'),
+(101, 'USD', 'MXN', 17.35544200, '2026-02-06 17:00:02'),
+(102, 'USD', 'MYR', 3.94750000, '2026-02-06 17:00:02'),
+(103, 'USD', 'MZN', 63.74999900, '2026-02-06 17:00:02'),
+(104, 'USD', 'NAD', 16.06000000, '2026-02-06 17:00:02'),
+(105, 'USD', 'NGN', 1368.35000000, '2026-02-06 17:00:02'),
+(106, 'USD', 'NIO', 36.82600800, '2026-02-06 17:00:02'),
+(107, 'USD', 'NOK', 9.73199400, '2026-02-06 17:00:02'),
+(108, 'USD', 'NPR', 144.70842400, '2026-02-06 17:00:02'),
+(109, 'USD', 'NZD', 1.67079600, '2026-02-06 17:00:02'),
+(110, 'USD', 'OMR', 0.38449800, '2026-02-06 17:00:02'),
+(111, 'USD', 'PAB', 1.00000000, '2026-02-06 17:00:02'),
+(112, 'USD', 'PEN', 3.36398000, '2026-02-06 17:00:02'),
+(113, 'USD', 'PGK', 4.35051900, '2026-02-06 17:00:02'),
+(114, 'USD', 'PHP', 58.53800200, '2026-02-06 17:00:02'),
+(115, 'USD', 'PKR', 280.20967400, '2026-02-06 17:00:02'),
+(116, 'USD', 'PLN', 3.57388900, '2026-02-06 17:00:02'),
+(117, 'USD', 'PYG', 6608.43531300, '2026-02-06 17:00:02'),
+(118, 'USD', 'QAR', 3.64739500, '2026-02-06 17:00:02'),
+(119, 'USD', 'RON', 4.31790000, '2026-02-06 17:00:02'),
+(120, 'USD', 'RSD', 99.53000000, '2026-02-06 17:00:02'),
+(121, 'USD', 'RUB', 76.74597100, '2026-02-06 17:00:02'),
+(122, 'USD', 'RWF', 1460.61270900, '2026-02-06 17:00:02'),
+(123, 'USD', 'SAR', 3.75015900, '2026-02-06 17:00:02'),
+(124, 'USD', 'SBD', 8.05814900, '2026-02-06 17:00:02'),
+(125, 'USD', 'SCR', 13.88979600, '2026-02-06 17:00:02'),
+(126, 'USD', 'SDG', 601.50000000, '2026-02-06 17:00:02'),
+(127, 'USD', 'SEK', 9.04577300, '2026-02-06 17:00:02'),
+(128, 'USD', 'SGD', 1.27332600, '2026-02-06 17:00:02'),
+(129, 'USD', 'SHP', 0.73657000, '2026-02-06 17:00:02'),
+(130, 'USD', 'SLE', 24.45000000, '2026-02-06 17:00:02'),
+(131, 'USD', 'SLL', 20969.50000000, '2026-02-06 17:00:02'),
+(132, 'USD', 'SOS', 570.90470000, '2026-02-06 17:00:02'),
+(133, 'USD', 'SRD', 37.87000000, '2026-02-06 17:00:02'),
+(134, 'USD', 'SSP', 130.26000000, '2026-02-06 17:00:02'),
+(135, 'USD', 'STD', 22281.80000000, '2026-02-06 17:00:02'),
+(136, 'USD', 'STN', 20.78949200, '2026-02-06 17:00:02'),
+(137, 'USD', 'SVC', 8.75619500, '2026-02-06 17:00:02'),
+(138, 'USD', 'SYP', 13002.00000000, '2026-02-06 17:00:02'),
+(139, 'USD', 'SZL', 16.15979900, '2026-02-06 17:00:02'),
+(140, 'USD', 'THB', 31.65050000, '2026-02-06 17:00:02'),
+(141, 'USD', 'TJS', 9.36694100, '2026-02-06 17:00:02'),
+(142, 'USD', 'TMT', 3.50500000, '2026-02-06 17:00:02'),
+(143, 'USD', 'TND', 2.89982500, '2026-02-06 17:00:02'),
+(144, 'USD', 'TOP', 2.40776000, '2026-02-06 17:00:02'),
+(145, 'USD', 'TRY', 43.61474800, '2026-02-06 17:00:02'),
+(146, 'USD', 'TTD', 6.77652600, '2026-02-06 17:00:02'),
+(147, 'USD', 'TWD', 31.67799900, '2026-02-06 17:00:02'),
+(148, 'USD', 'TZS', 2585.00000000, '2026-02-06 17:00:02'),
+(149, 'USD', 'UAH', 43.18435500, '2026-02-06 17:00:02'),
+(150, 'USD', 'UGX', 3572.39735400, '2026-02-06 17:00:02'),
+(151, 'USD', 'USD', 1.00000000, '2026-02-06 17:00:02'),
+(152, 'USD', 'UYU', 38.65382200, '2026-02-06 17:00:02'),
+(153, 'USD', 'UZS', 12275.20729800, '2026-02-06 17:00:02'),
+(154, 'USD', 'VES', 377.98518900, '2026-02-06 17:00:02'),
+(155, 'USD', 'VND', 25963.91060200, '2026-02-06 17:00:02'),
+(156, 'USD', 'VUV', 119.99500000, '2026-02-06 17:00:02'),
+(157, 'USD', 'WST', 2.72629000, '2026-02-06 17:00:02'),
+(158, 'USD', 'XAF', 556.28203100, '2026-02-06 17:00:02'),
+(159, 'USD', 'XAG', 0.01347237, '2026-02-06 17:00:02'),
+(160, 'USD', 'XAU', 0.00020500, '2026-02-06 17:00:02'),
+(161, 'USD', 'XCD', 2.70255000, '2026-02-06 17:00:02'),
+(162, 'USD', 'XCG', 1.80359400, '2026-02-06 17:00:02'),
+(163, 'USD', 'XDR', 0.69224800, '2026-02-06 17:00:02'),
+(164, 'USD', 'XOF', 556.28203100, '2026-02-06 17:00:02'),
+(165, 'USD', 'XPD', 0.00058214, '2026-02-06 17:00:02'),
+(166, 'USD', 'XPF', 101.19886500, '2026-02-06 17:00:02'),
+(167, 'USD', 'XPT', 0.00048765, '2026-02-06 17:00:02'),
+(168, 'USD', 'YER', 238.40001400, '2026-02-06 17:00:02'),
+(169, 'USD', 'ZAR', 16.16589100, '2026-02-06 17:00:02'),
+(170, 'USD', 'ZMW', 19.58515300, '2026-02-06 17:00:02'),
+(171, 'USD', 'ZWG', 25.76890000, '2026-02-06 17:00:02'),
+(172, 'USD', 'ZWL', 322.00000000, '2026-02-06 17:00:02');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `delivery_requests`
+--
+
+CREATE TABLE `delivery_requests` (
+  `id` char(36) NOT NULL,
+  `delivery_user_id` char(36) NOT NULL,
+  `admin_user_id` char(36) NOT NULL,
+  `country` varchar(100) NOT NULL,
+  `state` varchar(100) NOT NULL,
+  `city` varchar(100) NOT NULL,
+  `status` enum('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `delivery_requests`
+--
+
+INSERT INTO `delivery_requests` (`id`, `delivery_user_id`, `admin_user_id`, `country`, `state`, `city`, `status`, `created_at`) VALUES
+('12921fad-0572-11f1-98da-fc5ceef07ad3', '5984a6f6-15e6-4fdc-9612-907a653c78a3', '52177dcd-3d76-46a8-a542-d13624b31c7a', 'Armenia', 'Kotayk Region', 'Bjni', 'PENDING', '2026-02-09 04:44:52'),
+('12922331-0572-11f1-98da-fc5ceef07ad3', 'f2f1d573-d470-42b7-bcd0-40c85a49cfbb', '52177dcd-3d76-46a8-a542-d13624b31c7a', 'Armenia', 'Kotayk Region', 'Bjni', 'PENDING', '2026-02-09 04:44:52'),
+('8aa3f166-c707-4b4a-b626-c8b5ae48c569', '2289b807-a528-4e03-bafc-44e526bd8999', '52177dcd-3d76-46a8-a542-d13624b31c7a', 'Armenia', 'Kotayk Region', 'Bjni', 'PENDING', '2026-02-06 14:12:14');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `orders`
+--
+
+CREATE TABLE `orders` (
+  `id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `admin_id` char(36) NOT NULL,
+  `payment_method` enum('Cash','Online') NOT NULL,
+  `total_shares` int(11) NOT NULL,
+  `total_amt` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `status` enum('active','completed','cancelled') DEFAULT 'active',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `delivery_code` varchar(50) DEFAULT NULL,
+  `payment_status` enum('paid','unpaid','pending') DEFAULT 'pending',
+  `payment_id` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `orders`
+--
+
+INSERT INTO `orders` (`id`, `user_id`, `admin_id`, `payment_method`, `total_shares`, `total_amt`, `status`, `created_at`, `delivery_code`, `payment_status`, `payment_id`) VALUES
+('62187f35-df26-4f37-956a-0303c27e72d0', 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Cash', 1, 2356.00, 'active', '2026-02-12 10:02:19', NULL, 'pending', NULL),
+('7ef76f1c-ae6a-4ae3-8722-258fb7760251', 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Cash', 2, 4712.00, 'active', '2026-02-12 09:44:14', NULL, 'unpaid', NULL),
+('df731654-b6d2-4158-8e73-9d74acb68874', 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Cash', 1, 2356.00, 'active', '2026-02-12 10:03:14', NULL, 'pending', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `order_shareholders`
+--
+
+CREATE TABLE `order_shareholders` (
+  `id` char(36) NOT NULL,
+  `order_id` char(36) NOT NULL,
+  `animal_id` char(36) NOT NULL,
+  `shareholder_name` varchar(100) NOT NULL,
+  `guardian_name` varchar(100) NOT NULL,
+  `address` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`address`)),
+  `qurbani_day` enum('Day 1','Day 2','Day 3') NOT NULL,
+  `price` decimal(10,2) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ratings`
+--
+
+CREATE TABLE `ratings` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `order_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `admin_id` char(36) NOT NULL,
+  `admin_rating` decimal(2,1) NOT NULL CHECK (`admin_rating` >= 1 and `admin_rating` <= 5),
+  `delivery_rating` decimal(2,1) NOT NULL CHECK (`delivery_rating` >= 1 and `delivery_rating` <= 5),
+  `feedback` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `requests`
+--
+
+CREATE TABLE `requests` (
+  `id` char(36) NOT NULL DEFAULT uuid(),
+  `order_id` char(36) NOT NULL,
+  `user_id` char(36) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text NOT NULL,
+  `status` enum('Pending','Replied','Closed') DEFAULT 'Pending',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `reply_message` text DEFAULT NULL,
+  `replied_at` datetime DEFAULT NULL,
+  `closed_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `shareholder_details`
+--
+
+CREATE TABLE `shareholder_details` (
+  `id` char(36) NOT NULL,
+  `order_id` char(36) NOT NULL,
+  `shareholder_name` varchar(100) NOT NULL,
+  `guardian_name` varchar(100) NOT NULL,
+  `address` longtext DEFAULT NULL,
+  `qurbani_day` enum('Day 1','Day 2','Day 3') NOT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `animal_id` varchar(36) DEFAULT NULL,
+  `share_number` int(11) DEFAULT NULL,
+  `processing_status` enum('pending','confirmed','completed') DEFAULT 'pending',
+  `delivery_status` enum('pending','assigned','delivered') DEFAULT 'pending',
+  `delivery_person_id` varchar(36) DEFAULT NULL,
+  `qurbani_datetime` datetime DEFAULT NULL,
+  `payment_status` enum('pending','paid','unpaid') NOT NULL DEFAULT 'pending'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `shareholder_details`
+--
+
+INSERT INTO `shareholder_details` (`id`, `order_id`, `shareholder_name`, `guardian_name`, `address`, `qurbani_day`, `price`, `created_at`, `animal_id`, `share_number`, `processing_status`, `delivery_status`, `delivery_person_id`, `qurbani_datetime`, `payment_status`) VALUES
+('3a490e1c-bb25-44c0-b35b-21175761c3d5', '7ef76f1c-ae6a-4ae3-8722-258fb7760251', 'hajra 2', 'test 2', '{\"country\":\"India\",\"country_iso\":\"IN\",\"state\":\"Delhi\",\"city\":\"Nangloi Jat\",\"postal_code\":\"123456\",\"address_line\":\"12345\"}', 'Day 1', 2356.00, '2026-02-12 09:44:14', NULL, NULL, 'pending', 'pending', NULL, NULL, 'paid'),
+('5aba9fab-63e7-47d7-992b-533e4e7fae05', '7ef76f1c-ae6a-4ae3-8722-258fb7760251', 'hajra', 'test', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 2', 2356.00, '2026-02-12 09:44:14', '1036fc6a-311c-444c-b0b7-0d11e2670889', 2, 'completed', 'delivered', NULL, '2026-02-13 15:16:00', 'paid'),
+('9060eee9-0a82-4e8c-983f-96c52411baa9', '62187f35-df26-4f37-956a-0303c27e72d0', 'test', 'hshs', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 3', 2356.00, '2026-02-12 10:02:19', '1036fc6a-311c-444c-b0b7-0d11e2670889', 1, 'completed', 'pending', NULL, '2026-02-14 16:38:00', 'paid'),
+('c3404ddb-082c-4eb1-a914-27e0e6b438d2', 'df731654-b6d2-4158-8e73-9d74acb68874', 'gg', 'b', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 2', 2356.00, '2026-02-12 10:03:14', 'd518a229-b4b3-455e-9da5-7aac705ee098', 1, 'completed', 'delivered', NULL, '2026-02-13 15:55:00', 'paid');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` char(36) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `phone` varchar(30) DEFAULT NULL,
+  `country` varchar(100) DEFAULT NULL,
+  `state` varchar(100) DEFAULT NULL,
+  `country_iso` char(5) DEFAULT NULL,
+  `country_code` varchar(5) NOT NULL,
+  `address` text DEFAULT NULL,
+  `gender` enum('Male','Female') DEFAULT NULL,
+  `role` enum('user','admin','delivery','pending_admin','pending','super_admin') NOT NULL DEFAULT 'user',
+  `admin_status` enum('pending','approved','rejected') DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `postal_code` varchar(20) DEFAULT NULL,
+  `currency` char(3) DEFAULT 'USD',
+  `verification_token` char(36) DEFAULT NULL,
+  `is_verified` tinyint(1) DEFAULT 0,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `description` text DEFAULT '',
+  `order_deadline` date DEFAULT NULL,
+  `photo_url` varchar(500) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `phone`, `country`, `state`, `country_iso`, `country_code`, `address`, `gender`, `role`, `admin_status`, `city`, `postal_code`, `currency`, `verification_token`, `is_verified`, `is_active`, `created_at`, `updated_at`, `description`, `order_deadline`, `photo_url`) VALUES
+('2289b807-a528-4e03-bafc-44e526bd8999', 'hajra', 'test@gmail.com', '$2b$12$EpENYLZ0yP92AAMvZVjDJObWBmwp6xcmmAS5NZD11ZrbyzdZYrenu', '6565666666', 'Armenia', 'Kotayk Region', 'IN', '+91', NULL, 'Female', 'delivery', NULL, 'Bjni', '123456', 'USD', '086c3ba7-33fd-4976-90c9-6f98b6d7b7a6', 0, 1, '2026-02-06 12:41:53', '2026-02-06 12:41:53', '', NULL, NULL),
+('2c44acb4-0f2d-42f0-b07e-f3cad14c902f', 'hajra', 'hajra.shahid2401@gmail.com', '$2b$12$EhoQuRshaxmI.YSyTpQ9jeaZjRgLDI1ksDTgslp0k1lm4P6LLM4fG', '9699856888', NULL, NULL, 'IN', '+91', 'gdysg', 'Female', 'user', NULL, NULL, NULL, 'USD', '6881ebfa-6972-478a-9196-84c1d93b72d8', 0, 1, '2026-02-01 15:16:21', '2026-02-01 15:16:21', '', NULL, NULL),
+('32739865-2a99-43a3-88f1-4eb578f44c54', 'delivery', 'delivery@gmail.com', '$2b$12$tTIN4W.GOQQkbsnqL8101OsE21aAu9kJNXgUJ6g/RJFRUmIZyPvLG', '9699888888', NULL, NULL, 'IN', '+91', 'uriej', 'Male', 'delivery', NULL, NULL, NULL, 'USD', '465e3b3d-d9c4-4c4e-b30e-2dc171871003', 1, 1, '2026-01-30 06:25:47', '2026-01-30 06:26:12', '', NULL, NULL),
+('52177dcd-3d76-46a8-a542-d13624b31c7a', 'admin haj', 'ad@gmail.com', '$2b$12$Azvatw7a4Qfnqet1Bn1KTu8rOYiqBoZo0g09aUvvv7Cv21rzbEuB.', '9595999999', 'Armenia', 'Kotayk Region', 'IN', '+91', NULL, 'Female', 'admin', 'approved', 'Bjni', '123456', 'USD', '8274ee9f-f001-4d37-b610-133d6d18ae27', 1, 1, '2026-02-06 14:12:14', '2026-02-09 04:32:42', '', NULL, NULL),
+('573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'test admin', 'hajra@gmail.com', '$2b$12$ct6SR.TAB3V.O5jsiR1SdeAUyNzb2L2.cGNEzVRa1Wjm5Yzy35LRW', '6669988888', 'India', 'Uttar Pradesh', 'IN', '+91', 'hshsh', 'Male', 'admin', 'approved', 'Aligarh', NULL, 'ARS', '78921d60-7f3a-4d16-8ce1-5812a3f33dcc', 1, 1, '2026-01-30 06:22:22', '2026-02-10 09:32:00', 'testing admin description', '2026-02-13', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756405/ybtcak4ydgmsmulxyqpp.jpg'),
+('5984a6f6-15e6-4fdc-9612-907a653c78a3', 'test delivery', 'del@gmail.com', '$2b$12$2i8uUzdTGXqw56nq3goCZex0h.kFm/DPM5t1Agipln4qVxNKxTwK6', '6565464999', 'Armenia', 'Kotayk Region', 'IN', '+91', NULL, 'Male', 'delivery', NULL, 'Bjni', '123456', 'USD', 'eaf20b92-d95b-4647-9251-35e76a1da867', 0, 1, '2026-02-09 04:12:28', '2026-02-09 04:12:28', '', NULL, NULL),
+('68c0d655-61f1-413c-a518-1c8a02f93933', 'vvbb', 'hajraa.mshahid24@gmail.com', '$2b$12$ipyUJd6wwdtfOoYJwUFPreeVGdeMXSS80Ia/e9HvHIIVZ3bOtCBZi', '6464959999', 'Argentina', 'Mendoza', 'IN', '+91', NULL, 'Female', 'user', NULL, 'Departamento de La Paz', '373777', 'USD', '10e4a59a-dab4-4e2d-a45e-dc225aa626f3', 0, 1, '2026-02-05 04:26:36', '2026-02-05 04:26:36', '', NULL, NULL),
+('98b5a8fc-ec0c-4bd9-95dd-2081c23bb2b7', 'new admin', 'n_admin@gmail.com', '$2b$12$6ic2kng.JPjxFUCNVsTCIeXUKsb/uhyW643fBfA2HfaEs1iRdmMky', '9494949590', 'India', 'Chandigarh', 'IN', '+91', NULL, 'Male', 'admin', '', 'Chandigarh', '123456', 'USD', 'd0390300-418a-44c0-ac23-e5998d85b217', 1, 1, '2026-02-11 12:54:37', '2026-02-11 12:55:25', '', NULL, NULL),
+('b49274a9-df58-4529-b29d-a252f2a33d53', 'super admin account', 's_admin@gmail.com', '$2b$12$h2Svk.sZ8Nui3iJqFAUl3ernMGnJCoOQY8m8hKRMyefi93F3WnLq.', '6262959599', NULL, NULL, 'IN', '+91', 'huhh', 'Male', 'super_admin', NULL, NULL, NULL, 'USD', '9171855f-55b9-4045-9f0f-0747cfd2ba54', 1, 1, '2026-01-30 06:24:18', '2026-01-30 06:26:20', '', NULL, NULL),
+('d58ab32c-1213-40fd-975e-6234f6b84c97', 'testt', 'test22@gmail.com', '$2b$12$b4b6Ohszxd9Lohdpun4n7ewq9/1gqVT9qcXlf6F0aL7ASp2dU5KVK', '6666966666666', 'Algeria', 'Batna', 'DZ', '+1', NULL, 'Male', 'user', NULL, 'Batna', '36377', 'USD', 'f06c8eef-a21f-4434-ad27-204c4e1be8e5', 0, 1, '2026-02-12 14:05:18', '2026-02-12 14:05:18', '', NULL, NULL),
+('f2f1d573-d470-42b7-bcd0-40c85a49cfbb', 'New delivery person', 'test2@gmail.com', '$2b$12$MZU/V6s33kFMQYgd8eXUO.aaEKkEU67GTX0GNrjfGXeJmlJ6XkHle', '9565999998', 'Armenia', 'Kotayk Region', 'IN', '+91', NULL, 'Male', 'delivery', NULL, 'Bjni', '123456', 'USD', 'eaaa168e-ca0a-4cd0-8b19-bcf87caf9d3d', 0, 1, '2026-02-06 14:15:25', '2026-02-06 14:15:25', '', NULL, NULL),
+('f7596158-0a99-41c3-8f91-565e4a841e58', 'Hajra user', 'hajra.mshahid24@gmail.com', '$2b$12$pue6em0ZxeGfq0q/6tID/.ZoeDaNqsnmkSGwJ8STtxHPu5Bz7wmA2', '9698888888', 'Argentina', 'Mendoza', 'IN', '+91', 'geye', 'Female', 'user', NULL, 'Departamento de La Paz', NULL, 'AWG', 'e87d3ae4-5dfb-445d-909a-9825a9dbe536', 1, 1, '2026-01-30 06:25:02', '2026-02-09 12:41:44', '', NULL, NULL),
+('fc402b7e-d175-4897-a495-ee01745152df', 'Hajra Shahid', 'hajrashahid4201@gmail.com', '$2b$12$fjLqibr2gFyDJIhHByPWP.8E1LABzWQsY6WNnxXLWckr6CbhhgKx6', '9565659999', NULL, NULL, 'IN', '+91', 'gdyeg', 'Female', 'user', NULL, NULL, NULL, 'USD', NULL, 1, 1, '2026-02-01 15:29:36', '2026-02-01 15:30:02', '', NULL, NULL);
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `admin_payment_settings`
+--
+ALTER TABLE `admin_payment_settings`
+  ADD PRIMARY KEY (`admin_id`);
+
+--
+-- Indexes for table `admin_share_setups`
+--
+ALTER TABLE `admin_share_setups`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_admin_share_admin` (`admin_id`);
+
+--
+-- Indexes for table `admin_verification_requests`
+--
+ALTER TABLE `admin_verification_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_user_request` (`user_id`),
+  ADD KEY `idx_status` (`status`);
+
+--
+-- Indexes for table `animals`
+--
+ALTER TABLE `animals`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `admin_id` (`admin_id`);
+
+--
+-- Indexes for table `animal_details`
+--
+ALTER TABLE `animal_details`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_shareholder_animal` (`shareholder_id`,`animal_id`),
+  ADD KEY `animal_id` (`animal_id`),
+  ADD KEY `order_id` (`order_id`);
+
+--
+-- Indexes for table `currency_meta`
+--
+ALTER TABLE `currency_meta`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `currency_rates`
+--
+ALTER TABLE `currency_rates`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_currency` (`currency_code`);
+
+--
+-- Indexes for table `delivery_requests`
+--
+ALTER TABLE `delivery_requests`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_delivery_admin` (`delivery_user_id`,`admin_user_id`),
+  ADD KEY `idx_location` (`country`,`state`,`city`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `fk_admin_user` (`admin_user_id`);
+
+--
+-- Indexes for table `orders`
+--
+ALTER TABLE `orders`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_user` (`user_id`),
+  ADD KEY `fk_admin` (`admin_id`);
+
+--
+-- Indexes for table `order_shareholders`
+--
+ALTER TABLE `order_shareholders`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `order_id` (`order_id`),
+  ADD KEY `animal_id` (`animal_id`);
+
+--
+-- Indexes for table `ratings`
+--
+ALTER TABLE `ratings`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_rating` (`order_id`,`user_id`,`admin_id`),
+  ADD UNIQUE KEY `unique_order_user` (`order_id`,`user_id`),
+  ADD KEY `fk_rating_user` (`user_id`),
+  ADD KEY `fk_rating_admin` (`admin_id`),
+  ADD KEY `idx_ratings_order_user` (`order_id`,`user_id`);
+
+--
+-- Indexes for table `requests`
+--
+ALTER TABLE `requests`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_request_user` (`user_id`),
+  ADD KEY `idx_requests_order_user` (`order_id`,`user_id`),
+  ADD KEY `idx_requests_status` (`status`);
+
+--
+-- Indexes for table `shareholder_details`
+--
+ALTER TABLE `shareholder_details`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `order_id` (`order_id`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `unique_phone_country` (`country_code`,`phone`),
+  ADD KEY `idx_role` (`role`),
+  ADD KEY `idx_city` (`city`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `currency_rates`
+--
+ALTER TABLE `currency_rates`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=108091;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `admin_share_setups`
+--
+ALTER TABLE `admin_share_setups`
+  ADD CONSTRAINT `fk_admin_share_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `admin_verification_requests`
+--
+ALTER TABLE `admin_verification_requests`
+  ADD CONSTRAINT `admin_verification_requests_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `animals`
+--
+ALTER TABLE `animals`
+  ADD CONSTRAINT `animals_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`);
+
+--
+-- Constraints for table `animal_details`
+--
+ALTER TABLE `animal_details`
+  ADD CONSTRAINT `fk_animal_details_animal` FOREIGN KEY (`animal_id`) REFERENCES `animals` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_animal_details_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_animal_shareholder` FOREIGN KEY (`shareholder_id`) REFERENCES `order_shareholders` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `delivery_requests`
+--
+ALTER TABLE `delivery_requests`
+  ADD CONSTRAINT `fk_admin_user` FOREIGN KEY (`admin_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_delivery_user` FOREIGN KEY (`delivery_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `orders`
+--
+ALTER TABLE `orders`
+  ADD CONSTRAINT `fk_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `order_shareholders`
+--
+ALTER TABLE `order_shareholders`
+  ADD CONSTRAINT `order_shareholders_ibfk_2` FOREIGN KEY (`animal_id`) REFERENCES `animals` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ratings`
+--
+ALTER TABLE `ratings`
+  ADD CONSTRAINT `fk_rating_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_rating_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_rating_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `requests`
+--
+ALTER TABLE `requests`
+  ADD CONSTRAINT `fk_request_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_request_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `shareholder_details`
+--
+ALTER TABLE `shareholder_details`
+  ADD CONSTRAINT `shareholder_details_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
