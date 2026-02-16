@@ -140,7 +140,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                           color: AppTheme.bgGradientEnd,
                         ),
                         title: const Text(
-                          "Admin Profile",
+                          "Qassab Profile",
                           style: TextStyle(color: AppTheme.bgGradientEnd),
                         ),
                       ),
@@ -199,7 +199,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          "Verified Admin",
+                          "Verified Qassab",
                           style: TextStyle(color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
