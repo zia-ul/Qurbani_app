@@ -9,7 +9,7 @@ import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/services/currency_service.dart';
 import 'wrapper_screen.dart';
 import 'theme/theme.dart';
-
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
@@ -87,9 +87,19 @@ void main() async {
     ),
   ], debug: true);
 
+  /// ✅ Initialize OneSignal FIRST
+  OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+
+  OneSignal.initialize(
+    dotenv.env['APP_ID_ONE_SIGNAL']!,
+  );
+
+  await OneSignal.Notifications.requestPermission(true);
+
   runApp(
     ChangeNotifierProvider(create: (_) => CurrencyNotifier(), child: MyApp()),
   );
+
 }
 
 class MyApp extends StatelessWidget {

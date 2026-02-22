@@ -358,6 +358,8 @@ router.post("/", authMiddleware, async (req, res) => {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
+  console.log("Creating order with data", req.body);
+
   const connection = await pool.getConnection();
 
   try {
@@ -419,6 +421,33 @@ router.post("/", authMiddleware, async (req, res) => {
     );
 
     await connection.commit();
+
+    // SEND PUSH HERE (after successful commit)
+
+    try {
+      const [devices] = await pool.query(
+        `SELECT subscription_id 
+     FROM user_devices 
+     WHERE user_id = ? 
+     AND role IN ('admin', 'super_admin')`,
+        [adminId],
+      );
+
+      const subscriptionIds = devices.map((d) => d.subscription_id);
+
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "🩸 New Qurbani Order",
+          `New order #${orderId} has been placed.`,
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Push notification failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
 
     res.status(201).json({
       message: "Order placed successfully",

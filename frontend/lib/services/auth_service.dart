@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_model.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 /**
  * AuthService Class
@@ -25,7 +26,6 @@ class AuthService {
 
   // GET CURRENT USER (with token)
   static Future<UserModel?> getCurrentUser() async {
-
     final token = await _storage.read(key: 'token');
 
     if (token == null) {
@@ -36,7 +36,6 @@ class AuthService {
       Uri.parse('$_baseUrl/auth/me'),
       headers: {'Authorization': 'Bearer $token'},
     );
-
 
     if (res.statusCode != 200) {
       await _storage.delete(key: 'token');
@@ -64,13 +63,11 @@ class AuthService {
    * @throws Exception if registration fails with server error message
    */
   static Future<void> register(Map<String, dynamic> data) async {
-
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(data),
     );
-
 
     if (res.statusCode != 201) {
       final msg = jsonDecode(res.body)['message'] ?? 'Registration failed';
@@ -89,8 +86,34 @@ class AuthService {
    * @return UserModel containing authenticated user information
    * @throws Exception if login fails with server error message
    */
-  static Future<UserModel> login(Map<String, dynamic> data) async {
+  // static Future<UserModel> login(Map<String, dynamic> data) async {
+  //   final res = await http.post(
+  //     Uri.parse('$_baseUrl/auth/login'),
+  //     headers: {'Content-Type': 'application/json'},
+  //     body: jsonEncode(data),
+  //   );
 
+  //   if (res.statusCode != 200) {
+  //     final msg = jsonDecode(res.body)['message'] ?? 'Login failed';
+  //     throw Exception(msg);
+  //   }
+
+  //   final body = jsonDecode(res.body);
+  //   final token = body['token'];
+  //   final user = body['user'];
+
+  //   if (token != null) {
+  //     await _storage.write(key: 'token', value: token);
+  //     await _storage.write(key: 'userId', value: user['id'].toString());
+  //   }
+
+  //   /// Initialize OneSignal observer AFTER login
+  //   _initOneSignalObserver(token, user);
+
+  //   return UserModel.fromJson(user);
+  // }
+
+  static Future<UserModel> login(Map<String, dynamic> data) async {
     final res = await http.post(
       Uri.parse('$_baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
@@ -103,17 +126,102 @@ class AuthService {
     }
 
     final body = jsonDecode(res.body);
-
-    // Save JWT token securely
     final token = body['token'];
     final user = body['user'];
-    if (token != null) {
-      await _storage.write(key: 'token', value: token);
-      await _storage.write(key: 'userId', value: user['id']);
+
+    await _storage.write(key: 'token', value: token);
+    await _storage.write(key: 'userId', value: user['id'].toString());
+
+    /// 🔥 IMPORTANT — Link OneSignal user
+    await OneSignal.login(user['id'].toString());
+
+    /// 🔥 Register device immediately
+    await _registerDeviceIfAvailable(token, user);
+
+    /// 🔥 Listen for future subscription changes
+    _attachSubscriptionObserver(token, user);
+
+    return UserModel.fromJson(user);
+  }
+
+  static Future<void> _registerDeviceIfAvailable(
+    String token,
+    dynamic user,
+  ) async {
+    final subscription = OneSignal.User.pushSubscription;
+
+    final subscriptionId = subscription.id;
+    final optedIn = subscription.optedIn ?? false;
+
+    print("Immediate subscription check: id=$subscriptionId optedIn=$optedIn");
+
+    if (subscriptionId != null && optedIn) {
+      await _registerDevice(token, user, subscriptionId);
+    }
+  }
+
+  static void _attachSubscriptionObserver(String token, dynamic user) {
+    OneSignal.User.pushSubscription.addObserver((state) async {
+      final id = state.current.id;
+      final optedIn = state.current.optedIn ?? false;
+
+      print("Subscription changed: id=$id optedIn=$optedIn");
+
+      if (id != null && optedIn) {
+        await _registerDevice(token, user, id);
+      }
+    });
+  }
+
+  static Future<void> _initOneSignalObserver(String token, dynamic user) async {
+    final subscription = OneSignal.User.pushSubscription;
+
+    final subscriptionId = subscription.id;
+    final optedIn = subscription.optedIn ?? false;
+
+    print("Initial subscription check: id=$subscriptionId optedIn=$optedIn");
+
+    // ✅ Register immediately if already available
+    if (subscriptionId != null && optedIn) {
+      await _registerDevice(token, user, subscriptionId);
     }
 
-    // Return user data
-    return UserModel.fromJson(user);
+    // ✅ Listen for future changes
+    subscription.addObserver((state) async {
+      final newId = state.current.id;
+      final newOptedIn = state.current.optedIn ?? false;
+
+      print("OneSignal subscription changed: id=$newId optedIn=$newOptedIn");
+
+      if (newId != null && newOptedIn) {
+        await _registerDevice(token, user, newId);
+      }
+    });
+  }
+
+  static Future<void> _registerDevice(
+    String token,
+    dynamic user,
+    String subscriptionId,
+  ) async {
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/notifications/save-device'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'user_id': user['id'],
+          'role': user['role'],
+          'subscription_id': subscriptionId,
+        }),
+      );
+
+      print("Device registered successfully");
+    } catch (e) {
+      print("Device registration failed: $e");
+    }
   }
 
   /**
@@ -125,6 +233,8 @@ class AuthService {
   static Future<void> logout() async {
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'userId');
+
+    await OneSignal.logout();
   }
 
   /**

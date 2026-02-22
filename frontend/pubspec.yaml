@@ -82,6 +82,7 @@ dependencies:
   dropdown_search: ^6.0.2
   country_state_city: ^0.1.6
   location: ^8.0.1
+  onesignal_flutter: ^5.4.1
 
 flutter_launcher_icons:
   android: true

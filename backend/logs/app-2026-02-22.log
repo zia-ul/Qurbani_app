@@ -1,0 +1,95 @@
+2026-02-22 00:10:11 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.1.3"}
+2026-02-22 00:10:14 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.3"}
+2026-02-22 00:10:14 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 00:16:00 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.1.3"}
+2026-02-22 00:16:02 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.3"}
+2026-02-22 00:16:02 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 09:29:58 [info]: Application starting 
+2026-02-22 09:33:08 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.1.3"}
+2026-02-22 09:33:10 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.3"}
+2026-02-22 09:33:10 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 09:36:27 [info]: Application starting 
+2026-02-22 09:38:24 [info]: Application starting 
+2026-02-22 09:38:26 [info]: Application starting 
+2026-02-22 09:38:36 [info]: Application starting 
+2026-02-22 09:46:26 [info]: Application starting 
+2026-02-22 09:46:36 [info]: Application starting 
+2026-02-22 09:47:27 [info]: Application starting 
+2026-02-22 09:47:29 [info]: Application starting 
+2026-02-22 09:48:21 [info]: Application starting 
+2026-02-22 09:51:28 [info]: Application starting 
+2026-02-22 09:51:30 [info]: Application starting 
+2026-02-22 09:54:38 [info]: Application starting 
+2026-02-22 10:47:39 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.183.185"}
+2026-02-22 10:47:42 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 10:47:42 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:48:08 [info]: Application starting 
+2026-02-22 10:48:10 [info]: Application starting 
+2026-02-22 10:48:14 [info]: Application starting 
+2026-02-22 10:48:23 [info]: Application starting 
+2026-02-22 10:48:25 [info]: Application starting 
+2026-02-22 10:48:28 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.183.185"}
+2026-02-22 10:48:28 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:48:41 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.183.185"}
+2026-02-22 10:48:41 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-22 10:48:41 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-22 10:48:41 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 10:48:41 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:50:28 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.183.185"}
+2026-02-22 10:50:28 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:50:37 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.183.185"}
+2026-02-22 10:50:37 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-22 10:50:38 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-22 10:50:38 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 10:50:38 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:54:07 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.183.185"}
+2026-02-22 10:54:11 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 10:54:11 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:54:34 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.183.185"}
+2026-02-22 10:54:34 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:54:46 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.183.185"}
+2026-02-22 10:54:46 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-22 10:54:46 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-22 10:54:47 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 10:54:47 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:59:49 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.183.185"}
+2026-02-22 10:59:51 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 10:59:51 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 10:59:56 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.183.185"}
+2026-02-22 10:59:56 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:00:07 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.183.185"}
+2026-02-22 11:00:07 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-22 11:00:08 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-22 11:00:08 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.183.185"}
+2026-02-22 11:00:08 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 11:00:08 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:24:51 [info]: Incoming request {"method":"GET","url":"/api/users/currencies","ip":"192.168.183.185"}
+2026-02-22 11:24:54 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 11:24:54 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:24:58 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.183.185"}
+2026-02-22 11:24:58 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:25:10 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.183.185"}
+2026-02-22 11:25:10 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-22 11:25:10 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-22 11:25:11 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.183.185"}
+2026-02-22 11:25:11 [info]: Device registered {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"5f23b16c-9785-4beb-8428-4f1942f6cd46"}
+2026-02-22 11:25:11 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 11:25:11 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:28:11 [info]: Application starting 
+2026-02-22 11:28:20 [info]: Application starting 
+2026-02-22 11:28:24 [info]: Application starting 
+2026-02-22 11:28:26 [info]: Application starting 
+2026-02-22 11:32:15 [info]: Application starting 
+2026-02-22 11:32:22 [info]: Application starting 
+2026-02-22 11:32:24 [info]: Application starting 
+2026-02-22 11:32:29 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.183.185"}
+2026-02-22 11:32:29 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:32:39 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.183.185"}
+2026-02-22 11:32:39 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-02-22 11:32:39 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-02-22 11:32:39 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.183.185"}
+2026-02-22 11:32:39 [info]: Device updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"5f23b16c-9785-4beb-8428-4f1942f6cd46"}
+2026-02-22 11:32:39 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.183.185"}
+2026-02-22 11:32:39 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-02-22 11:38:58 [info]: Application starting 
+2026-02-22 11:39:01 [info]: Application starting 

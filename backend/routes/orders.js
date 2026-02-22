@@ -28,7 +28,7 @@ const logger = require("../middleware/logger");
 // Mount user order routes from controller
 router.use("/", require("../controllers/user_order"));
 // Mount admin order routes from controller
-router.use("/admin", require("../controllers/admin_order"));
+// router.use("/admin", require("../controllers/admin_order"));
 
 /**
  * @swagger

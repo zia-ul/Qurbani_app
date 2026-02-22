@@ -723,29 +723,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           ),
           const SizedBox(height: 15),
 
-          // SwitchListTile(
-          //   contentPadding: EdgeInsets.zero,
-          //   title: const Text(
-          //     "Use Live Location",
-          //     style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          //   ),
-          //   value: shareholder.useLiveLocation,
-          //   activeColor: AppTheme.primaryGreen,
-          //   onChanged: (val) async {
-          //     setState(() {
-          //       shareholder.useLiveLocation = val;
-          //       if (!val) {
-          //         shareholder.latitude = null;
-          //         shareholder.longitude = null;
-          //         shareholder.addressController.clear();
-          //       }
-          //     });
-
-          //     if (val) {
-          //       await _getLiveLocation(shareholder);
-          //     }
-          //   },
-          // ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text(
@@ -822,59 +799,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                   },
           ),
 
-          // if (!shareholder.useSavedAddress)
-          //   Padding(
-          //     padding: const EdgeInsets.only(bottom: 8),
-          //     child: OutlinedButton.icon(
-          //       icon: const Icon(Icons.home),
-          //       label: const Text("Use Saved Address"),
-          //       onPressed: () async {
-          //         final countryISO = _savedAddress!['country_iso'];
-
-          //         shareholder.states = await csc.getStatesOfCountry(countryISO);
-
-          //         final state = shareholder.states.firstWhere(
-          //           (s) => s.name == _savedAddress!['state'],
-          //         );
-
-          //         shareholder.cities = await csc.getStateCities(
-          //           state.countryCode,
-          //           state.isoCode,
-          //         );
-
-          //         final city = shareholder.cities.firstWhere(
-          //           (c) => c.name == _savedAddress!['city'],
-          //         );
-
-          //         setState(() {
-          //           shareholder.selectedCountryName = _savedAddress!['country'];
-          //           shareholder.countryISO = countryISO;
-          //           shareholder.selectedState = state;
-          //           shareholder.selectedCity = city;
-
-          //           shareholder.postalCodeController.text =
-          //               _savedAddress!['postal_code'] ?? '';
-          //           shareholder.addressController.text =
-          //               _savedAddress!['address'] ?? '';
-          //         });
-          //       },
-          //     ),
-          //   ),
-
-          // const SizedBox(height: 10),
-
-          // _customTextField(
-          //   controller: shareholder.addressController,
-          //   label: "Address",
-          //   icon: Icons.location_on_outlined,
-          //   enabled: !shareholder.useLiveLocation,
-          // ),
+          
           if (!shareholder.useSavedAddress) ...[
-            // _customTextField(
-            //   controller: shareholder.addressController,
-            //   label: "Address",
-            //   icon: Icons.location_on,
-            // ),
+
             InkWell(
               onTap: () {
                 showCountryPicker(
@@ -980,78 +907,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               icon: Icons.markunread_mailbox,
             ),
 
-            // const SizedBox(height: 15),
-            // DropdownButtonFormField<String>(
-            //   value: shareholder.selectedAnimalId,
-            //   isExpanded: true,
-            //   decoration: InputDecoration(
-            //     labelText: "Select Animal",
-            //     // prefixIcon: const Icon(
-            //     //   Icons.online_prediction_rounded,
-            //     //   color: AppTheme.primaryGreen,
-            //     //   size: 20,
-            //     // ),
-            //     filled: true,
-            //     fillColor: const Color(0xffF8F9FA), // SAME as text fields
-            //     border: OutlineInputBorder(
-            //       borderRadius: BorderRadius.circular(12),
-            //       borderSide: BorderSide.none,
-            //     ),
-            //     focusedBorder: OutlineInputBorder(
-            //       borderRadius: BorderRadius.circular(12),
-            //       borderSide: BorderSide(color: AppTheme.primaryGreen),
-            //     ),
-            //   ),
-            //   hint: const Text("Choose an animal"),
-            //   items: _animals.map((animal) {
-            //     final basePrice =
-            //         double.tryParse(animal['price'].toString()) ?? 0.0;
-            //     final convertedPrice = currency.convert(basePrice);
-
-            //     return DropdownMenuItem<String>(
-            //       value: animal['id'],
-            //       child: Text(
-            //         "${animal['animal_type']} - "
-            //         "${currency.currency} ${convertedPrice.toStringAsFixed(2)}",
-            //       ),
-            //     );
-            //   }).toList(),
-            //   onChanged: (value) {
-            //     setState(() {
-            //       shareholder.selectedAnimalId = value;
-            //     });
-            //   },
-            // ),
-            // const SizedBox(height: 20),
-            // Text(
-            //   "Select Qurbani Day",
-            //   style: TextStyle(
-            //     fontSize: 12,
-            //     fontWeight: FontWeight.w600,
-            //     color: Colors.black54,
-            //   ),
-            // ),
-            // const SizedBox(height: 8),
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //   children: ['Day 1', 'Day 2', 'Day 3'].map((day) {
-            //     bool isSelected = shareholder.qurbaniDay == day;
-            //     return ChoiceChip(
-            //       label: Text(day),
-            //       selected: isSelected,
-            //       selectedColor: AppTheme.primaryGreen,
-            //       onSelected: (_) =>
-            //           setState(() => shareholder.qurbaniDay = day),
-            //       labelStyle: TextStyle(
-            //         color: isSelected ? AppTheme.bgGradientEnd : Colors.black,
-            //       ),
-            //       backgroundColor: Colors.grey[100],
-            //       shape: RoundedRectangleBorder(
-            //         borderRadius: BorderRadius.circular(8),
-            //       ),
-            //     );
-            //   }).toList(),
-            // ),
           ],
           Text(
             "Select Qurbani Day",
@@ -1440,33 +1295,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         return;
       }
 
-      // // ✅ Country required (when not using live location)
-      // if (s.countryISO == null) {
-      //   Fluttertoast.showToast(
-      //     msg: "Please select a country",
-      //     backgroundColor: AppTheme.warningRed,
-      //   );
-      //   return;
-      // }
-
-      // // ✅ State required IF states are available
-      // if (s.states.isNotEmpty && s.selectedState == null) {
-      //   Fluttertoast.showToast(
-      //     msg: "Please select a state",
-      //     backgroundColor: AppTheme.warningRed,
-      //   );
-      //   return;
-      // }
-
-      // // ✅ City required IF cities are available
-      // if (s.cities.isNotEmpty && s.selectedCity == null) {
-      //   Fluttertoast.showToast(
-      //     msg: "Please select a city",
-      //     backgroundColor: AppTheme.warningRed,
-      //   );
-      //   return;
-      // }
-
+     
       // 🔐 Skip address validation when using saved address
       if (!s.useSavedAddress) {
         if (s.countryISO == null) {
@@ -1508,16 +1337,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           'guardianName': s.guardianController.text.trim(),
           'qurbaniDay': s.qurbaniDay,
 
-          // 'address': {
-          //   'country': s.selectedCountryName,
-          //   'country_iso': s.countryISO,
-          //   'state': s.selectedState?.name,
-          //   'city': s.selectedCity?.name,
-          //   'postal_code': s.postalCodeController.text.trim(),
-          //   'address_line': s.addressController.text.trim(),
-          //   // 'latitude': s.latitude,
-          //   // 'longitude': s.longitude,
-          // },
           'address': _buildAddress(s),
 
           'price': pricePerShare + _lateFeePerShare,
