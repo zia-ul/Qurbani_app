@@ -75,43 +75,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Authenticates user credentials and establishes session
-   *
-   * Sends login request to /auth/login endpoint with email/password.
-   * On success, securely stores JWT token and user ID, then returns user data.
-   * Used by login screen to authenticate users and start sessions.
-   *
-   * @param data Map containing 'email' and 'password' keys
-   * @return UserModel containing authenticated user information
-   * @throws Exception if login fails with server error message
-   */
-  // static Future<UserModel> login(Map<String, dynamic> data) async {
-  //   final res = await http.post(
-  //     Uri.parse('$_baseUrl/auth/login'),
-  //     headers: {'Content-Type': 'application/json'},
-  //     body: jsonEncode(data),
-  //   );
-
-  //   if (res.statusCode != 200) {
-  //     final msg = jsonDecode(res.body)['message'] ?? 'Login failed';
-  //     throw Exception(msg);
-  //   }
-
-  //   final body = jsonDecode(res.body);
-  //   final token = body['token'];
-  //   final user = body['user'];
-
-  //   if (token != null) {
-  //     await _storage.write(key: 'token', value: token);
-  //     await _storage.write(key: 'userId', value: user['id'].toString());
-  //   }
-
-  //   /// Initialize OneSignal observer AFTER login
-  //   _initOneSignalObserver(token, user);
-
-  //   return UserModel.fromJson(user);
-  // }
 
   static Future<UserModel> login(Map<String, dynamic> data) async {
     final res = await http.post(

@@ -152,7 +152,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Future<void> _fetchOrderDetails() async {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
-
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
     } finally {
@@ -213,7 +212,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
           "Content-Type": "application/json",
         },
       );
-
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -287,34 +285,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
         await _fetchOrderDetails();
       } else {
         ToastUtils.showError("Failed to schedule");
-      }
-    } catch (e) {
-      ToastUtils.showError("Something went wrong");
-    }
-  }
-
-  Future<void> _assignDeliveryToShareholder(
-    String shareholderId,
-    String deliveryBoyId,
-  ) async {
-    try {
-      final token = await _storage.read(key: 'token');
-      if (token == null) return;
-
-      final response = await http.post(
-        Uri.parse("$_baseUrl/shareholders/$shareholderId/assign-delivery"),
-        headers: {
-          "Authorization": "Bearer $token",
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({"delivery_person_id": deliveryBoyId}),
-      );
-
-      if (response.statusCode == 200) {
-        ToastUtils.showSuccess("Delivery assigned successfully");
-        await _fetchOrderDetails();
-      } else {
-        ToastUtils.showError("Failed to assign delivery");
       }
     } catch (e) {
       ToastUtils.showError("Something went wrong");
@@ -406,7 +376,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Widget _shareholderFlowCard(Map<String, dynamic> shareholder) {
     final String shareholderId = shareholder['id'];
 
-
     final String paymentStatus = shareholder['payment_status'] ?? 'unpaid';
     final bool isPaid = paymentStatus == 'paid';
 
@@ -416,6 +385,13 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     final DateTime? schedule = shareholder['qurbani_datetime'] != null
         ? DateTime.parse(shareholder['qurbani_datetime'])
         : null;
+    final allowedStatuses = ['pending', 'sent', 'delivered'];
+
+    final String? rawStatus = shareholder['delivery_status'];
+
+    final String? safeValue = allowedStatuses.contains(rawStatus)
+        ? rawStatus
+        : 'pending';
 
     // final String? deliveryPersonId = shareholder['delivery_person_id'];
     final deliveryStatus = shareholder['delivery_status'] ?? 'pending';
@@ -733,7 +709,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
             /// ================= STEP 4 DELIVERY =================
             if (isPaid && hasAnimal && schedule != null) ...[
               DropdownButtonFormField<String>(
-                value: shareholder['delivery_status'] ?? 'pending',
+                value: safeValue,
                 decoration: const InputDecoration(
                   labelText: 'Delivery Status',
                   border: OutlineInputBorder(),
@@ -751,7 +727,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
                 ],
                 onChanged: (value) async {
                   if (value == null) return;
-
                   await _updateDeliveryStatus(shareholderId, value);
                 },
               ),
@@ -800,6 +775,9 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     String status,
   ) async {
     final token = await _storage.read(key: 'token');
+
+    print("ffff shareholder");
+    print(token);
 
     await http.post(
       Uri.parse("$_baseUrl/shareholders/$shareholderId/payment"),

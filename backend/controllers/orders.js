@@ -26,6 +26,7 @@ const { v4: uuidv4 } = require("uuid");
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
+const { sendPushNotification } = require("../utils/notification_service");
 
 router.get("/my", authMiddleware, async (req, res) => {
   const userId = req.user.id;
@@ -202,7 +203,20 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // Update animal_details with order_id
+    // 🔍 Get order to fetch user_id
+    const [orderRows] = await connection.query(
+      `SELECT user_id FROM orders WHERE id = ?`,
+      [orderId],
+    );
+
+    if (orderRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const userId = orderRows[0].user_id;
+
+    // ✅ Assign share (animal_details)
     await connection.query(
       `UPDATE animal_details 
        SET order_id = ?
@@ -211,15 +225,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
       [orderId, animalId],
     );
 
-    // Update order with animal_id
-    // await connection.query(
-    //   `UPDATE orders
-    //    SET animal_id = ?
-    //    WHERE id = ?`,
-    //   [animalId, orderId]
-    // );
-
-    // Count assigned shares
+    // ✅ Count assigned shares
     const [assignedRows] = await connection.query(
       `SELECT COUNT(*) as totalAssigned
        FROM animal_details
@@ -229,7 +235,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
     const totalAssigned = assignedRows[0].totalAssigned;
 
-    // Get total shares of animal
+    // ✅ Get total shares
     const [animalRows] = await connection.query(
       `SELECT shares FROM animals WHERE id = ?`,
       [animalId],
@@ -237,7 +243,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
     const totalShares = animalRows[0].shares;
 
-    // If fully booked → mark as sold
+    // ✅ If fully booked → mark sold
     if (totalAssigned >= totalShares) {
       await connection.query(
         `UPDATE animals 
@@ -249,15 +255,46 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
     await connection.commit();
 
+    // 🔔 SEND PUSH TO USER (after commit)
+    try {
+      const [devices] = await connection.query(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ?`,
+        [userId],
+      );
+
+      const subscriptionIds = devices.map((d) => d.subscription_id);
+
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "🐄 Animal Assigned",
+          "Your Qurbani animal has been successfully assigned.",
+          {
+            type: "ANIMAL_ASSIGNED",
+            orderId: orderId,
+          },
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Animal assignment push failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
+
     res.json({ message: "Animal assigned successfully" });
   } catch (error) {
     await connection.rollback();
+
     logger.error("Animal assignment failed", {
       orderId,
       animalId,
       error: error.message,
       stack: error.stack,
     });
+
     res.status(500).json({ message: "Failed to assign animal" });
   } finally {
     connection.release();
@@ -277,12 +314,14 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
     // Fetch order & validate
     const [rows] = await pool.execute(
       `
-      SELECT id, payment_method, payment_status, processing_status
+      SELECT id, user_id, payment_method, payment_status, processing_status
       FROM orders
       WHERE id = ? AND admin_id = ?
       `,
       [orderId, adminId],
     );
+
+    console.log("Order fetch result for marking paid:", rows);
 
     if (rows.length === 0) {
       return res.status(404).json({
@@ -304,28 +343,52 @@ router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
       });
     }
 
-    // Update order
-    // await pool.execute(
-    //   `
-    //   UPDATE orders
-    //   SET payment_status = 'paid',
-    //       processing_status = 'completed'
-    //   WHERE id = ?
-    //   `,
-    //   [orderId],
-    // );
-
+    // ✅ Update order
     await pool.execute(
       `
       UPDATE orders
       SET payment_status = 'paid',
-      processing_status = 'pending'
+          processing_status = 'pending'
       WHERE id = ?
       `,
       [orderId],
     );
 
     logger.info("COD order marked as paid", { orderId });
+
+    // 🔔 SEND PUSH TO USER (do not block API)
+    try {
+      const [devices] = await pool.execute(
+        `
+        SELECT subscription_id
+        FROM user_devices
+        WHERE user_id = ?
+        `,
+        [order.user_id],
+      );
+
+      const subscriptionIds = devices.map((d) => d.subscription_id);
+      console.log(
+        "Payment confirmation - user subscription IDs:",
+        subscriptionIds,
+      );
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "💳 Payment Confirmed",
+          "Your Qurbani order payment has been confirmed.",
+          {
+            type: "PAYMENT_CONFIRMED",
+            orderId: orderId,
+          },
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Payment push failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
 
     res.json({
       message: "Order marked as paid successfully",
@@ -358,8 +421,6 @@ router.post("/", authMiddleware, async (req, res) => {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  console.log("Creating order with data", req.body);
-
   const connection = await pool.getConnection();
 
   try {
@@ -367,7 +428,7 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const orderId = uuidv4();
 
-    // ✅ Create order
+    // Create order
     await connection.execute(
       `
       INSERT INTO orders
@@ -384,7 +445,7 @@ router.post("/", authMiddleware, async (req, res) => {
       ],
     );
 
-    // ✅ Insert shareholders WITH ADDRESS (NO animal_id)
+    // Insert shareholders
     await connection.query(
       `
       INSERT INTO shareholder_details
@@ -422,14 +483,12 @@ router.post("/", authMiddleware, async (req, res) => {
 
     await connection.commit();
 
-    // SEND PUSH HERE (after successful commit)
-
+    // 🔥 Send push AFTER commit
     try {
-      const [devices] = await pool.query(
+      const [devices] = await connection.query(
         `SELECT subscription_id 
-     FROM user_devices 
-     WHERE user_id = ? 
-     AND role IN ('admin', 'super_admin')`,
+          FROM user_devices 
+          WHERE user_id = ?`,
         [adminId],
       );
 
@@ -438,14 +497,17 @@ router.post("/", authMiddleware, async (req, res) => {
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
           subscriptionIds,
-          "🩸 New Qurbani Order",
+          "New Qurbani Order",
           `New order #${orderId} has been placed.`,
+          { type: "NEW_ORDER", orderId },
         );
       }
     } catch (pushErr) {
       logger.error("Push notification failed", {
         orderId,
-        error: pushErr.message,
+        status: pushErr.response?.status,
+        data: pushErr.response?.data,
+        message: pushErr.message,
       });
     }
 
@@ -455,12 +517,14 @@ router.post("/", authMiddleware, async (req, res) => {
     });
   } catch (err) {
     await connection.rollback();
+
     logger.error("Order creation failed", {
       userId,
       adminId,
       error: err.message,
       stack: err.stack,
     });
+
     res.status(500).json({ message: err.message || "Something went wrong" });
   } finally {
     connection.release();
@@ -539,7 +603,20 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // Update animal_details
+    // 🔍 Get order to fetch user_id
+    const [orderRows] = await conn.execute(
+      `SELECT user_id FROM orders WHERE id = ?`,
+      [orderId],
+    );
+
+    if (orderRows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const userId = orderRows[0].user_id;
+
+    // ✅ Update animal_details
     const [animalResult] = await conn.execute(
       `UPDATE animal_details
          SET qurbani_datetime = ?
@@ -554,11 +631,11 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
       });
     }
 
-    //  Update order status
+    // ✅ Update order status
     const [orderResult] = await conn.execute(
       `UPDATE orders
-   SET processing_status = 'confirmed'
-   WHERE id = ?`,
+         SET processing_status = 'confirmed'
+         WHERE id = ?`,
       [orderId],
     );
 
@@ -571,13 +648,48 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
 
     await conn.commit();
 
+    // 🔔 SEND PUSH TO USER (after commit)
+    try {
+      const [devices] = await pool.execute(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ?`,
+        [userId],
+      );
+
+      const subscriptionIds = devices.map((d) => d.subscription_id);
+
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "🕋 Qurbani Scheduled",
+          "Your Qurbani has been successfully scheduled.",
+          {
+            type: "QURBANI_SCHEDULED",
+            orderId: orderId,
+            qurbani_time,
+          },
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Schedule push failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
+
     res.json({
       message: "Qurbani scheduled successfully",
       processing_status: "confirmed",
     });
   } catch (err) {
     await conn.rollback();
-    logger.error("Schedule update failed", err);
+    logger.error("Schedule update failed", {
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Failed to update schedule" });
   } finally {
     conn.release();
@@ -633,6 +745,19 @@ router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
   }
 
   try {
+    // 🔍 Get order to fetch user_id
+    const [orderRows] = await pool.execute(
+      `SELECT user_id FROM orders WHERE id = ?`,
+      [orderId],
+    );
+
+    if (orderRows.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const userId = orderRows[0].user_id;
+
+    // ✅ Assign delivery person
     const [result] = await pool.execute(
       `UPDATE orders
          SET delivery_person_id = ?
@@ -644,9 +769,72 @@ router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
+    // 🔔 Notify Delivery Person
+    try {
+      const [deliveryDevices] = await pool.execute(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ?`,
+        [delivery_person_id],
+      );
+
+      const deliverySubs = deliveryDevices.map((d) => d.subscription_id);
+
+      if (deliverySubs.length > 0) {
+        await sendPushNotification(
+          deliverySubs,
+          "🚚 New Delivery Assigned",
+          "A new Qurbani order has been assigned to you.",
+          {
+            type: "DELIVERY_ASSIGNED",
+            orderId,
+          },
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Delivery person push failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
+
+    // 🔔 (Optional) Notify User
+    try {
+      const [userDevices] = await pool.execute(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ?`,
+        [userId],
+      );
+
+      const userSubs = userDevices.map((d) => d.subscription_id);
+
+      if (userSubs.length > 0) {
+        await sendPushNotification(
+          userSubs,
+          "📦 Delivery Assigned",
+          "Your Qurbani order is out for delivery.",
+          {
+            type: "DELIVERY_STARTED",
+            orderId,
+          },
+        );
+      }
+    } catch (pushErr) {
+      logger.error("User delivery push failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
+
     res.json({ message: "Delivery assigned successfully" });
   } catch (err) {
-    logger.error("Delivery assignment failed", err);
+    logger.error("Delivery assignment failed", {
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+
     res.status(500).json({ message: "Failed to assign delivery" });
   }
 });

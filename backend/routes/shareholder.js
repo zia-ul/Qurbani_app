@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
+const { sendPushNotification } = require("../utils/notification_service");
 
 /**
  * @swagger
@@ -53,23 +54,77 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
   }
 
   try {
+    // 🔍 Get shareholder + order_id
     const [rows] = await pool.execute(
-      "SELECT * FROM shareholder_details WHERE id = ?",
-      [id],
+      `SELECT id, order_id 
+       FROM shareholder_details 
+       WHERE id = ?`,
+      [id]
     );
 
     if (!rows.length) {
       return res.status(404).json({ message: "Shareholder not found" });
     }
 
+    const orderId = rows[0].order_id;
+
+    // 🔍 Get user_id from order
+    const [orderRows] = await pool.execute(
+      `SELECT user_id FROM orders WHERE id = ?`,
+      [orderId]
+    );
+
+    if (!orderRows.length) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const userId = orderRows[0].user_id;
+
+    // ✅ Update payment status
     await pool.execute(
       `UPDATE shareholder_details
          SET payment_status = ?
          WHERE id = ?`,
-      [payment_status, id],
+      [payment_status, id]
     );
 
+    console.log("Shareholder payment updated");
+
+    // 🔔 SEND PUSH TO USER
+    try {
+      const [devices] = await pool.execute(
+        `SELECT subscription_id 
+         FROM user_devices 
+         WHERE user_id = ?`,
+        [userId]
+      );
+
+      const subscriptionIds = devices.map(d => d.subscription_id);
+
+      console.log("Payment update - user subscription IDs:", subscriptionIds);
+
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "Payment Status Updated",
+          `Your shareholder payment status is now '${payment_status}'.`,
+          {
+            type: "SHAREHOLDER_PAYMENT_UPDATED",
+            orderId,
+            shareholderId: id,
+            payment_status,
+          }
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Shareholder payment push failed", {
+        shareholderId: id,
+        error: pushErr.message,
+      });
+    }
+
     res.json({ message: "Payment updated successfully" });
+
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
@@ -129,20 +184,21 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
       [id],
     );
 
+    if (!shareholders.length) {
+      return res.status(404).json({ message: "Shareholder not found" });
+    }
+
     if (shareholders[0].payment_status !== "paid") {
       return res
         .status(400)
         .json({ message: "Payment must be completed before assigning animal" });
     }
 
-    if (!shareholders.length) {
-      return res.status(404).json({ message: "Shareholder not found" });
-    }
-
     // Check animal
-    const [animals] = await pool.execute("SELECT * FROM animals WHERE id = ?", [
-      animal_id,
-    ]);
+    const [animals] = await pool.execute(
+      "SELECT * FROM animals WHERE id = ?",
+      [animal_id],
+    );
 
     if (!animals.length) {
       return res.status(404).json({ message: "Animal not found" });
@@ -157,8 +213,8 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
     // Count already assigned shares for this animal
     const [countResult] = await pool.execute(
       `SELECT COUNT(*) as count 
-   FROM shareholder_details 
-   WHERE animal_id = ?`,
+       FROM shareholder_details 
+       WHERE animal_id = ?`,
       [animal_id],
     );
 
@@ -172,15 +228,50 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
       [animal_id, shareNumber, id],
     );
 
-    // Decrease animal remaining shares
-    // await pool.execute(
-    //   `UPDATE animals
-    //      SET remaining_shares = remaining_shares - 1
-    //      WHERE id = ?`,
-    //   [animal_id],
-    // );
+    // 🔔 =========================
+    // 🔔 ADD NOTIFICATION HERE
+    // 🔔 =========================
+    try {
+      const orderId = shareholders[0].order_id;
+
+      const [orderRows] = await pool.execute(
+        `SELECT user_id FROM orders WHERE id = ?`,
+        [orderId],
+      );
+
+      if (orderRows.length) {
+        const userId = orderRows[0].user_id;
+
+        const [devices] = await pool.execute(
+          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+          [userId],
+        );
+
+        const subscriptionIds = devices.map(d => d.subscription_id);
+
+        if (subscriptionIds.length > 0) {
+          await sendPushNotification(
+            subscriptionIds,
+            "🐄 Animal Assigned",
+            "Your Qurbani animal has been successfully assigned.",
+            {
+              type: "SHAREHOLDER_ANIMAL_ASSIGNED",
+              orderId,
+              shareholderId: id,
+              animal_id,
+            }
+          );
+        }
+      }
+    } catch (pushErr) {
+      logger.error("Assign animal push failed", {
+        shareholderId: id,
+        error: pushErr.message,
+      });
+    }
 
     res.json({ message: "Animal assigned successfully" });
+
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
@@ -229,14 +320,13 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
  *       500:
  *         description: Something went wrong
  */
-
 router.post("/:id/schedule", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { qurbani_datetime } = req.body;
 
   try {
     const [rows] = await pool.execute(
-      "SELECT animal_id FROM shareholder_details WHERE id = ?",
+      "SELECT animal_id, order_id FROM shareholder_details WHERE id = ?",
       [id],
     );
 
@@ -257,7 +347,50 @@ router.post("/:id/schedule", authMiddleware, async (req, res) => {
       [qurbani_datetime, id],
     );
 
+    // 🔔 =========================
+    // 🔔 ADD NOTIFICATION HERE
+    // 🔔 =========================
+    try {
+      const orderId = rows[0].order_id;
+
+      const [orderRows] = await pool.execute(
+        `SELECT user_id FROM orders WHERE id = ?`,
+        [orderId],
+      );
+
+      if (orderRows.length) {
+        const userId = orderRows[0].user_id;
+
+        const [devices] = await pool.execute(
+          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+          [userId],
+        );
+
+        const subscriptionIds = devices.map(d => d.subscription_id);
+
+        if (subscriptionIds.length > 0) {
+          await sendPushNotification(
+            subscriptionIds,
+            "🕋 Qurbani Scheduled",
+            "Your Qurbani has been successfully completed.",
+            {
+              type: "SHAREHOLDER_QURBANI_COMPLETED",
+              orderId,
+              shareholderId: id,
+              qurbani_datetime,
+            }
+          );
+        }
+      }
+    } catch (pushErr) {
+      logger.error("Schedule push failed", {
+        shareholderId: id,
+        error: pushErr.message,
+      });
+    }
+
     res.json({ message: "Qurbani scheduled successfully" });
+
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
@@ -304,7 +437,6 @@ router.post("/:id/schedule", authMiddleware, async (req, res) => {
  *       500:
  *         description: Something went wrong
  */
-
 router.post(
   "/:shareholderId/delivery-status",
   authMiddleware,
@@ -360,15 +492,19 @@ router.post(
         (s) => s.delivery_status === "delivered"
       );
 
-      // Check order payment status
+      // Check order payment status + get user_id
       const [orderRows] = await connection.execute(
-        `SELECT payment_status FROM orders WHERE id = ?`,
+        `SELECT payment_status, user_id FROM orders WHERE id = ?`,
         [orderId]
       );
 
       const isPaid =
         orderRows.length &&
         orderRows[0].payment_status === "paid";
+
+      const userId = orderRows[0]?.user_id;
+
+      let orderCompleted = false;
 
       // If fully delivered + paid → mark order completed
       if (allDelivered && isPaid) {
@@ -381,10 +517,75 @@ router.post(
           [orderId]
         );
 
+        orderCompleted = true;
+
         logger.info("Order auto-completed", { orderId });
       }
 
       await connection.commit();
+
+      // 🔔 =============================
+      // 🔔 SEND PUSH AFTER COMMIT
+      // 🔔 =============================
+      try {
+        if (userId) {
+          const [devices] = await pool.execute(
+            `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+            [userId]
+          );
+
+          const subscriptionIds = devices.map(d => d.subscription_id);
+
+          if (subscriptionIds.length > 0) {
+
+            // 🚚 Sent for delivery
+            if (delivery_status === "sent") {
+              await sendPushNotification(
+                subscriptionIds,
+                "🚚 On The Way",
+                "Your Qurbani meat has been sent for delivery.",
+                {
+                  type: "DELIVERY_SENT",
+                  orderId,
+                  shareholderId,
+                }
+              );
+            }
+
+            // 📦 Delivered
+            if (delivery_status === "delivered") {
+              await sendPushNotification(
+                subscriptionIds,
+                "📦 Delivered Successfully",
+                "Your Qurbani meat has been delivered.",
+                {
+                  type: "DELIVERY_COMPLETED",
+                  orderId,
+                  shareholderId,
+                }
+              );
+            }
+
+            // 🎉 Order completed
+            if (orderCompleted) {
+              await sendPushNotification(
+                subscriptionIds,
+                "🎉 Order Completed",
+                "Your entire Qurbani order has been completed successfully.",
+                {
+                  type: "ORDER_COMPLETED",
+                  orderId,
+                }
+              );
+            }
+          }
+        }
+      } catch (pushErr) {
+        logger.error("Delivery notification failed", {
+          shareholderId,
+          error: pushErr.message,
+        });
+      }
 
       res.json({
         message: "Delivery status updated successfully",
