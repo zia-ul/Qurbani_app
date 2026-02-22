@@ -21,6 +21,7 @@ const router = express.Router();
 const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
+const { sendPushNotification } = require("../utils/notification_service");
 
 /**
  * @swagger
@@ -91,18 +92,16 @@ router.post("/", auth, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
 
   // Security check: Ensure the authenticated user can only submit requests for themselves
-  // This prevents users from submitting requests on behalf of other users
   if (req.user.id !== userId) {
     logger.warn("Unauthorized request submission attempt", {
-      authUserId: req.user.id,      // Who is actually logged in
-      bodyUserId: userId,           // Who the request claims to be from
+      authUserId: req.user.id,
+      bodyUserId: userId,
       orderId,
     });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   // Validation: Ensure all required fields are provided
-  // This prevents incomplete requests from being submitted
   if (!orderId || !title || !description) {
     logger.warn("Missing fields in request submission", {
       userId,
@@ -115,7 +114,6 @@ router.post("/", auth, async (req, res) => {
 
   try {
     // Insert the new request into the database
-    // Status is set to 'Pending' by default, awaiting admin review
     await pool.execute(
       `
       INSERT INTO requests (order_id, user_id, title, description, status)
@@ -123,6 +121,50 @@ router.post("/", auth, async (req, res) => {
       `,
       [orderId, userId, title, description]
     );
+
+    // ================================
+    // 🔔 SEND NOTIFICATION TO ADMINS
+    // ================================
+
+    // 1️⃣ Get all admin IDs
+    const [admins] = await pool.execute(
+      `SELECT id FROM users WHERE role = 'admin'`
+    );
+
+    const adminIds = admins.map((admin) => admin.id);
+
+    let adminSubscriptionIds = [];
+
+    if (adminIds.length > 0) {
+      // 2️⃣ Get all subscription IDs from user_devices
+      const [devices] = await pool.query(
+        `SELECT subscription_id 
+         FROM user_devices 
+         WHERE user_id IN (?) 
+         AND subscription_id IS NOT NULL`,
+        [adminIds]
+      );
+
+      adminSubscriptionIds = devices.map(
+        (device) => device.subscription_id
+      );
+    }
+
+    // 3️⃣ Send push notification
+    if (adminSubscriptionIds.length > 0) {
+      await sendPushNotification(
+        adminSubscriptionIds,
+        "New Special Request 📩",
+        `Order #${orderId} has a new request: ${title}`,
+        {
+          type: "special_request",
+          orderId,
+          userId,
+        }
+      );
+    }
+
+    // ================================
 
     // Log successful request submission for audit trail
     logger.info("Special request submitted successfully", {
@@ -134,8 +176,8 @@ router.post("/", auth, async (req, res) => {
 
     // Return success response to the client
     res.status(201).json({ message: "Request submitted successfully" });
+
   } catch (err) {
-    // Log the error with context for debugging
     logger.error("Error submitting special request", {
       userId,
       orderId,
@@ -144,11 +186,11 @@ router.post("/", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later."
+    });
   }
 });
-
 
 
 /**
@@ -426,15 +468,10 @@ router.get("/admin", auth, async (req, res) => {
  * Updates request status and timestamps accordingly
  */
 router.put("/admin/:requestId", auth, async (req, res) => {
-  // Extract request ID from URL parameters
   const { requestId } = req.params;
-  // Extract action and optional reply message from request body
   const { replyMessage, action } = req.body;
-  // Get authenticated admin's ID
   const adminId = req.user.id;
 
-  // Validation: Ensure action is provided and reply message exists for reply actions
-  // This prevents incomplete or invalid request updates
   if (!action || (action === "reply" && !replyMessage)) {
     logger.warn("Invalid admin request update attempt - missing required fields", {
       adminId,
@@ -446,41 +483,90 @@ router.put("/admin/:requestId", auth, async (req, res) => {
   }
 
   try {
-    // Initialize update fields object based on action type
     let updateFields = {};
 
-    // Handle "reply" action: Set reply message, update status, and timestamp
     if (action === "reply") {
       updateFields = {
-        reply_message: replyMessage,    // Store admin's response message
-        status: "Replied",              // Update status to indicate response given
-        replied_at: new Date(),         // Record when reply was made
+        reply_message: replyMessage,
+        status: "Replied",
+        replied_at: new Date(),
       };
-    }
-    // Handle "close" action: Update status and timestamp only
-    else if (action === "close") {
+    } else if (action === "close") {
       updateFields = {
-        status: "Closed",               // Mark request as resolved/closed
-        closed_at: new Date(),          // Record when request was closed
+        status: "Closed",
+        closed_at: new Date(),
       };
     }
 
-    // Build dynamic SQL SET clause from update fields
-    // This approach allows flexible field updates based on action type
     const setClause = Object.keys(updateFields)
-      .map((key) => `${key} = ?`)        // Create "field = ?" placeholders
-      .join(", ");                       // Join with commas
+      .map((key) => `${key} = ?`)
+      .join(", ");
 
-    // Prepare parameter values in correct order for prepared statement
     const values = [...Object.values(updateFields), requestId];
 
-    // Execute the update query with prepared parameters for security
     await pool.execute(
       `UPDATE requests SET ${setClause} WHERE id = ?`,
       values
     );
 
-    // Log successful admin action for audit trail
+    // 🔔 ==========================
+    // 🔔 SEND PUSH TO USER
+    // 🔔 ==========================
+    try {
+      // Get request details (user + order)
+      const [requestRows] = await pool.execute(
+        `SELECT user_id, order_id, title FROM requests WHERE id = ?`,
+        [requestId]
+      );
+
+      if (requestRows.length) {
+        const { user_id, order_id, title } = requestRows[0];
+
+        // Get user devices
+        const [devices] = await pool.execute(
+          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+          [user_id]
+        );
+
+        const subscriptionIds = devices.map(d => d.subscription_id);
+
+        if (subscriptionIds.length > 0) {
+
+          if (action === "reply") {
+            await sendPushNotification(
+              subscriptionIds,
+              "💬 Admin Replied",
+              `Your request "${title}" has been replied to.`,
+              {
+                type: "REQUEST_REPLIED",
+                requestId,
+                orderId: order_id,
+              }
+            );
+          }
+
+          if (action === "close") {
+            await sendPushNotification(
+              subscriptionIds,
+              "✅ Request Closed",
+              `Your request "${title}" has been closed.`,
+              {
+                type: "REQUEST_CLOSED",
+                requestId,
+                orderId: order_id,
+              }
+            );
+          }
+        }
+      }
+    } catch (pushErr) {
+      logger.error("Request notification failed", {
+        requestId,
+        action,
+        error: pushErr.message,
+      });
+    }
+
     logger.info("Admin successfully updated special request", {
       adminId,
       requestId,
@@ -489,10 +575,9 @@ router.put("/admin/:requestId", auth, async (req, res) => {
       hasReplyMessage: action === "reply",
     });
 
-    // Return success response to admin interface
     res.json({ message: "Request updated successfully" });
+
   } catch (err) {
-    // Log error with comprehensive context for debugging
     logger.error("Error updating special request by admin", {
       adminId,
       requestId,
@@ -502,8 +587,9 @@ router.put("/admin/:requestId", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
 

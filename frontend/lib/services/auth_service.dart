@@ -136,31 +136,6 @@ class AuthService {
     });
   }
 
-  static Future<void> _initOneSignalObserver(String token, dynamic user) async {
-    final subscription = OneSignal.User.pushSubscription;
-
-    final subscriptionId = subscription.id;
-    final optedIn = subscription.optedIn ?? false;
-
-    print("Initial subscription check: id=$subscriptionId optedIn=$optedIn");
-
-    // ✅ Register immediately if already available
-    if (subscriptionId != null && optedIn) {
-      await _registerDevice(token, user, subscriptionId);
-    }
-
-    // ✅ Listen for future changes
-    subscription.addObserver((state) async {
-      final newId = state.current.id;
-      final newOptedIn = state.current.optedIn ?? false;
-
-      print("OneSignal subscription changed: id=$newId optedIn=$newOptedIn");
-
-      if (newId != null && newOptedIn) {
-        await _registerDevice(token, user, newId);
-      }
-    });
-  }
 
   static Future<void> _registerDevice(
     String token,

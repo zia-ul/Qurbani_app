@@ -35,73 +35,72 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
     deliveryThresholdController.dispose();
     super.dispose();
   }
-  
-Future<void> pickLastBookingDate() async {
-  try {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: DateTime(now.year, 1, 1),
-      lastDate: DateTime(now.year, 12, 31),
-    );
 
-    if (picked != null) {
-      setState(() {
-        lastBookingDate = picked;
-        lastBookingDateController.text =
-            "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-      });
+  Future<void> pickLastBookingDate() async {
+    try {
+      final now = DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: now,
+        firstDate: DateTime(now.year, 1, 1),
+        lastDate: DateTime(now.year, 12, 31),
+      );
+
+      if (picked != null) {
+        setState(() {
+          lastBookingDate = picked;
+          lastBookingDateController.text =
+              "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+        });
+      }
+    } catch (e, stack) {
+      AppLogger.error("Error picking last booking date", e, stack);
+      ToastUtils.showError("Failed to pick date");
     }
-  } catch (e, stack) {
-    AppLogger.error("Error picking last booking date", e, stack);
-    ToastUtils.showError("Failed to pick date");
   }
-}
 
   Future<void> submitSetup() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  if (lastBookingDate == null) {
-    ToastUtils.showError("Please select the last booking date");
-    return;
+    if (lastBookingDate == null) {
+      ToastUtils.showError("Please select the last booking date");
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final payload = {
+        "totalShares": int.parse(totalSharesController.text.trim()),
+        "pricePerShare": double.parse(pricePerShareController.text.trim()),
+        "lateBookingFee": lateBookingFeeController.text.trim().isNotEmpty
+            ? double.parse(lateBookingFeeController.text.trim())
+            : 0,
+        "lastBookingDate": lastBookingDate!.toIso8601String(),
+        "deliveryType": isDeliveryPaid ? "paid" : "free",
+        "deliveryFee":
+            isDeliveryPaid && deliveryFeeController.text.trim().isNotEmpty
+            ? double.parse(deliveryFeeController.text.trim())
+            : 0,
+        "deliveryThreshold":
+            isDeliveryPaid && deliveryThresholdController.text.trim().isNotEmpty
+            ? double.parse(deliveryThresholdController.text.trim())
+            : null,
+      };
+
+      AppLogger.info("Saving admin share setup");
+
+      await AdminOrderService.saveShareSetup(payload);
+
+      ToastUtils.showSuccess("Share setup saved successfully");
+      if (mounted) Navigator.pop(context);
+    } catch (e, stack) {
+      AppLogger.error("Failed to save admin share setup", e, stack);
+      ToastUtils.showError(e.toString());
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
   }
-
-  setState(() => isLoading = true);
-
-  try {
-    final payload = {
-      "totalShares": int.parse(totalSharesController.text.trim()),
-      "pricePerShare": double.parse(pricePerShareController.text.trim()),
-      "lateBookingFee": lateBookingFeeController.text.trim().isNotEmpty
-          ? double.parse(lateBookingFeeController.text.trim())
-          : 0,
-      "lastBookingDate": lastBookingDate!.toIso8601String(),
-      "deliveryType": isDeliveryPaid ? "paid" : "free",
-      "deliveryFee": isDeliveryPaid &&
-              deliveryFeeController.text.trim().isNotEmpty
-          ? double.parse(deliveryFeeController.text.trim())
-          : 0,
-      "deliveryThreshold":
-          isDeliveryPaid && deliveryThresholdController.text.trim().isNotEmpty
-              ? double.parse(deliveryThresholdController.text.trim())
-              : null,
-    };
-
-    AppLogger.info("Saving admin share setup");
-
-    await AdminOrderService.saveShareSetup(payload);
-
-    ToastUtils.showSuccess("Share setup saved successfully");
-    if (mounted) Navigator.pop(context);
-  } catch (e, stack) {
-    AppLogger.error("Failed to save admin share setup", e, stack);
-    ToastUtils.showError(e.toString());
-  } finally {
-    if (mounted) setState(() => isLoading = false);
-  }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -127,15 +126,19 @@ Future<void> pickLastBookingDate() async {
                         controller: totalSharesController,
                         keyboardType: TextInputType.number,
                         decoration: _decoration("Enter total shares"),
-                        validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? "Required" : null,
                       ),
                       const SizedBox(height: 15),
                       _label("Price per Share", required: true),
                       TextFormField(
                         controller: pricePerShareController,
                         keyboardType: TextInputType.number,
-                        decoration: _decoration("Enter price per share"),
-                        validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                        decoration: _decoration(
+                          "Enter price per share",
+                        ).copyWith(prefixText: "₹ "),
+                        validator: (v) =>
+                            v == null || v.isEmpty ? "Required" : null,
                       ),
                     ]),
                     const SizedBox(height: 20),
@@ -156,7 +159,9 @@ Future<void> pickLastBookingDate() async {
                       TextFormField(
                         controller: lateBookingFeeController,
                         keyboardType: TextInputType.number,
-                        decoration: _decoration("Additional fee for late bookings"),
+                        decoration: _decoration(
+                          "Additional fee for late bookings",
+                        ).copyWith(prefixText: "₹ "),
                       ),
                     ]),
                     const SizedBox(height: 20),
@@ -165,7 +170,9 @@ Future<void> pickLastBookingDate() async {
                       SwitchListTile(
                         value: isDeliveryPaid,
                         onChanged: (v) => setState(() => isDeliveryPaid = v),
-                        title: Text(isDeliveryPaid ? "Paid Delivery" : "Free Delivery"),
+                        title: Text(
+                          isDeliveryPaid ? "Paid Delivery" : "Free Delivery",
+                        ),
                         activeColor: AppTheme.primaryGreen,
                       ),
                       if (isDeliveryPaid) ...[
@@ -174,13 +181,18 @@ Future<void> pickLastBookingDate() async {
                           controller: deliveryFeeController,
                           keyboardType: TextInputType.number,
                           decoration: _decoration("Delivery fee"),
-                          validator: (v) => isDeliveryPaid && (v == null || v.isEmpty) ? "Required" : null,
+                          validator: (v) =>
+                              isDeliveryPaid && (v == null || v.isEmpty)
+                              ? "Required"
+                              : null,
                         ),
                         const SizedBox(height: 10),
                         TextFormField(
                           controller: deliveryThresholdController,
                           keyboardType: TextInputType.number,
-                          decoration: _decoration("Free delivery threshold (optional)"),
+                          decoration: _decoration(
+                            "Free delivery threshold (optional)",
+                          ),
                         ),
                       ],
                     ]),
@@ -195,7 +207,10 @@ Future<void> pickLastBookingDate() async {
                         ),
                         child: const Text(
                           "Save Setup",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -206,47 +221,46 @@ Future<void> pickLastBookingDate() async {
     );
   }
 
-
   Widget _card(List<Widget> children) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.bgGradientEnd,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
-      );
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppTheme.bgGradientEnd,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
 
   Widget _label(String text, {bool required = false}) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: RichText(
-          text: TextSpan(
-            text: text,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.bold,
-            ),
-            children: required
-                ? const [
-                    TextSpan(
-                      text: " *",
-                      style: TextStyle(color: AppTheme.warningRed),
-                    ),
-                  ]
-                : [],
-          ),
+    padding: const EdgeInsets.only(bottom: 6),
+    child: RichText(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontWeight: FontWeight.bold,
         ),
-      );
+        children: required
+            ? const [
+                TextSpan(
+                  text: " *",
+                  style: TextStyle(color: AppTheme.warningRed),
+                ),
+              ]
+            : [],
+      ),
+    ),
+  );
 
   InputDecoration _decoration(String hint) => InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      );
+    hintText: hint,
+    filled: true,
+    fillColor: Colors.grey[50],
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  );
 }

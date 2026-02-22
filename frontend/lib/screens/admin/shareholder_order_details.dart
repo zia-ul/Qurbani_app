@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:Qurbani/screens/admin/add_animal_details.dart';
-import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/services/user_service.dart';
@@ -9,7 +7,7 @@ import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 /// Admin page widget for viewing and managing shareholder order details.
 ///
@@ -152,6 +150,8 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Future<void> _fetchOrderDetails() async {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
+
+      print("Fetched order details: $orderData");
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
     } finally {
@@ -305,9 +305,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyNotifier = context.watch<CurrencyNotifier>();
-
-    if (isLoading || !currencyNotifier.isReady) {
+    if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -323,7 +321,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _orderDetailsCard(data, currencyNotifier),
+          _orderDetailsCard(data),
           const SizedBox(height: 16),
 
           /// ================= STEP FLOW =================
@@ -334,16 +332,15 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   }
 
   /// Builds a card displaying the main order information, including user details, price, payment status, and a button to mark as paid if applicable.
-  Widget _orderDetailsCard(
-    Map<String, dynamic> data,
-    CurrencyNotifier currencyNotifier,
-  ) {
-    final double baseTotal =
-        double.tryParse(data['total_amount'].toString()) ?? 0.0;
+  Widget _orderDetailsCard(Map<String, dynamic> data) {
+    final double total =
+        double.tryParse(data['total_amt'].toString()) ?? 0.0;
 
-    final double convertedTotal = currencyNotifier.convert(baseTotal);
-
-    final String currencyCode = currencyNotifier.currency;
+    final formattedAmount = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 2,
+    ).format(total);
 
     return Card(
       elevation: 4,
@@ -359,10 +356,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
             _infoRow('User', data['user_name']),
             _infoRow('Address', data['address']),
             // _infoRow('Animal Type', data['animal_type']),
-            _infoRow(
-              'Price',
-              '$currencyCode ${convertedTotal.toStringAsFixed(2)}',
-            ),
+            _infoRow('Price', formattedAmount),
 
             _infoRow('Payment', data['payment_status']),
             // _infoRow('Address', data['delivery_address']),

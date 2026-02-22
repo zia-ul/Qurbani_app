@@ -102,7 +102,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           final String description = data['description'] ?? 'Not Available';
           final String phone = data['phone'] ?? 'N/A';
           final String address = data['address'] ?? 'N/A';
-          final String city = data['city'] ?? 'City Area';
           final String photoUrl = (data['photo_url'] ?? '').toString().trim();
 
           final double avgRating = (data['averageRating'] ?? 0).toDouble();

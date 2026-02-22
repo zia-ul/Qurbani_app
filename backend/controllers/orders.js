@@ -1051,7 +1051,7 @@ router.post("/ratings", authMiddleware, async (req, res) => {
 
 router.post("/requests", authMiddleware, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
-  const authUserId = req.user.id; // Ensure user can only submit their own requests
+  const authUserId = req.user.id;
 
   if (authUserId !== userId) {
     return res.status(403).json({ message: "Unauthorized" });
@@ -1062,13 +1062,57 @@ router.post("/requests", authMiddleware, async (req, res) => {
   }
 
   try {
+    // Insert request
     await pool.execute(
       `INSERT INTO requests (order_id, user_id, title, description, status)
        VALUES (?, ?, ?, ?, 'Pending')`,
       [orderId, userId, title, description],
     );
 
+    // 🔔 ============================
+    // 🔔 SEND PUSH TO ADMIN
+    // 🔔 ============================
+    try {
+      // Get admin_id from order
+      const [orderRows] = await pool.execute(
+        `SELECT admin_id FROM orders WHERE id = ?`,
+        [orderId]
+      );
+
+      if (orderRows.length) {
+        const adminId = orderRows[0].admin_id;
+
+        // Get admin devices
+        const [devices] = await pool.execute(
+          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+          [adminId]
+        );
+
+        const subscriptionIds = devices.map(d => d.subscription_id);
+
+        if (subscriptionIds.length > 0) {
+          await sendPushNotification(
+            subscriptionIds,
+            "📩 New Special Request",
+            `A new request has been submitted for Order #${orderId}.`,
+            {
+              type: "NEW_SPECIAL_REQUEST",
+              orderId,
+              userId,
+              title,
+            }
+          );
+        }
+      }
+    } catch (pushErr) {
+      logger.error("Admin notification failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
+
     res.status(201).json({ message: "Request submitted successfully" });
+
   } catch (err) {
     logger.error("Failed to submit request", {
       orderId,
@@ -1076,6 +1120,7 @@ router.post("/requests", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
+
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
@@ -1126,6 +1171,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
           o.admin_id,
           o.payment_method,
           o.total_shares,
+          o.total_amt,
           o.payment_status,
           o.created_at,
           u.name AS user_name,
@@ -1139,6 +1185,8 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
        WHERE o.id = ? AND o.admin_id = ?`,
       [orderId, adminId],
     );
+
+    console.log("Admin order details fetch result:", orders);
 
     if (!orders.length) {
       return res
@@ -1174,6 +1222,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
       orderId: order.id,
       user_name: order.user_name,
       email: order.user_email,
+      total_amt: order.total_amt,
       contact_no: order.contact_no,
       address: order.address,
       total_shares: order.total_shares,
@@ -1239,96 +1288,132 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
 });
 
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
-  // Extract order ID from URL parameters and get authenticated user's ID
   const { orderId } = req.params;
   const userId = req.user.id;
 
   try {
-    // Step 1: Verify order exists and belongs to user
-    // Fetch current order status and creation time for cancellation validation
+    // 1️⃣ Check order ownership
     const [orders] = await pool.execute(
-      `SELECT delivery_status, created_at FROM orders WHERE id = ? AND user_id = ?`,
-      [orderId, userId],
+      `SELECT delivery_status, created_at 
+       FROM orders 
+       WHERE id = ? AND user_id = ?`,
+      [orderId, userId]
     );
 
-    // If order doesn't exist or doesn't belong to user, return error
     if (!orders.length) {
-      logger.warn(
-        "Order cancellation attempt on non-existent or non-owned order",
-        {
-          userId,
-          orderId,
-          reason: "Order not found or doesn't belong to user",
-        },
-      );
       return res.status(404).json({ message: "Order not found" });
     }
 
     const order = orders[0];
 
-    // Step 2: Evaluate cancellation eligibility based on business rules
     const isDelivered = order.delivery_status === "delivered";
     const isCancelled = order.delivery_status === "cancelled";
 
-    // Cancellation allowed within 24 hours AND order not delivered/cancelled
-    // Time calculation: current time minus order creation time
-    const timeSinceOrder = Date.now() - new Date(order.created_at).getTime();
-    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const timeSinceOrder =
+      Date.now() - new Date(order.created_at).getTime();
 
-    const canCancel = within24Hours && !isDelivered && !isCancelled;
+    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000;
 
-    // If cancellation not allowed, return appropriate error
-    if (!canCancel) {
-      logger.warn(
-        "Invalid order cancellation attempt - business rules violation",
-        {
-          userId,
-          orderId,
-          orderStatus: order.delivery_status,
-          timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)), // hours
-          within24Hours,
-          isDelivered,
-          isCancelled,
-          reason: !within24Hours
-            ? "Outside 24-hour window"
-            : isDelivered
-              ? "Order already delivered"
-              : "Order already cancelled",
-        },
-      );
+    if (!within24Hours || isDelivered || isCancelled) {
       return res.status(400).json({ message: "Cannot cancel this order" });
     }
 
-    // Step 3: Execute cancellation by updating all order statuses
-    // Sets all statuses to 'cancelled' and records cancellation timestamp
+    // 2️⃣ Cancel order
     await pool.execute(
       `UPDATE orders
        SET delivery_status='pending',
            payment_status='pending',
            processing_status='pending',
-           status='cancelled',
+           status='cancelled'
        WHERE id=?`,
-      [orderId],
+      [orderId]
     );
 
-    // Step 4: Log successful cancellation for audit trail
-    logger.info("Order successfully cancelled by user", {
-      userId,
-      orderId,
-      orderAge: Math.floor(timeSinceOrder / (1000 * 60)), // minutes since order
-      cancellationType: "user_initiated",
-      previousStatus: order.delivery_status,
-    });
+    // 3️⃣ Get admin OneSignal subscription IDs
+    const [admins] = await pool.execute(
+      `SELECT onesignal_subscription_id 
+       FROM users 
+       WHERE role = 'admin'
+       AND onesignal_subscription_id IS NOT NULL`
+    );
 
-    // Return success response
+    const adminSubscriptionIds = admins.map(
+      (admin) => admin.onesignal_subscription_id
+    );
+
+    // 4️⃣ Send push to admins
+    if (adminSubscriptionIds.length > 0) {
+      await sendPushNotification(
+        adminSubscriptionIds,
+        "Order Cancelled 🚨",
+        `Order #${orderId} was cancelled by the user.`,
+        {
+          type: "order_cancelled",
+          orderId,
+          cancelledBy: userId,
+        }
+      );
+    }
+
     res.json({ message: "Order cancelled successfully" });
+
   } catch (err) {
-    // Log error with comprehensive context for debugging
-    logger.error("Error processing order cancellation", {
+    console.error("Cancellation error:", err);
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
+  }
+});
+
+// PUT /api/orders/:orderId/payment-success - Update order payment status after online payment completion
+// Called by payment gateway webhook or frontend after successful payment processing
+// Marks order as paid and stores payment gateway reference ID for reconciliation
+// Critical for order fulfillment workflow and financial tracking
+router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
+  // Extract order ID from URL parameters
+  const { orderId } = req.params;
+  // Extract payment gateway ID from request body
+  const { paymentId } = req.body;
+  // Get authenticated user's ID for security validation
+  const userId = req.user.id;
+
+  console.log("payment starting", { orderId, paymentId, userId });
+
+  try {
+    // Step 1: Update order payment status in database
+    // Sets payment_status to 'paid' and stores payment gateway reference
+    // Security: WHERE clause ensures users can only update their own orders
+    await pool.execute(
+      `UPDATE orders
+       SET payment_status='paid', payment_id=?
+       WHERE id=? AND user_id=?`,
+      [paymentId, orderId, userId],
+    );
+
+    // Step 2: Log successful payment update for audit trail and financial tracking
+    logger.info("Order payment status updated to paid successfully", {
       userId,
       orderId,
+      paymentId,
+      paymentMethod: "online_payment",
+      updateType: "payment_success_callback",
+      previousStatus: "pending/unpaid", // Assumed based on context
+      newStatus: "paid",
+    });
+  console.log("payment done");
+
+    // Return success response to payment gateway or frontend
+    res.json({ message: "Payment status updated successfully" });
+  } catch (err) {
+    // Log error with comprehensive context for payment reconciliation debugging
+    logger.error("Error updating order payment status", {
+      userId,
+      orderId,
+      paymentId,
       error: err.message,
       stack: err.stack,
+      impact:
+        "Payment may not be properly recorded - manual reconciliation required",
     });
     // Return generic error message to client
     res

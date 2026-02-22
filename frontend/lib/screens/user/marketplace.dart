@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:Qurbani/screens/user/admin_profile.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:Qurbani/screens/user/order_form.dart';
+
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
@@ -410,50 +410,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 ),
               ),
             ),
-            // const Divider(height: 10),
 
-            // SizedBox(
-            //   width: double.infinity,
-            //   height: 30,
-            //   child: ElevatedButton(
-            //     onPressed: isClosed
-            //         ? null
-            //         : () {
-            //             Navigator.push(
-            //               context,
-            //               MaterialPageRoute(
-            //                 builder: (_) => QurbaniOrderPage(adminId: adminId),
-            //               ),
-            //             );
-            //           },
-            //     style: ButtonStyle(
-            //       backgroundColor: WidgetStateProperty.resolveWith((states) {
-            //         if (states.contains(WidgetState.disabled)) {
-            //           return Colors.grey.shade400;
-            //         }
-            //         return AppTheme.primaryGreen;
-            //       }),
-            //       foregroundColor: WidgetStateProperty.resolveWith((states) {
-            //         if (states.contains(WidgetState.disabled)) {
-            //           return Colors.white70;
-            //         }
-            //         return AppTheme.bgGradientEnd;
-            //       }),
-            //       shape: WidgetStateProperty.all(
-            //         RoundedRectangleBorder(
-            //           borderRadius: BorderRadius.circular(8),
-            //         ),
-            //       ),
-            //     ),
-            //     child: Text(
-            //       isClosed ? "Orders Closed" : "Place Order",
-            //       style: const TextStyle(
-            //         fontSize: 11,
-            //         fontWeight: FontWeight.w600,
-            //       ),
-            //     ),
-            //   ),
-            // ),
           ],
         ),
       ),

@@ -1,15 +1,10 @@
 import 'package:Qurbani/faq_page.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:Qurbani/services/admin_payment_service.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
-
-import 'package:Qurbani/services/currency_notifier.dart';
-import 'package:Qurbani/services/service_profile.dart';
-import 'package:Qurbani/services/currency_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -30,8 +25,6 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationSound = true;
   String _selectedLanguage = "English";
-  String? _selectedCurrency;
-  List<String> _availableCurrencies = [];
 
   // Payment methods for admins
   List<String> _selectedPaymentMethods = [];
@@ -41,7 +34,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _loadSettings();
-    _loadUserCurrency();
+
     if (widget.role == 'admin') {
       _loadPaymentSettings();
     }
@@ -76,34 +69,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// Load user currency from CurrencyNotifier
-  Future<void> _loadUserCurrency() async {
-    if (SettingsPage.mockCurrencies != null &&
-        SettingsPage.mockProfile != null) {
-      _availableCurrencies = await SettingsPage.mockCurrencies!();
-      final profile = await SettingsPage.mockProfile!();
-      setState(() => _selectedCurrency = profile['currency']);
-      return;
-    }
-    try {
-      await currencyService.ensureInitialized();
-      _availableCurrencies = currencyService.supportedCurrencies;
-
-      final profile = await ProfileService.getProfile();
-      final currency = profile['currency'] ?? _availableCurrencies.first;
-
-      setState(() => _selectedCurrency = currency);
-    } catch (e) {
-
-
-      // FINAL SAFETY
-      if (_availableCurrencies.isNotEmpty) {
-        setState(() => _selectedCurrency = _availableCurrencies.first);
-      } else {
-        setState(() => _selectedCurrency = "USD");
-      }
-    }
-  }
+  
 
   /// Update notification toggle
   Future<void> _updateNotificationSound(bool val) async {
@@ -141,19 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  /// Update user currency on backend
-  Future<void> _updateUserCurrency(String val) async {
-    final notifier = context.read<CurrencyNotifier>();
-    try {
-      await CurrencyService.setUserCurrency(val); // Save to backend
 
-      setState(() => _selectedCurrency = val);
-      notifier.setCurrency(val);
-      ToastUtils.showSuccess("Currency updated to $val");
-    } catch (e) {
-      ToastUtils.showError("Failed to update currency: $e");
-    }
-  }
 
   /// Open external links
   Future<void> _openLink(String url) async {
@@ -186,36 +140,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 16),
 
-          _sectionHeader("Currency"),
-          Consumer<CurrencyNotifier>(
-            builder: (_, notifier, __) {
-              return DropdownButtonFormField<String>(
-                value: (_availableCurrencies.contains(_selectedCurrency))
-                    ? _selectedCurrency
-                    : null,
 
-                items: _availableCurrencies
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) _updateUserCurrency(val);
-                },
-                decoration: const InputDecoration(
-                  filled: true,
-                  fillColor: AppTheme.bgGradientEnd,
-                  labelText: "Currency",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-              );
-            },
-          ),
-          const Divider(height: 32),
 
           if (widget.role == 'admin') ..._buildAdminPaymentSection(),
 

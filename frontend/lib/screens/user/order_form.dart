@@ -2,7 +2,6 @@ import 'dart:convert'; // For JSON parsing
 // import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/models/admin_order_config.dart';
 import 'package:Qurbani/services/auth_service.dart';
-import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +12,6 @@ import 'package:Qurbani/screens/user/payment_processing_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:provider/provider.dart';
 import 'package:country_state_city/country_state_city.dart' as csc;
 
 /// Represents a shareholder/participant in the Qurbani order.
@@ -799,9 +797,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                   },
           ),
 
-          
           if (!shareholder.useSavedAddress) ...[
-
             InkWell(
               onTap: () {
                 showCountryPicker(
@@ -906,7 +902,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
               label: "Postal Code",
               icon: Icons.markunread_mailbox,
             ),
-
           ],
           Text(
             "Select Qurbani Day",
@@ -990,8 +985,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Widget _paymentSection() {
-    final currency = context.read<CurrencyNotifier>();
-
     if (_pricing == null) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1005,7 +998,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     final double subtotal = pricePerShare * shareCount;
 
     final double lateFeeTotal = _lateFeePerShare * shareCount;
-    final double convertedLateFee = currency.convert(lateFeeTotal);
 
     double deliveryFee = 0.0;
     if (_pricing!['delivery_type'] == 'paid') {
@@ -1015,9 +1007,10 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
     final double totalBase = subtotal + deliveryFee + lateFeeTotal;
 
-    final convertedSubtotal = currency.convert(subtotal);
-    final convertedDelivery = currency.convert(deliveryFee);
-    final convertedTotal = currency.convert(totalBase);
+    final double convertedSubtotal = subtotal;
+    final double convertedDelivery = deliveryFee;
+    final double convertedTotal = totalBase;
+    final double convertedLateFee = lateFeeTotal;
 
     final allowedMethods = _getAllowedPaymentMethods();
 
@@ -1086,12 +1079,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             ),
             child: Column(
               children: [
-                _priceRow("Subtotal", convertedSubtotal, currency.currency),
-                _priceRow(
-                  "Delivery Charges",
-                  convertedDelivery,
-                  currency.currency,
-                ),
+                _priceRow("Subtotal", convertedSubtotal, "₹"),
+                _priceRow("Delivery Charges", convertedDelivery, "₹"),
 
                 if (isCODExpired)
                   Container(
@@ -1102,8 +1091,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      "Late booking fee of ${currency.currency} "
-                      "${currency.convert(_lateFeePerShare).toStringAsFixed(2)} "
+                      "Late booking fee of ₹ "
+                      "${_lateFeePerShare.toStringAsFixed(2)} "
                       "per share applied",
                       style: const TextStyle(
                         fontSize: 12,
@@ -1115,17 +1104,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
                 // ✅ Late COD fee (only if applicable)
                 if (lateFeeTotal > 0)
-                  _priceRow(
-                    "Late COD Fee",
-                    convertedLateFee,
-                    currency.currency,
-                  ),
+                  _priceRow("Late COD Fee", convertedLateFee, "₹"),
 
                 const Divider(),
                 _priceRow(
                   "Total Price",
                   convertedTotal,
-                  currency.currency,
+                  "₹",
                   isBold: true,
                   fontSize: 20,
                 ),
@@ -1249,7 +1234,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   Future<void> _submitOrder() async {
     final allowedMethods = _getAllowedPaymentMethods();
-    final currency = context.read<CurrencyNotifier>();
 
     if (_pricing == null) {
       Fluttertoast.showToast(
@@ -1295,7 +1279,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         return;
       }
 
-     
       // 🔐 Skip address validation when using saved address
       if (!s.useSavedAddress) {
         if (s.countryISO == null) {
@@ -1344,17 +1327,15 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       }).toList();
 
       final double baseTotal = _calculateTotalPrice();
-      final double displayTotal = currency.convert(baseTotal);
-
-      // ✅ Cash confirmation
+      final double displayTotal = baseTotal;
+      // Cash confirmation
       if (_paymentMethod == 'Cash') {
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text("Confirm Order"),
             content: Text(
-              "Total: ${currency.currency} "
-              "${displayTotal.toStringAsFixed(2)}\n\n"
+              "Total: ₹ ${displayTotal.toStringAsFixed(2)}\n\n"
               "Place order with Cash?",
             ),
             actions: [

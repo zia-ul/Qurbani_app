@@ -4,8 +4,6 @@ import 'package:Qurbani/screens/user/reset_password_page.dart';
 import 'package:Qurbani/screens/user/user_home_screen.dart';
 import 'package:Qurbani/screens/user/user_special_request.dart';
 import 'package:Qurbani/services/auth_service.dart';
-import 'package:Qurbani/services/currency_notifier.dart';
-import 'package:Qurbani/services/currency_service.dart';
 import 'package:Qurbani/services/ratings_service.dart';
 import 'package:Qurbani/services/request_service.dart';
 import 'package:Qurbani/settings_page.dart';
@@ -321,13 +319,7 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
     expect(find.textContaining('Error:'), findsOneWidget);
   });
 
-  setUp(() {
-    CurrencyService.disableAutoUpdateForTests = true;
-  });
 
-  tearDown(() {
-    CurrencyService.disableAutoUpdateForTests = false;
-  });
 
   // settings
   testWidgets('Settings page loads with currency dropdown', (
@@ -337,14 +329,7 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
     SettingsPage.mockProfile = () async => {'currency': 'PKR'};
     SettingsPage.mockOpenLink = (_) async {};
 
-    await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => CurrencyNotifier(),
-        child: const MaterialApp(
-          home: SettingsPage(userId: '1', role: 'user'),
-        ),
-      ),
-    );
+  
 
     await tester.pumpAndSettle();
 

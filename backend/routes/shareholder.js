@@ -542,7 +542,7 @@ router.post(
             if (delivery_status === "sent") {
               await sendPushNotification(
                 subscriptionIds,
-                "🚚 On The Way",
+                "On The Way",
                 "Your Qurbani meat has been sent for delivery.",
                 {
                   type: "DELIVERY_SENT",
@@ -556,7 +556,7 @@ router.post(
             if (delivery_status === "delivered") {
               await sendPushNotification(
                 subscriptionIds,
-                "📦 Delivered Successfully",
+                "Delivered Successfully",
                 "Your Qurbani meat has been delivered.",
                 {
                   type: "DELIVERY_COMPLETED",

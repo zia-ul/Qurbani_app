@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:Qurbani/services/admin_application.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
