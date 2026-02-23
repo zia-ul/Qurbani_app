@@ -65,7 +65,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> loadProfile() async {
     try {
       final profile = await ProfileService.getProfile();
-
+      print("Profile: $profile");
       if (!mounted) return;
 
       setState(() {
@@ -77,8 +77,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _photoUrl = profile['photo_url'];
         _isAdmin = profile['isAdmin'] ?? false;
 
-        if (profile['orderDeadline'] != null) {
-          _orderDeadline = DateTime.tryParse(profile['orderDeadline']);
+        if (profile['order_deadline'] != null) {
+          _orderDeadline = DateTime.tryParse(profile['order_deadline']);
         }
 
         _isLoading = false;
@@ -150,9 +150,7 @@ class _ProfilePageState extends State<ProfilePage> {
         final decoded = jsonDecode(await response.stream.bytesToString());
         return decoded['secure_url'];
       }
-    } catch (e) {
-
-    }
+    } catch (e) {}
     return null;
   }
 

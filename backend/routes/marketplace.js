@@ -3,11 +3,12 @@ const { fetchVerifiedAdmins } = require("../controllers/marketplaceAdmin");
 const authMiddleware = require("../middleware/authmiddleware");
 const pool = require("../config/db");
 const logger = require("../middleware/logger");
-const { saveVendorShareSetup } = require("../controllers/admin_share_setup");
+const { saveVendorShareSetup, getVendorShareSetup } = require("../controllers/admin_share_setup");
 const router = express.Router();
 
 router.post("/share-setup", authMiddleware, saveVendorShareSetup);
-
+// GET existing share setup (for logged-in admin)
+router.get("/share-setup", authMiddleware, getVendorShareSetup);
 /**
  * GET admin share pricing & payment settings
  * GET /admins/:adminId/share-pricing

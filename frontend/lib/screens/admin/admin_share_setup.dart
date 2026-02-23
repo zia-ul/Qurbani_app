@@ -26,6 +26,12 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
   DateTime? lastBookingDate;
 
   @override
+  void initState() {
+    super.initState();
+    fetchExistingSetup();
+  }
+
+  @override
   void dispose() {
     totalSharesController.dispose();
     pricePerShareController.dispose();
@@ -34,6 +40,52 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
     deliveryFeeController.dispose();
     deliveryThresholdController.dispose();
     super.dispose();
+  }
+
+  Future<void> fetchExistingSetup() async {
+    setState(() => isLoading = true);
+
+    try {
+      final data = await AdminOrderService.getShareSetup();
+
+      if (!mounted) return;
+
+      if (data != null) {
+        setState(() {
+          /// --- Numbers ---
+          totalSharesController.text = (data['totalShares'] ?? '').toString();
+
+          pricePerShareController.text = (data['pricePerShare'] ?? '')
+              .toString();
+          lateBookingFeeController.text = (data['lateBookingFee'] ?? '')
+              .toString();
+
+          /// --- Date ---
+          if (data['lastBookingDate'] != null) {
+            lastBookingDate = DateTime.parse(data['lastBookingDate']).toLocal();
+
+            lastBookingDateController.text =
+                "${lastBookingDate!.year}-"
+                "${lastBookingDate!.month.toString().padLeft(2, '0')}-"
+                "${lastBookingDate!.day.toString().padLeft(2, '0')}";
+          }
+
+          /// --- Delivery ---
+          isDeliveryPaid = data['deliveryType'] == "paid";
+
+          deliveryFeeController.text = isDeliveryPaid
+              ? (data['deliveryFee'] ?? '').toString()
+              : '';
+          deliveryThresholdController.text =
+              data['deliveryThreshold']?.toString() ?? '';
+        });
+      }
+    } catch (e, stack) {
+      print("ERROR FETCHING: $e");
+      AppLogger.error("Failed to fetch share setup", e, stack);
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
   }
 
   Future<void> pickLastBookingDate() async {

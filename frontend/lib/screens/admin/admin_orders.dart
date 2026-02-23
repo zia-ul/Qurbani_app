@@ -25,7 +25,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _fetchOrders();
   }
 
@@ -67,7 +67,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     setState(() => _isLoading = true);
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
-
+      print(_allOrders);
       AppLogger.info("Orders fetched: ${_allOrders.length}");
 
       // AUTO CANCEL EXPIRED COD ORDERS
@@ -124,6 +124,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
               tabs: const [
                 Tab(text: "Active"),
                 Tab(text: "Completed"),
+                Tab(text: "Cancelled"), // ✅ Add this
               ],
             ),
           ),
@@ -160,6 +161,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                       children: [
                         _buildOrderList(isActive: true),
                         _buildOrderList(isActive: false),
+                        _buildOrderList(isActive: null), // ✅ Cancelled
                       ],
                     ),
                   ),
@@ -202,6 +204,10 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         .map((s) => (s['processing_status'] ?? '').toString().toLowerCase())
         .toList();
 
+    if (statuses.contains('cancelled')) {
+      return 'Cancelled';
+    }
+
     if (statuses.contains('pending')) {
       return 'Pending';
     }
@@ -236,24 +242,35 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     );
   }
 
-  Widget _buildOrderList({required bool isActive}) {
+  Widget _buildOrderList({required bool? isActive}) {
     final filteredOrders = _allOrders.where((order) {
       final data = order;
+
       // Filter by completion status - include delivered orders as completed
       final deliveryStatus = _getOverallDeliveryStatus(data);
       final processingStatus = _getOverallProcessingStatus(data);
+      final orderStatus = (data['orderStatus'] ?? 'pending')
+          .toString()
+          .toLowerCase();
 
+      final isCancelled = orderStatus == 'cancelled';
       final isCompleted = processingStatus.toLowerCase() == 'completed';
-
       final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
-
       // final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
       // Show in Active: not completed AND not delivered
       // Show in Completed: completed OR delivered
-      final matchesStatus = isActive
-          ? (!isCompleted && !isDelivered)
-          : (isCompleted || isDelivered);
+      bool matchesStatus;
 
+      if (isActive == true) {
+        // Active tab
+        matchesStatus = !isCompleted && !isDelivered && !isCancelled;
+      } else if (isActive == false) {
+        // Completed tab
+        matchesStatus = isCompleted || isDelivered;
+      } else {
+        // Cancelled tab
+        matchesStatus = isCancelled;
+      }
       // Filter by search query
       final orderId = (data['orderId'] ?? '').toString().toLowerCase();
       final phone =
@@ -283,9 +300,13 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
             createdAt != null && isNewOrder(createdAt.toString());
 
         final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
-        final processingStatus = _isCodExpired(data)
-            ? 'Cancelled'
-            : _getOverallProcessingStatus(data);
+        String processingStatus;
+
+        if (_isCodExpired(data)) {
+          processingStatus = 'cancelled';
+        } else {
+          processingStatus = _getOverallProcessingStatus(data).toLowerCase();
+        }
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -432,7 +453,12 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                processingStatus,
+                                processingStatus == 'cancelled'
+                                    ? 'Cancelled'
+                                    : processingStatus.isNotEmpty
+                                    ? processingStatus[0].toUpperCase() +
+                                          processingStatus.substring(1)
+                                    : 'Pending',
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: Colors.orange[800],

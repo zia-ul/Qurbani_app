@@ -493,12 +493,12 @@ router.post("/", authMiddleware, async (req, res) => {
       );
 
       const subscriptionIds = devices.map((d) => d.subscription_id);
-
+      const shortOrderId = orderId.toString().substring(0, 6);
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
           subscriptionIds,
           "New Qurbani Order",
-          `New order #${orderId} has been placed.`,
+          `New order #${shortOrderId} has been placed.`,
           { type: "NEW_ORDER", orderId },
         );
       }
@@ -1076,7 +1076,7 @@ router.post("/requests", authMiddleware, async (req, res) => {
       // Get admin_id from order
       const [orderRows] = await pool.execute(
         `SELECT admin_id FROM orders WHERE id = ?`,
-        [orderId]
+        [orderId],
       );
 
       if (orderRows.length) {
@@ -1085,22 +1085,22 @@ router.post("/requests", authMiddleware, async (req, res) => {
         // Get admin devices
         const [devices] = await pool.execute(
           `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
-          [adminId]
+          [adminId],
         );
 
-        const subscriptionIds = devices.map(d => d.subscription_id);
-
+        const subscriptionIds = devices.map((d) => d.subscription_id);
+        const shortOrderId = orderId.toString().substring(0, 6);
         if (subscriptionIds.length > 0) {
           await sendPushNotification(
             subscriptionIds,
             "📩 New Special Request",
-            `A new request has been submitted for Order #${orderId}.`,
+            `A new request has been submitted for Order #${shortOrderId}.`,
             {
               type: "NEW_SPECIAL_REQUEST",
               orderId,
               userId,
               title,
-            }
+            },
           );
         }
       }
@@ -1112,7 +1112,6 @@ router.post("/requests", authMiddleware, async (req, res) => {
     }
 
     res.status(201).json({ message: "Request submitted successfully" });
-
   } catch (err) {
     logger.error("Failed to submit request", {
       orderId,
@@ -1294,10 +1293,10 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   try {
     // 1️⃣ Check order ownership
     const [orders] = await pool.execute(
-      `SELECT delivery_status, created_at 
-       FROM orders 
+      `SELECT id, status, created_at
+       FROM orders
        WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (!orders.length) {
@@ -1306,57 +1305,98 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
 
     const order = orders[0];
 
-    const isDelivered = order.delivery_status === "delivered";
-    const isCancelled = order.delivery_status === "cancelled";
-
-    const timeSinceOrder =
-      Date.now() - new Date(order.created_at).getTime();
-
-    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000;
-
-    if (!within24Hours || isDelivered || isCancelled) {
-      return res.status(400).json({ message: "Cannot cancel this order" });
+    // 2️⃣ Check if already cancelled
+    if (order.status === "cancelled") {
+      return res.status(400).json({ message: "Order already cancelled" });
     }
 
-    // 2️⃣ Cancel order
-    await pool.execute(
-      `UPDATE orders
-       SET delivery_status='pending',
-           payment_status='pending',
-           processing_status='pending',
-           status='cancelled'
-       WHERE id=?`,
-      [orderId]
+    // 3️⃣ Check 24-hour cancellation window
+    const orderTime = new Date(order.created_at).getTime();
+    const now = Date.now();
+    const within24Hours = now - orderTime < 24 * 60 * 60 * 1000;
+
+    if (!within24Hours) {
+      return res.status(400).json({
+        message: "Cancellation allowed only within 24 hours",
+      });
+    }
+
+    // 4️⃣ Check if any share already delivered
+    const [shares] = await pool.execute(
+      `SELECT delivery_status
+       FROM shareholder_details
+       WHERE order_id = ?`,
+      [orderId],
     );
 
-    // 3️⃣ Get admin OneSignal subscription IDs
-    const [admins] = await pool.execute(
-      `SELECT onesignal_subscription_id 
-       FROM users 
-       WHERE role = 'admin'
-       AND onesignal_subscription_id IS NOT NULL`
+    const isDelivered = shares.some(
+      (share) => share.delivery_status === "delivered",
     );
 
-    const adminSubscriptionIds = admins.map(
-      (admin) => admin.onesignal_subscription_id
+    if (isDelivered) {
+      return res.status(400).json({
+        message: "Cannot cancel. Some shares already delivered.",
+      });
+    }
+
+    // 5️⃣ Start transaction
+    const connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Reset shareholder statuses
+      await connection.execute(
+        `UPDATE shareholder_details
+         SET delivery_status = 'pending',
+             payment_status = 'pending',
+             processing_status = 'pending'
+         WHERE order_id = ?`,
+        [orderId],
+      );
+
+      // Mark order cancelled
+      await connection.execute(
+        `UPDATE orders
+         SET status = 'cancelled'
+         WHERE id = ?`,
+        [orderId],
+      );
+
+      await connection.commit();
+      connection.release();
+    } catch (err) {
+      await connection.rollback();
+      connection.release();
+      throw err;
+    }
+
+    // 6️⃣ Notify admins
+    const [adminDevices] = await pool.execute(
+      `SELECT subscription_id
+   FROM user_devices
+   WHERE role = 'admin'`,
     );
 
-    // 4️⃣ Send push to admins
+    const adminSubscriptionIds = adminDevices.map(
+      (device) => device.subscription_id,
+    );
+
+    const shortOrderId = orderId.toString().substring(0, 6);
+
     if (adminSubscriptionIds.length > 0) {
       await sendPushNotification(
         adminSubscriptionIds,
         "Order Cancelled 🚨",
-        `Order #${orderId} was cancelled by the user.`,
+        `Order #${shortOrderId} was cancelled by the user.`,
         {
           type: "order_cancelled",
           orderId,
           cancelledBy: userId,
-        }
+        },
       );
     }
 
     res.json({ message: "Order cancelled successfully" });
-
   } catch (err) {
     console.error("Cancellation error:", err);
     res.status(500).json({
@@ -1400,7 +1440,7 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       previousStatus: "pending/unpaid", // Assumed based on context
       newStatus: "paid",
     });
-  console.log("payment done");
+    console.log("payment done");
 
     // Return success response to payment gateway or frontend
     res.json({ message: "Payment status updated successfully" });

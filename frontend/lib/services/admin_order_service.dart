@@ -9,8 +9,6 @@ class AdminOrderService {
   static const _storage = FlutterSecureStorage();
   static final String? _baseUrl = dotenv.env['BASE_URL'];
 
-
-
   /// GET ALL ORDERS FOR THE AUTHENTICATED ADMIN
   static Future<List<Map<String, dynamic>>> getAdminOrders() async {
     final token = await _storage.read(key: 'token');
@@ -60,6 +58,7 @@ class AdminOrderService {
       headers: {'Authorization': 'Bearer $token'},
     );
 
+
     if (res.statusCode == 404) return null;
 
     if (res.statusCode != 200) {
@@ -67,7 +66,7 @@ class AdminOrderService {
       throw Exception(body['message'] ?? 'Failed to fetch share setup');
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body)['data']);
+    return Map<String, dynamic>.from(jsonDecode(res.body));
   }
 
   /// MARK Cash ORDER AS PAID
@@ -97,7 +96,6 @@ class AdminOrderService {
   }) async {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
-
 
     final res = await http.put(
       Uri.parse('$_baseUrl/orders/$orderId/cancel'),
@@ -197,8 +195,6 @@ class AdminOrderService {
     }
   }
 
-  
-
   /// UPDATE ORDER - stepwise
   ///
   // -------------------------------
@@ -261,7 +257,6 @@ class AdminOrderService {
       try {
         final body = jsonDecode(res.body);
         msg = body['message'] ?? msg;
-
       } catch (_) {
         msg = res.body; // fallback for HTML/text
       }

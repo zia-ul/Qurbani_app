@@ -497,30 +497,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     isCopyable: false,
                   ),
 
-                  // _buildInfoRow(
-                  //   Icons.check_circle,
-                  //   "Payment Status",
-                  //   order['payment_status'],
-                  // ),
-
-                  // _buildInfoRow(
-                  //   Icons.timer,
-                  //   "Processing Status",
-                  //   order['processing_status'] ?? 'pending',
-                  // ),
-
-                  // _buildInfoRow(
-                  //   Icons.local_shipping,
-                  //   "Delivery Status",
-                  //   deliveryStatus,
-                  // ),
-
-                  // _buildInfoRow(
-                  //   Icons.security,
-                  //   "Delivery Code",
-                  //   order['delivery_code'] ?? 'Not assigned',
-                  //   isCopyable: order['delivery_code'] != null,
-                  // ),
+                  
                   if (orderDate != null)
                     _buildInfoRow(
                       Icons.calendar_today,

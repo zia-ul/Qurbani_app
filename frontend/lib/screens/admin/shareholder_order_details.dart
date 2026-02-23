@@ -151,7 +151,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     try {
       orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
 
-      print("Fetched order details: $orderData");
+      print("....Fetched order detailsssssss: $orderData");
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
     } finally {
@@ -333,8 +333,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
   /// Builds a card displaying the main order information, including user details, price, payment status, and a button to mark as paid if applicable.
   Widget _orderDetailsCard(Map<String, dynamic> data) {
-    final double total =
-        double.tryParse(data['total_amt'].toString()) ?? 0.0;
+    final double total = double.tryParse(data['total_amt'].toString()) ?? 0.0;
 
     final formattedAmount = NumberFormat.currency(
       locale: 'en_IN',
@@ -389,6 +388,11 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
     // final String? deliveryPersonId = shareholder['delivery_person_id'];
     final deliveryStatus = shareholder['delivery_status'] ?? 'pending';
+
+    bool isPaymentDone = paymentStatus == 'paid';
+    bool isAnimalDone = hasAnimal;
+    bool isScheduledDone = schedule != null;
+    bool isDeliveryDone = deliveryStatus == 'delivered';
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -433,8 +437,8 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
             _buildStepIndicator(
               title: "Payment",
-              isActive: paymentStatus == 'unpaid',
-              isCompleted: paymentStatus == 'paid',
+              isActive: !isPaymentDone,
+              isCompleted: isPaymentDone,
             ),
 
             const SizedBox(height: 8),
@@ -464,7 +468,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
             const Divider(height: 30),
 
             /// ================= STEP 1 PAYMENT =================
-            if (paymentStatus == 'unpaid') ...[
+            if (!isPaymentDone) ...[
               DropdownButtonFormField<String>(
                 value: _tempPaymentStatus[shareholderId] ?? 'unpaid',
                 decoration: const InputDecoration(

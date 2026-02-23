@@ -55,6 +55,15 @@ const saveVendorShareSetup = async (req, res) => {
       deliveryThreshold,
     ]);
 
+    // 🔥 Update order_deadline in users table
+    const updateUserDeadlineQuery = `
+  UPDATE users
+  SET order_deadline = ?
+  WHERE id = ?
+`;
+
+    await db.query(updateUserDeadlineQuery, [lastBookingDate, vendorId]);
+
     res.status(200).json({
       message: "Share setup saved successfully",
     });
@@ -66,6 +75,59 @@ const saveVendorShareSetup = async (req, res) => {
   }
 };
 
+/**
+ * GET Logged-in Admin Share Setup
+ */
+const getVendorShareSetup = async (req, res) => {
+  try {
+    const vendorId = req.user.id;
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        total_shares,
+        price_per_share,
+        late_booking_fee,
+        last_booking_date,
+        delivery_type,
+        delivery_fee,
+        free_delivery_threshold
+      FROM admin_share_setups
+      WHERE admin_id = ?
+        AND is_active = 1
+      LIMIT 1
+      `,
+      [vendorId],
+    );
+
+    console.log("Fetched share setup from DB:", rows);
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Share setup not found",
+      });
+    }
+
+    const setup = rows[0];
+
+    res.status(200).json({
+      totalShares: setup.total_shares,
+      pricePerShare: setup.price_per_share,
+      lateBookingFee: setup.late_booking_fee,
+      lastBookingDate: setup.last_booking_date,
+      deliveryType: setup.delivery_type,
+      deliveryFee: setup.delivery_fee,
+      deliveryThreshold: setup.free_delivery_threshold,
+    });
+  } catch (err) {
+    console.error("Fetch vendor share setup error:", err);
+    res.status(500).json({
+      message: "Failed to fetch share setup",
+    });
+  }
+};
+
 module.exports = {
   saveVendorShareSetup,
+  getVendorShareSetup,
 };
