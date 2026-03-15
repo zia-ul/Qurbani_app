@@ -192,6 +192,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   /// Used to show initial loading state.
   bool _loadingConfig = true;
 
+  String? _selectedAnimalType = 'Camel';
+  final List<String> _animalTypes = ['Camel', 'Buffalo'];
+
   @override
   void initState() {
     super.initState();
@@ -230,7 +233,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
       final data = jsonDecode(res.body);
 
-      // 🔒 ensure minimum usable fields
+      // ensure minimum usable fields
       if (data['country_iso'] == null ||
           data['country'] == null ||
           data['state'] == null ||
@@ -364,7 +367,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   void _addShareholder() {
-    if (_orderConfig == null) return; // 🔒 guard
+    if (_orderConfig == null) return; // guard
 
     if (_shareholders.length >= remainingShares) {
       Fluttertoast.showToast(
@@ -720,6 +723,35 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             icon: Icons.family_restroom_outlined,
           ),
           const SizedBox(height: 15),
+
+          DropdownButtonFormField<String>(
+            initialValue: _selectedAnimalType,
+            items: const [
+              DropdownMenuItem(
+                value: 'Buffalo',
+                child: Text('Buffalo', style: TextStyle(color: Colors.black)),
+              ),
+              DropdownMenuItem(
+                value: 'Camel',
+                child: Text('Camel', style: TextStyle(color: Colors.black)),
+              ),
+            ],
+            onChanged: (v) => setState(() => _selectedAnimalType = v),
+            decoration: const InputDecoration(
+              filled: true,
+              fillColor: AppTheme.bgGradientEnd,
+              labelText: "Gender",
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+              ),
+            ),
+            validator: (v) => v == null ? "Please select gender" : null,
+          ),
+          SizedBox(width: 15),
 
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
@@ -1259,12 +1291,15 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       return;
     }
 
-    // ✅ Validate shareholders
+    // Validate shareholders
     for (var s in _shareholders) {
       // Basic required fields
       if (s.nameController.text.trim().isEmpty ||
           s.guardianController.text.trim().isEmpty ||
-          s.addressController.text.trim().isEmpty) {
+          s.addressController.text.trim().isEmpty ||
+          _selectedAnimalType == null ||
+          _selectedAnimalType!.isEmpty) {
+            
         Fluttertoast.showToast(
           msg: "Please fill all required fields",
           backgroundColor: AppTheme.warningRed,
@@ -1279,7 +1314,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         return;
       }
 
-      // 🔐 Skip address validation when using saved address
+      // Skip address validation when using saved address
       if (!s.useSavedAddress) {
         if (s.countryISO == null) {
           Fluttertoast.showToast(
@@ -1313,7 +1348,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       final double pricePerShare =
           double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
 
-      // ✅ Shareholders payload (NO animals)
+      // Shareholders payload (NO animals)
       final shareholdersData = _shareholders.map((s) {
         return {
           'name': s.nameController.text.trim(),
@@ -1321,7 +1356,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           'qurbaniDay': s.qurbaniDay,
 
           'address': _buildAddress(s),
-
+          'animal': _selectedAnimalType,
           'price': pricePerShare + _lateFeePerShare,
         };
       }).toList();
@@ -1370,7 +1405,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         paymentStatus: paymentStatus,
       );
 
-      // ✅ Payment flow
+      // Payment flow
       if (_paymentMethod == 'Online') {
         Navigator.push(
           context,
@@ -1386,7 +1421,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           msg: "Order placed successfully!",
           backgroundColor: AppTheme.accentGreen,
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       Fluttertoast.showToast(

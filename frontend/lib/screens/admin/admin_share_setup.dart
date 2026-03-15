@@ -20,6 +20,9 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
   final lastBookingDateController = TextEditingController();
   final deliveryFeeController = TextEditingController();
   final deliveryThresholdController = TextEditingController();
+  final dayOneLimit = TextEditingController();
+  final dayTwoLimit = TextEditingController();
+  final dayThreeLimit = TextEditingController();
 
   bool isDeliveryPaid = false;
   bool isLoading = false;
@@ -138,6 +141,9 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
             isDeliveryPaid && deliveryThresholdController.text.trim().isNotEmpty
             ? double.parse(deliveryThresholdController.text.trim())
             : null,
+        "dayOneLimit": double.parse(dayOneLimit.text.trim()),
+        "dayTwoLimit": double.parse(dayTwoLimit.text.trim()),
+        "dayThreeLimit": double.parse(dayThreeLimit.text.trim()),
       };
 
       AppLogger.info("Saving admin share setup");
@@ -217,6 +223,42 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
                       ),
                     ]),
                     const SizedBox(height: 20),
+
+                    // Qurbani day wise limit
+                    _card([
+                      _label("Day 1 Limit"),
+                      TextFormField(
+                        controller: dayOneLimit,
+                        keyboardType: TextInputType.number,
+                        // decoration: _decoration(
+                        //   "Additional fee for late bookings",
+                        // ).copyWith(prefixText: "₹ "),
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                    _card([
+                      _label("Day 2 Limit"),
+                      TextFormField(
+                        controller: dayTwoLimit,
+                        keyboardType: TextInputType.number,
+                        // decoration: _decoration(
+                        //   "Additional fee for late bookings",
+                        // ).copyWith(prefixText: "₹ "),
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                    _card([
+                      _label("Day 3 Limit"),
+                      TextFormField(
+                        controller: dayThreeLimit,
+                        keyboardType: TextInputType.number,
+                        // decoration: _decoration(
+                        //   "Additional fee for late bookings",
+                        // ).copyWith(prefixText: "₹ "),
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+
                     _card([
                       _label("Delivery Setup"),
                       SwitchListTile(

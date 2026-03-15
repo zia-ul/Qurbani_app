@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AddAnimalPage extends StatefulWidget {
   const AddAnimalPage({super.key});
@@ -35,6 +36,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   final List<XFile> _images = [];
 
   final Color lightBg = const Color(0xFFF9FBF9);
+  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   @override
   void dispose() {
@@ -161,8 +163,10 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
         "images": imageUrls,
       };
 
+      print("we are here to add animal $_baseUrl/animals");
+
       final res = await http.post(
-        Uri.parse("http://192.168.1.4:3000/api/animals"),
+        Uri.parse("$_baseUrl/animals"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
@@ -179,7 +183,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       if (mounted) {
         ToastUtils.showSuccess("Animal added successfully");
 
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e, stack) {
       AppLogger.error("Add animal exception", e, stack);
@@ -220,7 +224,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                       _buildLabel("Animal Type", isRequired: true),
                       DropdownButtonFormField<String>(
                         decoration: _inputDecoration("Select Type"),
-                        items: ["Goat", "Buffalo", "Sheep", "Camel", "Others"]
+                        // items: ["Goat", "Buffalo", "Sheep", "Camel", "Others"]
+                        items: ["Camel", "Buffalo"]
                             .map(
                               (e) => DropdownMenuItem(value: e, child: Text(e)),
                             )
@@ -229,21 +234,21 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             setState(() => selectedAnimalType = val),
                         validator: (v) => v == null ? "Required" : null,
                       ),
-                      if (selectedAnimalType == "Others") ...[
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: customAnimalTypeController,
-                          decoration: _inputDecoration(
-                            "Enter Animal Type Name",
-                          ),
-                          validator: (v) =>
-                              (selectedAnimalType == "Others" &&
-                                  (v == null || v.isEmpty))
-                              ? "Required"
-                              : null,
-                        ),
-                      ],
-                      const SizedBox(height: 15),
+                      // if (selectedAnimalType == "Others") ...[
+                      //   const SizedBox(height: 10),
+                      //   TextFormField(
+                      //     controller: customAnimalTypeController,
+                      //     decoration: _inputDecoration(
+                      //       "Enter Animal Type Name",
+                      //     ),
+                      //     validator: (v) =>
+                      //         (selectedAnimalType == "Others" &&
+                      //             (v == null || v.isEmpty))
+                      //         ? "Required"
+                      //         : null,
+                      //   ),
+                      // ],
+                      // const SizedBox(height: 15),
                       _buildLabel("Animal Breed", isRequired: false),
                       TextFormField(
                         controller: breedController,

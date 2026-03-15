@@ -12,7 +12,7 @@ class AppEntry extends StatefulWidget {
 }
 
 class _AppEntryState extends State<AppEntry> with WidgetsBindingObserver {
-  bool _navigated = false; // 🔒 prevents double navigation
+  bool _navigated = false; // prevents double navigation
 
   @override
   void initState() {
