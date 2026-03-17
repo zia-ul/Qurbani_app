@@ -17,7 +17,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = "";
-  List<Map<String, dynamic>> _allOrders = []; // Store fetched orders
+  List<Map<String, dynamic>> _allOrders = [];
   bool _isLoading = true;
 
   final Color lightBg = const Color(0xFFF4F7F4);
@@ -41,23 +41,32 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     return now.difference(created).inHours < 24;
   }
 
-  String shortId(String id, {int length = 8}) {
-    if (id.length <= length) return id;
-    return id.substring(id.length - length); // last N chars
+  int _asInt(dynamic value, {int fallback = 0}) {
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  String shortId(dynamic id, {int length = 8}) {
+    final value = id.toString();
+    if (value.length <= length) return value;
+    return value.substring(value.length - length);
   }
 
   bool _isCodExpired(Map<String, dynamic> order) {
     AppLogger.debug("Checking COD expiry", {
       "orderId": order['orderId'],
       "paymentMethod": order['paymentMethod'],
-      "paymentStatus": order['paymentStatus'],
+      "orderPaymentStatus": order['orderPaymentStatus'],
       "deadline": order['cod_deadline'],
     });
-    if (order['paymentMethod'] != 'Cash') return false;
-    if (order['paymentStatus'] != 'unpaid') return false;
+
+    final paymentMethod = _asInt(order['paymentMethod']);
+    final paymentStatus = _asInt(order['orderPaymentStatus'], fallback: 2);
+
+    if (paymentMethod != 0) return false; // 0 = Cash
+    if (paymentStatus != 1) return false; // 1 = Unpaid
     if (order['cod_deadline'] == null) return false;
 
-    final deadline = DateTime.tryParse(order['cod_deadline']);
+    final deadline = DateTime.tryParse(order['cod_deadline'].toString());
     if (deadline == null) return false;
 
     return DateTime.now().isAfter(deadline);
@@ -67,13 +76,11 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     setState(() => _isLoading = true);
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
-      print(_allOrders);
       AppLogger.info("Orders fetched: ${_allOrders.length}");
 
-      // AUTO CANCEL EXPIRED COD ORDERS
       for (final order in _allOrders) {
         final isExpired = _isCodExpired(order);
-        final isAlreadyCancelled = order['processingStatus'] == 'cancelled';
+        final isAlreadyCancelled = _asInt(order['orderStatus']) == 2;
 
         if (isExpired && !isAlreadyCancelled) {
           AppLogger.warning(
@@ -83,144 +90,70 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         }
       }
 
-      // Re-fetch to get updated statuses
       _allOrders = await AdminOrderService.getAdminOrders();
-
       AppLogger.info("Orders reloaded after cancellation cleanup");
     } catch (e, stack) {
       AppLogger.error("Failed to fetch admin orders", e, stack);
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: lightBg,
-      appBar: AppBar(
-        title: const Text(
-          "View Orders",
-          style: TextStyle(
-            color: Color(0xFF2D4F32),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: AppTheme.bgGradientEnd,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Color(0xFF2D4F32)),
-      ),
-      body: Column(
-        children: [
-          // 1. TABS
-          Container(
-            color: AppTheme.bgGradientEnd,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppTheme.primaryGreen,
-              unselectedLabelColor: AppTheme.primaryGreen,
-              indicatorColor: AppTheme.primaryGreen,
-              tabs: const [
-                Tab(text: "Active"),
-                Tab(text: "Completed"),
-                Tab(text: "Cancelled"), // ✅ Add this
-              ],
-            ),
-          ),
-
-          // 2. SEARCH BAR
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              onChanged: (val) =>
-                  setState(() => _searchQuery = val.toLowerCase()),
-              decoration: InputDecoration(
-                hintText: "Search ID or Phone...",
-                prefixIcon: const Icon(Icons.search),
-                fillColor: AppTheme.bgGradientEnd,
-                filled: true,
-                isDense: true,
-                contentPadding: const EdgeInsets.all(12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-
-          // 3. ORDER LISTS
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _fetchOrders,
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildOrderList(isActive: true),
-                        _buildOrderList(isActive: false),
-                        _buildOrderList(isActive: null), // ✅ Cancelled
-                      ],
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getOverallDeliveryStatus(Map<String, dynamic> order) {
+  String _getOverallShareholderStatusLabel(Map<String, dynamic> order) {
     final List shareholders = order['shareholders'] ?? [];
-
-    if (shareholders.isEmpty) return 'Pending';
+    if (shareholders.isEmpty) return 'Not started';
 
     final statuses = shareholders
-        .map((s) => (s['delivery_status'] ?? '').toString().toLowerCase())
+        .map((s) => _asInt(s['status']))
         .toList();
 
-    if (statuses.every((s) => s == 'delivered')) {
-      return 'Delivered';
-    }
+    final maxStatus = statuses.reduce((a, b) => a > b ? a : b);
 
-    if (statuses.contains('pending')) {
-      return 'Pending';
+    switch (maxStatus) {
+      case 0:
+        return 'Not started';
+      case 1:
+        return 'Qurbani Started';
+      case 2:
+        return 'Processing';
+      case 3:
+        return 'Meat Packaged';
+      case 4:
+        return 'Sent for delivery';
+      case 5:
+        return 'Delivered';
+      case 6:
+        return 'Cancelled';
+      default:
+        return 'Unknown';
     }
-
-    if (statuses.contains('assigned')) {
-      return 'Assigned';
-    }
-
-    return 'Pending';
   }
 
-  String _getOverallProcessingStatus(Map<String, dynamic> order) {
-    final List shareholders = order['shareholders'] ?? [];
+  String _getOrderStatusLabel(Map<String, dynamic> order) {
+    if (_isCodExpired(order)) return 'Cancelled';
+    return (order['orderStatusLabel'] ?? 'Active').toString();
+  }
 
-    if (shareholders.isEmpty) return 'Pending';
-
-    final statuses = shareholders
-        .map((s) => (s['processing_status'] ?? '').toString().toLowerCase())
-        .toList();
-
-    if (statuses.contains('cancelled')) {
-      return 'Cancelled';
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+      case 'delivered':
+        return Colors.green;
+      case 'cancelled':
+        return AppTheme.warningRed;
+      case 'sent for delivery':
+        return Colors.blue;
+      case 'processing':
+      case 'qurbani started':
+      case 'meat packaged':
+        return Colors.orange;
+      case 'active':
+      case 'not started':
+      default:
+        return AppTheme.primaryGreen;
     }
-
-    if (statuses.contains('pending')) {
-      return 'Pending';
-    }
-
-    if (statuses.contains('confirmed')) {
-      return 'Confirmed';
-    }
-
-    if (statuses.every((s) => s == 'completed')) {
-      return 'Completed';
-    }
-
-    return 'Pending';
   }
 
   Widget newBadge() {
@@ -244,69 +177,58 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
   Widget _buildOrderList({required bool? isActive}) {
     final filteredOrders = _allOrders.where((order) {
-      final data = order;
+      final orderStatus = _asInt(order['orderStatus']);
+      final shareholderStatusLabel = _getOverallShareholderStatusLabel(order);
 
-      // Filter by completion status - include delivered orders as completed
-      final deliveryStatus = _getOverallDeliveryStatus(data);
-      final processingStatus = _getOverallProcessingStatus(data);
-      final orderStatus = (data['orderStatus'] ?? 'pending')
-          .toString()
-          .toLowerCase();
+      final isCancelled = orderStatus == 2 || _isCodExpired(order);
+      final isCompleted =
+          orderStatus == 1 ||
+          shareholderStatusLabel.toLowerCase() == 'delivered';
 
-      final isCancelled = orderStatus == 'cancelled';
-      final isCompleted = processingStatus.toLowerCase() == 'completed';
-      final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
-      // final isDelivered = deliveryStatus.toLowerCase() == 'delivered';
-      // Show in Active: not completed AND not delivered
-      // Show in Completed: completed OR delivered
       bool matchesStatus;
-
       if (isActive == true) {
-        // Active tab
-        matchesStatus = !isCompleted && !isDelivered && !isCancelled;
+        matchesStatus = !isCompleted && !isCancelled;
       } else if (isActive == false) {
-        // Completed tab
-        matchesStatus = isCompleted || isDelivered;
+        matchesStatus = isCompleted && !isCancelled;
       } else {
-        // Cancelled tab
         matchesStatus = isCancelled;
       }
-      // Filter by search query
-      final orderId = (data['orderId'] ?? '').toString().toLowerCase();
+
+      final orderId = (order['orderId'] ?? '').toString().toLowerCase();
       final phone =
-          (data['contact'] is Map
-                  ? data['contact']['primary']
-                  : data['contact'] ?? '')
+          (order['contact'] is Map
+                  ? order['contact']['primary']
+                  : order['contact'] ?? '')
               .toString()
               .toLowerCase();
+
       final matchesSearch =
           orderId.contains(_searchQuery) || phone.contains(_searchQuery);
 
       return matchesStatus && matchesSearch;
     }).toList();
 
-    if (filteredOrders.isEmpty)
+    if (filteredOrders.isEmpty) {
       return const Center(child: Text("No orders found"));
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: filteredOrders.length,
       itemBuilder: (context, index) {
         final data = filteredOrders[index];
-        final orderId = data['orderId'] ?? '';
+        final dynamic orderId = data['orderId'];
         final createdAt = data['createdAt'];
 
         final bool showNew =
             createdAt != null && isNewOrder(createdAt.toString());
 
-        final deliveryStatus = data['deliveryStatus'] ?? 'Pending';
-        String processingStatus;
-
-        if (_isCodExpired(data)) {
-          processingStatus = 'cancelled';
-        } else {
-          processingStatus = _getOverallProcessingStatus(data).toLowerCase();
-        }
+        final orderStatusLabel = _getOrderStatusLabel(data);
+        final shareholderStatusLabel = _getOverallShareholderStatusLabel(data);
+        final paymentStatusLabel =
+            (data['orderPaymentStatusLabel'] ?? 'Pending').toString();
+        final paymentMethodLabel =
+            (data['paymentMethodLabel'] ?? 'Unknown').toString();
 
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -358,8 +280,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                ShareholderOrderDetails(orderId: orderId),
+                            builder: (_) => ShareholderOrderDetails(
+                              orderId: orderId.toString(),
+                            ),
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -379,12 +302,11 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     const Text(
-                      "Status >",
+                      "Order >",
                       style: TextStyle(fontSize: 13, color: Colors.black87),
                     ),
                     const SizedBox(width: 8),
@@ -402,17 +324,17 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.local_shipping_outlined,
+                              Icons.assignment_outlined,
                               size: 14,
-                              color: AppTheme.primaryGreen,
+                              color: _getStatusColor(orderStatusLabel),
                             ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                deliveryStatus,
+                                orderStatusLabel,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: AppTheme.primaryGreen,
+                                  color: _getStatusColor(orderStatusLabel),
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -428,7 +350,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                 Row(
                   children: [
                     const Text(
-                      "Processing >",
+                      "Progress >",
                       style: TextStyle(fontSize: 13, color: Colors.black87),
                     ),
                     const SizedBox(width: 8),
@@ -448,26 +370,41 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                             Icon(
                               Icons.settings,
                               size: 14,
-                              color: Colors.orange[800],
+                              color: _getStatusColor(shareholderStatusLabel),
                             ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                processingStatus == 'cancelled'
-                                    ? 'Cancelled'
-                                    : processingStatus.isNotEmpty
-                                    ? processingStatus[0].toUpperCase() +
-                                          processingStatus.substring(1)
-                                    : 'Pending',
+                                shareholderStatusLabel,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.orange[800],
+                                  color: _getStatusColor(shareholderStatusLabel),
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text(
+                      "Payment >",
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        "$paymentStatusLabel ($paymentMethodLabel)",
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -480,9 +417,80 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       },
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: lightBg,
+      appBar: AppBar(
+        title: const Text(
+          "View Orders",
+          style: TextStyle(
+            color: Color(0xFF2D4F32),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppTheme.bgGradientEnd,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Color(0xFF2D4F32)),
+      ),
+      body: Column(
+        children: [
+          Container(
+            color: AppTheme.bgGradientEnd,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: AppTheme.primaryGreen,
+              unselectedLabelColor: AppTheme.primaryGreen,
+              indicatorColor: AppTheme.primaryGreen,
+              tabs: const [
+                Tab(text: "Active"),
+                Tab(text: "Completed"),
+                Tab(text: "Cancelled"),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: "Search ID or Phone...",
+                prefixIcon: const Icon(Icons.search),
+                fillColor: AppTheme.bgGradientEnd,
+                filled: true,
+                isDense: true,
+                contentPadding: const EdgeInsets.all(12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _fetchOrders,
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildOrderList(isActive: true),
+                        _buildOrderList(isActive: false),
+                        _buildOrderList(isActive: null),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// Fixed FilterBar class outside of the main PageState (unchanged)
 class FilterBar extends StatelessWidget {
   final List<String> processingOptions;
   final List<String> deliveryOptions;

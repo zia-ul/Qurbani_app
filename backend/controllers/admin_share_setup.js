@@ -5,6 +5,8 @@ const saveVendorShareSetup = async (req, res) => {
   try {
     const vendorId = req.user.id;
 
+    console.log(req.body);
+
     const {
       totalShares,
       pricePerShare,
@@ -13,6 +15,9 @@ const saveVendorShareSetup = async (req, res) => {
       deliveryType,
       deliveryFee = 0,
       deliveryThreshold = null,
+      dayOneLimit,
+      dayTwoLimit,
+      dayThreeLimit
     } = req.body;
 
     if (!totalShares || !pricePerShare || !lastBookingDate || !deliveryType) {
@@ -30,9 +35,12 @@ const saveVendorShareSetup = async (req, res) => {
         last_booking_date,
         delivery_type,
         delivery_fee,
-        free_delivery_threshold
+        free_delivery_threshold,
+        day1,
+        day2,
+        day3
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         total_shares = VALUES(total_shares),
         price_per_share = VALUES(price_per_share),
@@ -41,6 +49,9 @@ const saveVendorShareSetup = async (req, res) => {
         delivery_type = VALUES(delivery_type),
         delivery_fee = VALUES(delivery_fee),
         free_delivery_threshold = VALUES(free_delivery_threshold),
+        day1 = VALUES(day1),
+        day2 = VALUES(day2),
+        day3 = VALUES(day3),
         updated_at = CURRENT_TIMESTAMP
     `;
 
@@ -53,14 +64,17 @@ const saveVendorShareSetup = async (req, res) => {
       deliveryType,
       deliveryFee,
       deliveryThreshold,
+      dayOneLimit,
+      dayTwoLimit,
+      dayThreeLimit
     ]);
 
-    // 🔥 Update order_deadline in users table
+    // Update order_deadline in users table
     const updateUserDeadlineQuery = `
-  UPDATE users
-  SET order_deadline = ?
-  WHERE id = ?
-`;
+      UPDATE users
+      SET order_deadline = ?
+      WHERE id = ?
+    `;
 
     await db.query(updateUserDeadlineQuery, [lastBookingDate, vendorId]);
 
@@ -91,7 +105,10 @@ const getVendorShareSetup = async (req, res) => {
         last_booking_date,
         delivery_type,
         delivery_fee,
-        free_delivery_threshold
+        free_delivery_threshold,
+        day1,
+        day2,
+        day3
       FROM admin_share_setups
       WHERE admin_id = ?
         AND is_active = 1
@@ -118,6 +135,9 @@ const getVendorShareSetup = async (req, res) => {
       deliveryType: setup.delivery_type,
       deliveryFee: setup.delivery_fee,
       deliveryThreshold: setup.free_delivery_threshold,
+      dayOneLimit: setup.day1,
+      dayTwoLimit: setup.day2,
+      dayThreeLimit: setup.day3
     });
   } catch (err) {
     console.error("Fetch vendor share setup error:", err);

@@ -53,17 +53,16 @@ exports.addAnimal = async function addAnimal(adminId, data) {
   }
 
   // Store ONLY base price
-  const animalId = crypto.randomUUID();
+  // const animalId = crypto.randomUUID();
 
   await pool.execute(
     `
     INSERT INTO animals
-    (id, admin_id, animal_type, price, shares, last_booked_date,
+    (admin_id, animal_type, price, shares, last_booked_date,
      delivery_type, delivery_fee, delivery_threshold)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      animalId,
       adminId,
       animalType,
       finalPrice, 

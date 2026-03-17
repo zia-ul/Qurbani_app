@@ -42,6 +42,9 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
     lastBookingDateController.dispose();
     deliveryFeeController.dispose();
     deliveryThresholdController.dispose();
+    dayOneLimit.dispose();
+    dayTwoLimit.dispose();
+    dayThreeLimit.dispose();
     super.dispose();
   }
 
@@ -81,6 +84,9 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
               : '';
           deliveryThresholdController.text =
               data['deliveryThreshold']?.toString() ?? '';
+              dayOneLimit.text = (data['dayOneLimit'] ?? '').toString();
+          dayTwoLimit.text = (data['dayTwoLimit'] ?? '').toString();
+          dayThreeLimit.text = (data['dayThreeLimit'] ?? '').toString();
         });
       }
     } catch (e, stack) {
@@ -280,14 +286,14 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
                               ? "Required"
                               : null,
                         ),
-                        const SizedBox(height: 10),
-                        TextFormField(
-                          controller: deliveryThresholdController,
-                          keyboardType: TextInputType.number,
-                          decoration: _decoration(
-                            "Free delivery threshold (optional)",
-                          ),
-                        ),
+                        // const SizedBox(height: 10),
+                        // TextFormField(
+                        //   controller: deliveryThresholdController,
+                        //   keyboardType: TextInputType.number,
+                        //   decoration: _decoration(
+                        //     "Free delivery threshold (optional)",
+                        //   ),
+                        // ),
                       ],
                     ]),
                     const SizedBox(height: 30),

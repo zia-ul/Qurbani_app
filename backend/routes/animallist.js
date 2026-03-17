@@ -3,7 +3,6 @@ const express = require("express");
 const router = express.Router();
 const isAdmin = require("../middleware/isAdmin");
 const authMiddleware = require("../middleware/authmiddleware");
-const logger = require("../middleware/logger");
 
 const {
   getAnimals,

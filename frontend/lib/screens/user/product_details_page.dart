@@ -54,14 +54,57 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  String shortenOrderId(String id, {int length = 10}) {
-    if (id.length <= length) return id;
-    return id.substring(0, length);
+  String shortenOrderId(dynamic id, {int length = 10}) {
+    final value = id.toString();
+    if (value.length <= length) return value;
+    return value.substring(0, length);
   }
 
   String lastDigits(String value, {int length = 12}) {
     if (value.length <= length) return value;
     return value.substring(value.length - length);
+  }
+
+  String mapCombinedStatus(dynamic status) {
+    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+
+    switch (intStatus) {
+      case 0:
+        return "Not started";
+      case 1:
+        return "Qurbani Started";
+      case 2:
+        return "Processing";
+      case 3:
+        return "Meat Packaged";
+      case 4:
+        return "Sent for delivery";
+      case 5:
+        return "Delivered";
+      case 6:
+        return "Cancelled";
+      default:
+        return "Unknown";
+    }
+  }
+
+  String mapPaymentStatus(dynamic status) {
+    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+
+    switch (intStatus) {
+      case 0:
+        return "Pending";
+      case 1:
+        return "Paid";
+      case 2:
+        return "Unpaid";
+      default:
+        return "Unknown";
+    }
+  }
+
+  int parseStatus(dynamic status) {
+    return int.tryParse(status?.toString() ?? '') ?? 0;
   }
 
   Future<void> _cancelOrder(BuildContext context) async {
@@ -137,7 +180,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryGreen,
@@ -179,7 +222,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               icon: const Icon(Icons.copy, size: 16, color: Colors.blue),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: value));
-                ToastUtils.showSuccess("ID Copied!");
+                ToastUtils.showSuccess("Copied!");
               },
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
@@ -250,12 +293,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
 
     final order = _orderData!;
-    final deliveryStatus = (order['delivery_status'] ?? 'pending')
-        .toString()
-        .toLowerCase();
-    final orderDate = DateTime.tryParse(order['created_at'] ?? '');
-    final bool isDelivered = deliveryStatus == 'delivered';
-    final bool isCancelled = deliveryStatus == 'cancelled';
+    final orderDate = DateTime.tryParse(order['created_at']?.toString() ?? '');
+
+    final overallStatus = parseStatus(order['status']);
+    final bool isDelivered = overallStatus == 5;
+    final bool isCancelled = overallStatus == 6;
 
     bool canCancel = false;
     if (orderDate != null) {
@@ -281,26 +323,21 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Product Info Card
-
-            // Animals Card
             if (order['animals'] != null &&
                 (order['animals'] as List).isNotEmpty)
               _buildSectionCard(
                 title: "Animals",
-                icon: Icons.celebration,
+                icon: Icons.pets,
                 child: Column(
                   children: (order['animals'] as List<dynamic>).map((animal) {
-                    // Handle optional fields safely
                     final breed = animal['breed'] ?? 'N/A';
                     final type = animal['animal_type'] ?? 'N/A';
                     final price = animal['price']?.toString() ?? 'N/A';
                     final age = animal['age']?.toString() ?? 'N/A';
-                    // final weight =
-                    //     animal['details_weight']?.toString() ?? 'N/A';
-                    final barcode = animal['barcode'] ?? 'N/A';
-                    final qurbani_datetime =
-                        animal['qurbani_datetime'] ?? 'N/A';
+                    final barcode = animal['barcode']?.toString() ?? 'N/A';
+                    final qurbaniDatetime =
+                        animal['qurbani_datetime']?.toString() ?? 'Pending';
+
                     final photoUrlsRaw = animal['photo_urls'];
                     List<String> photoUrls = [];
 
@@ -332,7 +369,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           ),
                           Text("Price: $price"),
                           Text("Age: $age"),
-                          // Text("Weight: $weight"),
                           Row(
                             children: [
                               Expanded(
@@ -349,8 +385,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               ),
                             ],
                           ),
-
-                          Text("Qurbani Time: $qurbani_datetime"),
+                          Text("Qurbani Time: $qurbaniDatetime"),
                           if (photoUrls.isNotEmpty)
                             SizedBox(
                               height: 80,
@@ -394,7 +429,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 title: "Shareholder Details",
                 icon: Icons.group,
                 child: Column(
-                  children: (order['shareholders'] as List<dynamic>).map((s) {
+                  children:
+                      (order['shareholders'] as List<dynamic>).map((s) {
                     final photoUrlsRaw = s['photo_urls'];
                     List<String> photoUrls = [];
 
@@ -421,18 +457,21 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            s['shareholder_name'] ?? 'N/A',
+                            s['shareholder_name']?.toString() ?? 'N/A',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text("Guardian: ${s['guardian_name'] ?? 'N/A'}"),
                           Text(
-                            "Share #: ${s['share_number'] ?? 'Not assigned'}",
+                            "Share #: ${s['share_number']?.toString() ?? 'Not assigned'}",
                           ),
-                          Text("Payment: ${s['payment_status']}"),
-                          Text("Processing: ${s['processing_status']}"),
-                          Text("Delivery: ${s['delivery_status']}"),
                           Text(
-                            "Qurbani Time: ${s['qurbani_datetime'] ?? 'Pending'}",
+                            "Payment: ${mapPaymentStatus(s['payment_status'])}",
+                          ),
+                          Text(
+                            "Status: ${mapCombinedStatus(s['status'])}",
+                          ),
+                          Text(
+                            "Qurbani Time: ${s['qurbani_datetime']?.toString() ?? 'Pending'}",
                           ),
                           if (photoUrls.isNotEmpty)
                             Padding(
@@ -454,7 +493,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 ),
                               ),
                             ),
-
                           const Divider(),
                         ],
                       ),
@@ -463,7 +501,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ),
               ),
 
-            // Admin Details Card
             _buildSectionCard(
               title: "Admin Details",
               icon: Icons.account_circle,
@@ -474,9 +511,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(order['admin_name'] ?? 'Admin'),
-                        Text(order['admin_phone'] ?? 'N/A'),
-                        Text(order['admin_address'] ?? 'N/A'),
+                        Text(order['admin_name']?.toString() ?? 'Admin'),
+                        Text(order['admin_phone']?.toString() ?? 'N/A'),
+                        Text(order['admin_address']?.toString() ?? 'N/A'),
                       ],
                     ),
                   ),
@@ -484,7 +521,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               ),
             ),
 
-            // Order Info Card
             _buildSectionCard(
               title: "Order Info",
               icon: Icons.assignment,
@@ -496,8 +532,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     shortenOrderId(order['id']),
                     isCopyable: false,
                   ),
-
-                  
+                  _buildInfoRow(
+                    Icons.info_outline,
+                    "Order Status",
+                    mapCombinedStatus(order['status']),
+                  ),
+                  _buildInfoRow(
+                    Icons.payments,
+                    "Payment Status",
+                    mapPaymentStatus(order['payment_status']),
+                  ),
                   if (orderDate != null)
                     _buildInfoRow(
                       Icons.calendar_today,
@@ -510,7 +554,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 20),
 
-            // Functional Buttons Row
             Row(
               children: [
                 Expanded(
@@ -521,12 +564,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     onPressed: (isCancelled || isDelivered)
                         ? null
                         : () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  SpecialRequestPage(orderData: order),
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    SpecialRequestPage(orderData: order),
+                              ),
                             ),
-                          ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -546,7 +589,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
             const SizedBox(height: 12),
 
-            // Rate and Cancel Buttons
             if (isDelivered)
               _buildActionBtn(
                 label: "Rate Admin & Delivery",
@@ -556,7 +598,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   context,
                   MaterialPageRoute(
                     builder: (_) => RateOrderPage(
-                      orderId: order['id'],
+                      orderId: order['id'].toString(),
                       userId: widget.userId,
                     ),
                   ),

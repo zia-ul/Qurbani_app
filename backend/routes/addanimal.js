@@ -86,14 +86,12 @@ router.post(
     body("animalType").notEmpty().withMessage("animalType is required"),
     body("shares").isInt({ min: 1 }).withMessage("shares must be >= 1"),
 
-    // optional animal_details fields
     body("breed").optional({ nullable: true }).isString(),
     body("description").optional({ nullable: true }).isString(),
     body("age").optional({ nullable: true }).isString(),
     body("height").optional({ nullable: true }).isString(),
     body("weight").optional({ nullable: true }).isString(),
     body("images").optional({ nullable: true }).isArray(),
-
   ],
   async (req, res) => {
     const adminId = req.user.id;
@@ -105,12 +103,9 @@ router.post(
 
     const barcode = generateBarcode();
 
-
     const {
       animalType,
       shares,
-
-      // details
       breed,
       description,
       age,
@@ -121,60 +116,48 @@ router.post(
 
     console.log("Add Animal Request Body:", req.body);
 
-    const animalId = crypto.randomUUID();
-    const animalDetailsId = crypto.randomUUID();
-
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
 
-      // INSERT INTO animals (SET UNUSED FIELDS TO NULL)
-      await connection.query(
+      // Insert into animals
+      const [animalResult] = await connection.query(
         `
         INSERT INTO animals (
-          id,
           admin_id,
           animal_type,
           price,
           shares,
           delivery_type,
           delivery_fee,
-          delivery_threshold,
-          last_booked_date,
-          created_at
+          last_booked_date
         )
-        VALUES (?, ?, ?, NULL, ?, NULL, NULL, NULL, NULL, NOW())
+        VALUES (?, ?, NULL, ?, NULL, NULL, NULL)
         `,
-        [
-          animalId,
-          adminId,
-          animalType,
-          shares,
-        ]
+        [adminId, animalType, shares]
       );
 
-      // INSERT INTO animal_details
+      const animalId = animalResult.insertId;
+
+      // Insert into animal_details using same animalId
       await connection.query(
         `
         INSERT INTO animal_details (
-          id,
-          barcode,
           animal_id,
+          barcode,
           breed,
           description,
           age,
           height,
           weight,
-          photo_urls,
-          created_at
+          photo_urls
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
-          animalDetailsId,
-          barcode,
           animalId,
+          barcode,
           breed || null,
           description || null,
           age || null,
@@ -189,7 +172,6 @@ router.post(
       return res.status(201).json({
         message: "Animal added successfully",
         animalId,
-        animalDetailsId,
       });
     } catch (err) {
       await connection.rollback();
