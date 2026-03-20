@@ -29,15 +29,15 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
 
     try {
       await RequestService.submitRequest(
-        widget.orderData['id'],
-        widget.orderData['user_id'],
-        _titleController.text.trim(),
-        _descriptionController.text.trim(),
-      );
+  widget.orderData['id']?.toString() ?? '',
+  widget.orderData['user_id']?.toString() ?? '',
+  _titleController.text.trim(),
+  _descriptionController.text.trim(),
+);
 
       ToastUtils.showSuccess('Special request submitted successfully');
 
-      final userId = widget.orderData['user_id'] as String;
+      final userId = widget.orderData['user_id']?.toString() ?? '';
       final userName = widget.orderData['userName']?.toString() ?? 'User';
       final String role = widget.orderData['role']?.toString() ?? 'user';
 

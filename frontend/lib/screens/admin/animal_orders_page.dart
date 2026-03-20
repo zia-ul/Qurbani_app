@@ -5,7 +5,7 @@ import 'package:Qurbani/services/order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
 class AnimalOrdersPage extends StatefulWidget {
-  final String animalId;
+  final int animalId;
   final String animalName;
 
   const AnimalOrdersPage({
@@ -28,8 +28,7 @@ class _AnimalOrdersPageState extends State<AnimalOrdersPage> {
   }
 
   void _loadData() {
-    _ordersFuture = OrderService.getAnimalOrders(widget.animalId);
-
+    _ordersFuture = OrderService.getAnimalOrders(widget.animalId.toString());
   }
 
   Future<void> _refresh() async {

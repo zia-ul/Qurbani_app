@@ -47,19 +47,18 @@ const { sendPushNotification } = require("../utils/notification_service");
 
 router.post("/:id/payment", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { payment_status } = req.body;
+  const paymentStatus = Number(req.body.payment_status);
 
-  if (!["pending", "paid", "unpaid"].includes(payment_status)) {
+  if (![0, 1, 2].includes(paymentStatus)) {
     return res.status(400).json({ message: "Invalid payment status" });
   }
 
   try {
-    // 🔍 Get shareholder + order_id
     const [rows] = await pool.execute(
       `SELECT id, order_id 
        FROM shareholder_details 
        WHERE id = ?`,
-      [id]
+      [id],
     );
 
     if (!rows.length) {
@@ -68,10 +67,9 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
 
     const orderId = rows[0].order_id;
 
-    // 🔍 Get user_id from order
     const [orderRows] = await pool.execute(
       `SELECT user_id FROM orders WHERE id = ?`,
-      [orderId]
+      [orderId],
     );
 
     if (!orderRows.length) {
@@ -80,40 +78,38 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
 
     const userId = orderRows[0].user_id;
 
-    // ✅ Update payment status
     await pool.execute(
       `UPDATE shareholder_details
          SET payment_status = ?
-         WHERE id = ?`,
-      [payment_status, id]
+       WHERE id = ?`,
+      [paymentStatus, id],
     );
 
-    console.log("Shareholder payment updated");
-
-    // 🔔 SEND PUSH TO USER
     try {
       const [devices] = await pool.execute(
         `SELECT subscription_id 
          FROM user_devices 
          WHERE user_id = ?`,
-        [userId]
+        [userId],
       );
 
-      const subscriptionIds = devices.map(d => d.subscription_id);
+      const subscriptionIds = devices.map((d) => d.subscription_id);
 
-      console.log("Payment update - user subscription IDs:", subscriptionIds);
+      let paymentStatusLabel = "Pending";
+      if (paymentStatus == 1) paymentStatusLabel = "Paid";
+      if (paymentStatus == 2) paymentStatusLabel = "Unpaid";
 
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
           subscriptionIds,
           "Payment Status Updated",
-          `Your shareholder payment status is now '${payment_status}'.`,
+          `Your shareholder payment status is now '${paymentStatusLabel}'.`,
           {
             type: "SHAREHOLDER_PAYMENT_UPDATED",
             orderId,
             shareholderId: id,
-            payment_status,
-          }
+            payment_status: paymentStatus,
+          },
         );
       }
     } catch (pushErr) {
@@ -124,7 +120,205 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
     }
 
     res.json({ message: "Payment updated successfully" });
+  } catch (err) {
+    logger.error("Route error", {
+      message: err.message,
+      stack: err.stack,
+    });
 
+    res.status(500).json({ message: "Something went wrong" });
+  }
+});
+
+router.patch("/:id/status", authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const shareholderId = Number(id);
+  const nextStatus = Number(status);
+
+  if (!shareholderId || ![1, 2, 3, 4, 5, 6].includes(nextStatus)) {
+    return res.status(400).json({ message: "Invalid status value" });
+  }
+
+  try {
+    const [rows] = await pool.execute(
+      `
+      SELECT 
+        id,
+        order_id,
+        shareholder_name,
+        status,
+        payment_status,
+        animal_id,
+        share_number
+      FROM shareholder_details
+      WHERE id = ?
+      `,
+      [shareholderId],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Shareholder not found" });
+    }
+
+    const shareholder = rows[0];
+
+    const currentStatus = Number(shareholder.status);
+    const paymentStatus = Number(shareholder.payment_status);
+    const hasAnimal = !!shareholder.animal_id;
+    const hasShareNumber = shareholder.share_number !== null;
+
+    if (currentStatus === 6) {
+      return res.status(400).json({
+        message: "Cancelled shareholder status cannot be updated",
+      });
+    }
+
+    switch (nextStatus) {
+      case 1: // Qurbani Started
+        if (paymentStatus !== 1) {
+          return res.status(400).json({
+            message: "Payment must be marked as Paid before starting qurbani",
+          });
+        }
+
+        if (!hasAnimal || !hasShareNumber) {
+          return res.status(400).json({
+            message: "Animal and share number must be assigned first",
+          });
+        }
+
+        if (currentStatus !== 0) {
+          return res.status(400).json({
+            message: "Qurbani can only be started from Not started status",
+          });
+        }
+        break;
+
+      case 2: // Processing
+        if (currentStatus !== 1) {
+          return res.status(400).json({
+            message: "Processing can only be set after Qurbani Started",
+          });
+        }
+        break;
+
+      case 3: // Meat Packaged
+        if (![1, 2].includes(currentStatus)) {
+          return res.status(400).json({
+            message:
+              "Meat can only be packaged after Qurbani Started or Processing",
+          });
+        }
+        break;
+
+      case 4: // Sent for delivery
+        if (currentStatus !== 3) {
+          return res.status(400).json({
+            message: "Order can only be sent for delivery after Meat Packaged",
+          });
+        }
+        break;
+
+      case 5: // Delivered
+        if (currentStatus !== 4) {
+          return res.status(400).json({
+            message: "Order can only be delivered after Sent for delivery",
+          });
+        }
+        break;
+
+      case 6: // Cancelled
+        if (currentStatus === 5) {
+          return res.status(400).json({
+            message: "Delivered order cannot be cancelled",
+          });
+        }
+        break;
+    }
+
+    await pool.execute(
+      `
+      UPDATE shareholder_details
+      SET status = ?
+      WHERE id = ?
+      `,
+      [nextStatus, shareholderId],
+    );
+
+    // Push notification
+    try {
+      const orderId = shareholder.order_id;
+
+      const [orderRows] = await pool.execute(
+        `SELECT user_id FROM orders WHERE id = ?`,
+        [orderId],
+      );
+
+      if (orderRows.length) {
+        const userId = orderRows[0].user_id;
+
+        const [devices] = await pool.execute(
+          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+          [userId],
+        );
+
+        const subscriptionIds = devices.map((d) => d.subscription_id);
+
+        if (subscriptionIds.length > 0) {
+          let title = "Order Status Updated";
+          let message = "Your Qurbani order status has been updated.";
+          let type = "SHAREHOLDER_STATUS_UPDATED";
+
+          switch (nextStatus) {
+            case 1:
+              title = `Qurbani Order #${orderId}`;
+              message = `Qurbani has started for your order #${orderNumber}.`;
+              type = "SHAREHOLDER_QURBANI_STARTED";
+              break;
+            case 2:
+              title = `Qurbani Order #${orderId}`;
+              message = `Your order #${orderId} is now being processed.`;
+              type = "SHAREHOLDER_PROCESSING_STARTED";
+              break;
+            case 3:
+              title = `Qurbani Order #${orderId}`;
+              message = `Meat has been packaged for your order #${orderNumber}.`;
+              type = "SHAREHOLDER_MEAT_PACKAGED";
+              break;
+            case 4:
+              title = `Qurbani Order #${orderId}`;
+              message = `Your order #${orderId} has been sent for delivery.`;
+              type = "SHAREHOLDER_SENT_FOR_DELIVERY";
+              break;
+            case 5:
+              title = `Qurbani Order #${orderId}`;
+              message = `Your order #${orderId} has been delivered.`;
+              type = "SHAREHOLDER_DELIVERED";
+              break;
+            case 6:
+              title = `Qurbani Order #${orderId}`;
+              message = `Your order #${orderId} has been cancelled.`;
+              type = "SHAREHOLDER_CANCELLED";
+              break;
+          }
+          await sendPushNotification(subscriptionIds, title, message, {
+            type,
+            orderId,
+            shareholderId,
+            status: nextStatus,
+          });
+        }
+      }
+    } catch (pushErr) {
+      logger.error("Status update push failed", {
+        shareholderId,
+        error: pushErr.message,
+      });
+    }
+
+    res.json({ message: "Status updated successfully" });
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
@@ -175,64 +369,104 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
 
 router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { animal_id } = req.body;
+  const { animal_id, share_number } = req.body;
+
+  const shareholderId = Number(id);
+  const animalId = Number(animal_id);
+  const shareNumber = Number(share_number);
+
+  if (!animalId || !shareNumber) {
+    return res.status(400).json({
+      message: "animal_id and share_number are required",
+    });
+  }
 
   try {
     // Check shareholder
     const [shareholders] = await pool.execute(
       "SELECT * FROM shareholder_details WHERE id = ?",
-      [id],
+      [shareholderId],
     );
 
     if (!shareholders.length) {
       return res.status(404).json({ message: "Shareholder not found" });
     }
 
-    if (shareholders[0].payment_status !== "paid") {
-      return res
-        .status(400)
-        .json({ message: "Payment must be completed before assigning animal" });
+    const shareholder = shareholders[0];
+
+    // payment_status: 0=pending, 1=paid, 2=unpaid
+    if (Number(shareholder.payment_status) !== 1) {
+      return res.status(400).json({
+        message: "Payment must be completed before assigning animal",
+      });
     }
 
     // Check animal
-    const [animals] = await pool.execute(
-      "SELECT * FROM animals WHERE id = ?",
-      [animal_id],
-    );
+    const [animals] = await pool.execute("SELECT * FROM animals WHERE id = ?", [
+      animalId,
+    ]);
 
     if (!animals.length) {
       return res.status(404).json({ message: "Animal not found" });
     }
 
     const animal = animals[0];
-
-    if (animal.remaining_shares <= 0) {
-      return res.status(400).json({ message: "No shares available" });
-    }
+    const totalShares = Number(animal.shares || 0);
 
     // Count already assigned shares for this animal
     const [countResult] = await pool.execute(
-      `SELECT COUNT(*) as count 
-       FROM shareholder_details 
-       WHERE animal_id = ?`,
-      [animal_id],
+      `
+      SELECT COUNT(*) AS count
+      FROM shareholder_details
+      WHERE animal_id = ?
+      `,
+      [animalId],
     );
 
-    const shareNumber = countResult[0].count + 1;
+    const assignedCount = Number(countResult[0].count || 0);
+    const remainingShares = totalShares - assignedCount;
+
+    if (remainingShares <= 0) {
+      return res.status(400).json({ message: "No shares available" });
+    }
+
+    // Optional: validate requested share number is in range
+    if (shareNumber < 1 || shareNumber > totalShares) {
+      return res.status(400).json({
+        message: `Share number must be between 1 and ${totalShares}`,
+      });
+    }
+
+    // Check if this share number is already taken for the animal
+    const [existingShare] = await pool.execute(
+      `
+      SELECT id
+      FROM shareholder_details
+      WHERE animal_id = ? AND share_number = ? AND id != ?
+      LIMIT 1
+      `,
+      [animalId, shareNumber, shareholderId],
+    );
+
+    if (existingShare.length) {
+      return res.status(400).json({
+        message: "This share number is already assigned",
+      });
+    }
 
     // Update shareholder
     await pool.execute(
-      `UPDATE shareholder_details
-         SET animal_id = ?, share_number = ?, processing_status = 'confirmed'
-         WHERE id = ?`,
-      [animal_id, shareNumber, id],
+      `
+      UPDATE shareholder_details
+      SET animal_id = ?, share_number = ?
+      WHERE id = ?
+      `,
+      [animalId, shareNumber, shareholderId],
     );
 
-    // 🔔 =========================
-    // 🔔 ADD NOTIFICATION HERE
-    // 🔔 =========================
+    // Push notification
     try {
-      const orderId = shareholders[0].order_id;
+      const orderId = shareholder.order_id;
 
       const [orderRows] = await pool.execute(
         `SELECT user_id FROM orders WHERE id = ?`,
@@ -247,31 +481,31 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
           [userId],
         );
 
-        const subscriptionIds = devices.map(d => d.subscription_id);
+        const subscriptionIds = devices.map((d) => d.subscription_id);
 
         if (subscriptionIds.length > 0) {
           await sendPushNotification(
             subscriptionIds,
-            "🐄 Animal Assigned",
+            "Animal Assigned",
             "Your Qurbani animal has been successfully assigned.",
             {
               type: "SHAREHOLDER_ANIMAL_ASSIGNED",
               orderId,
-              shareholderId: id,
-              animal_id,
-            }
+              shareholderId,
+              animal_id: animalId,
+              share_number: shareNumber,
+            },
           );
         }
       }
     } catch (pushErr) {
       logger.error("Assign animal push failed", {
-        shareholderId: id,
+        shareholderId,
         error: pushErr.message,
       });
     }
 
     res.json({ message: "Animal assigned successfully" });
-
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
@@ -366,7 +600,7 @@ router.post("/:id/schedule", authMiddleware, async (req, res) => {
           [userId],
         );
 
-        const subscriptionIds = devices.map(d => d.subscription_id);
+        const subscriptionIds = devices.map((d) => d.subscription_id);
 
         if (subscriptionIds.length > 0) {
           await sendPushNotification(
@@ -378,7 +612,7 @@ router.post("/:id/schedule", authMiddleware, async (req, res) => {
               orderId,
               shareholderId: id,
               qurbani_datetime,
-            }
+            },
           );
         }
       }
@@ -390,7 +624,6 @@ router.post("/:id/schedule", authMiddleware, async (req, res) => {
     }
 
     res.json({ message: "Qurbani scheduled successfully" });
-
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
@@ -463,13 +696,13 @@ router.post(
             processing_status = 'completed'
         WHERE id = ?
         `,
-        [delivery_status, shareholderId]
+        [delivery_status, shareholderId],
       );
 
       // Get order_id of this shareholder
       const [shareholderRows] = await connection.execute(
         `SELECT order_id FROM shareholder_details WHERE id = ?`,
-        [shareholderId]
+        [shareholderId],
       );
 
       if (!shareholderRows.length) {
@@ -485,22 +718,20 @@ router.post(
         FROM shareholder_details
         WHERE order_id = ?
         `,
-        [orderId]
+        [orderId],
       );
 
       const allDelivered = allShareholders.every(
-        (s) => s.delivery_status === "delivered"
+        (s) => s.delivery_status === "delivered",
       );
 
       // Check order payment status + get user_id
       const [orderRows] = await connection.execute(
         `SELECT payment_status, user_id FROM orders WHERE id = ?`,
-        [orderId]
+        [orderId],
       );
 
-      const isPaid =
-        orderRows.length &&
-        orderRows[0].payment_status === "paid";
+      const isPaid = orderRows.length && orderRows[0].payment_status === "paid";
 
       const userId = orderRows[0]?.user_id;
 
@@ -514,7 +745,7 @@ router.post(
           SET status = 'completed'
           WHERE id = ?
           `,
-          [orderId]
+          [orderId],
         );
 
         orderCompleted = true;
@@ -531,13 +762,12 @@ router.post(
         if (userId) {
           const [devices] = await pool.execute(
             `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
-            [userId]
+            [userId],
           );
 
-          const subscriptionIds = devices.map(d => d.subscription_id);
+          const subscriptionIds = devices.map((d) => d.subscription_id);
 
           if (subscriptionIds.length > 0) {
-
             // 🚚 Sent for delivery
             if (delivery_status === "sent") {
               await sendPushNotification(
@@ -548,7 +778,7 @@ router.post(
                   type: "DELIVERY_SENT",
                   orderId,
                   shareholderId,
-                }
+                },
               );
             }
 
@@ -562,7 +792,7 @@ router.post(
                   type: "DELIVERY_COMPLETED",
                   orderId,
                   shareholderId,
-                }
+                },
               );
             }
 
@@ -575,7 +805,7 @@ router.post(
                 {
                   type: "ORDER_COMPLETED",
                   orderId,
-                }
+                },
               );
             }
           }
@@ -590,7 +820,6 @@ router.post(
       res.json({
         message: "Delivery status updated successfully",
       });
-
     } catch (err) {
       await connection.rollback();
 
@@ -603,9 +832,8 @@ router.post(
     } finally {
       connection.release();
     }
-  }
+  },
 );
-
 
 /**
  * @swagger
@@ -643,24 +871,127 @@ router.post(
 
 router.patch("/:id/status", authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { delivery_status } = req.body;
+  const { status } = req.body;
+
+  const nextStatus = Number(status);
+
+  if (![1, 2, 3, 4, 5, 6].includes(nextStatus)) {
+    return res.status(400).json({ message: "Invalid status value" });
+  }
 
   try {
-    await pool.execute(
-      `UPDATE shareholder_details
-         SET delivery_status = ?
-         WHERE id = ?`,
-      [delivery_status, id],
+    const [rows] = await pool.execute(
+      `
+      SELECT 
+        id,
+        status,
+        payment_status,
+        animal_id,
+        share_number
+      FROM shareholder_details
+      WHERE id = ?
+      `,
+      [id],
     );
 
-    res.json({ message: "Status updated successfully" });
+    if (!rows.length) {
+      return res.status(404).json({ message: "Shareholder not found" });
+    }
+
+    const shareholder = rows[0];
+
+    const currentStatus = Number(shareholder.status);
+    const paymentStatus = Number(shareholder.payment_status);
+    const hasAnimal = !!shareholder.animal_id;
+    const hasShareNumber = shareholder.share_number !== null;
+
+    if (currentStatus === 6) {
+      return res.status(400).json({
+        message: "Cancelled shareholder status cannot be updated",
+      });
+    }
+
+    // Step conditions
+    switch (nextStatus) {
+      case 1: // Qurbani Started
+        if (paymentStatus !== 1) {
+          return res.status(400).json({
+            message: "Payment must be marked as Paid before starting qurbani",
+          });
+        }
+
+        if (!hasAnimal || !hasShareNumber) {
+          return res.status(400).json({
+            message: "Animal and share number must be assigned first",
+          });
+        }
+
+        if (currentStatus !== 0) {
+          return res.status(400).json({
+            message: "Qurbani can only be started from Not started status",
+          });
+        }
+        break;
+
+      case 2: // Processing (optional)
+        if (currentStatus !== 1) {
+          return res.status(400).json({
+            message: "Processing can only be set after Qurbani Started",
+          });
+        }
+        break;
+
+      case 3: // Meat Packaged
+        if (![1, 2].includes(currentStatus)) {
+          return res.status(400).json({
+            message:
+              "Meat can only be packaged after Qurbani Started or Processing",
+          });
+        }
+        break;
+
+      case 4: // Sent for delivery
+        if (currentStatus !== 3) {
+          return res.status(400).json({
+            message: "Order can only be sent for delivery after Meat Packaged",
+          });
+        }
+        break;
+
+      case 5: // Delivered
+        if (currentStatus !== 4) {
+          return res.status(400).json({
+            message: "Order can only be delivered after Sent for delivery",
+          });
+        }
+        break;
+
+      case 6: // Cancelled
+        if (currentStatus === 5) {
+          return res.status(400).json({
+            message: "Delivered order cannot be cancelled",
+          });
+        }
+        break;
+    }
+
+    await pool.execute(
+      `
+      UPDATE shareholder_details
+      SET status = ?
+      WHERE id = ?
+      `,
+      [nextStatus, id],
+    );
+
+    return res.json({ message: "Status updated successfully" });
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong" });
+    return res.status(500).json({ message: "Something went wrong" });
   }
 });
 

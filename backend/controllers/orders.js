@@ -563,19 +563,17 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
     const [shareholders] = await pool.execute(
       `
-        SELECT 
-          s.*,
-          a.animal_type,
-          a.price AS animal_price,
-          ad.breed,
-          ad.age,
-          ad.weight,
-          ad.photo_urls
-        FROM shareholder_details s
-        LEFT JOIN animals a ON s.animal_id = a.id
-        LEFT JOIN animal_details ad ON ad.animal_id = a.id
-        WHERE s.order_id = ?
-        `,
+      SELECT 
+        s.*,
+        a.animal_type,
+        a.qurbani_day,
+        a.qurbani_datetime,
+        ad.photo_urls
+      FROM shareholder_details s
+      LEFT JOIN animals a ON s.animal_id = a.id
+      LEFT JOIN animal_details ad ON ad.animal_id = a.id
+      WHERE s.order_id = ?
+      `,
       [orderId],
     );
 
@@ -592,9 +590,11 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
+
     res.status(500).json({ message: "Something went wrong." });
   }
 });
+
 
 router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -668,7 +668,7 @@ router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
           subscriptionIds,
-          "🕋 Qurbani Scheduled",
+          "Qurbani Scheduled",
           "Your Qurbani has been successfully scheduled.",
           {
             type: "QURBANI_SCHEDULED",

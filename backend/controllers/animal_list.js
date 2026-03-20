@@ -20,14 +20,11 @@ exports.getAnimals = async (req, res) => {
         a.id,
         a.animal_type,
         a.shares,
-        a.price,
         a.created_at,
+        a.qurbani_datetime,
         ad.barcode,
 
-        -- 🔥 COUNT assigned shares
         COUNT(sd.id) AS assigned_shares,
-
-        -- 🔥 CALCULATE remaining shares
         (a.shares - COUNT(sd.id)) AS remaining_shares
 
       FROM animals a
@@ -37,11 +34,10 @@ exports.getAnimals = async (req, res) => {
 
       LEFT JOIN shareholder_details sd
         ON sd.animal_id = a.id
-        AND sd.animal_id IS NOT NULL
 
       WHERE a.admin_id = ?
 
-      GROUP BY a.id
+      GROUP BY a.id, a.animal_type, a.shares, a.created_at, ad.barcode, a.qurbani_datetime
 
       ORDER BY a.created_at DESC
       `,
@@ -49,7 +45,6 @@ exports.getAnimals = async (req, res) => {
     );
 
     res.status(200).json({ animals });
-
   } catch (err) {
     logger.error("Error fetching animals", {
       adminId,

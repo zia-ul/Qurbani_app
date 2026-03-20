@@ -9,6 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/screens/admin/animal_orders_page.dart';
+import 'package:intl/intl.dart';
 
 class AnimalListingPage extends StatefulWidget {
   const AnimalListingPage({super.key});
@@ -81,7 +82,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
           "Content-Type": "application/json",
         },
       );
-      
+
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
 
@@ -200,9 +201,21 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
     );
   }
 
+  String formatQurbaniDateTime(String? dateTime) {
+  if (dateTime == null || dateTime.isEmpty) return "Not set";
+
+  try {
+    final dt = DateTime.parse(dateTime).toLocal();
+    return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+  } catch (e) {
+    return dateTime;
+  }
+}
+
   Widget _buildAnimalCard(Map<String, dynamic> animal) {
     final String animalType = animal['animal_type'] ?? '';
     final String barcode = animal['barcode'] ?? '';
+    final String qurbaniDateTime = animal['qurbani_datetime']?.toString() ?? '';
 
     return Card(
       elevation: 4,
@@ -213,7 +226,6 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔹 Animal Type
             Text(
               animalType,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -221,19 +233,23 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
             const SizedBox(height: 6),
 
-            /// 🔹 Barcode
             Text(
               "Barcode: $barcode",
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
 
+            const SizedBox(height: 6),
+
+            Text(
+              "Qurbani Date & Time: $qurbaniDateTime",
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+
             const SizedBox(height: 12),
             const Divider(),
 
-            /// 🔹 Buttons Row
             Row(
               children: [
-                /// View Orders
                 Expanded(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.visibility, size: 16),
@@ -257,7 +273,6 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
                 const SizedBox(width: 8),
 
-                /// Print Button
                 Expanded(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.print, size: 16),
@@ -278,7 +293,6 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
                 const SizedBox(width: 8),
 
-                /// Delete
                 IconButton(
                   icon: const Icon(Icons.delete),
                   color: AppTheme.warningRed,

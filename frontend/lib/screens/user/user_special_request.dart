@@ -10,9 +10,7 @@ class MySpecialRequestsPage extends StatefulWidget {
   State<MySpecialRequestsPage> createState() => _MySpecialRequestsPageState();
 }
 
-/// The state class for MySpecialRequestsPage, managing the fetching and display of user requests.
 class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
-  /// Future that holds the list of user requests fetched from the service.
   Future<List<Map<String, dynamic>>>? _requestsFuture;
 
   @override
@@ -21,11 +19,38 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
     _fetchRequests();
   }
 
-  /// Fetches the user's special requests from the service.
   void _fetchRequests() {
     setState(() {
       _requestsFuture = RequestService.getUserRequests();
     });
+  }
+
+  String _mapRequestStatus(dynamic status) {
+    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+
+    switch (intStatus) {
+      case 0:
+        return 'Pending';
+      case 1:
+        return 'Replied';
+      case 2:
+        return 'Closed';
+      default:
+        return 'Pending';
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'replied':
+        return Colors.blue;
+      case 'closed':
+        return Colors.green;
+      default:
+        return AppTheme.primaryGreen;
+    }
   }
 
   @override
@@ -75,9 +100,20 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
             itemCount: requests.length,
             itemBuilder: (context, index) {
               final request = requests[index];
-              final status = request['status'] ?? 'pending';
-              final createdAt = DateTime.tryParse(request['created_at'] ?? '');
-              final repliedAt = DateTime.tryParse(request['replied_at'] ?? '');
+
+              final status = _mapRequestStatus(request['status']);
+              final createdAt = DateTime.tryParse(
+                request['created_at']?.toString() ?? '',
+              );
+              final repliedAt = DateTime.tryParse(
+                request['replied_at']?.toString() ?? '',
+              );
+
+              final title = request['title']?.toString() ?? "Request";
+              final description =
+                  request['description']?.toString() ??
+                  "No description provided";
+              final replyMessage = request['reply_message']?.toString();
 
               return Card(
                 elevation: 3,
@@ -90,12 +126,11 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title + Status badge
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              request['title'] ?? "Request",
+                              title,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -125,15 +160,13 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
 
                       const SizedBox(height: 10),
 
-                      // Description
                       Text(
-                        request['description'] ?? "No description provided",
+                        description,
                         style: const TextStyle(fontSize: 15),
                       ),
 
                       const SizedBox(height: 10),
 
-                      // Created date
                       if (createdAt != null)
                         Text(
                           "Created: ${DateFormat('dd MMM yyyy, hh:mm a').format(createdAt)}",
@@ -143,8 +176,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
                           ),
                         ),
 
-                      // Reply message if exists
-                      if (request['reply_message'] != null) ...[
+                      if (replyMessage != null) ...[
                         const Divider(height: 20),
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -164,7 +196,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                request['reply_message'],
+                                replyMessage,
                                 style: const TextStyle(fontSize: 14),
                               ),
                               if (repliedAt != null)
@@ -188,19 +220,5 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
         },
       ),
     );
-  }
-
-  // Status Badge Colors
-  Color _statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'replied':
-        return Colors.blue;
-      case 'closed':
-        return Colors.green;
-      default:
-        return AppTheme.primaryGreen;
-    }
   }
 }

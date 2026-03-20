@@ -51,8 +51,8 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         AppLogger.info(
-        "Special requests loaded | count=${data['requests']?.length ?? 0}",
-      );
+          "Special requests loaded | count=${data['requests']?.length ?? 0}",
+        );
         setState(() {
           requests = List<Map<String, dynamic>>.from(data['requests']);
         });
@@ -62,11 +62,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
         );
       }
     } catch (e, stack) {
-    AppLogger.error(
-      "Failed to fetch special requests",
-      e,
-      stack,
-    );
+      AppLogger.error("Failed to fetch special requests", e, stack);
       setState(() {
         errorMessage = e.toString();
       });
@@ -82,6 +78,21 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       activeFilter = filter;
     });
     _fetchRequests();
+  }
+
+  String _mapRequestStatus(dynamic status) {
+    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+
+    switch (intStatus) {
+      case 0:
+        return 'Pending';
+      case 1:
+        return 'Replied';
+      case 2:
+        return 'Closed';
+      default:
+        return 'Pending';
+    }
   }
 
   Future<void> _replyToRequest(Map<String, dynamic> request) async {
@@ -116,7 +127,11 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
               final reply = replyController.text.trim();
               if (reply.isEmpty) return;
 
-              await _updateRequest(request['id'], 'reply', replyMessage: reply);
+              await _updateRequest(
+                request['id'].toString(),
+                'reply',
+                replyMessage: reply,
+              );
               Navigator.pop(dialogContext);
               _fetchRequests(); // Refresh
             },
@@ -133,7 +148,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   Future<void> _closeRequest(String requestId) async {
     AppLogger.warning("Closing request | requestId=$requestId");
     await _updateRequest(requestId, 'close');
-    _fetchRequests(); // Refresh
+    _fetchRequests();
   }
 
   Future<void> _updateRequest(
@@ -141,10 +156,7 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
     String action, {
     String? replyMessage,
   }) async {
-
-        AppLogger.debug(
-      "Updating request | id=$requestId | action=$action",
-    );
+    AppLogger.debug("Updating request | id=$requestId | action=$action");
     try {
       final token = await _storage.read(key: 'token');
       if (token == null) throw Exception('Not authenticated');
@@ -237,10 +249,16 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                     itemCount: requests.length,
                     itemBuilder: (context, index) {
                       final request = requests[index];
-                      final status = request['status'] ?? 'Pending';
-                      final date = DateTime.tryParse(
-                        request['created_at'] ?? '',
-                      );
+final requestId = request['id']?.toString() ?? '';
+final status = _mapRequestStatus(request['status']);
+final createdAtRaw = request['created_at'];
+final date = DateTime.tryParse(createdAtRaw?.toString() ?? '');
+final title = request['title']?.toString() ?? 'Urgent Request';
+final description =
+    request['description']?.toString() ?? 'No instructions provided.';
+final userName = request['user_name']?.toString() ?? 'User';
+final orderId = request['order_id']?.toString() ?? 'N/A';
+final replyMessage = request['reply_message']?.toString();
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -406,8 +424,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: ElevatedButton.icon(
-                                            onPressed: () =>
-                                                _closeRequest(request['id']),
+                                            onPressed: () => _closeRequest(
+                                              request['id'].toString(),
+                                            ),
                                             icon: const Icon(
                                               Icons.close,
                                               size: 16,

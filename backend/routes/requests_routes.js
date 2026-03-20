@@ -488,14 +488,16 @@ router.put("/admin/:requestId", auth, async (req, res) => {
     if (action === "reply") {
       updateFields = {
         reply_message: replyMessage,
-        status: "Replied",
+        status: 1, // Replied
         replied_at: new Date(),
       };
     } else if (action === "close") {
       updateFields = {
-        status: "Closed",
+        status: 2, // Closed
         closed_at: new Date(),
       };
+    } else {
+      return res.status(400).json({ message: "Invalid action" });
     }
 
     const setClause = Object.keys(updateFields)
@@ -509,11 +511,8 @@ router.put("/admin/:requestId", auth, async (req, res) => {
       values
     );
 
-    // 🔔 ==========================
     // 🔔 SEND PUSH TO USER
-    // 🔔 ==========================
     try {
-      // Get request details (user + order)
       const [requestRows] = await pool.execute(
         `SELECT user_id, order_id, title FROM requests WHERE id = ?`,
         [requestId]
@@ -522,24 +521,23 @@ router.put("/admin/:requestId", auth, async (req, res) => {
       if (requestRows.length) {
         const { user_id, order_id, title } = requestRows[0];
 
-        // Get user devices
         const [devices] = await pool.execute(
           `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
           [user_id]
         );
 
-        const subscriptionIds = devices.map(d => d.subscription_id);
+        const subscriptionIds = devices.map((d) => d.subscription_id);
 
         if (subscriptionIds.length > 0) {
-
           if (action === "reply") {
             await sendPushNotification(
               subscriptionIds,
-              "💬 Admin Replied",
-              `Your request "${title}" has been replied to.`,
+              `Request #${requestId} Replied`,
+              `Your request #${requestId} "${title}" has been replied to.`,
               {
                 type: "REQUEST_REPLIED",
-                requestId,
+                requestId: Number(requestId),
+                requestTitle: title,
                 orderId: order_id,
               }
             );
@@ -548,11 +546,12 @@ router.put("/admin/:requestId", auth, async (req, res) => {
           if (action === "close") {
             await sendPushNotification(
               subscriptionIds,
-              "✅ Request Closed",
-              `Your request "${title}" has been closed.`,
+              `Request #${requestId} Closed`,
+              `Your request #${requestId} "${title}" has been closed.`,
               {
                 type: "REQUEST_CLOSED",
-                requestId,
+                requestId: Number(requestId),
+                requestTitle: title,
                 orderId: order_id,
               }
             );
@@ -576,7 +575,6 @@ router.put("/admin/:requestId", auth, async (req, res) => {
     });
 
     res.json({ message: "Request updated successfully" });
-
   } catch (err) {
     logger.error("Error updating special request by admin", {
       adminId,
@@ -592,6 +590,5 @@ router.put("/admin/:requestId", auth, async (req, res) => {
     });
   }
 });
-
 
 module.exports = router;

@@ -48,9 +48,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         _errorMessage = e.toString();
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -65,8 +67,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     return value.substring(value.length - length);
   }
 
+  int parseStatus(dynamic status) {
+    return int.tryParse(status?.toString() ?? '') ?? 0;
+  }
+
   String mapCombinedStatus(dynamic status) {
-    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+    final intStatus = parseStatus(status);
 
     switch (intStatus) {
       case 0:
@@ -103,14 +109,92 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     }
   }
 
-  int parseStatus(dynamic status) {
-    return int.tryParse(status?.toString() ?? '') ?? 0;
+  String formatQurbaniDay(dynamic value) {
+    switch (value?.toString()) {
+      case 'day_1':
+      case 'Day 1':
+        return 'Day 1';
+      case 'day_2':
+      case 'Day 2':
+        return 'Day 2';
+      case 'day_3':
+      case 'Day 3':
+        return 'Day 3';
+      default:
+        return 'Not set';
+    }
+  }
+
+  String formatDateTime(dynamic value) {
+    if (value == null || value.toString().isEmpty) return "Pending";
+
+    try {
+      final dt = DateTime.parse(value.toString()).toLocal();
+      return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
+  List<String> parsePhotoUrls(dynamic photoUrlsRaw) {
+    List<String> photoUrls = [];
+
+    if (photoUrlsRaw is List) {
+      photoUrls = photoUrlsRaw.cast<String>();
+    } else if (photoUrlsRaw is String) {
+      try {
+        final decoded = jsonDecode(photoUrlsRaw);
+        if (decoded is List) {
+          photoUrls = decoded.cast<String>();
+        } else if (photoUrlsRaw.startsWith('http')) {
+          photoUrls = [photoUrlsRaw];
+        }
+      } catch (_) {
+        if (photoUrlsRaw.startsWith('http')) {
+          photoUrls = [photoUrlsRaw];
+        }
+      }
+    }
+
+    return photoUrls;
+  }
+
+  Color _statusColor(int status) {
+    switch (status) {
+      case 1:
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.deepOrange;
+      case 4:
+        return Colors.blue;
+      case 5:
+        return Colors.green;
+      case 6:
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _paymentColor(String payment) {
+    switch (payment.toLowerCase()) {
+      case "paid":
+        return Colors.green;
+      case "unpaid":
+        return Colors.red;
+      case "pending":
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<void> _cancelOrder(BuildContext context) async {
     bool? confirm = await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         title: const Text("Cancel Order"),
         content: const Text(
           "Are you sure you want to cancel? This action cannot be undone.",
@@ -135,63 +219,58 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       await OrderService.cancelOrder(widget.orderId);
-
       ToastUtils.showSuccess("Order Cancelled Successfully");
-
       Navigator.pop(context);
     } catch (e) {
       ToastUtils.showError("Error: $e");
     }
   }
 
-  Widget _buildSectionCard({
-    required String title,
+  Widget _glassCard({
     required Widget child,
-    required IconData icon,
+    EdgeInsets padding = const EdgeInsets.all(18),
+    EdgeInsets margin = const EdgeInsets.only(bottom: 16),
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: margin,
+      padding: padding,
       decoration: BoxDecoration(
-        color: AppTheme.bgGradientEnd.withOpacity(0.9),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFD1C4A9), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F1F9).withOpacity(0.5),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 18, color: AppTheme.primaryGreen),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryGreen,
-                  ),
-                ),
-              ],
-            ),
+      child: child,
+    );
+  }
+
+  Widget _sectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryGreen.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(15),
           ),
-          Padding(padding: const EdgeInsets.all(16.0), child: child),
-        ],
-      ),
+          child: Icon(icon, color: AppTheme.primaryGreen, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
@@ -202,32 +281,63 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     bool isCopyable = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey[600]),
-          const SizedBox(width: 8),
-          Text(
-            "$label: ",
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          Icon(icon, size: 18, color: Colors.grey.shade500),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
           ),
           Expanded(
             child: Text(
               value,
-              style: TextStyle(color: Colors.grey[800], fontSize: 13),
+              style: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           if (isCopyable)
-            IconButton(
-              icon: const Icon(Icons.copy, size: 16, color: Colors.blue),
-              onPressed: () {
+            InkWell(
+              onTap: () {
                 Clipboard.setData(ClipboardData(text: value));
                 ToastUtils.showSuccess("Copied!");
               },
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
+              borderRadius: BorderRadius.circular(10),
+              child: const Padding(
+                padding: EdgeInsets.all(6),
+                child: Icon(Icons.copy_rounded, size: 18, color: Colors.blue),
+              ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _statusChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -239,20 +349,346 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     required VoidCallback? onPressed,
   }) {
     return SizedBox(
-      width: double.infinity,
+      height: 52,
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon, size: 18),
-        label: Text(label),
+        label: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         style: ElevatedButton.styleFrom(
+          elevation: 0,
           backgroundColor: color,
-          foregroundColor: AppTheme.bgGradientEnd,
-          disabledBackgroundColor: Colors.grey[400],
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.grey.shade300,
+          disabledForegroundColor: Colors.grey.shade600,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(15),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(Map<String, dynamic> order, DateTime? orderDate) {
+    final status = mapCombinedStatus(order['status']);
+    final payment = mapPaymentStatus(order['payment_status']);
+    final statusColor = _statusColor(parseStatus(order['status']));
+    final paymentColor = _paymentColor(payment);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      margin: const EdgeInsets.only(bottom: 18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryGreen,
+            AppTheme.primaryGreen.withOpacity(0.82),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGreen.withOpacity(0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Qurbani Order",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "#${shortenOrderId(order['id'])}",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                  status,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(40),
+                ),
+                child: Text(
+                  payment,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _heroStat(
+                  "Status",
+                  status,
+                  statusColor.withOpacity(0.95),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _heroStat(
+                  "Payment",
+                  payment,
+                  paymentColor.withOpacity(0.95),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _heroStat(
+                  "Ordered",
+                  orderDate != null
+                      ? DateFormat('dd MMM').format(orderDate)
+                      : '--',
+                  Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroStat(String label, String value, Color valueColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnimalCard(Map<String, dynamic> animal) {
+    final type = animal['animal_type']?.toString() ?? 'N/A';
+    final barcode = animal['barcode']?.toString() ?? 'N/A';
+    final animalId = animal['id']?.toString() ?? 'N/A';
+    final qurbaniDay = formatQurbaniDay(animal['qurbani_day']);
+    final qurbaniDatetime = formatDateTime(animal['qurbani_datetime']);
+    final photoUrls = parsePhotoUrls(animal['photo_urls']);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FC),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryGreen.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.pets, color: AppTheme.primaryGreen),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  type,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              _statusChip(qurbaniDay, AppTheme.primaryGreen),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildInfoRow(Icons.tag, "Animal #", animalId),
+          _buildInfoRow(
+            Icons.qr_code_2_rounded,
+            "Barcode",
+            lastDigits(barcode),
+            isCopyable: true,
+          ),
+          _buildInfoRow(Icons.access_time_rounded, "Qurbani", qurbaniDatetime),
+          if (photoUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 92,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: photoUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final url = photoUrls[index];
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.network(
+                      url,
+                      width: 92,
+                      height: 92,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 92,
+                        height: 92,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.image_not_supported),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShareholderCard(Map<String, dynamic> shareholder) {
+    final photoUrls = parsePhotoUrls(shareholder['photo_urls']);
+    final statusText = mapCombinedStatus(shareholder['status']);
+    final paymentText = mapPaymentStatus(shareholder['payment_status']);
+    final statusColor = _statusColor(parseStatus(shareholder['status']));
+    final paymentColor = _paymentColor(paymentText);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FC),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
+                child: const Icon(
+                  Icons.person_outline,
+                  color: AppTheme.primaryGreen,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  shareholder['shareholder_name']?.toString() ?? 'N/A',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statusChip(statusText, statusColor),
+              _statusChip(paymentText, paymentColor),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+            Icons.shield_outlined,
+            "Guardian",
+            shareholder['guardian_name']?.toString() ?? 'N/A',
+          ),
+          _buildInfoRow(
+            Icons.confirmation_number_outlined,
+            "Share #",
+            shareholder['share_number']?.toString() ?? 'Not assigned',
+          ),
+          _buildInfoRow(
+            Icons.access_time_rounded,
+            "Qurbani",
+            formatDateTime(shareholder['qurbani_datetime']),
+          ),
+          if (photoUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.network(
+                photoUrls.first,
+                height: 170,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 170,
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.image_not_supported),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -261,10 +697,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: AppTheme.bgGradientStart,
+        backgroundColor: const Color(0xFFF4F7FB),
         appBar: AppBar(
           title: const Text("Order Details"),
-          backgroundColor: AppTheme.bgGradientEnd,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -272,21 +709,48 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     if (_errorMessage != null) {
       return Scaffold(
-        backgroundColor: AppTheme.bgGradientStart,
+        backgroundColor: const Color(0xFFF4F7FB),
         appBar: AppBar(
           title: const Text("Order Details"),
-          backgroundColor: AppTheme.bgGradientEnd,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
         ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Error: $_errorMessage'),
-              ElevatedButton(
-                onPressed: _fetchOrderDetails,
-                child: const Text('Retry'),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _glassCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 54,
+                    color: Colors.redAccent,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Something went wrong",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildActionBtn(
+                    label: "Retry",
+                    icon: Icons.refresh_rounded,
+                    color: AppTheme.primaryGreen,
+                    onPressed: _fetchOrderDetails,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       );
@@ -294,7 +758,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     final order = _orderData!;
     final orderDate = DateTime.tryParse(order['created_at']?.toString() ?? '');
-
     final overallStatus = parseStatus(order['status']);
     final bool isDelivered = overallStatus == 5;
     final bool isCancelled = overallStatus == 6;
@@ -307,259 +770,120 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           !isCancelled;
     }
 
+    final animals = (order['animals'] as List?) ?? [];
+    final shareholders = (order['shareholders'] as List?) ?? [];
+
     return Scaffold(
-      backgroundColor: AppTheme.bgGradientStart,
+      backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: const Text(
           "Order Details",
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        backgroundColor: AppTheme.bgGradientEnd,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: RefreshIndicator(
+        onRefresh: _fetchOrderDetails,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            if (order['animals'] != null &&
-                (order['animals'] as List).isNotEmpty)
-              _buildSectionCard(
-                title: "Animals",
-                icon: Icons.pets,
-                child: Column(
-                  children: (order['animals'] as List<dynamic>).map((animal) {
-                    final breed = animal['breed'] ?? 'N/A';
-                    final type = animal['animal_type'] ?? 'N/A';
-                    final price = animal['price']?.toString() ?? 'N/A';
-                    final age = animal['age']?.toString() ?? 'N/A';
-                    final barcode = animal['barcode']?.toString() ?? 'N/A';
-                    final qurbaniDatetime =
-                        animal['qurbani_datetime']?.toString() ?? 'Pending';
+            _buildHeroCard(order, orderDate),
 
-                    final photoUrlsRaw = animal['photo_urls'];
-                    List<String> photoUrls = [];
-
-                    if (photoUrlsRaw is List) {
-                      photoUrls = photoUrlsRaw.cast<String>();
-                    } else if (photoUrlsRaw is String) {
-                      try {
-                        final decoded = jsonDecode(photoUrlsRaw);
-                        if (decoded is List) {
-                          photoUrls = decoded.cast<String>();
-                        } else if (photoUrlsRaw.startsWith('http')) {
-                          photoUrls = [photoUrlsRaw];
-                        }
-                      } catch (_) {
-                        if (photoUrlsRaw.startsWith('http')) {
-                          photoUrls = [photoUrlsRaw];
-                        }
-                      }
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "$type - $breed",
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text("Price: $price"),
-                          Text("Age: $age"),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text("Barcode: ${lastDigits(barcode)}"),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.copy, size: 16),
-                                onPressed: () {
-                                  Clipboard.setData(
-                                    ClipboardData(text: barcode),
-                                  );
-                                  ToastUtils.showSuccess("Barcode copied!");
-                                },
-                              ),
-                            ],
-                          ),
-                          Text("Qurbani Time: $qurbaniDatetime"),
-                          if (photoUrls.isNotEmpty)
-                            SizedBox(
-                              height: 80,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                children: photoUrls.map((url) {
-                                  return Padding(
-                                    padding: const EdgeInsets.all(4.0),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        url,
-                                        width: 80,
-                                        height: 80,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) => Container(
-                                          width: 80,
-                                          height: 80,
-                                          color: Colors.grey[300],
-                                          child: const Icon(
-                                            Icons.image_not_supported,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          const Divider(),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-            if (order['shareholders'] != null &&
-                (order['shareholders'] as List).isNotEmpty)
-              _buildSectionCard(
-                title: "Shareholder Details",
-                icon: Icons.group,
-                child: Column(
-                  children:
-                      (order['shareholders'] as List<dynamic>).map((s) {
-                    final photoUrlsRaw = s['photo_urls'];
-                    List<String> photoUrls = [];
-
-                    if (photoUrlsRaw is List) {
-                      photoUrls = photoUrlsRaw.cast<String>();
-                    } else if (photoUrlsRaw is String) {
-                      try {
-                        final decoded = jsonDecode(photoUrlsRaw);
-                        if (decoded is List) {
-                          photoUrls = decoded.cast<String>();
-                        } else if (photoUrlsRaw.startsWith('http')) {
-                          photoUrls = [photoUrlsRaw];
-                        }
-                      } catch (_) {
-                        if (photoUrlsRaw.startsWith('http')) {
-                          photoUrls = [photoUrlsRaw];
-                        }
-                      }
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            s['shareholder_name']?.toString() ?? 'N/A',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text("Guardian: ${s['guardian_name'] ?? 'N/A'}"),
-                          Text(
-                            "Share #: ${s['share_number']?.toString() ?? 'Not assigned'}",
-                          ),
-                          Text(
-                            "Payment: ${mapPaymentStatus(s['payment_status'])}",
-                          ),
-                          Text(
-                            "Status: ${mapCombinedStatus(s['status'])}",
-                          ),
-                          Text(
-                            "Qurbani Time: ${s['qurbani_datetime']?.toString() ?? 'Pending'}",
-                          ),
-                          if (photoUrls.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  photoUrls.first,
-                                  height: 150,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    height: 150,
-                                    color: Colors.grey[300],
-                                    child: const Icon(
-                                      Icons.image_not_supported,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          const Divider(),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-
-            _buildSectionCard(
-              title: "Admin Details",
-              icon: Icons.account_circle,
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(order['admin_name']?.toString() ?? 'Admin'),
-                        Text(order['admin_phone']?.toString() ?? 'N/A'),
-                        Text(order['admin_address']?.toString() ?? 'N/A'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            _buildSectionCard(
-              title: "Order Info",
-              icon: Icons.assignment,
+            _glassCard(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _sectionHeader("Order Info", Icons.receipt_long_rounded),
+                  const SizedBox(height: 16),
                   _buildInfoRow(
-                    Icons.fingerprint,
+                    Icons.fingerprint_rounded,
                     "Order ID",
                     shortenOrderId(order['id']),
-                    isCopyable: false,
                   ),
                   _buildInfoRow(
-                    Icons.info_outline,
+                    Icons.info_outline_rounded,
                     "Order Status",
                     mapCombinedStatus(order['status']),
                   ),
                   _buildInfoRow(
-                    Icons.payments,
-                    "Payment Status",
+                    Icons.payments_outlined,
+                    "Payment",
                     mapPaymentStatus(order['payment_status']),
                   ),
                   if (orderDate != null)
                     _buildInfoRow(
-                      Icons.calendar_today,
+                      Icons.calendar_today_rounded,
                       "Ordered on",
-                      DateFormat('dd MMMM yyyy').format(orderDate),
+                      DateFormat('dd MMM yyyy').format(orderDate),
                     ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            _glassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionHeader("Admin Details", Icons.verified_user_outlined),
+                  const SizedBox(height: 16),
+                  _buildInfoRow(
+                    Icons.person_outline_rounded,
+                    "Admin",
+                    order['admin_name']?.toString() ?? 'Admin',
+                  ),
+                  _buildInfoRow(
+                    Icons.phone_outlined,
+                    "Phone",
+                    order['admin_phone']?.toString() ?? 'N/A',
+                  ),
+                  _buildInfoRow(
+                    Icons.location_on_outlined,
+                    "Address",
+                    order['admin_address']?.toString() ?? 'N/A',
+                  ),
+                ],
+              ),
+            ),
+
+            if (animals.isNotEmpty)
+              _glassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader("Assigned Animals", Icons.pets_outlined),
+                    const SizedBox(height: 6),
+                    ...animals.map((animal) => _buildAnimalCard(animal)),
+                  ],
+                ),
+              ),
+
+            if (shareholders.isNotEmpty)
+              _glassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _sectionHeader("Shareholders", Icons.groups_2_outlined),
+                    const SizedBox(height: 6),
+                    ...shareholders.map((s) => _buildShareholderCard(s)),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 8),
 
             Row(
               children: [
                 Expanded(
                   child: _buildActionBtn(
                     label: "Special Request",
-                    icon: Icons.edit_note,
+                    icon: Icons.edit_note_rounded,
                     color: AppTheme.primaryGreen,
                     onPressed: (isCancelled || isDelivered)
                         ? null
@@ -572,12 +896,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildActionBtn(
-                    label: "Download Receipt",
-                    icon: Icons.download,
-                    color: Colors.blue[700]!,
+                    label: "Receipt",
+                    icon: Icons.download_rounded,
+                    color: Colors.blue.shade700,
                     onPressed: () async {
                       final file = await generateReceiptPDF(_orderData);
                       await OpenFilex.open(file.path);
@@ -592,8 +916,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             if (isDelivered)
               _buildActionBtn(
                 label: "Rate Admin & Delivery",
-                icon: Icons.star,
-                color: Colors.orange[800]!,
+                icon: Icons.star_rounded,
+                color: Colors.orange.shade700,
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -605,13 +929,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ),
               ),
 
-            if (canCancel)
+            if (canCancel) ...[
+              const SizedBox(height: 12),
               _buildActionBtn(
                 label: "Cancel Order",
-                icon: Icons.cancel,
+                icon: Icons.cancel_rounded,
                 color: AppTheme.warningRed,
                 onPressed: () => _cancelOrder(context),
               ),
+            ],
           ],
         ),
       ),

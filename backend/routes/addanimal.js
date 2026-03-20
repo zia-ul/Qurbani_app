@@ -78,6 +78,7 @@ function generateBarcode() {
   return timestampPart + randomPart; // total 12 digits
 }
 
+
 router.post(
   "/",
   authMiddleware,
@@ -86,11 +87,18 @@ router.post(
     body("animalType").notEmpty().withMessage("animalType is required"),
     body("shares").isInt({ min: 1 }).withMessage("shares must be >= 1"),
 
-    body("breed").optional({ nullable: true }).isString(),
-    body("description").optional({ nullable: true }).isString(),
-    body("age").optional({ nullable: true }).isString(),
-    body("height").optional({ nullable: true }).isString(),
-    body("weight").optional({ nullable: true }).isString(),
+    body("qurbaniDay")
+      .notEmpty()
+      .withMessage("qurbaniDay is required")
+      .isIn(["day_1", "day_2", "day_3"])
+      .withMessage("qurbaniDay must be day_1, day_2, or day_3"),
+
+    body("qurbaniDatetime")
+      .notEmpty()
+      .withMessage("qurbaniDatetime is required")
+      .isISO8601()
+      .withMessage("qurbaniDatetime must be a valid ISO8601 date"),
+
     body("images").optional({ nullable: true }).isArray(),
   ],
   async (req, res) => {
@@ -106,11 +114,8 @@ router.post(
     const {
       animalType,
       shares,
-      breed,
-      description,
-      age,
-      height,
-      weight,
+      qurbaniDay,
+      qurbaniDatetime,
       images,
     } = req.body;
 
@@ -127,15 +132,14 @@ router.post(
         INSERT INTO animals (
           admin_id,
           animal_type,
-          price,
           shares,
-          delivery_type,
-          delivery_fee,
-          last_booked_date
+          last_booked_date,
+          qurbani_day,
+          qurbani_datetime
         )
-        VALUES (?, ?, NULL, ?, NULL, NULL, NULL)
+        VALUES (?, ?, ?, NULL, ?, ?)
         `,
-        [adminId, animalType, shares]
+        [adminId, animalType, shares, qurbaniDay, qurbaniDatetime]
       );
 
       const animalId = animalResult.insertId;
@@ -146,24 +150,16 @@ router.post(
         INSERT INTO animal_details (
           animal_id,
           barcode,
-          breed,
-          description,
-          age,
-          height,
-          weight,
-          photo_urls
+          photo_urls,
+          qurbani_datetime
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
         `,
         [
           animalId,
           barcode,
-          breed || null,
-          description || null,
-          age || null,
-          height || null,
-          weight || null,
           JSON.stringify(images || []),
+          qurbaniDatetime,
         ]
       );
 
@@ -185,7 +181,6 @@ router.post(
     }
   }
 );
-
 
 router.post("/:animalId", async (req, res) => {
   const { animalId } = req.params;

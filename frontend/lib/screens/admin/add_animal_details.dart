@@ -19,13 +19,13 @@ class AddAnimalPage extends StatefulWidget {
 class _AddAnimalPageState extends State<AddAnimalPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final descriptionController = TextEditingController();
-  final breedController = TextEditingController();
+  // final descriptionController = TextEditingController();
+  // final breedController = TextEditingController();
   final sharesController = TextEditingController();
-  final customAnimalTypeController = TextEditingController();
-  final heightController = TextEditingController();
-  final weightController = TextEditingController();
-  final ageController = TextEditingController();
+  // final customAnimalTypeController = TextEditingController();
+  // final heightController = TextEditingController();
+  // final weightController = TextEditingController();
+  // final ageController = TextEditingController();
   final _storage = const FlutterSecureStorage();
 
   String? selectedAnimalType;
@@ -37,19 +37,68 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
 
   final Color lightBg = const Color(0xFFF9FBF9);
   static final String? _baseUrl = dotenv.env['BASE_URL'];
+  String? selectedQurbaniDay;
+  DateTime? selectedQurbaniDate;
+  TimeOfDay? selectedQurbaniTime;
+
+  final qurbaniDateController = TextEditingController();
+  final qurbaniTimeController = TextEditingController();
 
   @override
   void dispose() {
-    descriptionController.dispose();
-    breedController.dispose();
-
+    // descriptionController.dispose();
     sharesController.dispose();
-    customAnimalTypeController.dispose();
-    heightController.dispose();
-    weightController.dispose();
-    ageController.dispose();
-
+    qurbaniDateController.dispose();
+    qurbaniTimeController.dispose();
     super.dispose();
+  }
+
+  Future<void> pickQurbaniDate() async {
+    final now = DateTime.now();
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedQurbaniDate ?? now,
+      firstDate: now,
+      lastDate: DateTime(now.year + 5),
+    );
+
+    if (pickedDate == null) return;
+
+    setState(() {
+      selectedQurbaniDate = pickedDate;
+
+      // reset time whenever date changes
+      selectedQurbaniTime = null;
+      qurbaniTimeController.clear();
+
+      qurbaniDateController.text =
+          "${pickedDate.day.toString().padLeft(2, '0')}/"
+          "${pickedDate.month.toString().padLeft(2, '0')}/"
+          "${pickedDate.year}";
+    });
+  }
+
+  Future<void> pickQurbaniTime() async {
+    if (selectedQurbaniDate == null) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: selectedQurbaniTime ?? TimeOfDay.now(),
+    );
+
+    if (pickedTime == null) return;
+
+    setState(() {
+      selectedQurbaniTime = pickedTime;
+
+      final hour = pickedTime.hourOfPeriod == 0 ? 12 : pickedTime.hourOfPeriod;
+      final minute = pickedTime.minute.toString().padLeft(2, '0');
+      final period = pickedTime.period == DayPeriod.am ? 'AM' : 'PM';
+
+      qurbaniTimeController.text =
+          "${hour.toString().padLeft(2, '0')}:$minute $period";
+    });
   }
 
   Future<void> pickImages() async {
@@ -72,6 +121,18 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     } catch (e, stack) {
       AppLogger.error("Image picker failed", e, stack);
     }
+  }
+
+  DateTime? getCombinedQurbaniDateTime() {
+    if (selectedQurbaniDate == null || selectedQurbaniTime == null) return null;
+
+    return DateTime(
+      selectedQurbaniDate!.year,
+      selectedQurbaniDate!.month,
+      selectedQurbaniDate!.day,
+      selectedQurbaniTime!.hour,
+      selectedQurbaniTime!.minute,
+    );
   }
 
   Future<List<String>> uploadImagesToCloudinary() async {
@@ -129,6 +190,21 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       return;
     }
 
+    if (selectedQurbaniDay == null) {
+      ToastUtils.showError('Qurbani Day is required');
+      return;
+    }
+
+    if (selectedQurbaniDate == null) {
+      ToastUtils.showError('Qurbani Date is required');
+      return;
+    }
+
+    if (selectedQurbaniTime == null) {
+      ToastUtils.showError('Qurbani Time is required');
+      return;
+    }
+
     final token = await _storage.read(key: "token");
     if (token == null) {
       ToastUtils.showError('Not authenticated');
@@ -139,27 +215,26 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
 
     try {
       final imageUrls = await uploadImagesToCloudinary();
-
+      final qurbaniDateTime = getCombinedQurbaniDateTime();
       final body = {
-        "animalType": selectedAnimalType == "Others"
-            ? customAnimalTypeController.text.trim()
-            : selectedAnimalType,
-        "breed": breedController.text.trim(), //Optional
-        "description": descriptionController.text.trim().isNotEmpty
-            ? descriptionController.text.trim()
-            : null, // Optional
+        "animalType": selectedAnimalType,
+        // "breed": breedController.text.trim(), //Optional
+        // "description": descriptionController.text.trim().isNotEmpty
+        //     ? descriptionController.text.trim()
+        //     : null, // Optional
         // "price": double.parse(priceController.text),
-        "age": ageController.text.trim().isNotEmpty
-            ? ageController.text.trim()
-            : null, // Optional
-        "height": heightController.text.trim().isNotEmpty
-            ? heightController.text.trim()
-            : null, // Optional
-        "weight": weightController.text.trim().isNotEmpty
-            ? double.tryParse(weightController.text.trim())
-            : null, // Optional
+        // "age": ageController.text.trim().isNotEmpty
+        //     ? ageController.text.trim()
+        //     : null, // Optional
+        // "height": heightController.text.trim().isNotEmpty
+        //     ? heightController.text.trim()
+        //     : null, // Optional
+        // "weight": weightController.text.trim().isNotEmpty
+        //     ? double.tryParse(weightController.text.trim())
+        //     : null, // Optional
         "shares": int.parse(sharesController.text.trim()),
-
+        "qurbaniDay": selectedQurbaniDay,
+        "qurbaniDatetime": qurbaniDateTime!.toIso8601String(),
         "images": imageUrls,
       };
 
@@ -249,86 +324,85 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                       //   ),
                       // ],
                       // const SizedBox(height: 15),
-                      _buildLabel("Animal Breed", isRequired: false),
-                      TextFormField(
-                        controller: breedController,
-                        decoration: _inputDecoration(
-                          "Enter Breed (e.g. Beetal, Sahiwal)",
-                        ),
-                        // validator: (v) =>
-                        //     (v == null || v.isEmpty) ? "Required" : null,
-                      ),
+                      // _buildLabel("Animal Breed", isRequired: false),
+                      // TextFormField(
+                      //   controller: breedController,
+                      //   decoration: _inputDecoration(
+                      //     "Enter Breed (e.g. Beetal, Sahiwal)",
+                      //   ),
+                      //   // validator: (v) =>
+                      //   //     (v == null || v.isEmpty) ? "Required" : null,
+                      // ),
                     ]),
 
-                    const SizedBox(height: 20),
+                    // const SizedBox(height: 20),
 
-                    _buildCardContainer([
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("Age", isRequired: false),
-                                TextFormField(
-                                  controller: ageController,
-                                  decoration: _inputDecoration("e.g. 2 Years"),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // const SizedBox(width: 15),
-                          // Expanded(
-                          //   child: Column(
-                          //     crossAxisAlignment: CrossAxisAlignment.start,
-                          //     children: [
-                          //       _buildLabel("Price", isRequired: true),
-                          //       TextFormField(
-                          //         controller: priceController,
-                          //         keyboardType: TextInputType.number,
-                          //         decoration: _inputDecoration("Amount"),
-                          //         validator: (v) => (v == null || v.isEmpty)
-                          //             ? "Required"
-                          //             : null,
-                          //       ),
-                          //     ],
-                          //   ),
-                          // ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("Weight", isRequired: false),
-                                TextFormField(
-                                  controller: weightController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: _inputDecoration("kg"),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildLabel("Height", isRequired: false),
-                                TextFormField(
-                                  controller: heightController,
-                                  decoration: _inputDecoration("cm/ft"),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ]),
-
+                    // _buildCardContainer([
+                    //   Row(
+                    //     children: [
+                    //       Expanded(
+                    //         child: Column(
+                    //           crossAxisAlignment: CrossAxisAlignment.start,
+                    //           children: [
+                    //             _buildLabel("Age", isRequired: false),
+                    //             TextFormField(
+                    //               controller: ageController,
+                    //               decoration: _inputDecoration("e.g. 2 Years"),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       ),
+                    // const SizedBox(width: 15),
+                    // Expanded(
+                    //   child: Column(
+                    //     crossAxisAlignment: CrossAxisAlignment.start,
+                    //     children: [
+                    //       _buildLabel("Price", isRequired: true),
+                    //       TextFormField(
+                    //         controller: priceController,
+                    //         keyboardType: TextInputType.number,
+                    //         decoration: _inputDecoration("Amount"),
+                    //         validator: (v) => (v == null || v.isEmpty)
+                    //             ? "Required"
+                    //             : null,
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ),
+                    //   ],
+                    // ),
+                    // const SizedBox(height: 15),
+                    // Row(
+                    //   children: [
+                    //     Expanded(
+                    //       child: Column(
+                    //         crossAxisAlignment: CrossAxisAlignment.start,
+                    //         children: [
+                    //           _buildLabel("Weight", isRequired: false),
+                    //           TextFormField(
+                    //             controller: weightController,
+                    //             keyboardType: TextInputType.number,
+                    //             decoration: _inputDecoration("kg"),
+                    //           ),
+                    //         ],
+                    //       ),
+                    //     ),
+                    //       const SizedBox(width: 15),
+                    //       Expanded(
+                    //         child: Column(
+                    //           crossAxisAlignment: CrossAxisAlignment.start,
+                    //           children: [
+                    //             _buildLabel("Height", isRequired: false),
+                    //             TextFormField(
+                    //               controller: heightController,
+                    //               decoration: _inputDecoration("cm/ft"),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       ),
+                    //     ],
+                    //   ),
+                    // ]),
                     const SizedBox(height: 20),
 
                     _buildCardContainer([
@@ -343,6 +417,81 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                             (v == null || v.isEmpty) ? "Required" : null,
                       ),
 
+                      const SizedBox(height: 15),
+
+                      // const SizedBox(height: 15),
+                      _buildLabel("Qurbani Day", isRequired: true),
+                      DropdownButtonFormField<String>(
+                        value: selectedQurbaniDay,
+                        decoration: _inputDecoration("Select qurbani day"),
+                        items: const [
+                          DropdownMenuItem(
+                            value: "day_1",
+                            child: Text("Day 1"),
+                          ),
+                          DropdownMenuItem(
+                            value: "day_2",
+                            child: Text("Day 2"),
+                          ),
+                          DropdownMenuItem(
+                            value: "day_3",
+                            child: Text("Day 3"),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            selectedQurbaniDay = val;
+
+                            // optional reset date/time if day changes
+                            selectedQurbaniDate = null;
+                            selectedQurbaniTime = null;
+                            qurbaniDateController.clear();
+                            qurbaniTimeController.clear();
+                          });
+                        },
+                        validator: (v) => v == null ? "Required" : null,
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      _buildLabel("Qurbani Date", isRequired: true),
+                      TextFormField(
+                        controller: qurbaniDateController,
+                        readOnly: true,
+                        enabled: selectedQurbaniDay != null,
+                        decoration:
+                            _inputDecoration(
+                              selectedQurbaniDay == null
+                                  ? "Select qurbani day first"
+                                  : "Select qurbani date",
+                            ).copyWith(
+                              suffixIcon: const Icon(Icons.calendar_today),
+                            ),
+                        onTap: selectedQurbaniDay != null
+                            ? pickQurbaniDate
+                            : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? "Required" : null,
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      _buildLabel("Qurbani Time", isRequired: true),
+                      TextFormField(
+                        controller: qurbaniTimeController,
+                        readOnly: true,
+                        enabled: selectedQurbaniDate != null,
+                        decoration: _inputDecoration(
+                          selectedQurbaniDate == null
+                              ? "Select qurbani date first"
+                              : "Select qurbani time",
+                        ).copyWith(suffixIcon: const Icon(Icons.access_time)),
+                        onTap: selectedQurbaniDate != null
+                            ? pickQurbaniTime
+                            : null,
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? "Required" : null,
+                      ),
                       const SizedBox(height: 15),
 
                       // _buildLabel("Last Booking Date", isRequired: true),
