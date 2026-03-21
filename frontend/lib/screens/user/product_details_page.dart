@@ -43,6 +43,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       _orderData = await OrderService.getOrderDetails(widget.orderId);
+
+      print("checking particular order details $_orderData");
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -95,17 +97,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   }
 
   String mapPaymentStatus(dynamic status) {
-    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+    final intStatus = int.tryParse(status?.toString() ?? '') ?? 2;
 
     switch (intStatus) {
       case 0:
-        return "Pending";
-      case 1:
         return "Paid";
-      case 2:
+      case 1:
         return "Unpaid";
+      case 2:
       default:
-        return "Unknown";
+        return "Pending";
     }
   }
 
@@ -353,10 +354,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon, size: 18),
-        label: Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: color,
@@ -371,12 +369,37 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     );
   }
 
-  Widget _buildHeroCard(Map<String, dynamic> order, DateTime? orderDate) {
-    final status = mapCombinedStatus(order['status']);
-    final payment = mapPaymentStatus(order['payment_status']);
-    final statusColor = _statusColor(parseStatus(order['status']));
-    final paymentColor = _paymentColor(payment);
+  int _statusToCode(String status) {
+    switch (status.toLowerCase().trim()) {
+      case 'not started':
+        return 0;
+      case 'qurbani started':
+        return 1;
+      case 'processing':
+        return 2;
+      case 'meat packaged':
+        return 3;
+      case 'sent for delivery':
+        return 4;
+      case 'delivered':
+        return 5;
+      case 'cancelled':
+        return 6;
+      default:
+        return 0;
+    }
+  }
 
+  Widget _buildHeroCard(Map<String, dynamic> order, DateTime? orderDate) {
+    // final status = mapCombinedStatus(order['status']);
+    final payment =
+        order['payment_status_label']?.toString() ??
+        mapPaymentStatus(order['payment_status']);
+    // final statusColor = _statusColor(parseStatus(order['status']));
+    final status = order['processing_status']?.toString() ?? 'Unknown';
+    final statusColor = _statusColor(_statusToCode(status));
+    final paymentColor = _paymentColor(payment);
+    print("order sttaus check: $status");
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -426,7 +449,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             runSpacing: 10,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(15),
@@ -440,7 +466,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(40),
@@ -730,10 +759,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   const SizedBox(height: 12),
                   const Text(
                     "Something went wrong",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -758,9 +784,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     final order = _orderData!;
     final orderDate = DateTime.tryParse(order['created_at']?.toString() ?? '');
-    final overallStatus = parseStatus(order['status']);
-    final bool isDelivered = overallStatus == 5;
-    final bool isCancelled = overallStatus == 6;
+    final processingStatus =
+        order['processing_status']?.toString() ?? 'Unknown';
+    final bool isDelivered = processingStatus == 'Delivered';
+    final bool isCancelled = processingStatus == 'Cancelled';
 
     bool canCancel = false;
     if (orderDate != null) {
@@ -779,10 +806,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         title: const Text(
           "Order Details",
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w800,
-          ),
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -810,12 +834,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   _buildInfoRow(
                     Icons.info_outline_rounded,
                     "Order Status",
-                    mapCombinedStatus(order['status']),
+                    order['processing_status']?.toString() ?? 'Unknown',
                   ),
                   _buildInfoRow(
                     Icons.payments_outlined,
                     "Payment",
-                    mapPaymentStatus(order['payment_status']),
+                    order['payment_status_label']?.toString() ??
+                        mapPaymentStatus(order['payment_status']),
                   ),
                   if (orderDate != null)
                     _buildInfoRow(
@@ -888,12 +913,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     onPressed: (isCancelled || isDelivered)
                         ? null
                         : () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    SpecialRequestPage(orderData: order),
-                              ),
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SpecialRequestPage(orderData: order),
                             ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 12),

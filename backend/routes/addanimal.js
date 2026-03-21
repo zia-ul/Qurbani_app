@@ -9,6 +9,92 @@ const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const router = express.Router();
 
+
+
+router.get("/barcode/:barcode", authMiddleware, async (req, res) => {
+  const { barcode } = req.params;
+
+  try {
+    // 1) Find animal by barcode
+    const [animalRows] = await pool.execute(
+      `
+      SELECT
+        a.id,
+        a.animal_type,
+        a.qurbani_day,
+        a.qurbani_datetime,
+        ad.barcode
+      FROM animal_details ad
+      INNER JOIN animals a ON a.id = ad.animal_id
+      WHERE ad.barcode = ?
+      LIMIT 1
+      `,
+      [barcode]
+    );
+
+    if (!animalRows.length) {
+      return res.status(404).json({ message: "Animal not found" });
+    }
+
+    const animal = animalRows[0];
+
+    // 2) Get all shareholders assigned to this animal
+    // contact comes from orders.user_id -> users.phone
+    const [shareholderRows] = await pool.execute(
+      `
+      SELECT
+        sd.id,
+        sd.shareholder_name,
+        sd.guardian_name,
+        sd.address,
+        sd.share_number,
+        sd.qurbani_day,
+        sd.qurbani_datetime,
+        o.user_id,
+        u.phone AS contact_no,
+        u.name AS user_name
+      FROM shareholder_details sd
+      LEFT JOIN orders o ON o.id = sd.order_id
+      LEFT JOIN users u ON u.id = o.user_id
+      WHERE sd.animal_id = ?
+      ORDER BY sd.share_number ASC, sd.id ASC
+      `,
+      [animal.id]
+    );
+
+    return res.status(200).json({
+      animal: {
+        id: animal.id,
+        animal_type: animal.animal_type,
+        barcode: animal.barcode,
+        qurbani_day: animal.qurbani_day,
+        qurbani_datetime: animal.qurbani_datetime,
+      },
+      shareholders: shareholderRows.map((row) => ({
+        id: row.id,
+        shareholder_name: row.shareholder_name,
+        guardian_name: row.guardian_name,
+        contact_no: row.contact_no,
+        user_name: row.user_name,
+        address: row.address,
+        share_number: row.share_number,
+        qurbani_day: row.qurbani_day,
+        qurbani_datetime: row.qurbani_datetime,
+      })),
+    });
+  } catch (err) {
+    logger.error("Failed to fetch animal details by barcode", {
+      barcode,
+      error: err.message,
+      stack: err.stack,
+    });
+
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
+  }
+});
+
 /**
  * @swagger
  * /api/animals:

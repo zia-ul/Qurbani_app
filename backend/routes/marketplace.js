@@ -74,17 +74,26 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
         s.delivery_fee,
         s.free_delivery_threshold,
         s.currency,
+        s.day1,
+        s.day2,
+        s.day3,
 
-        -- ✅ Count actual used shares from shareholder_details
         IFNULL(COUNT(sd.id), 0) AS used_shares,
+        (s.total_shares - IFNULL(COUNT(sd.id), 0)) AS remaining_shares,
 
-        (s.total_shares - IFNULL(COUNT(sd.id), 0)) AS remaining_shares
+        IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 1' THEN 1 ELSE 0 END), 0) AS day1_booked,
+        IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 2' THEN 1 ELSE 0 END), 0) AS day2_booked,
+        IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 3' THEN 1 ELSE 0 END), 0) AS day3_booked,
+
+        (s.day1 - IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 1' THEN 1 ELSE 0 END), 0)) AS day1_remaining,
+        (s.day2 - IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 2' THEN 1 ELSE 0 END), 0)) AS day2_remaining,
+        (s.day3 - IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 3' THEN 1 ELSE 0 END), 0)) AS day3_remaining
 
       FROM admin_share_setups s
 
-      LEFT JOIN orders o 
+      LEFT JOIN orders o
         ON o.admin_id = s.admin_id
-        AND o.status != 'cancelled'
+        AND o.status != 2
 
       LEFT JOIN shareholder_details sd
         ON sd.order_id = o.id
@@ -101,7 +110,10 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
         s.delivery_type,
         s.delivery_fee,
         s.free_delivery_threshold,
-        s.currency
+        s.currency,
+        s.day1,
+        s.day2,
+        s.day3
       `,
       [adminId]
     );
@@ -110,13 +122,20 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Order config not found" });
     }
 
-    res.json(rows[0]);
+    const row = rows[0];
 
+    row.remaining_shares = Math.max(0, Number(row.remaining_shares || 0));
+    row.day1_remaining = Math.max(0, Number(row.day1_remaining || 0));
+    row.day2_remaining = Math.max(0, Number(row.day2_remaining || 0));
+    row.day3_remaining = Math.max(0, Number(row.day3_remaining || 0));
+
+    res.json(row);
   } catch (err) {
     console.error("[ORDER CONFIG]", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 router.post("/sync-delivery-requests", authMiddleware, async (req, res) => {

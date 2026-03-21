@@ -1,30 +1,41 @@
 class AdminOrderConfig {
   final int totalShares;
-  final int remainingShares;
-  final double pricePerShare;
+  final double remainingShares;
   final double lateBookingFee;
-  final DateTime lastBookingDate;
-  final String deliveryType;
-  final double deliveryFee;
-  final double? freeDeliveryThreshold;
-  final String currency;
 
-  AdminOrderConfig.fromJson(Map<String, dynamic> json)
-      : totalShares =
-            int.parse(json['total_shares'].toString()),
-        remainingShares =
-            int.parse(json['remaining_shares'].toString()),
-        pricePerShare =
-            double.parse(json['price_per_share'].toString()),
-        lateBookingFee =
-            double.parse(json['late_booking_fee'].toString()),
-        lastBookingDate =
-            DateTime.parse(json['last_booking_date']),
-        deliveryType = json['delivery_type'],
-        deliveryFee =
-            double.parse(json['delivery_fee'].toString()),
-        freeDeliveryThreshold = json['free_delivery_threshold'] != null
-            ? double.parse(json['free_delivery_threshold'].toString())
-            : null,
-        currency = json['currency'];
+  final int day1;
+  final int day2;
+  final int day3;
+
+  final int day1Remaining;
+  final int day2Remaining;
+  final int day3Remaining;
+
+  AdminOrderConfig({
+    required this.totalShares,
+    required this.remainingShares,
+    required this.lateBookingFee,
+    required this.day1,
+    required this.day2,
+    required this.day3,
+    required this.day1Remaining,
+    required this.day2Remaining,
+    required this.day3Remaining,
+  });
+
+  factory AdminOrderConfig.fromJson(Map<String, dynamic> json) {
+    return AdminOrderConfig(
+      totalShares: int.tryParse(json['total_shares'].toString()) ?? 0,
+      remainingShares:
+          double.tryParse(json['remaining_shares'].toString()) ?? 0,
+      lateBookingFee:
+          double.tryParse(json['late_booking_fee'].toString()) ?? 0,
+      day1: int.tryParse(json['day1'].toString()) ?? 0,
+      day2: int.tryParse(json['day2'].toString()) ?? 0,
+      day3: int.tryParse(json['day3'].toString()) ?? 0,
+      day1Remaining: int.tryParse(json['day1_remaining'].toString()) ?? 0,
+      day2Remaining: int.tryParse(json['day2_remaining'].toString()) ?? 0,
+      day3Remaining: int.tryParse(json['day3_remaining'].toString()) ?? 0,
+    );
+  }
 }

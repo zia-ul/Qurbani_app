@@ -63,7 +63,7 @@ class Shareholder {
   /// The day on which the Qurbani sacrifice will be performed for this shareholder.
   /// Options are 'Day 1', 'Day 2', or 'Day 3' corresponding to the three days
   /// of Eid al-Adha (Days 10, 11, and 12 of Dhul Hijjah).
-  String qurbaniDay = 'Day 1';
+  String? qurbaniDay;
 
   /// The name of the selected country for delivery.
   /// Used for address construction and delivery calculations.
@@ -219,6 +219,43 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     return _orderConfig!.remainingShares.floor();
   }
 
+  int _dayRemainingFromBackend(String day) {
+    if (_orderConfig == null) return 0;
+
+    switch (day) {
+      case 'Day 1':
+        return _orderConfig!.day1Remaining;
+      case 'Day 2':
+        return _orderConfig!.day2Remaining;
+      case 'Day 3':
+        return _orderConfig!.day3Remaining;
+      default:
+        return 0;
+    }
+  }
+
+  int _selectedCountForDay(String day) {
+    return _shareholders.where((s) => s.qurbaniDay == day).length;
+  }
+
+  /// Remaining slots for a day, excluding the current shareholder if needed
+  int _remainingSlotsForDay(String day, {Shareholder? excludeShareholder}) {
+    final backendRemaining = _dayRemainingFromBackend(day);
+
+    final selectedInCurrentForm = _shareholders.where((s) {
+      if (excludeShareholder != null && identical(s, excludeShareholder)) {
+        return false;
+      }
+      return s.qurbaniDay == day;
+    }).length;
+
+    return backendRemaining - selectedInCurrentForm;
+  }
+
+  bool _isDayDisabled(String day, Shareholder shareholder) {
+    return _remainingSlotsForDay(day, excludeShareholder: shareholder) <= 0;
+  }
+
   Future<void> _fetchSavedAddress() async {
     try {
       final token = await const FlutterSecureStorage().read(key: 'token');
@@ -266,6 +303,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         },
       );
 
+      print("admin comfig: ${res.body}");
+
       if (res.statusCode != 200) {
         AppLogger.error(
           "Failed to fetch admin order config. Status: ${res.statusCode}, Body: ${res.body}",
@@ -279,7 +318,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       setState(() {
         _orderConfig = AdminOrderConfig.fromJson(data);
 
-        // ✅ Add first shareholder only if shares exist
+        // Add first shareholder only if shares exist
         if (_shareholders.isEmpty && remainingShares > 0) {
           _shareholders.add(Shareholder());
         }
@@ -947,18 +986,31 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: ['Day 1', 'Day 2', 'Day 3'].map((day) {
-              bool isSelected = shareholder.qurbaniDay == day;
-              return ChoiceChip(
-                label: Text(day),
-                selected: isSelected,
-                selectedColor: AppTheme.primaryGreen,
-                onSelected: (_) => setState(() => shareholder.qurbaniDay = day),
-                labelStyle: TextStyle(
-                  color: isSelected ? AppTheme.bgGradientEnd : Colors.black,
-                ),
-                backgroundColor: Colors.grey[100],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              final bool isSelected = shareholder.qurbaniDay == day;
+              final bool isDisabled = _isDayDisabled(day, shareholder);
+
+              return Opacity(
+                opacity: isDisabled && !isSelected ? 0.45 : 1,
+                child: ChoiceChip(
+                  label: Text(isDisabled && !isSelected ? "$day (Full)" : day),
+                  selected: isSelected,
+                  selectedColor: AppTheme.primaryGreen,
+                  onSelected: (isDisabled && !isSelected)
+                      ? null
+                      : (_) => setState(() => shareholder.qurbaniDay = day),
+                  labelStyle: TextStyle(
+                    color: isSelected
+                        ? AppTheme.bgGradientEnd
+                        : isDisabled
+                        ? Colors.grey
+                        : Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  backgroundColor: Colors.grey[100],
+                  disabledColor: Colors.grey[200],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               );
             }).toList(),
@@ -1275,6 +1327,16 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       return;
     }
 
+    for (var s in _shareholders) {
+      if (s.qurbaniDay == null || s.qurbaniDay!.isEmpty) {
+        Fluttertoast.showToast(
+          msg: "Please select qurbani day",
+          backgroundColor: AppTheme.warningRed,
+        );
+        return;
+      }
+    }
+
     if (!allowedMethods.contains(_paymentMethod)) {
       Fluttertoast.showToast(
         msg: "Selected payment method is not allowed",
@@ -1299,7 +1361,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           s.addressController.text.trim().isEmpty ||
           _selectedAnimalType == null ||
           _selectedAnimalType!.isEmpty) {
-            
         Fluttertoast.showToast(
           msg: "Please fill all required fields",
           backgroundColor: AppTheme.warningRed,

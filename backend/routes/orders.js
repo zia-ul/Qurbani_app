@@ -314,19 +314,15 @@ router.put("/:orderId", authMiddleware, async (req, res) => {
 // Allows users to cancel their orders within a 24-hour window if not yet delivered
 // Implements business rules for cancellation eligibility and updates all order statuses
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
-  // Extract order ID from URL parameters and get authenticated user's ID
   const { orderId } = req.params;
   const userId = req.user.id;
 
   try {
-    // Step 1: Verify order exists and belongs to user
-    // Fetch current order status and creation time for cancellation validation
     const [orders] = await pool.execute(
-      `SELECT delivery_status, created_at FROM orders WHERE id = ? AND user_id = ?`,
-      [orderId, userId],
+      `SELECT id, user_id, status, created_at FROM orders WHERE id = ? AND user_id = ?`,
+      [orderId, userId]
     );
 
-    // If order doesn't exist or doesn't belong to user, return error
     if (!orders.length) {
       logger.warn(
         "Order cancellation attempt on non-existent or non-owned order",
@@ -334,80 +330,103 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
           userId,
           orderId,
           reason: "Order not found or doesn't belong to user",
-        },
+        }
       );
       return res.status(404).json({ message: "Order not found" });
     }
 
     const order = orders[0];
 
-    console.log(order);
+    const isCancelled = Number(order.status) === 2; // orders.status: 2=cancelled
 
-    // Step 2: Evaluate cancellation eligibility based on business rules
-    const isDelivered = order.delivery_status === "delivered";
-    const isCancelled = order.delivery_status === "cancelled";
-
-    // Cancellation allowed within 24 hours AND order not delivered/cancelled
-    // Time calculation: current time minus order creation time
     const timeSinceOrder = Date.now() - new Date(order.created_at).getTime();
-    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000;
 
-    const canCancel = within24Hours && !isDelivered && !isCancelled;
+    const canCancel = within24Hours && !isCancelled;
 
-    // If cancellation not allowed, return appropriate error
     if (!canCancel) {
       logger.warn(
         "Invalid order cancellation attempt - business rules violation",
         {
           userId,
           orderId,
-          orderStatus: order.delivery_status,
-          timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)), // hours
+          orderStatus: order.status,
+          timeSinceOrder: Math.floor(timeSinceOrder / (1000 * 60 * 60)),
           within24Hours,
-          isDelivered,
           isCancelled,
           reason: !within24Hours
             ? "Outside 24-hour window"
-            : isDelivered
-              ? "Order already delivered"
-              : "Order already cancelled",
-        },
+            : "Order already cancelled",
+        }
       );
       return res.status(400).json({ message: "Cannot cancel this order" });
     }
 
-    // Step 3: Execute cancellation by updating all order statuses
-    // Sets all statuses to 'cancelled' and records cancellation timestamp
     await pool.execute(
-      `UPDATE orders
-       SET delivery_status='pending',
-           payment_status='pending',
-           processing_status='pending',
-           status='cancelled',
-       WHERE id=?`,
-      [orderId],
+      `
+      UPDATE orders
+      SET status = 2
+      WHERE id = ? AND user_id = ?
+      `,
+      [orderId, userId]
     );
 
-    // Step 4: Log successful cancellation for audit trail
+    // Optional: also cancel all shareholders under this order
+    await pool.execute(
+      `
+      UPDATE shareholder_details
+      SET status = 6
+      WHERE order_id = ?
+      `,
+      [orderId]
+    );
+
+    // Push notification
+    try {
+      const [devices] = await pool.execute(
+        `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+        [userId]
+      );
+
+      const subscriptionIds = devices
+        .map((d) => d.subscription_id)
+        .filter(Boolean);
+
+      if (subscriptionIds.length > 0) {
+        const title = `Qurbani Order #${orderId}`;
+        const message = `Your order #${orderId} has been cancelled successfully.`;
+
+        await sendPushNotification(subscriptionIds, title, message, {
+          type: "ORDER_CANCELLED",
+          orderId: Number(orderId),
+          status: 2,
+        });
+      }
+    } catch (pushErr) {
+      logger.error("Order cancellation push failed", {
+        userId,
+        orderId,
+        error: pushErr.message,
+      });
+    }
+
     logger.info("Order successfully cancelled by user", {
       userId,
       orderId,
-      orderAge: Math.floor(timeSinceOrder / (1000 * 60)), // minutes since order
+      orderAge: Math.floor(timeSinceOrder / (1000 * 60)),
       cancellationType: "user_initiated",
-      previousStatus: order.delivery_status,
+      previousStatus: order.status,
     });
 
-    // Return success response
     res.json({ message: "Order cancelled successfully" });
   } catch (err) {
-    // Log error with comprehensive context for debugging
     logger.error("Error processing order cancellation", {
       userId,
       orderId,
       error: err.message,
       stack: err.stack,
     });
-    // Return generic error message to client
+
     res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });

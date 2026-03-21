@@ -32,10 +32,21 @@ class _BookedPageState extends State<BookedPage> {
 
   bool _isCodExpired(Map<String, dynamic> order) {
     final paymentMethod = _parseInt(order['payment_method']);
-    final paymentStatus = _parseInt(order['payment_status'], fallback: 2);
+    print("checking order status...$order if expired");
 
-    if (paymentMethod != 0) return false; // 0 = Cash
-    if (paymentStatus != 1) return false; // 1 = unpaid
+    final rawPaymentStatus = order['payment_status'];
+    bool isNotPaid = false;
+
+    if (rawPaymentStatus is String) {
+      final normalized = rawPaymentStatus.toLowerCase().trim();
+      isNotPaid = normalized == 'unpaid' || normalized == 'pending';
+    } else {
+      final paymentStatus = _parseInt(rawPaymentStatus, fallback: 2);
+      isNotPaid = paymentStatus == 1 || paymentStatus == 2;
+    }
+
+    if (paymentMethod != 0) return false; // Not Cash
+    if (!isNotPaid) return false;
     if (order['cod_deadline'] == null) return false;
 
     final deadline = DateTime.tryParse(order['cod_deadline'].toString());
@@ -49,10 +60,16 @@ class _BookedPageState extends State<BookedPage> {
 
     try {
       orders = await OrderService.getUserOrders();
+      // print("print orders...$orders");
 
+      //cancel order
       for (final order in orders) {
         final orderStatus = _parseInt(order['status']);
+        // print("print order status...$orderStatus, ${_isCodExpired(order)}");
+
         if (_isCodExpired(order) && orderStatus != 2) {
+          print("print order status...if order expired $order");
+          // print("$order");
           await OrderService.cancelOrder(order['id']);
         }
       }
@@ -83,7 +100,16 @@ class _BookedPageState extends State<BookedPage> {
   }
 
   String _resolvePaymentStatus(Map<String, dynamic> order) {
-    final paymentStatus = _parseInt(order['payment_status'], fallback: 2);
+    final raw = order['order_payment_status'];
+
+    if (raw is String) {
+      final normalized = raw.toLowerCase().trim();
+      if (normalized == 'paid') return 'Paid';
+      if (normalized == 'unpaid') return 'Unpaid';
+      return 'Pending';
+    }
+
+    final paymentStatus = _parseInt(raw, fallback: 2);
 
     switch (paymentStatus) {
       case 0:
@@ -422,17 +448,15 @@ class _BookedPageState extends State<BookedPage> {
                     ),
                   )
                 : filteredOrders.isEmpty
-                    ? const Center(
-                        child: Text("You have not placed any orders yet."),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        itemCount: filteredOrders.length,
-                        itemBuilder: (_, i) => _buildOrderCard(
-                          filteredOrders[i],
-                          {},
-                        ),
-                      ),
+                ? const Center(
+                    child: Text("You have not placed any orders yet."),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    itemCount: filteredOrders.length,
+                    itemBuilder: (_, i) =>
+                        _buildOrderCard(filteredOrders[i], {}),
+                  ),
           ),
         ],
       ),

@@ -28,6 +28,7 @@ const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
 
+
 router.get("/my", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
@@ -42,10 +43,8 @@ router.get("/my", authMiddleware, async (req, res) => {
           o.status,
           o.created_at,
           o.payment_status AS order_payment_status,
-
           u.name AS admin_name,
           u.email AS admin_email,
-
           aps.cod_deadline
        FROM orders o
        JOIN users u 
@@ -56,6 +55,8 @@ router.get("/my", authMiddleware, async (req, res) => {
        ORDER BY o.created_at DESC`,
       [userId]
     );
+
+
 
     for (const order of orders) {
       const [shareholders] = await pool.execute(
@@ -70,14 +71,14 @@ router.get("/my", authMiddleware, async (req, res) => {
       if (!shareholders.length) {
         order.processing_status = "Not started";
         order.delivery_status = "Pending";
-        order.payment_status = "Pending";
+        order.payment_status = 2;
+        order.payment_status_label = "Pending";
         continue;
       }
 
       const statuses = shareholders.map((s) => Number(s.status));
       const paymentStatuses = shareholders.map((s) => Number(s.payment_status));
 
-      // Combined status logic
       const maxStatus = Math.max(...statuses);
 
       if (maxStatus === 6) {
@@ -103,308 +104,302 @@ router.get("/my", authMiddleware, async (req, res) => {
         order.delivery_status = "Pending";
       }
 
-      // Payment logic
       if (paymentStatuses.every((s) => s === 1)) {
-        order.payment_status = "Paid";
+        order.payment_status = 0; // paid
+        order.payment_status_label = "Paid";
       } else if (paymentStatuses.every((s) => s === 2)) {
-        order.payment_status = "Unpaid";
+        order.payment_status = 1; // unpaid
+        order.payment_status_label = "Unpaid";
       } else {
-        order.payment_status = "Pending";
+        order.payment_status = 2; // pending
+        order.payment_status_label = "Pending";
       }
     }
 
-    logger.info("Fetched user orders with computed statuses", {
-      userId,
-      count: orders.length,
-    });
+    console.log(orders);
 
     res.json({ orders });
   } catch (err) {
-    logger.error("Failed to fetch user orders", {
-      userId,
-      error: err.message,
-      stack: err.stack,
-    });
-
     res.status(500).json({
       message: "Something went wrong. Please try again later.",
     });
   }
 });
 
-/**
- * GET /api/orders/:orderId/delivery-boy/:deliveryBoyId
- * Retrieves delivery boy details for a specific order.
- * Validates order existence and delivery boy assignment.
- */
-router.get(
-  "/:orderId/delivery-boy/:deliveryBoyId",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      const { orderId, deliveryBoyId } = req.params;
 
-      // Check if order exists
-      const order = await pool.query(
-        "SELECT id, delivery_person_id FROM orders WHERE id = ?",
-        [orderId],
-      );
+// /**
+//  * GET /api/orders/:orderId/delivery-boy/:deliveryBoyId
+//  * Retrieves delivery boy details for a specific order.
+//  * Validates order existence and delivery boy assignment.
+//  */
+// router.get(
+//   "/:orderId/delivery-boy/:deliveryBoyId",
+//   authMiddleware,
+//   async (req, res) => {
+//     try {
+//       const { orderId, deliveryBoyId } = req.params;
 
-      if (order.rowCount === 0) {
-        return res.status(404).json({ message: "Order not found" });
-      }
+//       // Check if order exists
+//       const order = await pool.query(
+//         "SELECT id, delivery_person_id FROM orders WHERE id = ?",
+//         [orderId],
+//       );
 
-      // Note: Delivery boy validation commented out for now
-      // if (order[0].delivery_person_id !== deliveryBoyId) {
-      //   return res
-      //     .status(403)
-      //     .json({ message: "Delivery boy not assigned to this order" });
-      // }
+//       if (order.rowCount === 0) {
+//         return res.status(404).json({ message: "Order not found" });
+//       }
 
-      // Fetch delivery boy details
-      const deliveryBoy = await pool.query(
-        `
-      SELECT
-        id,
-        name,
-        phone
-      FROM users
-      WHERE id = ? AND role = 'delivery'
-      `,
-        [deliveryBoyId],
-      );
+//       // Note: Delivery boy validation commented out for now
+//       // if (order[0].delivery_person_id !== deliveryBoyId) {
+//       //   return res
+//       //     .status(403)
+//       //     .json({ message: "Delivery boy not assigned to this order" });
+//       // }
 
-      if (deliveryBoy.rowCount === 0) {
-        return res.status(404).json({ message: "Delivery boy not found" });
-      }
+//       // Fetch delivery boy details
+//       const deliveryBoy = await pool.query(
+//         `
+//       SELECT
+//         id,
+//         name,
+//         phone
+//       FROM users
+//       WHERE id = ? AND role = 'delivery'
+//       `,
+//         [deliveryBoyId],
+//       );
 
-      res.json({
-        deliveryBoy: deliveryBoy[0],
-      });
-    } catch (err) {
-      logger.error("Failed to fetch delivery boy details", {
-        orderId,
-        deliveryBoyId,
-        error: err.message,
-        stack: err.stack,
-      });
-      res.status(500).json({ message: "Server error" });
-    }
-  },
-);
+//       if (deliveryBoy.rowCount === 0) {
+//         return res.status(404).json({ message: "Delivery boy not found" });
+//       }
 
-router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
-  const { orderId } = req.params;
-  const { animalId } = req.body;
+//       res.json({
+//         deliveryBoy: deliveryBoy[0],
+//       });
+//     } catch (err) {
+//       logger.error("Failed to fetch delivery boy details", {
+//         orderId,
+//         deliveryBoyId,
+//         error: err.message,
+//         stack: err.stack,
+//       });
+//       res.status(500).json({ message: "Server error" });
+//     }
+//   },
+// );
 
-  const connection = await pool.getConnection();
+// router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
+//   const { orderId } = req.params;
+//   const { animalId } = req.body;
 
-  try {
-    await connection.beginTransaction();
+//   const connection = await pool.getConnection();
 
-    // 🔍 Get order to fetch user_id
-    const [orderRows] = await connection.query(
-      `SELECT user_id FROM orders WHERE id = ?`,
-      [orderId],
-    );
+//   try {
+//     await connection.beginTransaction();
 
-    if (orderRows.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({ message: "Order not found" });
-    }
+//     // 🔍 Get order to fetch user_id
+//     const [orderRows] = await connection.query(
+//       `SELECT user_id FROM orders WHERE id = ?`,
+//       [orderId],
+//     );
 
-    const userId = orderRows[0].user_id;
+//     if (orderRows.length === 0) {
+//       await connection.rollback();
+//       return res.status(404).json({ message: "Order not found" });
+//     }
 
-    // ✅ Assign share (animal_details)
-    await connection.query(
-      `UPDATE animal_details 
-       SET order_id = ?
-       WHERE animal_id = ? AND order_id IS NULL
-       LIMIT 1`,
-      [orderId, animalId],
-    );
+//     const userId = orderRows[0].user_id;
 
-    // ✅ Count assigned shares
-    const [assignedRows] = await connection.query(
-      `SELECT COUNT(*) as totalAssigned
-       FROM animal_details
-       WHERE animal_id = ? AND order_id IS NOT NULL`,
-      [animalId],
-    );
+//     // ✅ Assign share (animal_details)
+//     await connection.query(
+//       `UPDATE animal_details 
+//        SET order_id = ?
+//        WHERE animal_id = ? AND order_id IS NULL
+//        LIMIT 1`,
+//       [orderId, animalId],
+//     );
 
-    const totalAssigned = assignedRows[0].totalAssigned;
+//     // ✅ Count assigned shares
+//     const [assignedRows] = await connection.query(
+//       `SELECT COUNT(*) as totalAssigned
+//        FROM animal_details
+//        WHERE animal_id = ? AND order_id IS NOT NULL`,
+//       [animalId],
+//     );
 
-    // ✅ Get total shares
-    const [animalRows] = await connection.query(
-      `SELECT shares FROM animals WHERE id = ?`,
-      [animalId],
-    );
+//     const totalAssigned = assignedRows[0].totalAssigned;
 
-    const totalShares = animalRows[0].shares;
+//     // ✅ Get total shares
+//     const [animalRows] = await connection.query(
+//       `SELECT shares FROM animals WHERE id = ?`,
+//       [animalId],
+//     );
 
-    // ✅ If fully booked → mark sold
-    if (totalAssigned >= totalShares) {
-      await connection.query(
-        `UPDATE animals 
-         SET status = 'sold'
-         WHERE id = ?`,
-        [animalId],
-      );
-    }
+//     const totalShares = animalRows[0].shares;
 
-    await connection.commit();
+//     // ✅ If fully booked → mark sold
+//     if (totalAssigned >= totalShares) {
+//       await connection.query(
+//         `UPDATE animals 
+//          SET status = 'sold'
+//          WHERE id = ?`,
+//         [animalId],
+//       );
+//     }
 
-    // 🔔 SEND PUSH TO USER (after commit)
-    try {
-      const [devices] = await connection.query(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ?`,
-        [userId],
-      );
+//     await connection.commit();
 
-      const subscriptionIds = devices.map((d) => d.subscription_id);
+//     // 🔔 SEND PUSH TO USER (after commit)
+//     try {
+//       const [devices] = await connection.query(
+//         `SELECT subscription_id
+//          FROM user_devices
+//          WHERE user_id = ?`,
+//         [userId],
+//       );
 
-      if (subscriptionIds.length > 0) {
-        await sendPushNotification(
-          subscriptionIds,
-          "🐄 Animal Assigned",
-          "Your Qurbani animal has been successfully assigned.",
-          {
-            type: "ANIMAL_ASSIGNED",
-            orderId: orderId,
-          },
-        );
-      }
-    } catch (pushErr) {
-      logger.error("Animal assignment push failed", {
-        orderId,
-        error: pushErr.message,
-      });
-    }
+//       const subscriptionIds = devices.map((d) => d.subscription_id);
 
-    res.json({ message: "Animal assigned successfully" });
-  } catch (error) {
-    await connection.rollback();
+//       if (subscriptionIds.length > 0) {
+//         await sendPushNotification(
+//           subscriptionIds,
+//           "🐄 Animal Assigned",
+//           "Your Qurbani animal has been successfully assigned.",
+//           {
+//             type: "ANIMAL_ASSIGNED",
+//             orderId: orderId,
+//           },
+//         );
+//       }
+//     } catch (pushErr) {
+//       logger.error("Animal assignment push failed", {
+//         orderId,
+//         error: pushErr.message,
+//       });
+//     }
 
-    logger.error("Animal assignment failed", {
-      orderId,
-      animalId,
-      error: error.message,
-      stack: error.stack,
-    });
+//     res.json({ message: "Animal assigned successfully" });
+//   } catch (error) {
+//     await connection.rollback();
 
-    res.status(500).json({ message: "Failed to assign animal" });
-  } finally {
-    connection.release();
-  }
-});
+//     logger.error("Animal assignment failed", {
+//       orderId,
+//       animalId,
+//       error: error.message,
+//       stack: error.stack,
+//     });
 
-router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
-  const adminId = req.user.id;
-  const { orderId } = req.params;
+//     res.status(500).json({ message: "Failed to assign animal" });
+//   } finally {
+//     connection.release();
+//   }
+// });
 
-  logger.info("Admin marking COD order as paid", {
-    adminId,
-    orderId,
-  });
+// router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
+//   const adminId = req.user.id;
+//   const { orderId } = req.params;
 
-  try {
-    // Fetch order & validate
-    const [rows] = await pool.execute(
-      `
-      SELECT id, user_id, payment_method, payment_status, processing_status
-      FROM orders
-      WHERE id = ? AND admin_id = ?
-      `,
-      [orderId, adminId],
-    );
+//   logger.info("Admin marking COD order as paid", {
+//     adminId,
+//     orderId,
+//   });
 
-    console.log("Order fetch result for marking paid:", rows);
+//   try {
+//     // Fetch order & validate
+//     const [rows] = await pool.execute(
+//       `
+//       SELECT id, user_id, payment_method, payment_status, processing_status
+//       FROM orders
+//       WHERE id = ? AND admin_id = ?
+//       `,
+//       [orderId, adminId],
+//     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({
-        message: "Order not found or unauthorized",
-      });
-    }
+//     console.log("Order fetch result for marking paid:", rows);
 
-    const order = rows[0];
+//     if (rows.length === 0) {
+//       return res.status(404).json({
+//         message: "Order not found or unauthorized",
+//       });
+//     }
 
-    if (order.payment_method !== "Cash") {
-      return res.status(400).json({
-        message: "Only Cash on Delivery orders can be marked as paid",
-      });
-    }
+//     const order = rows[0];
 
-    if (order.payment_status === "paid") {
-      return res.status(400).json({
-        message: "Order already marked as paid",
-      });
-    }
+//     if (order.payment_method !== "Cash") {
+//       return res.status(400).json({
+//         message: "Only Cash on Delivery orders can be marked as paid",
+//       });
+//     }
 
-    // ✅ Update order
-    await pool.execute(
-      `
-      UPDATE orders
-      SET payment_status = 'paid',
-          processing_status = 'pending'
-      WHERE id = ?
-      `,
-      [orderId],
-    );
+//     if (order.payment_status === "paid") {
+//       return res.status(400).json({
+//         message: "Order already marked as paid",
+//       });
+//     }
 
-    logger.info("COD order marked as paid", { orderId });
+//     // ✅ Update order
+//     await pool.execute(
+//       `
+//       UPDATE orders
+//       SET payment_status = 'paid',
+//           processing_status = 'pending'
+//       WHERE id = ?
+//       `,
+//       [orderId],
+//     );
 
-    // 🔔 SEND PUSH TO USER (do not block API)
-    try {
-      const [devices] = await pool.execute(
-        `
-        SELECT subscription_id
-        FROM user_devices
-        WHERE user_id = ?
-        `,
-        [order.user_id],
-      );
+//     logger.info("COD order marked as paid", { orderId });
 
-      const subscriptionIds = devices.map((d) => d.subscription_id);
-      console.log(
-        "Payment confirmation - user subscription IDs:",
-        subscriptionIds,
-      );
-      if (subscriptionIds.length > 0) {
-        await sendPushNotification(
-          subscriptionIds,
-          "💳 Payment Confirmed",
-          "Your Qurbani order payment has been confirmed.",
-          {
-            type: "PAYMENT_CONFIRMED",
-            orderId: orderId,
-          },
-        );
-      }
-    } catch (pushErr) {
-      logger.error("Payment push failed", {
-        orderId,
-        error: pushErr.message,
-      });
-    }
+//     // 🔔 SEND PUSH TO USER (do not block API)
+//     try {
+//       const [devices] = await pool.execute(
+//         `
+//         SELECT subscription_id
+//         FROM user_devices
+//         WHERE user_id = ?
+//         `,
+//         [order.user_id],
+//       );
 
-    res.json({
-      message: "Order marked as paid successfully",
-    });
-  } catch (err) {
-    logger.error("Failed to mark COD order as paid", {
-      adminId,
-      orderId,
-      error: err.message,
-      stack: err.stack,
-    });
+//       const subscriptionIds = devices.map((d) => d.subscription_id);
+//       console.log(
+//         "Payment confirmation - user subscription IDs:",
+//         subscriptionIds,
+//       );
+//       if (subscriptionIds.length > 0) {
+//         await sendPushNotification(
+//           subscriptionIds,
+//           "💳 Payment Confirmed",
+//           "Your Qurbani order payment has been confirmed.",
+//           {
+//             type: "PAYMENT_CONFIRMED",
+//             orderId: orderId,
+//           },
+//         );
+//       }
+//     } catch (pushErr) {
+//       logger.error("Payment push failed", {
+//         orderId,
+//         error: pushErr.message,
+//       });
+//     }
 
-    res.status(500).json({
-      message: "Failed to mark order as paid",
-    });
-  }
-});
+//     res.json({
+//       message: "Order marked as paid successfully",
+//     });
+//   } catch (err) {
+//     logger.error("Failed to mark COD order as paid", {
+//       adminId,
+//       orderId,
+//       error: err.message,
+//       stack: err.stack,
+//     });
+
+//     res.status(500).json({
+//       message: "Failed to mark order as paid",
+//     });
+//   }
+// });
 
 
 
@@ -536,7 +531,6 @@ router.post("/", authMiddleware, async (req, res) => {
 
 
 
-
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const userId = req.user.id;
@@ -544,15 +538,16 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   try {
     const [orders] = await pool.execute(
       `
-      SELECT o.*, 
-             u.name AS admin_name, 
-             u.address AS admin_address, 
-             u.phone AS admin_phone
+      SELECT 
+        o.*,
+        u.name AS admin_name,
+        u.address AS admin_address,
+        u.phone AS admin_phone
       FROM orders o
       JOIN users u ON o.admin_id = u.id
       WHERE o.id = ? AND o.user_id = ?
       `,
-      [orderId, userId],
+      [orderId, userId]
     );
 
     if (!orders.length) {
@@ -574,14 +569,66 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       LEFT JOIN animal_details ad ON ad.animal_id = a.id
       WHERE s.order_id = ?
       `,
-      [orderId],
+      [orderId]
     );
 
+    console.log(shareholders);
+
+    order.shareholders = shareholders;
+
+    if (!shareholders.length) {
+      order.processing_status = "Not started";
+      order.delivery_status = "Pending";
+      order.payment_status = 2; // 0=paid, 1=unpaid, 2=pending
+      order.payment_status_label = "Pending";
+    } else {
+      const statuses = shareholders.map((s) => Number(s.status));
+      const paymentStatuses = shareholders.map((s) => Number(s.payment_status));
+
+      const maxStatus = Math.max(...statuses);
+
+      if (maxStatus === 6) {
+        order.processing_status = "Cancelled";
+        order.delivery_status = "Cancelled";
+      } else if (maxStatus === 5) {
+        order.processing_status = "Delivered";
+        order.delivery_status = "Delivered";
+      } else if (maxStatus === 4) {
+        order.processing_status = "Sent for delivery";
+        order.delivery_status = "Sent for delivery";
+      } else if (maxStatus === 3) {
+        order.processing_status = "Meat Packaged";
+        order.delivery_status = "Pending";
+      } else if (maxStatus === 2) {
+        order.processing_status = "Processing";
+        order.delivery_status = "Pending";
+      } else if (maxStatus === 1) {
+        order.processing_status = "Qurbani Started";
+        order.delivery_status = "Pending";
+      } else {
+        order.processing_status = "Not started";
+        order.delivery_status = "Pending";
+      }
+
+      // Use this ONLY if shareholder_details has been migrated to:
+      // 0=paid, 1=unpaid, 2=pending
+      if (paymentStatuses.every((s) => s === 0)) {
+        order.payment_status = 0;
+        order.payment_status_label = "Paid";
+      } else if (paymentStatuses.every((s) => s === 1)) {
+        order.payment_status = 1;
+        order.payment_status_label = "Unpaid";
+      } else {
+        order.payment_status = 2;
+        order.payment_status_label = "Pending";
+      }
+    }
+
+    console.log();
+
+
     res.json({
-      order: {
-        ...order,
-        shareholders,
-      },
+      order,
     });
   } catch (err) {
     logger.error("Failed to fetch order details", {
@@ -1432,117 +1479,145 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // 1️⃣ Check order ownership
+    // 1) Verify order exists and belongs to logged-in user
     const [orders] = await pool.execute(
-      `SELECT id, status, created_at
+      `SELECT id, user_id, created_at, status
        FROM orders
        WHERE id = ? AND user_id = ?`,
-      [orderId, userId],
+      [orderId, userId]
     );
 
     if (!orders.length) {
+      logger.warn("Order cancellation attempt on missing or unauthorized order", {
+        userId,
+        orderId,
+        reason: "Order not found or does not belong to user",
+      });
+
       return res.status(404).json({ message: "Order not found" });
     }
 
     const order = orders[0];
 
-    // 2️⃣ Check if already cancelled
-    if (order.status === "cancelled") {
-      return res.status(400).json({ message: "Order already cancelled" });
-    }
-
-    // 3️⃣ Check 24-hour cancellation window
-    const orderTime = new Date(order.created_at).getTime();
-    const now = Date.now();
-    const within24Hours = now - orderTime < 24 * 60 * 60 * 1000;
-
-    if (!within24Hours) {
-      return res.status(400).json({
-        message: "Cancellation allowed only within 24 hours",
-      });
-    }
-
-    // 4️⃣ Check if any share already delivered
-    const [shares] = await pool.execute(
-      `SELECT delivery_status
+    // 2) Get shareholder statuses for this order
+    const [shareholders] = await pool.execute(
+      `SELECT status
        FROM shareholder_details
        WHERE order_id = ?`,
-      [orderId],
+      [orderId]
     );
 
-    const isDelivered = shares.some(
-      (share) => share.delivery_status === "delivered",
+    const statuses = shareholders.map((s) => Number(s.status));
+    const isDelivered = statuses.some((s) => s === 5); // 5 = Delivered
+    const isCancelled = statuses.some((s) => s === 6) || Number(order.status) === 2; // 6 = Cancelled, order.status 2 = cancelled
+
+    // 3) Check 24-hour cancellation rule
+    const timeSinceOrder = Date.now() - new Date(order.created_at).getTime();
+    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000;
+    const orderAgeHours = Math.floor(timeSinceOrder / (1000 * 60 * 60));
+    const orderAgeMinutes = Math.floor(timeSinceOrder / (1000 * 60));
+
+    const canCancel = within24Hours && !isDelivered && !isCancelled;
+
+    if (!canCancel) {
+      logger.warn("Invalid order cancellation attempt - business rules violation", {
+        userId,
+        orderId,
+        orderStatus: order.status,
+        shareholderStatuses: statuses,
+        within24Hours,
+        orderAgeHours,
+        isDelivered,
+        isCancelled,
+        reason: !within24Hours
+          ? "Outside 24-hour window"
+          : isDelivered
+            ? "Order already delivered"
+            : "Order already cancelled",
+      });
+
+      return res.status(400).json({ message: "Cannot cancel this order" });
+    }
+
+    // 4) Cancel order and all associated shareholders
+    await pool.execute(
+      `UPDATE orders
+       SET status = 2
+       WHERE id = ? AND user_id = ?`,
+      [orderId, userId]
     );
 
-    if (isDelivered) {
-      return res.status(400).json({
-        message: "Cannot cancel. Some shares already delivered.",
+    await pool.execute(
+      `UPDATE shareholder_details
+       SET status = 6
+       WHERE order_id = ?`,
+      [orderId]
+    );
+
+    logger.info("Order successfully cancelled by user", {
+      userId,
+      orderId,
+      orderAgeMinutes,
+      cancellationType: "user_initiated",
+      previousOrderStatus: order.status,
+      previousShareholderStatuses: statuses,
+    });
+
+    // 5) Send push notification to user's registered devices
+    try {
+      const [devices] = await pool.execute(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ? AND subscription_id IS NOT NULL`,
+        [userId]
+      );
+
+      const subscriptionIds = devices
+        .map((d) => d.subscription_id)
+        .filter(Boolean);
+
+      if (subscriptionIds.length > 0) {
+        const title = `Order #${orderId} Cancelled`;
+        const message = `Your Qurbani order #${orderId} has been cancelled successfully.`;
+
+        await sendPushNotification(subscriptionIds, title, message, {
+          type: "ORDER_CANCELLED",
+          orderId: Number(orderId),
+          status: 2,
+        });
+
+        logger.info("Order cancellation notification sent", {
+          userId,
+          orderId,
+          devicesCount: subscriptionIds.length,
+        });
+      } else {
+        logger.warn("No device subscriptions found for cancellation notification", {
+          userId,
+          orderId,
+        });
+      }
+    } catch (pushErr) {
+      logger.error("Failed to send order cancellation notification", {
+        userId,
+        orderId,
+        error: pushErr.message,
+        stack: pushErr.stack,
       });
     }
 
-    // 5️⃣ Start transaction
-    const connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    try {
-      // Reset shareholder statuses
-      await connection.execute(
-        `UPDATE shareholder_details
-         SET delivery_status = 'pending',
-             payment_status = 'pending',
-             processing_status = 'pending'
-         WHERE order_id = ?`,
-        [orderId],
-      );
-
-      // Mark order cancelled
-      await connection.execute(
-        `UPDATE orders
-         SET status = 'cancelled'
-         WHERE id = ?`,
-        [orderId],
-      );
-
-      await connection.commit();
-      connection.release();
-    } catch (err) {
-      await connection.rollback();
-      connection.release();
-      throw err;
-    }
-
-    // 6️⃣ Notify admins
-    const [adminDevices] = await pool.execute(
-      `SELECT subscription_id
-   FROM user_devices
-   WHERE role = 'admin'`,
-    );
-
-    const adminSubscriptionIds = adminDevices.map(
-      (device) => device.subscription_id,
-    );
-
-    const shortOrderId = orderId.toString().substring(0, 6);
-
-    if (adminSubscriptionIds.length > 0) {
-      await sendPushNotification(
-        adminSubscriptionIds,
-        "Order Cancelled 🚨",
-        `Order #${shortOrderId} was cancelled by the user.`,
-        {
-          type: "order_cancelled",
-          orderId,
-          cancelledBy: userId,
-        },
-      );
-    }
-
-    res.json({ message: "Order cancelled successfully" });
+    return res.json({ message: "Order cancelled successfully" });
   } catch (err) {
-    console.error("Cancellation error:", err);
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
+    logger.error("Error processing order cancellation", {
+      userId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
     });
+
+    return res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
   }
 });
 
