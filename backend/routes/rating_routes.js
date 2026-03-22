@@ -3,12 +3,14 @@ const router = express.Router();
 const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
+const { sendPushNotification } = require("../utils/notification_service");
+
 /**
  * @swagger
  * /api/ratings/{orderId}/{userId}:
  *   get:
- *     summary: Fetch ratings and order info for a user
- *     description: Returns order details along with existing ratings for admin and delivery person. User can only access their own data.
+ *     summary: Fetch admin rating info for a user
+ *     description: Returns order details along with existing admin rating for an order. User can only access their own data.
  *     tags: [Ratings]
  *     security:
  *       - bearerAuth: []
@@ -27,44 +29,7 @@ const logger = require("../middleware/logger");
  *           type: string
  *     responses:
  *       200:
- *         description: Ratings and order info fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 order:
- *                   type: object
- *                   properties:
- *                     order_id:
- *                       type: string
- *                     admin_id:
- *                       type: string
- *                     admin_name:
- *                       type: string
- *                     delivery_person_id:
- *                       type: string
- *                       nullable: true
- *                     delivery_person_name:
- *                       type: string
- *                       nullable: true
- *                 ratings:
- *                   type: object
- *                   additionalProperties:
- *                     type: object
- *                     properties:
- *                       adminRating:
- *                         type: integer
- *                         example: 5
- *                       deliveryRating:
- *                         type: integer
- *                         example: 4
- *                       feedback:
- *                         type: string
- *                         example: "Very good service"
- *                 submitted:
- *                   type: boolean
- *                   example: true
+ *         description: Rating and order info fetched successfully
  *       403:
  *         description: Unauthorized access
  *       404:
@@ -73,10 +38,9 @@ const logger = require("../middleware/logger");
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * GET /api/ratings/:orderId/:userId
- * Fetch ratings + related order info for a user
+ * Fetch admin rating + order info for a user
  */
 router.get("/:orderId/:userId", auth, async (req, res) => {
   const { orderId, userId } = req.params;
@@ -96,15 +60,12 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       SELECT 
         o.id AS order_id,
         o.admin_id,
-        a.name AS admin_name,
-        o.delivery_person_id,
-        d.name AS delivery_person_name
+        a.name AS admin_name
       FROM orders o
       JOIN users a ON a.id = o.admin_id
-      LEFT JOIN users d ON d.id = o.delivery_person_id
       WHERE o.id = ? AND o.user_id = ?
       `,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     if (!orders.length) {
@@ -117,18 +78,17 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
 
     const [ratings] = await pool.execute(
       `
-      SELECT admin_id, admin_rating, delivery_rating, feedback
+      SELECT admin_id, admin_rating, feedback
       FROM ratings
       WHERE order_id = ? AND user_id = ?
       `,
-      [orderId, userId]
+      [orderId, userId],
     );
 
     const ratingsMap = {};
     ratings.forEach((r) => {
       ratingsMap[r.admin_id] = {
-        adminRating: r.admin_rating,
-        deliveryRating: r.delivery_rating,
+        adminRating: Number(r.admin_rating),
         feedback: r.feedback,
       };
     });
@@ -139,7 +99,7 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       ratingsCount: ratings.length,
     });
 
-    res.json({
+    return res.json({
       order: orders[0],
       ratings: ratingsMap,
       submitted: ratings.length > 0,
@@ -152,19 +112,18 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    return res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
-
-
-
 
 /**
  * @swagger
  * /api/ratings:
  *   post:
- *     summary: Submit or update ratings for an order
- *     description: Allows a user to submit or update ratings for admin and delivery person for an order.
+ *     summary: Submit or update admin rating for an order
+ *     description: Allows a user to submit or update rating for the admin for an order.
  *     tags: [Ratings]
  *     security:
  *       - bearerAuth: []
@@ -190,46 +149,31 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
  *                   required:
  *                     - adminId
  *                     - adminRating
- *                     - deliveryRating
  *                   properties:
  *                     adminId:
  *                       type: string
  *                     adminRating:
- *                       type: integer
+ *                       type: number
  *                       minimum: 1
  *                       maximum: 5
- *                       example: 5
- *                     deliveryRating:
- *                       type: integer
- *                       minimum: 1
- *                       maximum: 5
- *                       example: 4
  *                     feedback:
  *                       type: string
- *                       example: "Excellent handling and timely delivery"
  *     responses:
  *       200:
  *         description: Ratings submitted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Ratings submitted successfully
  *       400:
  *         description: Invalid ratings data
  *       403:
  *         description: Unauthorized
+ *       404:
+ *         description: Order not found
  *       500:
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * POST /api/ratings
- * Submit or update ratings
+ * Submit or update admin rating
  */
 router.post("/", auth, async (req, res) => {
   const { orderId, userId, ratings } = req.body;
@@ -247,6 +191,8 @@ router.post("/", auth, async (req, res) => {
     logger.warn("Invalid ratings payload", {
       userId,
       orderId,
+      ratingsType: typeof ratings,
+      ratingsLength: Array.isArray(ratings) ? ratings.length : null,
     });
     return res.status(400).json({ message: "Invalid ratings data" });
   }
@@ -256,44 +202,71 @@ router.post("/", auth, async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    for (const r of ratings) {
-      const { adminId, adminRating, deliveryRating, feedback } = r;
+    const [orderRows] = await connection.execute(
+      `
+      SELECT id, admin_id
+      FROM orders
+      WHERE id = ? AND user_id = ?
+      `,
+      [orderId, userId],
+    );
 
-      if (
-        !adminId ||
-        adminRating < 1 ||
-        adminRating > 5 ||
-        deliveryRating < 1 ||
-        deliveryRating > 5
-      ) {
-        logger.warn("Invalid rating values detected", {
+    if (!orderRows.length) {
+      logger.warn("Ratings submission failed - order not found", {
+        userId,
+        orderId,
+      });
+      await connection.rollback();
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const orderAdminId = orderRows[0].admin_id;
+
+    for (const r of ratings) {
+      const { adminId, adminRating, feedback } = r;
+
+      if (adminId && adminId !== orderAdminId) {
+        logger.warn("Admin ID mismatch in rating payload", {
           userId,
           orderId,
-          adminId,
-          adminRating,
-          deliveryRating,
+          payloadAdminId: adminId,
+          actualAdminId: orderAdminId,
         });
-        throw new Error("Invalid rating values");
+        throw new Error("Invalid admin for this order");
+      }
+
+      const normalizedAdminRating = Number(adminRating);
+
+      if (
+        Number.isNaN(normalizedAdminRating) ||
+        normalizedAdminRating < 1 ||
+        normalizedAdminRating > 5
+      ) {
+        logger.warn("Invalid admin rating value detected", {
+          userId,
+          orderId,
+          adminId: orderAdminId,
+          adminRating,
+        });
+        throw new Error("Invalid admin rating value");
       }
 
       await connection.execute(
         `
-        INSERT INTO ratings 
-          (order_id, user_id, admin_id, admin_rating, delivery_rating, feedback)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO ratings
+          (order_id, user_id, admin_id, admin_rating, feedback)
+        VALUES (?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           admin_rating = VALUES(admin_rating),
-          delivery_rating = VALUES(delivery_rating),
           feedback = VALUES(feedback)
         `,
         [
           orderId,
           userId,
-          adminId,
-          adminRating,
-          deliveryRating,
-          feedback || null,
-        ]
+          orderAdminId,
+          normalizedAdminRating,
+          feedback?.trim() || null,
+        ],
       );
     }
 
@@ -303,9 +276,60 @@ router.post("/", auth, async (req, res) => {
       userId,
       orderId,
       ratingsCount: ratings.length,
+      adminId: orderAdminId,
     });
 
-    res.json({ message: "Ratings submitted successfully" });
+    try {
+      const [devices] = await pool.execute(
+        `
+        SELECT subscription_id
+        FROM user_devices
+        WHERE user_id = ? AND subscription_id IS NOT NULL
+        `,
+        [orderAdminId],
+      );
+
+      const subscriptionIds = devices
+        .map((d) => d.subscription_id)
+        .filter(Boolean);
+
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "New Order Rating",
+          `A user has left a rating for order #${orderId}.`,
+          {
+            type: "ORDER_RATING_RECEIVED",
+            orderId: Number(orderId),
+            userId,
+            adminId: orderAdminId,
+          },
+        );
+
+        logger.info("Admin notified about new order rating", {
+          userId,
+          orderId,
+          adminId: orderAdminId,
+          devicesCount: subscriptionIds.length,
+        });
+      } else {
+        logger.warn("No admin devices found for rating notification", {
+          userId,
+          orderId,
+          adminId: orderAdminId,
+        });
+      }
+    } catch (pushErr) {
+      logger.error("Failed to send admin rating notification", {
+        userId,
+        orderId,
+        adminId: orderAdminId,
+        error: pushErr.message,
+        stack: pushErr.stack,
+      });
+    }
+
+    return res.json({ message: "Ratings submitted successfully" });
   } catch (err) {
     await connection.rollback();
 
@@ -316,7 +340,9 @@ router.post("/", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    return res.status(500).json({
+      message: err.message || "Something went wrong. Please try again later.",
+    });
   } finally {
     connection.release();
   }

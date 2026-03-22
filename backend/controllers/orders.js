@@ -129,66 +129,7 @@ router.get("/my", authMiddleware, async (req, res) => {
 });
 
 
-// /**
-//  * GET /api/orders/:orderId/delivery-boy/:deliveryBoyId
-//  * Retrieves delivery boy details for a specific order.
-//  * Validates order existence and delivery boy assignment.
-//  */
-// router.get(
-//   "/:orderId/delivery-boy/:deliveryBoyId",
-//   authMiddleware,
-//   async (req, res) => {
-//     try {
-//       const { orderId, deliveryBoyId } = req.params;
 
-//       // Check if order exists
-//       const order = await pool.query(
-//         "SELECT id, delivery_person_id FROM orders WHERE id = ?",
-//         [orderId],
-//       );
-
-//       if (order.rowCount === 0) {
-//         return res.status(404).json({ message: "Order not found" });
-//       }
-
-//       // Note: Delivery boy validation commented out for now
-//       // if (order[0].delivery_person_id !== deliveryBoyId) {
-//       //   return res
-//       //     .status(403)
-//       //     .json({ message: "Delivery boy not assigned to this order" });
-//       // }
-
-//       // Fetch delivery boy details
-//       const deliveryBoy = await pool.query(
-//         `
-//       SELECT
-//         id,
-//         name,
-//         phone
-//       FROM users
-//       WHERE id = ? AND role = 'delivery'
-//       `,
-//         [deliveryBoyId],
-//       );
-
-//       if (deliveryBoy.rowCount === 0) {
-//         return res.status(404).json({ message: "Delivery boy not found" });
-//       }
-
-//       res.json({
-//         deliveryBoy: deliveryBoy[0],
-//       });
-//     } catch (err) {
-//       logger.error("Failed to fetch delivery boy details", {
-//         orderId,
-//         deliveryBoyId,
-//         error: err.message,
-//         stack: err.stack,
-//       });
-//       res.status(500).json({ message: "Server error" });
-//     }
-//   },
-// );
 
 router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -297,111 +238,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
   }
 });
 
-// router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
-//   const adminId = req.user.id;
-//   const { orderId } = req.params;
 
-//   logger.info("Admin marking COD order as paid", {
-//     adminId,
-//     orderId,
-//   });
-
-//   try {
-//     // Fetch order & validate
-//     const [rows] = await pool.execute(
-//       `
-//       SELECT id, user_id, payment_method, payment_status, processing_status
-//       FROM orders
-//       WHERE id = ? AND admin_id = ?
-//       `,
-//       [orderId, adminId],
-//     );
-
-//     console.log("Order fetch result for marking paid:", rows);
-
-//     if (rows.length === 0) {
-//       return res.status(404).json({
-//         message: "Order not found or unauthorized",
-//       });
-//     }
-
-//     const order = rows[0];
-
-//     if (order.payment_method !== "Cash") {
-//       return res.status(400).json({
-//         message: "Only Cash on Delivery orders can be marked as paid",
-//       });
-//     }
-
-//     if (order.payment_status === "paid") {
-//       return res.status(400).json({
-//         message: "Order already marked as paid",
-//       });
-//     }
-
-//     // ✅ Update order
-//     await pool.execute(
-//       `
-//       UPDATE orders
-//       SET payment_status = 'paid',
-//           processing_status = 'pending'
-//       WHERE id = ?
-//       `,
-//       [orderId],
-//     );
-
-//     logger.info("COD order marked as paid", { orderId });
-
-//     // 🔔 SEND PUSH TO USER (do not block API)
-//     try {
-//       const [devices] = await pool.execute(
-//         `
-//         SELECT subscription_id
-//         FROM user_devices
-//         WHERE user_id = ?
-//         `,
-//         [order.user_id],
-//       );
-
-//       const subscriptionIds = devices.map((d) => d.subscription_id);
-//       console.log(
-//         "Payment confirmation - user subscription IDs:",
-//         subscriptionIds,
-//       );
-//       if (subscriptionIds.length > 0) {
-//         await sendPushNotification(
-//           subscriptionIds,
-//           "💳 Payment Confirmed",
-//           "Your Qurbani order payment has been confirmed.",
-//           {
-//             type: "PAYMENT_CONFIRMED",
-//             orderId: orderId,
-//           },
-//         );
-//       }
-//     } catch (pushErr) {
-//       logger.error("Payment push failed", {
-//         orderId,
-//         error: pushErr.message,
-//       });
-//     }
-
-//     res.json({
-//       message: "Order marked as paid successfully",
-//     });
-//   } catch (err) {
-//     logger.error("Failed to mark COD order as paid", {
-//       adminId,
-//       orderId,
-//       error: err.message,
-//       stack: err.stack,
-//     });
-
-//     res.status(500).json({
-//       message: "Failed to mark order as paid",
-//     });
-//   }
-// });
 
 
 router.post("/", authMiddleware, async (req, res) => {
@@ -483,7 +320,7 @@ router.post("/", authMiddleware, async (req, res) => {
     );
 
     const orderId = orderResult.insertId;
-console.log("checking pay status on new order", normalizedPaymentStatus)
+// console.log("checking pay status on new order", normalizedPaymentStatus)
     // Insert shareholders
     await connection.query(
       `
@@ -684,111 +521,6 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 });
 
 
-router.put("/:orderId/schedule", authMiddleware, async (req, res) => {
-  const { orderId } = req.params;
-  const { qurbani_time } = req.body;
-
-  if (!qurbani_time) {
-    return res.status(400).json({ message: "Qurbani time required" });
-  }
-
-  const conn = await pool.getConnection();
-
-  try {
-    await conn.beginTransaction();
-
-    // 🔍 Get order to fetch user_id
-    const [orderRows] = await conn.execute(
-      `SELECT user_id FROM orders WHERE id = ?`,
-      [orderId],
-    );
-
-    if (orderRows.length === 0) {
-      await conn.rollback();
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    const userId = orderRows[0].user_id;
-
-    // ✅ Update animal_details
-    const [animalResult] = await conn.execute(
-      `UPDATE animal_details
-         SET qurbani_datetime = ?
-         WHERE order_id = ?`,
-      [qurbani_time, orderId],
-    );
-
-    if (animalResult.affectedRows === 0) {
-      await conn.rollback();
-      return res.status(404).json({
-        message: "Animal details not found for this order",
-      });
-    }
-
-    // ✅ Update order status
-    const [orderResult] = await conn.execute(
-      `UPDATE orders
-         SET processing_status = 'confirmed'
-         WHERE id = ?`,
-      [orderId],
-    );
-
-    if (orderResult.affectedRows === 0) {
-      await conn.rollback();
-      return res.status(404).json({
-        message: "Order not found",
-      });
-    }
-
-    await conn.commit();
-
-    // 🔔 SEND PUSH TO USER (after commit)
-    try {
-      const [devices] = await pool.execute(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ?`,
-        [userId],
-      );
-
-      const subscriptionIds = devices.map((d) => d.subscription_id);
-
-      if (subscriptionIds.length > 0) {
-        await sendPushNotification(
-          subscriptionIds,
-          "Qurbani Scheduled",
-          "Your Qurbani has been successfully scheduled.",
-          {
-            type: "QURBANI_SCHEDULED",
-            orderId: orderId,
-            qurbani_time,
-          },
-        );
-      }
-    } catch (pushErr) {
-      logger.error("Schedule push failed", {
-        orderId,
-        error: pushErr.message,
-      });
-    }
-
-    res.json({
-      message: "Qurbani scheduled successfully",
-      processing_status: "confirmed",
-    });
-  } catch (err) {
-    await conn.rollback();
-    logger.error("Schedule update failed", {
-      orderId,
-      error: err.message,
-      stack: err.stack,
-    });
-
-    res.status(500).json({ message: "Failed to update schedule" });
-  } finally {
-    conn.release();
-  }
-});
 
 router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -830,108 +562,6 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   }
 });
 
-router.put("/:orderId/delivery", authMiddleware, async (req, res) => {
-  const { orderId } = req.params;
-  const { delivery_person_id } = req.body;
-
-  if (!delivery_person_id) {
-    return res.status(400).json({ message: "Delivery person required" });
-  }
-
-  try {
-    // 🔍 Get order to fetch user_id
-    const [orderRows] = await pool.execute(
-      `SELECT user_id FROM orders WHERE id = ?`,
-      [orderId],
-    );
-
-    if (orderRows.length === 0) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    const userId = orderRows[0].user_id;
-
-    // ✅ Assign delivery person
-    const [result] = await pool.execute(
-      `UPDATE orders
-         SET delivery_person_id = ?
-         WHERE id = ?`,
-      [delivery_person_id, orderId],
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    // 🔔 Notify Delivery Person
-    try {
-      const [deliveryDevices] = await pool.execute(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ?`,
-        [delivery_person_id],
-      );
-
-      const deliverySubs = deliveryDevices.map((d) => d.subscription_id);
-
-      if (deliverySubs.length > 0) {
-        await sendPushNotification(
-          deliverySubs,
-          "🚚 New Delivery Assigned",
-          "A new Qurbani order has been assigned to you.",
-          {
-            type: "DELIVERY_ASSIGNED",
-            orderId,
-          },
-        );
-      }
-    } catch (pushErr) {
-      logger.error("Delivery person push failed", {
-        orderId,
-        error: pushErr.message,
-      });
-    }
-
-    // 🔔 (Optional) Notify User
-    try {
-      const [userDevices] = await pool.execute(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ?`,
-        [userId],
-      );
-
-      const userSubs = userDevices.map((d) => d.subscription_id);
-
-      if (userSubs.length > 0) {
-        await sendPushNotification(
-          userSubs,
-          "📦 Delivery Assigned",
-          "Your Qurbani order is out for delivery.",
-          {
-            type: "DELIVERY_STARTED",
-            orderId,
-          },
-        );
-      }
-    } catch (pushErr) {
-      logger.error("User delivery push failed", {
-        orderId,
-        error: pushErr.message,
-      });
-    }
-
-    res.json({ message: "Delivery assigned successfully" });
-  } catch (err) {
-    logger.error("Delivery assignment failed", {
-      orderId,
-      error: err.message,
-      stack: err.stack,
-    });
-
-    res.status(500).json({ message: "Failed to assign delivery" });
-  }
-});
 
 function mapShareholderStatus(status) {
   switch (Number(status)) {
@@ -1154,123 +784,6 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
 });
 
 
-router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
-  const { orderId, userId } = req.params;
-  const authUserId = req.user.id; // Ensure user can only fetch their own ratings
-
-  if (authUserId !== userId) {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
-
-  try {
-    // Fetch order details (admins involved)
-    const [orders] = await pool.execute(
-      `SELECT o.id, o.admin_id, u.name as admin_name, 
-              COALESCE(d.name, 'Delivery') as delivery_person_name
-       FROM orders o
-       JOIN users u ON o.admin_id = u.id
-       LEFT JOIN users d ON o.delivery_person_id = d.id
-       WHERE o.id = ? AND o.user_id = ?`,
-      [orderId, userId],
-    );
-
-    if (orders.length === 0) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    // Fetch existing ratings
-    const [ratings] = await pool.execute(
-      `SELECT admin_id, admin_rating, delivery_rating, feedback
-       FROM ratings
-       WHERE order_id = ? AND user_id = ?`,
-      [orderId, userId],
-    );
-
-    // Map ratings by adminId
-    const ratingsMap = {};
-    ratings.forEach((rating) => {
-      ratingsMap[rating.admin_id] = {
-        adminRating: rating.admin_rating,
-        deliveryRating: rating.delivery_rating,
-        feedback: rating.feedback,
-      };
-    });
-
-    res.json({
-      orders: orders, // List of admins/deliveries for the order
-      ratings: ratingsMap, // Existing ratings
-      submitted: ratings.length > 0, // True if any ratings exist
-    });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
-  }
-});
-
-router.post("/ratings", authMiddleware, async (req, res) => {
-  const { orderId, userId, ratings } = req.body; // ratings: [{adminId, adminRating, deliveryRating, feedback}]
-  const authUserId = req.user.id;
-
-  if (authUserId !== userId) {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
-
-  if (!Array.isArray(ratings) || ratings.length === 0) {
-    return res.status(400).json({ message: "Invalid ratings data" });
-  }
-
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    for (const rating of ratings) {
-      const { adminId, adminRating, deliveryRating, feedback } = rating;
-
-      if (
-        !adminId ||
-        adminRating < 1 ||
-        adminRating > 5 ||
-        deliveryRating < 1 ||
-        deliveryRating > 5
-      ) {
-        throw new Error("Invalid rating data");
-      }
-
-      // Insert or update (ON DUPLICATE KEY)
-      await connection.execute(
-        `INSERT INTO ratings (order_id, user_id, admin_id, admin_rating, delivery_rating, feedback)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE admin_rating = VALUES(admin_rating), delivery_rating = VALUES(delivery_rating), feedback = VALUES(feedback)`,
-        [
-          orderId,
-          userId,
-          adminId,
-          adminRating,
-          deliveryRating,
-          feedback || null,
-        ],
-      );
-    }
-
-    await connection.commit();
-    res.json({ message: "Ratings submitted successfully" });
-  } catch (err) {
-    await connection.rollback();
-    logger.error("Failed to submit ratings", {
-      orderId,
-      userId,
-      error: err.message,
-      stack: err.stack,
-    });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
-  } finally {
-    connection.release();
-  }
-});
-
 router.post("/requests", authMiddleware, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
   const authUserId = req.user.id;
@@ -1291,9 +804,9 @@ router.post("/requests", authMiddleware, async (req, res) => {
       [orderId, userId, title, description],
     );
 
-    // 🔔 ============================
-    // 🔔 SEND PUSH TO ADMIN
-    // 🔔 ============================
+    // ============================
+    // SEND PUSH TO ADMIN
+    // ============================
     try {
       // Get admin_id from order
       const [orderRows] = await pool.execute(
@@ -1315,7 +828,7 @@ router.post("/requests", authMiddleware, async (req, res) => {
         if (subscriptionIds.length > 0) {
           await sendPushNotification(
             subscriptionIds,
-            "📩 New Special Request",
+            "New Special Request",
             `A new request has been submitted for Order #${shortOrderId}.`,
             {
               type: "NEW_SPECIAL_REQUEST",
@@ -1789,42 +1302,118 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
 // Marks order as paid and stores payment gateway reference ID for reconciliation
 // Critical for order fulfillment workflow and financial tracking
 router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
-  // Extract order ID from URL parameters
   const { orderId } = req.params;
-  // Extract payment gateway ID from request body
   const { paymentId } = req.body;
-  // Get authenticated user's ID for security validation
   const userId = req.user.id;
 
-  console.log("payment starting", { orderId, paymentId, userId });
-
-  try {
-    // Step 1: Update order payment status in database
-    // Sets payment_status to 'paid' and stores payment gateway reference
-    // Security: WHERE clause ensures users can only update their own orders
-    await pool.execute(
-      `UPDATE orders
-       SET payment_status='paid', payment_id=?
-       WHERE id=? AND user_id=?`,
-      [paymentId, orderId, userId],
-    );
-
-    // Step 2: Log successful payment update for audit trail and financial tracking
-    logger.info("Order payment status updated to paid successfully", {
+  if (!paymentId) {
+    logger.warn("Payment success attempt missing paymentId", {
       userId,
       orderId,
-      paymentId,
-      paymentMethod: "online_payment",
-      updateType: "payment_success_callback",
-      previousStatus: "pending/unpaid", // Assumed based on context
-      newStatus: "paid",
     });
-    console.log("payment done");
 
-    // Return success response to payment gateway or frontend
-    res.json({ message: "Payment status updated successfully" });
+    return res.status(400).json({ message: "paymentId is required" });
+  }
+
+  try {
+    // 1) Verify order exists and belongs to logged-in user
+    const [orders] = await pool.execute(
+      `SELECT id, user_id, admin_id, status
+       FROM orders
+       WHERE id = ? AND user_id = ?`,
+      [orderId, userId]
+    );
+
+    if (!orders.length) {
+      logger.warn("Payment success update attempt on missing or unauthorized order", {
+        userId,
+        orderId,
+        reason: "Order not found or does not belong to user",
+      });
+
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const order = orders[0];
+    const adminId = order.admin_id;
+
+    // 2) Update order payment reference
+    await pool.execute(
+      `UPDATE orders
+       SET payment_id = ?
+       WHERE id = ? AND user_id = ?`,
+      [paymentId, orderId, userId]
+    );
+
+    // 3) Mark all shareholders under this order as paid + processing
+    await pool.execute(
+      `UPDATE shareholder_details
+       SET payment_status = 0,
+           status = 1
+       WHERE order_id = ?`,
+      [orderId]
+    );
+
+    logger.info("Order payment recorded successfully", {
+      userId,
+      orderId,
+      adminId,
+      paymentId,
+      updateType: "payment_success_callback",
+      shareholderPaymentStatus: 0, // paid
+      shareholderStatus: 2, // processing
+    });
+
+    // 4) Send push notification to admin's registered devices
+    try {
+      const [devices] = await pool.execute(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ? AND subscription_id IS NOT NULL`,
+        [adminId]
+      );
+
+      const subscriptionIds = devices
+        .map((d) => d.subscription_id)
+        .filter(Boolean);
+
+      if (subscriptionIds.length > 0) {
+        const title = `Payment Received for Order #${orderId}`;
+        const message = `User payment has been received successfully for order #${orderId}.`;
+
+        await sendPushNotification(subscriptionIds, title, message, {
+          type: "ORDER_PAYMENT_SUCCESS",
+          orderId: Number(orderId),
+          paymentId,
+          status: 2,
+        });
+
+        logger.info("Order payment notification sent to admin", {
+          userId,
+          adminId,
+          orderId,
+          devicesCount: subscriptionIds.length,
+        });
+      } else {
+        logger.warn("No device subscriptions found for payment notification", {
+          userId,
+          adminId,
+          orderId,
+        });
+      }
+    } catch (pushErr) {
+      logger.error("Failed to send order payment notification", {
+        userId,
+        adminId,
+        orderId,
+        paymentId,
+        error: pushErr.message,
+        stack: pushErr.stack,
+      });
+    }
+
+    return res.json({ message: "Payment status updated successfully" });
   } catch (err) {
-    // Log error with comprehensive context for payment reconciliation debugging
     logger.error("Error updating order payment status", {
       userId,
       orderId,
@@ -1834,8 +1423,8 @@ router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
       impact:
         "Payment may not be properly recorded - manual reconciliation required",
     });
-    // Return generic error message to client
-    res
+
+    return res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
   }

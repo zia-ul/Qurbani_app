@@ -264,19 +264,19 @@ class _BookedPageState extends State<BookedPage> {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.check_circle,
-                      size: 14,
-                      color: AppTheme.primaryGreen,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        "Payment: $paymentStatus",
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                    ),
+                    // const Icon(
+                    //   Icons.check_circle,
+                    //   size: 14,
+                    //   color: AppTheme.primaryGreen,
+                    // ),
+                    // const SizedBox(width: 4),
+                    // Expanded(
+                    //   child: Text(
+                    //     "Payment: $paymentStatus",
+                    //     overflow: TextOverflow.ellipsis,
+                    //     style: const TextStyle(fontSize: 11),
+                    //   ),
+                    // ),
                     const Icon(
                       Icons.payments_outlined,
                       size: 14,
