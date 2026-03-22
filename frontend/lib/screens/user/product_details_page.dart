@@ -400,6 +400,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final statusColor = _statusColor(_statusToCode(status));
     final paymentColor = _paymentColor(payment);
     print("order sttaus check: $status");
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),

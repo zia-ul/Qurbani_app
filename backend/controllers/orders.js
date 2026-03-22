@@ -42,7 +42,6 @@ router.get("/my", authMiddleware, async (req, res) => {
           o.total_shares,
           o.status,
           o.created_at,
-          o.payment_status AS order_payment_status,
           u.name AS admin_name,
           u.email AS admin_email,
           aps.cod_deadline
@@ -55,8 +54,6 @@ router.get("/my", authMiddleware, async (req, res) => {
        ORDER BY o.created_at DESC`,
       [userId]
     );
-
-
 
     for (const order of orders) {
       const [shareholders] = await pool.execute(
@@ -71,7 +68,7 @@ router.get("/my", authMiddleware, async (req, res) => {
       if (!shareholders.length) {
         order.processing_status = "Not started";
         order.delivery_status = "Pending";
-        order.payment_status = 2;
+        order.payment_status = 2; // pending
         order.payment_status_label = "Pending";
         continue;
       }
@@ -81,6 +78,7 @@ router.get("/my", authMiddleware, async (req, res) => {
 
       const maxStatus = Math.max(...statuses);
 
+      // Processing / delivery status
       if (maxStatus === 6) {
         order.processing_status = "Cancelled";
         order.delivery_status = "Cancelled";
@@ -104,22 +102,26 @@ router.get("/my", authMiddleware, async (req, res) => {
         order.delivery_status = "Pending";
       }
 
-      if (paymentStatuses.every((s) => s === 1)) {
-        order.payment_status = 0; // paid
+      // Payment status from shareholder_details only
+      // Current mapping:
+      // 0 = paid, 1 = unpaid, 2 = pending
+      if (paymentStatuses.every((s) => s === 0)) {
+        order.payment_status = 0;
         order.payment_status_label = "Paid";
-      } else if (paymentStatuses.every((s) => s === 2)) {
-        order.payment_status = 1; // unpaid
+      } else if (paymentStatuses.every((s) => s === 1)) {
+        order.payment_status = 1;
         order.payment_status_label = "Unpaid";
       } else {
-        order.payment_status = 2; // pending
+        order.payment_status = 2;
         order.payment_status_label = "Pending";
       }
     }
 
-    console.log(orders);
+    console.log("orders with computed statuses", orders);
 
     res.json({ orders });
   } catch (err) {
+    console.error("Failed to fetch user orders:", err);
     res.status(500).json({
       message: "Something went wrong. Please try again later.",
     });
@@ -188,112 +190,112 @@ router.get("/my", authMiddleware, async (req, res) => {
 //   },
 // );
 
-// router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
-//   const { orderId } = req.params;
-//   const { animalId } = req.body;
+router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { animalId } = req.body;
 
-//   const connection = await pool.getConnection();
+  const connection = await pool.getConnection();
 
-//   try {
-//     await connection.beginTransaction();
+  try {
+    await connection.beginTransaction();
 
-//     // 🔍 Get order to fetch user_id
-//     const [orderRows] = await connection.query(
-//       `SELECT user_id FROM orders WHERE id = ?`,
-//       [orderId],
-//     );
+    // Get order to fetch user_id
+    const [orderRows] = await connection.query(
+      `SELECT user_id FROM orders WHERE id = ?`,
+      [orderId],
+    );
 
-//     if (orderRows.length === 0) {
-//       await connection.rollback();
-//       return res.status(404).json({ message: "Order not found" });
-//     }
+    if (orderRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ message: "Order not found" });
+    }
 
-//     const userId = orderRows[0].user_id;
+    const userId = orderRows[0].user_id;
 
-//     // ✅ Assign share (animal_details)
-//     await connection.query(
-//       `UPDATE animal_details 
-//        SET order_id = ?
-//        WHERE animal_id = ? AND order_id IS NULL
-//        LIMIT 1`,
-//       [orderId, animalId],
-//     );
+    // Assign share (animal_details)
+    await connection.query(
+      `UPDATE animal_details 
+       SET order_id = ?
+       WHERE animal_id = ? AND order_id IS NULL
+       LIMIT 1`,
+      [orderId, animalId],
+    );
 
-//     // ✅ Count assigned shares
-//     const [assignedRows] = await connection.query(
-//       `SELECT COUNT(*) as totalAssigned
-//        FROM animal_details
-//        WHERE animal_id = ? AND order_id IS NOT NULL`,
-//       [animalId],
-//     );
+    // Count assigned shares
+    const [assignedRows] = await connection.query(
+      `SELECT COUNT(*) as totalAssigned
+       FROM animal_details
+       WHERE animal_id = ? AND order_id IS NOT NULL`,
+      [animalId],
+    );
 
-//     const totalAssigned = assignedRows[0].totalAssigned;
+    const totalAssigned = assignedRows[0].totalAssigned;
 
-//     // ✅ Get total shares
-//     const [animalRows] = await connection.query(
-//       `SELECT shares FROM animals WHERE id = ?`,
-//       [animalId],
-//     );
+    // Get total shares
+    const [animalRows] = await connection.query(
+      `SELECT shares FROM animals WHERE id = ?`,
+      [animalId],
+    );
 
-//     const totalShares = animalRows[0].shares;
+    const totalShares = animalRows[0].shares;
 
-//     // ✅ If fully booked → mark sold
-//     if (totalAssigned >= totalShares) {
-//       await connection.query(
-//         `UPDATE animals 
-//          SET status = 'sold'
-//          WHERE id = ?`,
-//         [animalId],
-//       );
-//     }
+    // If fully booked → mark sold
+    if (totalAssigned >= totalShares) {
+      await connection.query(
+        `UPDATE animals 
+         SET status = 'sold'
+         WHERE id = ?`,
+        [animalId],
+      );
+    }
 
-//     await connection.commit();
+    await connection.commit();
 
-//     // 🔔 SEND PUSH TO USER (after commit)
-//     try {
-//       const [devices] = await connection.query(
-//         `SELECT subscription_id
-//          FROM user_devices
-//          WHERE user_id = ?`,
-//         [userId],
-//       );
+    // SEND PUSH TO USER (after commit)
+    try {
+      const [devices] = await connection.query(
+        `SELECT subscription_id
+         FROM user_devices
+         WHERE user_id = ?`,
+        [userId],
+      );
 
-//       const subscriptionIds = devices.map((d) => d.subscription_id);
+      const subscriptionIds = devices.map((d) => d.subscription_id);
 
-//       if (subscriptionIds.length > 0) {
-//         await sendPushNotification(
-//           subscriptionIds,
-//           "🐄 Animal Assigned",
-//           "Your Qurbani animal has been successfully assigned.",
-//           {
-//             type: "ANIMAL_ASSIGNED",
-//             orderId: orderId,
-//           },
-//         );
-//       }
-//     } catch (pushErr) {
-//       logger.error("Animal assignment push failed", {
-//         orderId,
-//         error: pushErr.message,
-//       });
-//     }
+      if (subscriptionIds.length > 0) {
+        await sendPushNotification(
+          subscriptionIds,
+          "🐄 Animal Assigned",
+          "Your Qurbani animal has been successfully assigned.",
+          {
+            type: "ANIMAL_ASSIGNED",
+            orderId: orderId,
+          },
+        );
+      }
+    } catch (pushErr) {
+      logger.error("Animal assignment push failed", {
+        orderId,
+        error: pushErr.message,
+      });
+    }
 
-//     res.json({ message: "Animal assigned successfully" });
-//   } catch (error) {
-//     await connection.rollback();
+    res.json({ message: "Animal assigned successfully" });
+  } catch (error) {
+    await connection.rollback();
 
-//     logger.error("Animal assignment failed", {
-//       orderId,
-//       animalId,
-//       error: error.message,
-//       stack: error.stack,
-//     });
+    logger.error("Animal assignment failed", {
+      orderId,
+      animalId,
+      error: error.message,
+      stack: error.stack,
+    });
 
-//     res.status(500).json({ message: "Failed to assign animal" });
-//   } finally {
-//     connection.release();
-//   }
-// });
+    res.status(500).json({ message: "Failed to assign animal" });
+  } finally {
+    connection.release();
+  }
+});
 
 // router.put("/:orderId/mark-paid", authMiddleware, async (req, res) => {
 //   const adminId = req.user.id;
@@ -402,11 +404,12 @@ router.get("/my", authMiddleware, async (req, res) => {
 // });
 
 
-
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
     req.body;
+
+  console.log(req.body);
 
   if (
     !adminId ||
@@ -422,26 +425,65 @@ router.post("/", authMiddleware, async (req, res) => {
   try {
     await connection.beginTransaction();
 
+    // Normalize payment method
+    let normalizedPaymentMethod;
+    if (typeof paymentMethod === "string") {
+      const method = paymentMethod.toLowerCase().trim();
+      if (method === "cash") {
+        normalizedPaymentMethod = 0;
+      } else if (method === "online") {
+        normalizedPaymentMethod = 1;
+      } else {
+        throw new Error("Invalid payment method");
+      }
+    } else {
+      normalizedPaymentMethod = Number(paymentMethod);
+      if (![0, 1].includes(normalizedPaymentMethod)) {
+        throw new Error("Invalid payment method");
+      }
+    }
+
+    // Normalize payment status
+    let normalizedPaymentStatus;
+    if (typeof paymentStatus === "string") {
+      const status = paymentStatus.toLowerCase().trim();
+      if (status === "paid") {
+        normalizedPaymentStatus = 0;
+      } else if (status === "unpaid") {
+        normalizedPaymentStatus = 1;
+      } else if (status === "pending") {
+        normalizedPaymentStatus = 2;
+      } else {
+        normalizedPaymentStatus = 2;
+      }
+    } else if (paymentStatus === undefined || paymentStatus === null) {
+      normalizedPaymentStatus = 2;
+    } else {
+      normalizedPaymentStatus = Number(paymentStatus);
+      if (![0, 1, 2].includes(normalizedPaymentStatus)) {
+        normalizedPaymentStatus = 2;
+      }
+    }
+
     // Create order
     const [orderResult] = await connection.execute(
       `
       INSERT INTO orders
-        (user_id, admin_id, payment_method, total_shares, total_amt, payment_status)
-      VALUES (?, ?, ?, ?, ?, ?)
+        (user_id, admin_id, payment_method, total_shares, total_amt)
+      VALUES (?, ?, ?, ?, ?)
       `,
       [
         userId,
         adminId,
-        paymentMethod,
+        normalizedPaymentMethod,
         shareholders.length,
         totalAmount,
-        paymentStatus ?? 2, // default pending
+        // normalizedPaymentStatus,
       ]
     );
 
-    console.log(orderResult);
     const orderId = orderResult.insertId;
-
+console.log("checking pay status on new order", normalizedPaymentStatus)
     // Insert shareholders
     await connection.query(
       `
@@ -467,10 +509,10 @@ router.post("/", authMiddleware, async (req, res) => {
             orderId,
             s.name,
             s.guardianName,
-            s.qurbaniDay || "Day 1",
+            s.qurbaniDay,
             s.price,
             JSON.stringify(s.address),
-            paymentStatus ?? 0, // 0=pending
+            normalizedPaymentStatus,
           ];
         }),
       ]
@@ -489,8 +531,9 @@ router.post("/", authMiddleware, async (req, res) => {
         [adminId]
       );
 
-      const subscriptionIds = devices.map((d) => d.subscription_id);
-      // const shortOrderId = orderId.toString().padStart(6, "0");
+      const subscriptionIds = devices
+        .map((d) => d.subscription_id)
+        .filter(Boolean);
 
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
@@ -528,8 +571,6 @@ router.post("/", authMiddleware, async (req, res) => {
     connection.release();
   }
 });
-
-
 
 router.get("/:orderId", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
@@ -951,7 +992,6 @@ function mapPaymentMethod(method) {
 }
 
 
-
 router.get("/admin/my", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
@@ -967,7 +1007,6 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
         o.payment_method,
         o.total_shares,
         o.status AS order_status,
-        o.payment_status AS order_payment_status,
         o.created_at,
 
         aps.cod_deadline,
@@ -990,7 +1029,7 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
-      [adminId],
+      [adminId]
     );
 
     const ordersMap = {};
@@ -1004,10 +1043,8 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
           paymentMethod: row.payment_method,
           paymentMethodLabel: mapPaymentMethod(row.payment_method),
           totalShares: row.total_shares,
-          orderStatus: row.order_status,
-          orderStatusLabel: mapOrderStatus(row.order_status),
-          orderPaymentStatus: row.order_payment_status,
-          orderPaymentStatusLabel: mapPaymentStatus(row.order_payment_status),
+          orderStatus: row.order_status, // raw orders.status
+          orderStatusLabel: mapOrderStatus(row.order_status), // active/completed/cancelled
           createdAt: row.created_at,
           cod_deadline: row.cod_deadline,
           shareholders: [],
@@ -1023,9 +1060,7 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
           status: row.shareholder_status,
           status_label: mapShareholderStatus(row.shareholder_status),
           payment_status: row.shareholder_payment_status,
-          payment_status_label: mapPaymentStatus(
-            row.shareholder_payment_status,
-          ),
+          payment_status_label: mapPaymentStatus(row.shareholder_payment_status),
           animal_id: row.animal_id,
           share_number: row.share_number,
           qurbani_datetime: row.qurbani_datetime,
@@ -1033,7 +1068,71 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       }
     });
 
-    const formattedOrders = Object.values(ordersMap);
+    const formattedOrders = Object.values(ordersMap).map((order) => {
+      const shareholders = order.shareholders || [];
+
+      if (!shareholders.length) {
+        return {
+          ...order,
+          processing_status: "Not started",
+          delivery_status: "Pending",
+          payment_status: 2,
+          payment_status_label: "Pending",
+        };
+      }
+
+      const statuses = shareholders.map((s) => Number(s.status));
+      const paymentStatuses = shareholders.map((s) => Number(s.payment_status));
+
+      const maxStatus = Math.max(...statuses);
+
+      let processing_status = "Not started";
+      let delivery_status = "Pending";
+
+      if (maxStatus === 6) {
+        processing_status = "Cancelled";
+        delivery_status = "Cancelled";
+      } else if (maxStatus === 5) {
+        processing_status = "Delivered";
+        delivery_status = "Delivered";
+      } else if (maxStatus === 4) {
+        processing_status = "Sent for delivery";
+        delivery_status = "Sent for delivery";
+      } else if (maxStatus === 3) {
+        processing_status = "Meat Packaged";
+        delivery_status = "Pending";
+      } else if (maxStatus === 2) {
+        processing_status = "Processing";
+        delivery_status = "Pending";
+      } else if (maxStatus === 1) {
+        processing_status = "Qurbani Started";
+        delivery_status = "Pending";
+      }
+
+      let payment_status = 2;
+      let payment_status_label = "Pending";
+
+      // shareholder_details.payment_status:
+      // 0 = paid, 1 = unpaid, 2 = pending
+      if (paymentStatuses.every((s) => s === 0)) {
+        payment_status = 0;
+        payment_status_label = "Paid";
+      } else if (paymentStatuses.every((s) => s === 1)) {
+        payment_status = 1;
+        payment_status_label = "Unpaid";
+      } else {
+        payment_status = 2;
+        payment_status_label = "Pending";
+      }
+
+      return {
+        ...order,
+        processing_status,
+        delivery_status,
+        payment_status,
+        payment_status_label,
+      };
+    });
 
     logger.info("Admin orders fetched", {
       adminId,
@@ -1053,7 +1152,6 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
     });
   }
 });
-
 
 
 router.get("/ratings/:orderId/:userId", authMiddleware, async (req, res) => {
@@ -1340,17 +1438,19 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
         o.payment_method,
         o.total_shares,
         o.total_amt,
-        o.payment_status,
         o.status AS order_status,
         o.created_at,
         u.name AS user_name,
         u.email AS user_email,
         u.phone AS contact_no,
         u.address,
-        a.name AS admin_name
+        a.name AS admin_name,
+        aps.cod_deadline
       FROM orders o
       JOIN users u ON o.user_id = u.id
       JOIN users a ON o.admin_id = a.id
+      LEFT JOIN admin_payment_settings aps
+        ON aps.admin_id = o.admin_id
       WHERE o.id = ? AND o.admin_id = ?
       `,
       [orderId, adminId],
@@ -1372,11 +1472,13 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
         s.guardian_name,
         s.animal_id,
         s.share_number,
-        s.qurbani_datetime,
         s.address,
+        s.price,
         s.status,
         s.payment_status,
-        an.animal_type
+        an.animal_type,
+        an.qurbani_datetime,
+        an.qurbani_day
       FROM shareholder_details s
       LEFT JOIN animals an ON s.animal_id = an.id
       WHERE s.order_id = ?
@@ -1393,28 +1495,90 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
       share_number: s.share_number,
       qurbani_datetime: s.qurbani_datetime,
       address: s.address,
+      price: s.price,
+      qurbani_day: s.qurbani_day,
       status: s.status,
       status_label: mapShareholderStatus(s.status),
       payment_status: s.payment_status,
       payment_status_label: mapPaymentStatus(s.payment_status),
     }));
 
+    let processing_status = "Not started";
+    let delivery_status = "Pending";
+    let payment_status = 2; // 0=paid, 1=unpaid, 2=pending
+    let payment_status_label = "Pending";
+
+    if (formattedShareholders.length > 0) {
+      const statuses = formattedShareholders.map((s) => Number(s.status));
+      const paymentStatuses = formattedShareholders.map((s) =>
+        Number(s.payment_status),
+      );
+
+      const maxStatus = Math.max(...statuses);
+
+      if (maxStatus === 6) {
+        processing_status = "Cancelled";
+        delivery_status = "Cancelled";
+      } else if (maxStatus === 5) {
+        processing_status = "Delivered";
+        delivery_status = "Delivered";
+      } else if (maxStatus === 4) {
+        processing_status = "Sent for delivery";
+        delivery_status = "Sent for delivery";
+      } else if (maxStatus === 3) {
+        processing_status = "Meat Packaged";
+        delivery_status = "Pending";
+      } else if (maxStatus === 2) {
+        processing_status = "Processing";
+        delivery_status = "Pending";
+      } else if (maxStatus === 1) {
+        processing_status = "Qurbani Started";
+        delivery_status = "Pending";
+      }
+
+      if (paymentStatuses.every((s) => s === 0)) {
+        payment_status = 0;
+        payment_status_label = "Paid";
+      } else if (paymentStatuses.every((s) => s === 1)) {
+        payment_status = 1;
+        payment_status_label = "Unpaid";
+      } else {
+        payment_status = 2;
+        payment_status_label = "Pending";
+      }
+    }
+
     const orderWithDetails = {
       orderId: order.id,
+      userId: order.user_id,
+      adminId: order.admin_id,
       user_name: order.user_name,
       email: order.user_email,
-      total_amt: order.total_amt,
       contact_no: order.contact_no,
       address: order.address,
+      admin_name: order.admin_name,
+      total_amt: order.total_amt,
       total_shares: order.total_shares,
-      payment_status: order.payment_status,
-      payment_status_label: mapPaymentStatus(order.payment_status),
       payment_method: order.payment_method,
       payment_method_label: mapPaymentMethod(order.payment_method),
       order_status: order.order_status,
+      order_status_label: mapOrderStatus(order.order_status),
       created_at: order.created_at,
+      cod_deadline: order.cod_deadline,
+      processing_status,
+      delivery_status,
+      payment_status,
+      payment_status_label,
       shareholders: formattedShareholders,
     };
+
+    logger.info("Admin order details fetched", {
+      adminId,
+      orderId,
+      shareholderCount: formattedShareholders.length,
+      processing_status,
+      payment_status,
+    });
 
     res.json({ order: orderWithDetails });
   } catch (err) {
@@ -1430,7 +1594,6 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
     });
   }
 });
-
 
 
 router.put("/admin/:orderId", authMiddleware, async (req, res) => {

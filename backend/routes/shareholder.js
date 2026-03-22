@@ -137,7 +137,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
   const shareholderId = Number(id);
   const nextStatus = Number(status);
 
-  if (!shareholderId || ![1, 2, 3, 4, 5, 6].includes(nextStatus)) {
+  if (![1, 2, 3, 4, 5, 6].includes(nextStatus)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
@@ -147,7 +147,6 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
       SELECT 
         id,
         order_id,
-        shareholder_name,
         status,
         payment_status,
         animal_id,
@@ -168,6 +167,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
     const paymentStatus = Number(shareholder.payment_status);
     const hasAnimal = !!shareholder.animal_id;
     const hasShareNumber = shareholder.share_number !== null;
+    const orderId = shareholder.order_id;
 
     if (currentStatus === 6) {
       return res.status(400).json({
@@ -175,9 +175,12 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
       });
     }
 
+    // Step conditions
     switch (nextStatus) {
       case 1: // Qurbani Started
-        if (paymentStatus !== 1) {
+        // Current payment mapping:
+        // 0 = paid, 1 = unpaid, 2 = pending
+        if (paymentStatus !== 0) {
           return res.status(400).json({
             message: "Payment must be marked as Paid before starting qurbani",
           });
@@ -238,6 +241,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
         break;
     }
 
+    // Update shareholder status
     await pool.execute(
       `
       UPDATE shareholder_details
@@ -247,87 +251,63 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
       [nextStatus, shareholderId],
     );
 
-    // Push notification
-    try {
-      const orderId = shareholder.order_id;
+    // Recalculate parent order status
+    const [shareholderRows] = await pool.execute(
+      `
+      SELECT status
+      FROM shareholder_details
+      WHERE order_id = ?
+      `,
+      [orderId],
+    );
 
-      const [orderRows] = await pool.execute(
-        `SELECT user_id FROM orders WHERE id = ?`,
-        [orderId],
-      );
+    const statuses = shareholderRows.map((row) => Number(row.status));
 
-      if (orderRows.length) {
-        const userId = orderRows[0].user_id;
+    let nextOrderStatus = 0; // active by default
 
-        const [devices] = await pool.execute(
-          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
-          [userId],
-        );
-
-        const subscriptionIds = devices.map((d) => d.subscription_id);
-
-        if (subscriptionIds.length > 0) {
-          let title = "Order Status Updated";
-          let message = "Your Qurbani order status has been updated.";
-          let type = "SHAREHOLDER_STATUS_UPDATED";
-
-          switch (nextStatus) {
-            case 1:
-              title = `Qurbani Order #${orderId}`;
-              message = `Qurbani has started for your order #${orderNumber}.`;
-              type = "SHAREHOLDER_QURBANI_STARTED";
-              break;
-            case 2:
-              title = `Qurbani Order #${orderId}`;
-              message = `Your order #${orderId} is now being processed.`;
-              type = "SHAREHOLDER_PROCESSING_STARTED";
-              break;
-            case 3:
-              title = `Qurbani Order #${orderId}`;
-              message = `Meat has been packaged for your order #${orderNumber}.`;
-              type = "SHAREHOLDER_MEAT_PACKAGED";
-              break;
-            case 4:
-              title = `Qurbani Order #${orderId}`;
-              message = `Your order #${orderId} has been sent for delivery.`;
-              type = "SHAREHOLDER_SENT_FOR_DELIVERY";
-              break;
-            case 5:
-              title = `Qurbani Order #${orderId}`;
-              message = `Your order #${orderId} has been delivered.`;
-              type = "SHAREHOLDER_DELIVERED";
-              break;
-            case 6:
-              title = `Qurbani Order #${orderId}`;
-              message = `Your order #${orderId} has been cancelled.`;
-              type = "SHAREHOLDER_CANCELLED";
-              break;
-          }
-          await sendPushNotification(subscriptionIds, title, message, {
-            type,
-            orderId,
-            shareholderId,
-            status: nextStatus,
-          });
-        }
-      }
-    } catch (pushErr) {
-      logger.error("Status update push failed", {
-        shareholderId,
-        error: pushErr.message,
-      });
+    if (statuses.length > 0 && statuses.every((s) => s === 5)) {
+      nextOrderStatus = 1; // completed
+    } else if (statuses.length > 0 && statuses.every((s) => s === 6)) {
+      nextOrderStatus = 2; // cancelled
+    } else {
+      nextOrderStatus = 0; // active
     }
 
-    res.json({ message: "Status updated successfully" });
+    await pool.execute(
+      `
+      UPDATE orders
+      SET status = ?
+      WHERE id = ?
+      `,
+      [nextOrderStatus, orderId],
+    );
+
+    logger.info("Shareholder status updated", {
+      shareholderId,
+      orderId,
+      previousStatus: currentStatus,
+      nextStatus,
+      nextOrderStatus,
+    });
+
+    return res.json({
+      message: "Status updated successfully",
+      shareholder_status: nextStatus,
+      order_status: nextOrderStatus,
+    });
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
       stack: err.stack,
+      shareholderId,
+      requestedStatus: nextStatus,
     });
 
-    res.status(500).json({ message: "Something went wrong" });
+    return res.status(500).json({ message: "Something went wrong" });
   }
 });
+
+
 
 /**
  * @swagger
@@ -388,14 +368,16 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
       [shareholderId],
     );
 
+    console.log("printing shareholder for assign-animal", shareholders);
+
     if (!shareholders.length) {
       return res.status(404).json({ message: "Shareholder not found" });
     }
 
     const shareholder = shareholders[0];
 
-    // payment_status: 0=pending, 1=paid, 2=unpaid
-    if (Number(shareholder.payment_status) !== 1) {
+    // payment_status: 0=paid, 1=unpaid, 2=pending
+    if (Number(shareholder.payment_status) !== 0) {
       return res.status(400).json({
         message: "Payment must be completed before assigning animal",
       });
@@ -405,6 +387,7 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
     const [animals] = await pool.execute("SELECT * FROM animals WHERE id = ?", [
       animalId,
     ]);
+    console.log("printing animal for assign-animal", animals);
 
     if (!animals.length) {
       return res.status(404).json({ message: "Animal not found" });
@@ -453,6 +436,8 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
         message: "This share number is already assigned",
       });
     }
+
+    console.log("printing test", shareNumber, animalId);
 
     // Update shareholder
     await pool.execute(
@@ -872,7 +857,8 @@ router.post(
 router.patch("/:id/status", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
-
+console.log("we are here");
+  const shareholderId = Number(id);
   const nextStatus = Number(status);
 
   if (![1, 2, 3, 4, 5, 6].includes(nextStatus)) {
@@ -884,6 +870,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
       `
       SELECT 
         id,
+        order_id,
         status,
         payment_status,
         animal_id,
@@ -891,8 +878,11 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
       FROM shareholder_details
       WHERE id = ?
       `,
-      [id],
+      [shareholderId],
     );
+
+    console.log("testing status");
+    console.log(rows);
 
     if (!rows.length) {
       return res.status(404).json({ message: "Shareholder not found" });
@@ -904,6 +894,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
     const paymentStatus = Number(shareholder.payment_status);
     const hasAnimal = !!shareholder.animal_id;
     const hasShareNumber = shareholder.share_number !== null;
+    const orderId = shareholder.order_id;
 
     if (currentStatus === 6) {
       return res.status(400).json({
@@ -914,7 +905,9 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
     // Step conditions
     switch (nextStatus) {
       case 1: // Qurbani Started
-        if (paymentStatus !== 1) {
+        // Current payment mapping:
+        // 0 = paid, 1 = unpaid, 2 = pending
+        if (paymentStatus !== 0) {
           return res.status(400).json({
             message: "Payment must be marked as Paid before starting qurbani",
           });
@@ -933,7 +926,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
         }
         break;
 
-      case 2: // Processing (optional)
+      case 2: // Processing
         if (currentStatus !== 1) {
           return res.status(400).json({
             message: "Processing can only be set after Qurbani Started",
@@ -975,20 +968,66 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
         break;
     }
 
+    // Update shareholder status
     await pool.execute(
       `
       UPDATE shareholder_details
       SET status = ?
       WHERE id = ?
       `,
-      [nextStatus, id],
+      [nextStatus, shareholderId],
     );
 
-    return res.json({ message: "Status updated successfully" });
+    // Recalculate parent order status
+    const [shareholderRows] = await pool.execute(
+      `
+      SELECT status
+      FROM shareholder_details
+      WHERE order_id = ?
+      `,
+      [orderId],
+    );
+
+    const statuses = shareholderRows.map((row) => Number(row.status));
+
+    let nextOrderStatus = 0; // active by default
+
+    if (statuses.length > 0 && statuses.every((s) => s === 5)) {
+      nextOrderStatus = 1; // completed
+    } else if (statuses.length > 0 && statuses.every((s) => s === 6)) {
+      nextOrderStatus = 2; // cancelled
+    } else {
+      nextOrderStatus = 0; // active
+    }
+
+    await pool.execute(
+      `
+      UPDATE orders
+      SET status = ?
+      WHERE id = ?
+      `,
+      [nextOrderStatus, orderId],
+    );
+
+    logger.info("Shareholder status updated", {
+      shareholderId,
+      orderId,
+      previousStatus: currentStatus,
+      nextStatus,
+      nextOrderStatus,
+    });
+
+    return res.json({
+      message: "Status updated successfully",
+      shareholder_status: nextStatus,
+      order_status: nextOrderStatus,
+    });
   } catch (err) {
     logger.error("Route error", {
       message: err.message,
       stack: err.stack,
+      shareholderId,
+      requestedStatus: nextStatus,
     });
 
     return res.status(500).json({ message: "Something went wrong" });

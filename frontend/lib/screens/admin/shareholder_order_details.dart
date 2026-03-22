@@ -9,7 +9,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 
 class ShareholderOrderDetails extends StatefulWidget {
-  final String orderId;
+  final dynamic orderId;
 
   const ShareholderOrderDetails({super.key, required this.orderId});
 
@@ -31,7 +31,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   final Map<String, int> _tempPaymentStatus = {};
   final Map<String, String> _tempAnimalId = {};
   final Map<String, int> _tempShareNumber = {};
-  // final Map<String, TimeOfDay> _tempScheduleTime = {};
 
   @override
   void initState() {
@@ -44,14 +43,24 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
+  double _asDouble(dynamic value, {double fallback = 0}) {
+    return double.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  String _asString(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    final text = value.toString().trim();
+    return text.isEmpty ? fallback : text;
+  }
+
   String _paymentLabel(int status) {
     switch (status) {
       case 0:
-        return "Pending";
-      case 1:
         return "Paid";
-      case 2:
+      case 1:
         return "Unpaid";
+      case 2:
+        return "Pending";
       default:
         return "Unknown";
     }
@@ -95,12 +104,24 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     }
   }
 
+  Color _paymentColor(int status) {
+    switch (status) {
+      case 0:
+        return Colors.green;
+      case 1:
+        return Colors.red;
+      case 2:
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
   String formatAddress(String? rawAddress) {
     if (rawAddress == null || rawAddress.isEmpty) return "N/A";
 
     try {
       final decoded = jsonDecode(rawAddress);
-
       final country = decoded['country'] ?? '';
       final state = decoded['state'] ?? '';
       final city = decoded['city'] ?? '';
@@ -117,9 +138,32 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     }
   }
 
+  String _formatDateTime(dynamic value) {
+    if (value == null || value.toString().isEmpty) return "N/A";
+    try {
+      final dt = DateTime.parse(value.toString()).toLocal();
+      return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+    } catch (_) {
+      return value.toString();
+    }
+  }
+
+  String _formatAmount(dynamic value) {
+    final total = _asDouble(value);
+    return NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 2,
+    ).format(total);
+  }
+
   Future<void> _fetchOrderDetails() async {
     try {
-      orderData = await AdminOrderService.getAdminOrderById(widget.orderId);
+      orderData = await AdminOrderService.getAdminOrderById(
+        widget.orderId.toString(),
+      );
+
+      print("$orderData");
     } catch (e) {
       ToastUtils.showError('Failed to load order: $e');
     } finally {
@@ -220,48 +264,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     }
   }
 
-  // Future<void> _assignScheduleToShareholder(
-  //   String shareholderId,
-  //   TimeOfDay time,
-  // ) async {
-  //   try {
-  //     final token = await _storage.read(key: 'token');
-  //     if (token == null) return;
-
-  //     final now = DateTime.now();
-  //     final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
-
-  //     final response = await http.post(
-  //       Uri.parse("$_baseUrl/shareholders/$shareholderId/schedule"),
-  //       headers: {
-  //         "Authorization": "Bearer $token",
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: jsonEncode({"qurbani_datetime": dt.toIso8601String()}),
-  //     );
-
-  //     if (response.statusCode == 200) {
-  //       ToastUtils.showSuccess("Time scheduled successfully");
-  //       await _fetchOrderDetails();
-  //     } else {
-  //       ToastUtils.showError("Failed to schedule time");
-  //     }
-  //   } catch (_) {
-  //     ToastUtils.showError("Something went wrong");
-  //   }
-  // }
-
-  String formatAnimalQurbaniDateTime(dynamic value) {
-    if (value == null || value.toString().isEmpty) return "No schedule";
-
-    try {
-      final dt = DateTime.parse(value.toString()).toLocal();
-      return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-    } catch (_) {
-      return value.toString();
-    }
-  }
-
   Future<void> _updateShareholderStatus(
     String shareholderId,
     int status,
@@ -286,26 +288,54 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       } else {
         ToastUtils.showError(decoded["message"] ?? "Failed to update status");
       }
-    } catch (e) {
+    } catch (_) {
       ToastUtils.showError("Something went wrong");
     }
   }
 
-  Widget _cardTitle(String text) => Text(
-    text,
-    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-  );
-
-  Widget _infoRow(String k, String? v) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _sectionTitle(String text, IconData icon) {
+    return Row(
       children: [
-        SizedBox(width: 120, child: Text('$k:')),
-        Expanded(child: Text(v ?? 'N/A')),
+        Icon(icon, size: 18, color: AppTheme.primaryGreen),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ],
-    ),
-  );
+    );
+  }
+
+  Widget _infoRow(String k, String? v, {IconData? icon}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: Colors.grey.shade700),
+            const SizedBox(width: 8),
+          ],
+          SizedBox(
+            width: 110,
+            child: Text(
+              '$k:',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              v ?? 'N/A',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _statusChip(String label, Color color) {
     return Container(
@@ -313,13 +343,13 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withOpacity(0.30)),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           fontSize: 12,
         ),
       ),
@@ -344,60 +374,151 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
           backgroundColor: color,
           child: completed
               ? const Icon(Icons.check, size: 16, color: Colors.white)
+              : active
+              ? const Icon(Icons.play_arrow, size: 16, color: Colors.white)
               : const SizedBox(),
         ),
         const SizedBox(width: 10),
-        Text(
-          title,
-          style: TextStyle(fontWeight: FontWeight.w600, color: color),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(fontWeight: FontWeight.w600, color: color),
+          ),
         ),
       ],
     );
   }
 
-  Widget _primaryButton(String text, VoidCallback onPressed) {
+  Widget _primaryButton(String text, VoidCallback onPressed, {IconData? icon}) {
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton(
+      child: ElevatedButton.icon(
         onPressed: onPressed,
+        icon: Icon(icon ?? Icons.check_circle_outline, size: 18),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primaryGreen,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 13),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
+          elevation: 0,
         ),
-        child: Text(text),
+        label: Text(text, style: const TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _summaryCard(Map<String, dynamic> data) {
+    final paymentLabel = _asString(
+      data['payment_status_label'],
+      fallback: 'Pending',
+    );
+    final processingLabel = _asString(
+      data['processing_status'],
+      fallback: 'Not started',
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.primaryGreen, Color(0xFF4B7E52)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGreen.withOpacity(0.20),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Order #${widget.orderId}",
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _formatDateTime(data['created_at']),
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statusChip(paymentLabel, Colors.white),
+              _statusChip(processingLabel, Colors.white),
+              _statusChip(
+                _asString(data['payment_method_label'], fallback: 'Unknown'),
+                Colors.white,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
   Widget _orderDetailsCard(Map<String, dynamic> data) {
-    final double total = double.tryParse(data['total_amt'].toString()) ?? 0.0;
-
-    final formattedAmount = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '₹',
-      decimalDigits: 2,
-    ).format(total);
-
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 2,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _cardTitle('Order Information'),
-            const SizedBox(height: 12),
-            _infoRow('Order ID', widget.orderId),
-            _infoRow('User', data['user_name']?.toString()),
-            _infoRow('Address', data['address']?.toString()),
-            _infoRow('Price', formattedAmount),
-            _infoRow('Payment', data['payment_status_label']?.toString()),
-            _infoRow('Contact', data['contact_no']?.toString()),
+            _sectionTitle('Order Information', Icons.receipt_long_outlined),
+            const SizedBox(height: 14),
+            _infoRow(
+              'Order ID',
+              widget.orderId.toString(),
+              icon: Icons.confirmation_number_outlined,
+            ),
+            _infoRow(
+              'User',
+              data['user_name']?.toString(),
+              icon: Icons.person_outline,
+            ),
+            _infoRow(
+              'Address',
+              formatAddress(data['address']?.toString()),
+              icon: Icons.location_on_outlined,
+            ),
+            _infoRow(
+              'Price',
+              _formatAmount(data['total_amt']),
+              icon: Icons.currency_rupee,
+            ),
+            _infoRow(
+              'Payment',
+              data['payment_status_label']?.toString(),
+              icon: Icons.payments_outlined,
+            ),
+            _infoRow(
+              'Contact',
+              data['contact_no']?.toString(),
+              icon: Icons.phone_outlined,
+            ),
+            _infoRow(
+              'Order Status',
+              data['order_status_label']?.toString() ??
+                  data['processing_status']?.toString(),
+              icon: Icons.info_outline,
+            ),
           ],
         ),
       ),
@@ -405,31 +526,35 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   }
 
   String formatQurbaniDay(dynamic value) {
-    switch (value?.toString()) {
+    print("Day: $value");
+
+    final day = value?.toString().trim().toLowerCase();
+    print("Day: $day");
+    switch (day) {
       case 'day_1':
+      case 'day 1':
         return 'Day 1';
       case 'day_2':
+      case 'day 2':
         return 'Day 2';
       case 'day_3':
+      case 'day 3':
         return 'Day 3';
       default:
-        return 'Unknown Day';
+        return value?.toString() ?? 'Unknown Day';
     }
   }
 
   Widget _shareholderFlowCard(Map<String, dynamic> shareholder) {
     final shareholderId = shareholder['id'].toString();
 
-    final paymentStatus = _asInt(shareholder['payment_status']);
+    final paymentStatus = _asInt(shareholder['payment_status'], fallback: 2);
     final workflowStatus = _asInt(shareholder['status']);
     final animalId = shareholder['animal_id'];
     final hasAnimal = animalId != null;
     final shareNumber = shareholder['share_number'];
-    final schedule = shareholder['qurbani_datetime'] != null
-        ? DateTime.tryParse(shareholder['qurbani_datetime'].toString())
-        : null;
 
-    final isPaid = paymentStatus == 1;
+    final isPaid = paymentStatus == 0;
     final isPaymentDone = isPaid;
     final isAnimalDone = hasAnimal;
     final isQurbaniStarted = workflowStatus >= 1;
@@ -440,16 +565,28 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 18),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 2,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Shareholder: ${shareholder['shareholder_name']}",
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Shareholder: ${shareholder['shareholder_name']}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                    ),
+                  ),
+                ),
+                if (shareNumber != null)
+                  _statusChip("Share #$shareNumber", Colors.blueGrey),
+              ],
             ),
             const SizedBox(height: 6),
             Text(
@@ -463,36 +600,46 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
               children: [
                 _statusChip(
                   _paymentLabel(paymentStatus),
-                  isPaid ? Colors.green : Colors.orange,
+                  _paymentColor(paymentStatus),
                 ),
                 _statusChip(
                   _statusLabel(workflowStatus),
                   _statusColor(workflowStatus),
                 ),
-                if (shareNumber != null)
-                  _statusChip("Share #$shareNumber", Colors.blueGrey),
+                if (shareholder['animal_type'] != null)
+                  _statusChip(
+                    shareholder['animal_type'].toString(),
+                    Colors.deepPurple,
+                  ),
+                if (shareholder['qurbani_day'] != null)
+                  _statusChip(
+                    formatQurbaniDay(shareholder['qurbani_day']),
+                    Colors.teal,
+                  ),
               ],
             ),
             const SizedBox(height: 14),
             Container(
-              padding: const EdgeInsets.all(10),
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
                 children: [
-                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      formatAddress(shareholder['address']?.toString()),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
+                  _infoRow(
+                    'Address',
+                    formatAddress(shareholder['address']?.toString()),
+                    icon: Icons.location_on_outlined,
+                  ),
+                  _infoRow(
+                    'Qurbani Time',
+                    shareholder['qurbani_datetime'] == null
+                        ? 'Pending'
+                        : _formatDateTime(shareholder['qurbani_datetime']),
+                    icon: Icons.schedule_outlined,
                   ),
                 ],
               ),
@@ -511,13 +658,6 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
               active: isPaymentDone && !isAnimalDone,
             ),
             const SizedBox(height: 8),
-
-            // _stepTile(
-            //   title: "Schedule Time",
-            //   completed: isScheduleDone,
-            //   active: isAnimalDone && !isScheduleDone,
-            // ),
-            // const SizedBox(height: 8),
             _stepTile(
               title: "Qurbani Started",
               completed: isQurbaniStarted,
@@ -544,18 +684,24 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
             const Divider(height: 28),
 
-            if (isCancelled) _statusChip("Cancelled", Colors.red),
+            if (isCancelled) ...[
+              _statusChip("Cancelled", Colors.red),
+              const SizedBox(height: 12),
+            ],
 
             if (!isCancelled && !isPaymentDone) ...[
               DropdownButtonFormField<int>(
                 value: _tempPaymentStatus[shareholderId] ?? 2,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Payment Status',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 2, child: Text('Unpaid')),
-                  DropdownMenuItem(value: 1, child: Text('Paid')),
+                  DropdownMenuItem(value: 2, child: Text('Pending')),
+                  DropdownMenuItem(value: 1, child: Text('Unpaid')),
+                  DropdownMenuItem(value: 0, child: Text('Paid')),
                 ],
                 onChanged: (value) {
                   if (value == null) return;
@@ -565,30 +711,23 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
               const SizedBox(height: 12),
               _primaryButton("Save Payment", () async {
                 final selected = _tempPaymentStatus[shareholderId] ?? 2;
-
-                // print(
-                //   "pay status: $_tempPaymentStatus  ${_tempPaymentStatus[shareholderId]}",
-                // );
-
-                if (selected != 1) {
-                  ToastUtils.showError("Please mark payment as Paid");
-                  return;
-                }
                 await _updateShareholderPayment(shareholderId, selected);
                 _tempPaymentStatus.remove(shareholderId);
-              }),
+              }, icon: Icons.payments_outlined),
               const SizedBox(height: 16),
             ],
 
             if (!isCancelled && isPaymentDone && !isAnimalDone) ...[
               DropdownButtonFormField<String>(
                 value: _tempAnimalId[shareholderId],
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Select Animal',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 items: availableAnimals.map((animal) {
-                  final scheduleText = formatAnimalQurbaniDateTime(
+                  final scheduleText = _formatDateTime(
                     animal['qurbani_datetime'],
                   );
 
@@ -616,9 +755,11 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
               if (_tempAnimalId[shareholderId] != null)
                 DropdownButtonFormField<int>(
                   value: _tempShareNumber[shareholderId],
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Select Share Number',
-                    border: OutlineInputBorder(),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   items: List.generate(7, (index) => index + 1)
                       .map(
@@ -651,51 +792,17 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
 
                 _tempAnimalId.remove(shareholderId);
                 _tempShareNumber.remove(shareholderId);
-              }),
+              }, icon: Icons.pets_outlined),
               const SizedBox(height: 16),
             ],
 
-            // if (!isCancelled &&
-            //     isPaymentDone &&
-            //     isAnimalDone &&
-            //     !isScheduleDone) ...[
-            //   _primaryButton("Pick Qurbani Time", () async {
-            //     final time = await showTimePicker(
-            //       context: context,
-            //       initialTime: TimeOfDay.now(),
-            //     );
-            //     if (time == null) return;
-            //     setState(() => _tempScheduleTime[shareholderId] = time);
-            //   }),
-            //   if (_tempScheduleTime[shareholderId] != null) ...[
-            //     const SizedBox(height: 10),
-            //     Text(
-            //       "Selected Time: ${_tempScheduleTime[shareholderId]!.format(context)}",
-            //       style: const TextStyle(fontWeight: FontWeight.w600),
-            //     ),
-            //     const SizedBox(height: 12),
-            //     _primaryButton("Save Schedule", () async {
-            //       final selectedTime = _tempScheduleTime[shareholderId];
-            //       if (selectedTime == null) {
-            //         ToastUtils.showError("Please select a time");
-            //         return;
-            //       }
-            //       await _assignScheduleToShareholder(
-            //         shareholderId,
-            //         selectedTime,
-            //       );
-            //       _tempScheduleTime.remove(shareholderId);
-            //     }),
-            //   ],
-            //   const SizedBox(height: 16),
-            // ],
             if (!isCancelled &&
                 isPaymentDone &&
                 isAnimalDone &&
                 workflowStatus == 0) ...[
               _primaryButton("Mark Qurbani Started", () async {
                 await _updateShareholderStatus(shareholderId, 1);
-              }),
+              }, icon: Icons.play_arrow_rounded),
               const SizedBox(height: 12),
             ],
 
@@ -703,34 +810,23 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
                 (workflowStatus == 1 || workflowStatus == 2)) ...[
               _primaryButton("Mark Meat Packaged", () async {
                 await _updateShareholderStatus(shareholderId, 3);
-              }),
+              }, icon: Icons.inventory_2_outlined),
               const SizedBox(height: 12),
             ],
 
             if (!isCancelled && workflowStatus == 3) ...[
               _primaryButton("Mark Sent for Delivery", () async {
                 await _updateShareholderStatus(shareholderId, 4);
-              }),
+              }, icon: Icons.local_shipping_outlined),
               const SizedBox(height: 12),
             ],
 
             if (!isCancelled && workflowStatus == 4) ...[
               _primaryButton("Mark Delivered", () async {
                 await _updateShareholderStatus(shareholderId, 5);
-              }),
+              }, icon: Icons.check_circle_outline),
               const SizedBox(height: 12),
             ],
-
-            // if (schedule != null) ...[
-            //   const SizedBox(height: 8),
-            //   Text(
-            //     "Scheduled Time: ${DateFormat('hh:mm a').format(schedule.toLocal())}",
-            //     style: TextStyle(
-            //       color: Colors.grey.shade700,
-            //       fontWeight: FontWeight.w500,
-            //     ),
-            //   ),
-            // ],
           ],
         ),
       ),
@@ -747,17 +843,35 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7F4),
       appBar: AppBar(
-        title: const Text('Order Details'),
+        title: const Text(
+          'Order Details',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: AppTheme.primaryGreen,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _orderDetailsCard(data),
-          const SizedBox(height: 16),
-          ...shareholders.map((s) => _shareholderFlowCard(s)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _fetchOrderDetails,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchOrderDetails,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _summaryCard(data),
+            const SizedBox(height: 16),
+            _orderDetailsCard(data),
+            const SizedBox(height: 16),
+            _sectionTitle('Shareholder Workflow', Icons.groups_2_outlined),
+            const SizedBox(height: 12),
+            ...shareholders.map((s) => _shareholderFlowCard(s)),
+          ],
+        ),
       ),
     );
   }

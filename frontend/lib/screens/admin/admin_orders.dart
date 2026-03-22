@@ -1,8 +1,8 @@
 import 'package:Qurbani/screens/admin/shareholder_order_details.dart';
-import 'package:Qurbani/utils/logger.dart';
-import 'package:flutter/material.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/utils/logger.dart';
+import 'package:flutter/material.dart';
 
 class AdminOrdersPage extends StatefulWidget {
   final String adminId;
@@ -36,9 +36,13 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   bool isNewOrder(String createdAt) {
-    final created = DateTime.parse(createdAt).toLocal();
-    final now = DateTime.now();
-    return now.difference(created).inHours < 24;
+    try {
+      final created = DateTime.parse(createdAt).toLocal();
+      final now = DateTime.now();
+      return now.difference(created).inHours < 24;
+    } catch (_) {
+      return false;
+    }
   }
 
   int _asInt(dynamic value, {int fallback = 0}) {
@@ -46,7 +50,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   String shortId(dynamic id, {int length = 8}) {
-    final value = id.toString();
+    final value = (id ?? '').toString();
     if (value.length <= length) return value;
     return value.substring(value.length - length);
   }
@@ -55,32 +59,52 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     AppLogger.debug("Checking COD expiry", {
       "orderId": order['orderId'],
       "paymentMethod": order['paymentMethod'],
-      "orderPaymentStatus": order['orderPaymentStatus'],
+      "payment_status": order['payment_status'],
       "deadline": order['cod_deadline'],
     });
 
     final paymentMethod = _asInt(order['paymentMethod']);
-    final paymentStatus = _asInt(order['orderPaymentStatus'], fallback: 2);
+    final paymentStatus = _asInt(order['payment_status'], fallback: 2);
 
-    if (paymentMethod != 0) return false; // 0 = Cash
-    if (paymentStatus != 1) return false; // 1 = Unpaid
-    if (order['cod_deadline'] == null) return false;
+    // 0 = Cash
+    if (paymentMethod != 0) return false;
 
-    final deadline = DateTime.tryParse(order['cod_deadline'].toString());
-    if (deadline == null) return false;
+    // Auto-cancel if unpaid OR pending
+    // 0 = paid, 1 = unpaid, 2 = pending
+    if (paymentStatus != 1 && paymentStatus != 2) return false;
+
+    final rawDeadline = order['cod_deadline'];
+    if (rawDeadline == null) return false;
+
+    final parsed = DateTime.tryParse(rawDeadline.toString());
+    if (parsed == null) return false;
+
+    // If backend sends date-only, treat deadline as end of that day
+    final deadline = DateTime(
+      parsed.year,
+      parsed.month,
+      parsed.day,
+      23,
+      59,
+      59,
+    );
 
     return DateTime.now().isAfter(deadline);
   }
 
   Future<void> _fetchOrders() async {
     setState(() => _isLoading = true);
+
     try {
       _allOrders = await AdminOrderService.getAdminOrders();
       AppLogger.info("Orders fetched: ${_allOrders.length}");
 
       for (final order in _allOrders) {
         final isExpired = _isCodExpired(order);
-        final isAlreadyCancelled = _asInt(order['orderStatus']) == 2;
+        final isAlreadyCancelled =
+            _asInt(order['orderStatus']) == 2 ||
+            (order['processing_status']?.toString().toLowerCase() ==
+                'cancelled');
 
         if (isExpired && !isAlreadyCancelled) {
           AppLogger.warning(
@@ -102,13 +126,15 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   String _getOverallShareholderStatusLabel(Map<String, dynamic> order) {
+    final backendStatus = order['processing_status']?.toString();
+    if (backendStatus != null && backendStatus.isNotEmpty) {
+      return backendStatus;
+    }
+
     final List shareholders = order['shareholders'] ?? [];
     if (shareholders.isEmpty) return 'Not started';
 
-    final statuses = shareholders
-        .map((s) => _asInt(s['status']))
-        .toList();
-
+    final statuses = shareholders.map((s) => _asInt(s['status'])).toList();
     final maxStatus = statuses.reduce((a, b) => a > b ? a : b);
 
     switch (maxStatus) {
@@ -175,6 +201,40 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     );
   }
 
+  Widget _buildSummaryChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              "$label: $value",
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOrderList({required bool? isActive}) {
     final filteredOrders = _allOrders.where((order) {
       final orderStatus = _asInt(order['orderStatus']);
@@ -195,15 +255,17 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       }
 
       final orderId = (order['orderId'] ?? '').toString().toLowerCase();
-      final phone =
-          (order['contact'] is Map
-                  ? order['contact']['primary']
-                  : order['contact'] ?? '')
-              .toString()
-              .toLowerCase();
+      final shareholderNames = ((order['shareholders'] ?? []) as List)
+          .map((s) => (s['shareholder_name'] ?? '').toString().toLowerCase())
+          .join(' ');
+      final guardianNames = ((order['shareholders'] ?? []) as List)
+          .map((s) => (s['guardian_name'] ?? '').toString().toLowerCase())
+          .join(' ');
 
       final matchesSearch =
-          orderId.contains(_searchQuery) || phone.contains(_searchQuery);
+          orderId.contains(_searchQuery) ||
+          shareholderNames.contains(_searchQuery) ||
+          guardianNames.contains(_searchQuery);
 
       return matchesStatus && matchesSearch;
     }).toList();
@@ -212,209 +274,241 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       return const Center(child: Text("No orders found"));
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: filteredOrders.length,
-      itemBuilder: (context, index) {
-        final data = filteredOrders[index];
-        final dynamic orderId = data['orderId'];
-        final createdAt = data['createdAt'];
+    return RefreshIndicator(
+      onRefresh: _fetchOrders,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        itemCount: filteredOrders.length,
+        itemBuilder: (context, index) {
+          final data = filteredOrders[index];
+          final dynamic orderId = data['orderId'];
+          final createdAt = data['createdAt'];
 
-        final bool showNew =
-            createdAt != null && isNewOrder(createdAt.toString());
+          final bool showNew =
+              createdAt != null && isNewOrder(createdAt.toString());
 
-        final orderStatusLabel = _getOrderStatusLabel(data);
-        final shareholderStatusLabel = _getOverallShareholderStatusLabel(data);
-        final paymentStatusLabel =
-            (data['orderPaymentStatusLabel'] ?? 'Pending').toString();
-        final paymentMethodLabel =
-            (data['paymentMethodLabel'] ?? 'Unknown').toString();
+          final orderStatusLabel = _getOrderStatusLabel(data);
+          final shareholderStatusLabel = _getOverallShareholderStatusLabel(data);
+          final paymentStatusLabel =
+              (data['payment_status_label'] ?? 'Pending').toString();
+          final paymentMethodLabel =
+              (data['paymentMethodLabel'] ?? 'Unknown').toString();
+          final totalShares = (data['totalShares'] ?? 0).toString();
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.bgGradientEnd,
+          return InkWell(
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Row(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ShareholderOrderDetails(orderId: orderId),
+                ),
+              );
+              _fetchOrders();
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.bgGradientEnd,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: RichText(
-                              overflow: TextOverflow.ellipsis,
-                              text: TextSpan(
-                                style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 14,
-                                ),
-                                children: [
-                                  const TextSpan(
-                                    text: "ID: ",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: RichText(
+                                  overflow: TextOverflow.ellipsis,
+                                  text: TextSpan(
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 14,
                                     ),
+                                    children: [
+                                      const TextSpan(
+                                        text: "Order #",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: shortId(orderId),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryGreen,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  TextSpan(text: "#${shortId(orderId)}"),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          if (showNew) newBadge(),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    SizedBox(
-                      height: 30,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ShareholderOrderDetails(
-                              orderId: orderId.toString(),
-                            ),
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryGreen,
-                          foregroundColor: AppTheme.bgGradientEnd,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                        child: const Text(
-                          "View >",
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text(
-                      "Order >",
-                      style: TextStyle(fontSize: 13, color: Colors.black87),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F2E8),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.assignment_outlined,
-                              size: 14,
-                              color: _getStatusColor(orderStatusLabel),
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                orderStatusLabel,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: _getStatusColor(orderStatusLabel),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 8),
+                              if (showNew) newBadge(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Text(
-                      "Progress >",
-                      style: TextStyle(fontSize: 13, color: Colors.black87),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.settings,
-                              size: 14,
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(shareholderStatusLabel)
+                                .withOpacity(0.10),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            shareholderStatusLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                               color: _getStatusColor(shareholderStatusLabel),
                             ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                shareholderStatusLabel,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: _getStatusColor(shareholderStatusLabel),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSummaryChip(
+                            icon: Icons.payments_outlined,
+                            label: "Payment",
+                            value: paymentStatusLabel,
+                            color: paymentStatusLabel.toLowerCase() == 'paid'
+                                ? Colors.green
+                                : paymentStatusLabel.toLowerCase() == 'unpaid'
+                                    ? Colors.red
+                                    : Colors.orange,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildSummaryChip(
+                            icon: Icons.receipt_long_outlined,
+                            label: "Method",
+                            value: paymentMethodLabel,
+                            color: AppTheme.primaryGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSummaryChip(
+                            icon: Icons.check_circle_outline,
+                            label: "Order",
+                            value: orderStatusLabel,
+                            color: _getStatusColor(orderStatusLabel),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildSummaryChip(
+                            icon: Icons.groups_2_outlined,
+                            label: "Shares",
+                            value: totalShares,
+                            color: Colors.blueGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          "View details",
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Text(
-                      "Payment >",
-                      style: TextStyle(fontSize: 13, color: Colors.black87),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        "$paymentStatusLabel ($paymentMethodLabel)",
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
           ),
-        );
-      },
+        ],
+      ),
+      child: TextField(
+        onChanged: (value) {
+          setState(() => _searchQuery = value.trim().toLowerCase());
+        },
+        decoration: InputDecoration(
+          hintText: "Search ID or shareholder...",
+          prefixIcon: const Icon(Icons.search_rounded),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabs() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: AppTheme.primaryGreen,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.black87,
+        dividerColor: Colors.transparent,
+        tabs: const [
+          Tab(text: "Active"),
+          Tab(text: "Completed"),
+          Tab(text: "Cancelled"),
+        ],
+      ),
     );
   }
 
@@ -423,149 +517,40 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     return Scaffold(
       backgroundColor: lightBg,
       appBar: AppBar(
+        backgroundColor: AppTheme.primaryGreen,
+        elevation: 0,
         title: const Text(
-          "View Orders",
+          "Orders",
           style: TextStyle(
-            color: Color(0xFF2D4F32),
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: AppTheme.bgGradientEnd,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Color(0xFF2D4F32)),
-      ),
-      body: Column(
-        children: [
-          Container(
-            color: AppTheme.bgGradientEnd,
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AppTheme.primaryGreen,
-              unselectedLabelColor: AppTheme.primaryGreen,
-              indicatorColor: AppTheme.primaryGreen,
-              tabs: const [
-                Tab(text: "Active"),
-                Tab(text: "Completed"),
-                Tab(text: "Cancelled"),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              onChanged: (val) =>
-                  setState(() => _searchQuery = val.toLowerCase()),
-              decoration: InputDecoration(
-                hintText: "Search ID or Phone...",
-                prefixIcon: const Icon(Icons.search),
-                fillColor: AppTheme.bgGradientEnd,
-                filled: true,
-                isDense: true,
-                contentPadding: const EdgeInsets.all(12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _fetchOrders,
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildOrderList(isActive: true),
-                        _buildOrderList(isActive: false),
-                        _buildOrderList(isActive: null),
-                      ],
-                    ),
-                  ),
+        actions: [
+          IconButton(
+            onPressed: _fetchOrders,
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           ),
         ],
       ),
-    );
-  }
-}
-
-class FilterBar extends StatelessWidget {
-  final List<String> processingOptions;
-  final List<String> deliveryOptions;
-  final String processingFilter;
-  final String deliveryFilter;
-  final Function(String) onProcessingChanged;
-  final Function(String) onDeliveryChanged;
-
-  const FilterBar({
-    super.key,
-    required this.processingOptions,
-    required this.deliveryOptions,
-    required this.processingFilter,
-    required this.deliveryFilter,
-    required this.onProcessingChanged,
-    required this.onDeliveryChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: processingFilter,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Processing',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          _buildTabs(),
+          const SizedBox(height: 10),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildOrderList(isActive: true),
+                      _buildOrderList(isActive: false),
+                      _buildOrderList(isActive: null),
+                    ],
                   ),
-                ),
-                items: processingOptions
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 12)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => onProcessingChanged(v!),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                value: deliveryFilter,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Delivery',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
-                  ),
-                ),
-                items: deliveryOptions
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 12)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => onDeliveryChanged(v!),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

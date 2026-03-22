@@ -32,7 +32,7 @@ class _BookedPageState extends State<BookedPage> {
 
   bool _isCodExpired(Map<String, dynamic> order) {
     final paymentMethod = _parseInt(order['payment_method']);
-    print("checking order status...$order if expired");
+    // print("checking order status...$order if expired");
 
     final rawPaymentStatus = order['payment_status'];
     bool isNotPaid = false;
@@ -60,7 +60,7 @@ class _BookedPageState extends State<BookedPage> {
 
     try {
       orders = await OrderService.getUserOrders();
-      // print("print orders...$orders");
+      print("print orders...${orders}");
 
       //cancel order
       for (final order in orders) {
