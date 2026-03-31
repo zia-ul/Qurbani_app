@@ -16,12 +16,51 @@ class AuthService {
   static const _storage = FlutterSecureStorage();
 
   // Base URL for API endpoints (development server)
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
+  static final String _baseUrl = _normalizeBaseUrl(dotenv.env['BASE_URL']);
 
   static Future<void> Function(String current, String next)? mockChangePassword;
 
   static Future<String?> getToken() async {
     return await _storage.read(key: 'token');
+  }
+
+  static String _normalizeBaseUrl(String? rawUrl) {
+    var value = (rawUrl ?? '').trim();
+
+    if (value.isEmpty) {
+      throw Exception('BASE_URL is missing from assets/.env');
+    }
+
+    if (value.endsWith('/')) {
+      value = value.substring(0, value.length - 1);
+    }
+
+    if (!value.endsWith('/api')) {
+      value = '$value/api';
+    }
+
+    return value;
+  }
+
+  static String _extractErrorMessage(http.Response res, String fallback) {
+    final body = res.body.trim();
+
+    if (body.isEmpty) {
+      return fallback;
+    }
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic> && decoded['message'] != null) {
+        return decoded['message'].toString();
+      }
+    } catch (_) {
+      if (body.toLowerCase().contains('the page could not be found')) {
+        return 'API endpoint not found. Check that BASE_URL points to your backend /api URL.';
+      }
+    }
+
+    return fallback;
   }
 
   // GET CURRENT USER (with token)
@@ -38,9 +77,10 @@ class AuthService {
     );
 
     if (res.statusCode != 200) {
+      final msg = _extractErrorMessage(res, 'Failed to fetch current user');
       await _storage.delete(key: 'token');
       await _storage.delete(key: 'userId');
-      return null;
+      throw Exception(msg);
     }
 
     final decoded = jsonDecode(res.body);
@@ -70,7 +110,7 @@ class AuthService {
     );
 
     if (res.statusCode != 201) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Registration failed';
+      final msg = _extractErrorMessage(res, 'Registration failed');
       throw Exception(msg);
     }
   }
@@ -84,7 +124,7 @@ class AuthService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Login failed';
+      final msg = _extractErrorMessage(res, 'Login failed');
       throw Exception(msg);
     }
 
@@ -209,8 +249,7 @@ class AuthService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to change password';
+      final msg = _extractErrorMessage(res, 'Failed to change password');
       throw Exception(msg);
     }
   }
