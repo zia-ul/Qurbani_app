@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
 const swaggerUi = require("swagger-ui-express");
 const rateLimit = require("express-rate-limit");
 require("dotenv").config();
@@ -35,7 +34,7 @@ const globalLimiter = rateLimit({
 
 app.use(globalLimiter);
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 app.use(requestLogger);
 
 // health check
@@ -57,7 +56,6 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/animals", animalListRoutes);
 app.use("/api/shareholders", require("../routes/shareholder"));
 app.use("/api/superadmin", require("../routes/superadmin"));
-app.use("/api/users", require("../routes/currency_rates"));
 app.use("/api/notifications", require("../routes/notifications"));
 app.use("/api/ratings", require("../routes/rating_routes"));
 app.use("/api/requests", require("../routes/requests_routes"));
