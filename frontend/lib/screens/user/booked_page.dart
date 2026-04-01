@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:Qurbani/screens/user/product_details_page.dart';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/services/order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
@@ -16,6 +17,7 @@ class BookedPage extends StatefulWidget {
 class _BookedPageState extends State<BookedPage> {
   List<Map<String, dynamic>> orders = [];
   bool isLoading = true;
+  String? _loadError;
 
   String searchQuery = "";
   String selectedStatus = "All";
@@ -32,7 +34,6 @@ class _BookedPageState extends State<BookedPage> {
 
   bool _isCodExpired(Map<String, dynamic> order) {
     final paymentMethod = _parseInt(order['payment_method']);
-    // print("checking order status...$order if expired");
 
     final rawPaymentStatus = order['payment_status'];
     bool isNotPaid = false;
@@ -56,32 +57,48 @@ class _BookedPageState extends State<BookedPage> {
   }
 
   Future<void> fetchOrders() async {
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+      _loadError = null;
+    });
 
     try {
       orders = await OrderService.getUserOrders();
-      print("print orders...${orders}");
 
       //cancel order
       for (final order in orders) {
         final orderStatus = _parseInt(order['status']);
-        // print("print order status...$orderStatus, ${_isCodExpired(order)}");
 
         if (_isCodExpired(order) && orderStatus != 2) {
-          print("print order status...if order expired $order");
-          // print("$order");
           await OrderService.cancelOrder(order['id']);
         }
       }
 
       orders = await OrderService.getUserOrders();
-    } catch (e) {
-      debugPrint("Failed to fetch orders: $e");
+    } catch (error) {
+      orders = [];
+      _loadError = _friendlyErrorMessage(
+        error,
+        fallback: "Unable to load your bookings right now.",
+      );
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
       }
     }
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   List<Map<String, dynamic>> get filteredOrders {
@@ -97,29 +114,6 @@ class _BookedPageState extends State<BookedPage> {
 
       return matchesSearch && matchesStatus;
     }).toList();
-  }
-
-  String _resolvePaymentStatus(Map<String, dynamic> order) {
-    final raw = order['order_payment_status'];
-
-    if (raw is String) {
-      final normalized = raw.toLowerCase().trim();
-      if (normalized == 'paid') return 'Paid';
-      if (normalized == 'unpaid') return 'Unpaid';
-      return 'Pending';
-    }
-
-    final paymentStatus = _parseInt(raw, fallback: 2);
-
-    switch (paymentStatus) {
-      case 0:
-        return 'Paid';
-      case 1:
-        return 'Unpaid';
-      case 2:
-      default:
-        return 'Pending';
-    }
   }
 
   String _resolveOrderStatus(Map<String, dynamic> order) {
@@ -217,7 +211,6 @@ class _BookedPageState extends State<BookedPage> {
     final cartItems = order['items'] ?? [];
     final orderDate = DateTime.tryParse(order['created_at']?.toString() ?? '');
     final String pStatus = _resolveOrderStatus(order);
-    final String paymentStatus = _resolvePaymentStatus(order);
     final String paymentMethod = _resolvePaymentMethod(order);
 
     final String orderIdStr = (order['id'] ?? '').toString();
@@ -445,6 +438,30 @@ class _BookedPageState extends State<BookedPage> {
                 ? const Center(
                     child: CircularProgressIndicator(
                       color: AppTheme.primaryGreen,
+                    ),
+                  )
+                : _loadError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _loadError!,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: fetchOrders,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
+                              foregroundColor: AppTheme.bgGradientEnd,
+                            ),
+                            child: const Text("Try Again"),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : filteredOrders.isEmpty

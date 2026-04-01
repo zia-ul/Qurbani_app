@@ -23,6 +23,89 @@ const auth = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
 
+async function getRequestsTableConfig(connection) {
+  const [columns] = await connection.query(
+    `
+    SELECT
+      COLUMN_NAME AS column_name,
+      DATA_TYPE AS data_type,
+      COLUMN_TYPE AS column_type,
+      EXTRA AS extra
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'requests'
+      AND COLUMN_NAME IN ('id', 'status')
+    `,
+  );
+
+  const idColumn = columns.find((column) => column.column_name === "id");
+  const statusColumn = columns.find(
+    (column) => column.column_name === "status",
+  );
+
+  const idDataType = (idColumn?.data_type || "").toLowerCase();
+  const idExtra = (idColumn?.extra || "").toLowerCase();
+  const statusDataType = (statusColumn?.data_type || "").toLowerCase();
+
+  return {
+    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
+    idIsNumeric: [
+      "tinyint",
+      "smallint",
+      "mediumint",
+      "int",
+      "bigint",
+      "decimal",
+      "numeric",
+    ].includes(idDataType),
+    statusIsNumeric: [
+      "tinyint",
+      "smallint",
+      "mediumint",
+      "int",
+      "bigint",
+      "decimal",
+      "numeric",
+    ].includes(statusDataType),
+  };
+}
+
+async function buildRequestInsertPayload(
+  connection,
+  orderId,
+  userId,
+  title,
+  description,
+) {
+  const tableConfig = await getRequestsTableConfig(connection);
+  const columns = [];
+  const values = [];
+
+  if (tableConfig.requiresExplicitId) {
+    columns.push("id");
+
+    if (tableConfig.idIsNumeric) {
+      const [[row]] = await connection.query(
+        `SELECT COALESCE(MAX(id), 0) AS maxId FROM requests`,
+      );
+      values.push(Number(row?.maxId || 0) + 1);
+    } else {
+      values.push(`${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`);
+    }
+  }
+
+  columns.push("order_id", "user_id", "title", "description", "status");
+  values.push(
+    orderId,
+    userId,
+    title,
+    description,
+    tableConfig.statusIsNumeric ? 0 : "Pending",
+  );
+
+  return { columns, values, tableConfig };
+}
+
 /**
  * @swagger
  * /api/requests:
@@ -88,38 +171,72 @@ const { sendPushNotification } = require("../utils/notification_service");
  * such as delivery time changes, special handling, or other modifications
  */
 router.post("/", auth, async (req, res) => {
-  // Extract request data from the authenticated user's input
   const { orderId, userId, title, description } = req.body;
+  const authUserId = req.user.id;
+  const normalizedUserId = (userId ?? authUserId).toString().trim();
+  const normalizedOrderId = orderId?.toString().trim();
+  const normalizedTitle = title?.toString().trim();
+  const normalizedDescription = description?.toString().trim();
 
   // Security check: Ensure the authenticated user can only submit requests for themselves
-  if (req.user.id !== userId) {
+  if (authUserId !== normalizedUserId) {
     logger.warn("Unauthorized request submission attempt", {
-      authUserId: req.user.id,
-      bodyUserId: userId,
-      orderId,
+      authUserId,
+      bodyUserId: normalizedUserId,
+      orderId: normalizedOrderId,
     });
     return res.status(403).json({ message: "Unauthorized" });
   }
 
   // Validation: Ensure all required fields are provided
-  if (!orderId || !title || !description) {
+  if (!normalizedOrderId || !normalizedTitle || !normalizedDescription) {
     logger.warn("Missing fields in request submission", {
-      userId,
-      orderId,
-      hasTitle: !!title,
-      hasDescription: !!description,
+      userId: normalizedUserId,
+      orderId: normalizedOrderId,
+      hasTitle: !!normalizedTitle,
+      hasDescription: !!normalizedDescription,
     });
     return res.status(400).json({ message: "Missing required fields" });
   }
 
+  const connection = await pool.getConnection();
+
   try {
-    // Insert the new request into the database
-    await pool.execute(
+    const [orderRows] = await connection.execute(
       `
-      INSERT INTO requests (order_id, user_id, title, description, status)
-      VALUES (?, ?, ?, ?, 'Pending')
+      SELECT id, admin_id
+      FROM orders
+      WHERE id = ? AND user_id = ?
+      LIMIT 1
       `,
-      [orderId, userId, title, description]
+      [normalizedOrderId, normalizedUserId]
+    );
+
+    if (!orderRows.length) {
+      logger.warn("Special request submission blocked for inaccessible order", {
+        userId: normalizedUserId,
+        orderId: normalizedOrderId,
+      });
+      return res.status(404).json({
+        message: "Order not found for this user",
+      });
+    }
+
+    const adminId = orderRows[0].admin_id;
+    const requestInsert = await buildRequestInsertPayload(
+      connection,
+      normalizedOrderId,
+      normalizedUserId,
+      normalizedTitle,
+      normalizedDescription,
+    );
+
+    await connection.execute(
+      `
+      INSERT INTO requests (${requestInsert.columns.join(", ")})
+      VALUES (${requestInsert.columns.map(() => "?").join(", ")})
+      `,
+      requestInsert.values,
     );
 
     // ================================
@@ -127,9 +244,7 @@ router.post("/", auth, async (req, res) => {
     // ================================
 
     // 1️⃣ Get all admin IDs
-    const [admins] = await pool.execute(
-      `SELECT id FROM users WHERE role = 'admin'`
-    );
+    const admins = adminId ? [{ id: adminId }] : [];
 
     const adminIds = admins.map((admin) => admin.id);
 
@@ -137,7 +252,7 @@ router.post("/", auth, async (req, res) => {
 
     if (adminIds.length > 0) {
       // 2️⃣ Get all subscription IDs from user_devices
-      const [devices] = await pool.query(
+      const [devices] = await connection.query(
         `SELECT subscription_id 
          FROM user_devices 
          WHERE user_id IN (?) 
@@ -145,9 +260,9 @@ router.post("/", auth, async (req, res) => {
         [adminIds]
       );
 
-      adminSubscriptionIds = devices.map(
-        (device) => device.subscription_id
-      );
+      adminSubscriptionIds = devices
+        .map((device) => device.subscription_id)
+        .filter(Boolean);
     }
 
     // 3️⃣ Send push notification
@@ -155,11 +270,11 @@ router.post("/", auth, async (req, res) => {
       await sendPushNotification(
         adminSubscriptionIds,
         "New Special Request 📩",
-        `Order #${orderId} has a new request: ${title}`,
+        `Order #${normalizedOrderId} has a new request: ${normalizedTitle}`,
         {
           type: "special_request",
-          orderId,
-          userId,
+          orderId: normalizedOrderId,
+          userId: normalizedUserId,
         }
       );
     }
@@ -168,9 +283,10 @@ router.post("/", auth, async (req, res) => {
 
     // Log successful request submission for audit trail
     logger.info("Special request submitted successfully", {
-      userId,
-      orderId,
-      title,
+      userId: normalizedUserId,
+      orderId: normalizedOrderId,
+      title: normalizedTitle,
+      requestInsertConfig: requestInsert.tableConfig,
       requestType: "special_request",
     });
 
@@ -178,17 +294,25 @@ router.post("/", auth, async (req, res) => {
     res.status(201).json({ message: "Request submitted successfully" });
 
   } catch (err) {
+    const statusCode = err.code === "ER_DUP_ENTRY" ? 409 : 500;
+
     logger.error("Error submitting special request", {
-      userId,
-      orderId,
-      title,
+      userId: normalizedUserId,
+      orderId: normalizedOrderId,
+      title: normalizedTitle,
       error: err.message,
+      code: err.code,
       stack: err.stack,
     });
 
-    res.status(500).json({
-      message: "Something went wrong. Please try again later."
+    res.status(statusCode).json({
+      message:
+        statusCode === 409
+          ? "This special request already exists."
+          : "Something went wrong. Please try again later."
     });
+  } finally {
+    connection.release();
   }
 });
 
@@ -368,6 +492,12 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
  * Fetch all special requests for admin (with optional status filter)
  * Query params: ?status=All|Pending|Replied|Closed
  */
+const adminRequestStatusMap = {
+  Pending: 0,
+  Replied: 1,
+  Closed: 2,
+};
+
 router.get("/admin", auth, async (req, res) => {
   const adminId = req.user.id;
   const { status } = req.query;
@@ -379,14 +509,24 @@ router.get("/admin", auth, async (req, res) => {
         r.reply_message, r.replied_at, r.closed_at,
         u.name as user_name, u.email as user_email
       FROM requests r
+      JOIN orders o ON r.order_id = o.id
       JOIN users u ON r.user_id = u.id
+      WHERE o.admin_id = ?
       ORDER BY r.created_at DESC
     `;
-    let params = [];
+    let params = [adminId];
 
     if (status && status !== "All") {
-      query = query.replace("ORDER BY", "WHERE r.status = ? ORDER BY");
-      params = [status];
+      const normalizedStatus = Number.isNaN(Number(status))
+        ? adminRequestStatusMap[status]
+        : Number(status);
+
+      if (!Number.isInteger(normalizedStatus)) {
+        return res.status(400).json({ message: "Invalid status filter" });
+      }
+
+      query = query.replace("ORDER BY", "AND r.status = ? ORDER BY");
+      params = [adminId, normalizedStatus];
     }
 
     const [requests] = await pool.execute(query, params);
@@ -504,6 +644,26 @@ router.put("/admin/:requestId", auth, async (req, res) => {
       .map((key) => `${key} = ?`)
       .join(", ");
 
+    const [requestRows] = await pool.execute(
+      `
+      SELECT r.id, r.user_id, r.order_id, r.title
+      FROM requests r
+      JOIN orders o ON r.order_id = o.id
+      WHERE r.id = ?
+        AND o.admin_id = ?
+      LIMIT 1
+      `,
+      [requestId, adminId]
+    );
+
+    if (!requestRows.length) {
+      logger.warn("Admin tried to update an inaccessible request", {
+        adminId,
+        requestId,
+      });
+      return res.status(404).json({ message: "Request not found" });
+    }
+
     const values = [...Object.values(updateFields), requestId];
 
     await pool.execute(
@@ -513,49 +673,42 @@ router.put("/admin/:requestId", auth, async (req, res) => {
 
     // 🔔 SEND PUSH TO USER
     try {
-      const [requestRows] = await pool.execute(
-        `SELECT user_id, order_id, title FROM requests WHERE id = ?`,
-        [requestId]
+      const { user_id, order_id, title } = requestRows[0];
+
+      const [devices] = await pool.execute(
+        `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+        [user_id]
       );
 
-      if (requestRows.length) {
-        const { user_id, order_id, title } = requestRows[0];
+      const subscriptionIds = devices.map((d) => d.subscription_id);
 
-        const [devices] = await pool.execute(
-          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
-          [user_id]
-        );
+      if (subscriptionIds.length > 0) {
+        if (action === "reply") {
+          await sendPushNotification(
+            subscriptionIds,
+            `Request #${requestId} Replied`,
+            `Your request #${requestId} "${title}" has been replied to.`,
+            {
+              type: "REQUEST_REPLIED",
+              requestId: Number(requestId),
+              requestTitle: title,
+              orderId: order_id,
+            }
+          );
+        }
 
-        const subscriptionIds = devices.map((d) => d.subscription_id);
-
-        if (subscriptionIds.length > 0) {
-          if (action === "reply") {
-            await sendPushNotification(
-              subscriptionIds,
-              `Request #${requestId} Replied`,
-              `Your request #${requestId} "${title}" has been replied to.`,
-              {
-                type: "REQUEST_REPLIED",
-                requestId: Number(requestId),
-                requestTitle: title,
-                orderId: order_id,
-              }
-            );
-          }
-
-          if (action === "close") {
-            await sendPushNotification(
-              subscriptionIds,
-              `Request #${requestId} Closed`,
-              `Your request #${requestId} "${title}" has been closed.`,
-              {
-                type: "REQUEST_CLOSED",
-                requestId: Number(requestId),
-                requestTitle: title,
-                orderId: order_id,
-              }
-            );
-          }
+        if (action === "close") {
+          await sendPushNotification(
+            subscriptionIds,
+            `Request #${requestId} Closed`,
+            `Your request #${requestId} "${title}" has been closed.`,
+            {
+              type: "REQUEST_CLOSED",
+              requestId: Number(requestId),
+              requestTitle: title,
+              orderId: order_id,
+            }
+          );
         }
       }
     } catch (pushErr) {

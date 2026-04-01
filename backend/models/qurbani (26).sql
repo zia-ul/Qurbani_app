@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 17, 2026 at 07:01 PM
+-- Generation Time: Mar 21, 2026 at 03:32 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -72,7 +72,7 @@ CREATE TABLE `admin_share_setups` (
 --
 
 INSERT INTO `admin_share_setups` (`id`, `admin_id`, `total_shares`, `price_per_share`, `late_booking_fee`, `last_booking_date`, `delivery_type`, `delivery_fee`, `free_delivery_threshold`, `currency`, `is_active`, `created_at`, `updated_at`, `day1`, `day2`, `day3`) VALUES
-('', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 350, 2356.00, 56.00, '2026-03-18', 'paid', 25.00, NULL, 'USD', 1, '2026-02-05 07:54:46', '2026-03-16 15:05:38', 25, 12, 10);
+('', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 350, 2356.00, 56.00, '2026-03-25', 'paid', 25.00, NULL, 'USD', 1, '2026-02-05 07:54:46', '2026-03-20 15:02:11', 3, 12, 10);
 
 -- --------------------------------------------------------
 
@@ -116,20 +116,21 @@ CREATE TABLE `animals` (
   `id` int(11) NOT NULL,
   `admin_id` char(36) NOT NULL,
   `animal_type` varchar(50) NOT NULL,
-  `price` decimal(10,2) DEFAULT NULL,
-  `shares` int(11) DEFAULT 1,
-  `delivery_type` enum('Free','Paid') DEFAULT 'Free',
-  `delivery_fee` decimal(10,2) DEFAULT 0.00,
+  `shares` int(11) DEFAULT 7,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `last_booked_date` date DEFAULT NULL
+  `last_booked_date` date DEFAULT NULL,
+  `qurbani_datetime` datetime DEFAULT NULL,
+  `qurbani_day` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `animals`
 --
 
-INSERT INTO `animals` (`id`, `admin_id`, `animal_type`, `price`, `shares`, `delivery_type`, `delivery_fee`, `created_at`, `last_booked_date`) VALUES
-(1, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', NULL, 7, NULL, NULL, '2026-03-16 15:02:40', NULL);
+INSERT INTO `animals` (`id`, `admin_id`, `animal_type`, `shares`, `created_at`, `last_booked_date`, `qurbani_datetime`, `qurbani_day`) VALUES
+(1, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', 7, '2026-03-16 15:02:40', NULL, NULL, NULL),
+(2, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', 7, '2026-03-19 16:09:00', NULL, '2026-03-20 21:38:00', 'day_1'),
+(3, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Buffalo', 7, '2026-03-20 05:38:45', NULL, '2026-03-23 04:13:00', 'day_2');
 
 -- --------------------------------------------------------
 
@@ -141,11 +142,6 @@ CREATE TABLE `animal_details` (
   `animal_id` int(11) NOT NULL,
   `order_id` int(11) DEFAULT NULL,
   `barcode` varchar(100) DEFAULT NULL,
-  `breed` varchar(100) DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `age` varchar(50) DEFAULT NULL,
-  `height` varchar(50) DEFAULT NULL,
-  `weight` varchar(50) DEFAULT NULL,
   `photo_urls` longtext DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `qurbani_datetime` datetime DEFAULT NULL,
@@ -156,8 +152,10 @@ CREATE TABLE `animal_details` (
 -- Dumping data for table `animal_details`
 --
 
-INSERT INTO `animal_details` (`animal_id`, `order_id`, `barcode`, `breed`, `description`, `age`, `height`, `weight`, `photo_urls`, `created_at`, `qurbani_datetime`, `shareholder_id`) VALUES
-(1, NULL, '360342914532', NULL, NULL, NULL, NULL, NULL, '[\"https://res.cloudinary.com/dfezveorl/image/upload/v1773673357/lfwpqlwt8wsf8v17tvdl.jpg\"]', '2026-03-16 15:02:40', NULL, NULL);
+INSERT INTO `animal_details` (`animal_id`, `order_id`, `barcode`, `photo_urls`, `created_at`, `qurbani_datetime`, `shareholder_id`) VALUES
+(1, NULL, '360342914532', '[\"https://res.cloudinary.com/dfezveorl/image/upload/v1773673357/lfwpqlwt8wsf8v17tvdl.jpg\"]', '2026-03-16 15:02:40', NULL, NULL),
+(2, NULL, '540454254655', '[]', '2026-03-19 16:09:00', '2026-03-20 21:38:00', NULL),
+(3, NULL, '125716506131', '[]', '2026-03-20 05:38:45', '2026-03-23 04:13:00', NULL);
 
 -- --------------------------------------------------------
 
@@ -185,7 +183,9 @@ CREATE TABLE `orders` (
 INSERT INTO `orders` (`id`, `user_id`, `admin_id`, `payment_method`, `total_shares`, `total_amt`, `status`, `created_at`, `payment_status`, `payment_id`) VALUES
 (5038, 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 0, 1, 2381.00, 0, '2026-03-16 15:06:30', 2, NULL),
 (5040, 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 0, 1, 2381.00, 0, '2026-03-17 16:10:13', 0, NULL),
-(5041, 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 0, 1, 2381.00, 0, '2026-03-17 16:10:31', 0, NULL);
+(5041, 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 0, 1, 2381.00, 0, '2026-03-17 16:10:31', 0, NULL),
+(5042, 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 0, 1, 2381.00, 0, '2026-03-20 15:01:40', 0, NULL),
+(5043, 'f7596158-0a99-41c3-8f91-565e4a841e58', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 0, 1, 2381.00, 0, '2026-03-20 15:49:55', 0, NULL);
 
 -- --------------------------------------------------------
 
@@ -195,7 +195,7 @@ INSERT INTO `orders` (`id`, `user_id`, `admin_id`, `payment_method`, `total_shar
 
 CREATE TABLE `ratings` (
   `id` char(36) NOT NULL DEFAULT uuid(),
-  `order_id` char(36) NOT NULL,
+  `order_id` int(11) NOT NULL,
   `user_id` char(36) NOT NULL,
   `admin_id` char(36) NOT NULL,
   `admin_rating` decimal(2,1) NOT NULL CHECK (`admin_rating` >= 1 and `admin_rating` <= 5),
@@ -223,6 +223,13 @@ CREATE TABLE `requests` (
   `closed_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `requests`
+--
+
+INSERT INTO `requests` (`id`, `order_id`, `user_id`, `title`, `description`, `status`, `created_at`, `reply_message`, `replied_at`, `closed_at`) VALUES
+(1, 5040, 'f7596158-0a99-41c3-8f91-565e4a841e58', 'bb', 'bb', 2, '2026-03-20 06:19:20', 'yo', '2026-03-20 11:50:04', '2026-03-20 11:50:22');
+
 -- --------------------------------------------------------
 
 --
@@ -242,7 +249,7 @@ CREATE TABLE `shareholder_details` (
   `share_number` int(11) DEFAULT NULL,
   `status` tinyint(4) NOT NULL DEFAULT 0 COMMENT '0=Not started, 1=Qurbani Started, 2=Processing, 3=Meat Packaged, 4=Sent for delivery, 5=Delivered, 6=Cancelled',
   `qurbani_datetime` datetime DEFAULT NULL,
-  `payment_status` tinyint(4) NOT NULL DEFAULT 0 COMMENT '0=pending, 1=paid, 2=unpaid'
+  `payment_status` tinyint(4) NOT NULL DEFAULT 2 COMMENT '0=paid, 1=unpaid, 2=pending'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -250,9 +257,11 @@ CREATE TABLE `shareholder_details` (
 --
 
 INSERT INTO `shareholder_details` (`id`, `order_id`, `shareholder_name`, `guardian_name`, `address`, `qurbani_day`, `price`, `created_at`, `animal_id`, `share_number`, `status`, `qurbani_datetime`, `payment_status`) VALUES
-(1, 5038, 'test', 'f1', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-16 15:06:30', 1, NULL, 0, NULL, 0),
-(3, 5040, 'gsg', 'b', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-17 16:10:13', NULL, NULL, 0, NULL, 0),
-(4, 5041, 'hb', 'hh', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-17 16:10:31', NULL, NULL, 0, NULL, 0);
+(1, 5038, 'test', 'f1', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-16 15:06:30', 1, 1, 0, NULL, 0),
+(3, 5040, 'gsg', 'b', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-17 16:10:13', 2, 1, 5, NULL, 0),
+(4, 5041, 'hb', 'hh', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-17 16:10:31', 1, 1, 5, NULL, 0),
+(5, 5042, 'ddd', 'bb', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-20 15:01:40', NULL, NULL, 0, NULL, 2),
+(6, 5043, 'tutu', 'turu', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 2', 2356.00, '2026-03-20 15:49:55', NULL, NULL, 0, NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -296,7 +305,7 @@ INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `phone`, `country`,
 ('2c44acb4-0f2d-42f0-b07e-f3cad14c902f', 'hajra', 'hajra.shahid2401@gmail.com', '$2b$12$EhoQuRshaxmI.YSyTpQ9jeaZjRgLDI1ksDTgslp0k1lm4P6LLM4fG', '9699856888', NULL, NULL, 'IN', '+91', 'gdysg', 'Female', 'user', NULL, NULL, NULL, 'USD', '6881ebfa-6972-478a-9196-84c1d93b72d8', 0, 1, '2026-02-01 15:16:21', '2026-02-01 15:16:21', '', NULL, NULL),
 ('32739865-2a99-43a3-88f1-4eb578f44c54', 'delivery', 'delivery@gmail.com', '$2b$12$tTIN4W.GOQQkbsnqL8101OsE21aAu9kJNXgUJ6g/RJFRUmIZyPvLG', '9699888888', NULL, NULL, 'IN', '+91', 'uriej', 'Male', 'delivery', NULL, NULL, NULL, 'USD', '465e3b3d-d9c4-4c4e-b30e-2dc171871003', 1, 1, '2026-01-30 06:25:47', '2026-01-30 06:26:12', '', NULL, NULL),
 ('52177dcd-3d76-46a8-a542-d13624b31c7a', 'admin haj', 'ad@gmail.com', '$2b$12$Azvatw7a4Qfnqet1Bn1KTu8rOYiqBoZo0g09aUvvv7Cv21rzbEuB.', '9595999999', 'Armenia', 'Kotayk Region', 'IN', '+91', NULL, 'Female', 'admin', 'approved', 'Bjni', '123456', 'USD', '8274ee9f-f001-4d37-b610-133d6d18ae27', 1, 1, '2026-02-06 14:12:14', '2026-02-09 04:32:42', '', NULL, NULL),
-('573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'test admin', 'hajra@gmail.com', '$2b$12$ct6SR.TAB3V.O5jsiR1SdeAUyNzb2L2.cGNEzVRa1Wjm5Yzy35LRW', '6669988888', 'India', 'Uttar Pradesh', 'IN', '+91', 'hshsh', 'Male', 'admin', 'approved', 'Aligarh', NULL, 'ARS', '78921d60-7f3a-4d16-8ce1-5812a3f33dcc', 1, 1, '2026-01-30 06:22:22', '2026-03-16 15:05:38', 'testing admin description', '2026-03-18', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756405/ybtcak4ydgmsmulxyqpp.jpg'),
+('573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'test admin', 'hajra@gmail.com', '$2b$12$ct6SR.TAB3V.O5jsiR1SdeAUyNzb2L2.cGNEzVRa1Wjm5Yzy35LRW', '6669988888', 'India', 'Uttar Pradesh', 'IN', '+91', 'hshsh', 'Male', 'admin', 'approved', 'Aligarh', NULL, 'ARS', '78921d60-7f3a-4d16-8ce1-5812a3f33dcc', 1, 1, '2026-01-30 06:22:22', '2026-03-20 15:01:18', 'testing admin description', '2026-03-25', 'https://res.cloudinary.com/dfezveorl/image/upload/v1769756405/ybtcak4ydgmsmulxyqpp.jpg'),
 ('5984a6f6-15e6-4fdc-9612-907a653c78a3', 'test delivery', 'del@gmail.com', '$2b$12$2i8uUzdTGXqw56nq3goCZex0h.kFm/DPM5t1Agipln4qVxNKxTwK6', '6565464999', 'Armenia', 'Kotayk Region', 'IN', '+91', NULL, 'Male', 'delivery', NULL, 'Bjni', '123456', 'USD', 'eaf20b92-d95b-4647-9251-35e76a1da867', 0, 1, '2026-02-09 04:12:28', '2026-02-09 04:12:28', '', NULL, NULL),
 ('68c0d655-61f1-413c-a518-1c8a02f93933', 'vvbb', 'hajraa.mshahid24@gmail.com', '$2b$12$ipyUJd6wwdtfOoYJwUFPreeVGdeMXSS80Ia/e9HvHIIVZ3bOtCBZi', '6464959999', 'Argentina', 'Mendoza', 'IN', '+91', NULL, 'Female', 'user', NULL, 'Departamento de La Paz', '373777', 'USD', '10e4a59a-dab4-4e2d-a45e-dc225aa626f3', 0, 1, '2026-02-05 04:26:36', '2026-02-05 04:26:36', '', NULL, NULL),
 ('98b5a8fc-ec0c-4bd9-95dd-2081c23bb2b7', 'new admin', 'n_admin@gmail.com', '$2b$12$6ic2kng.JPjxFUCNVsTCIeXUKsb/uhyW643fBfA2HfaEs1iRdmMky', '9494949590', 'India', 'Chandigarh', 'IN', '+91', NULL, 'Male', 'admin', '', 'Chandigarh', '123456', 'USD', 'd0390300-418a-44c0-ac23-e5998d85b217', 1, 1, '2026-02-11 12:54:37', '2026-02-11 12:55:25', '', NULL, NULL),
@@ -329,8 +338,8 @@ CREATE TABLE `user_devices` (
 INSERT INTO `user_devices` (`id`, `user_id`, `role`, `subscription_id`, `device_type`, `created_at`, `updated_at`) VALUES
 (1, 'f7596158-0a99-41c3-8f91-565e4a841e58', 'user', '5f23b16c-9785-4beb-8428-4f1942f6cd46', 'android', '2026-02-22 05:55:11', '2026-02-23 15:17:07'),
 (3, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'admin', '5f23b16c-9785-4beb-8428-4f1942f6cd46', 'android', '2026-02-22 06:32:18', '2026-02-23 07:44:01'),
-(21, 'f7596158-0a99-41c3-8f91-565e4a841e58', 'user', 'be94f67c-a2c2-4d00-8d34-cdb03b26b1e0', 'android', '2026-03-14 05:55:31', '2026-03-17 17:56:12'),
-(22, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'admin', 'be94f67c-a2c2-4d00-8d34-cdb03b26b1e0', 'android', '2026-03-14 05:58:07', '2026-03-17 17:08:15'),
+(21, 'f7596158-0a99-41c3-8f91-565e4a841e58', 'user', 'be94f67c-a2c2-4d00-8d34-cdb03b26b1e0', 'android', '2026-03-14 05:55:31', '2026-03-20 14:44:55'),
+(22, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'admin', 'be94f67c-a2c2-4d00-8d34-cdb03b26b1e0', 'android', '2026-03-14 05:58:07', '2026-03-20 06:19:55'),
 (29, 'f7596158-0a99-41c3-8f91-565e4a841e58', 'user', '5986832f-b09f-43df-b8c4-a4cdf5b7f647', 'android', '2026-03-14 06:46:03', '2026-03-14 06:46:03');
 
 --
@@ -433,31 +442,31 @@ ALTER TABLE `user_devices`
 -- AUTO_INCREMENT for table `animals`
 --
 ALTER TABLE `animals`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5042;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5044;
 
 --
 -- AUTO_INCREMENT for table `requests`
 --
 ALTER TABLE `requests`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `shareholder_details`
 --
 ALTER TABLE `shareholder_details`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `user_devices`
 --
 ALTER TABLE `user_devices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- Constraints for dumped tables

@@ -1,40 +1,55 @@
 // services/admin_order_service.dart
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:Qurbani/services/api_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
+
+  static Future<String> _requireToken() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) {
+      throw const ApiException('Admin not authenticated');
+    }
+    return token;
+  }
 
   /// GET ALL ORDERS FOR THE AUTHENTICATED ADMIN
   static Future<List<Map<String, dynamic>>> getAdminOrders() async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Admin not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/orders/admin/my'),
+    final res = await ApiClient.get(
+      ApiClient.uri('orders/admin/my'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch orders';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load orders right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    final List data = jsonDecode(res.body)['orders'];
-    return List<Map<String, dynamic>>.from(data);
+    final body = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load orders right now.',
+    );
+    final List orders = body['orders'] is List
+        ? body['orders'] as List
+        : const [];
+    return List<Map<String, dynamic>>.from(orders);
   }
 
   /// SAVE / UPDATE ADMIN (VENDOR) SHARE SETUP
   static Future<void> saveShareSetup(Map<String, dynamic> payload) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.post(
-      Uri.parse('$_baseUrl/admins/share-setup'),
+    final res = await ApiClient.post(
+      ApiClient.uri('admins/share-setup'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -43,39 +58,49 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200 && res.statusCode != 201) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['message'] ?? 'Failed to save share setup');
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to save your share setup right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
   /// GET EXISTING SHARE SETUP (optional but recommended)
   static Future<Map<String, dynamic>?> getShareSetup() async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/admins/share-setup'),
+    final res = await ApiClient.get(
+      ApiClient.uri('admins/share-setup'),
       headers: {'Authorization': 'Bearer $token'},
     );
-
 
     if (res.statusCode == 404) return null;
 
     if (res.statusCode != 200) {
-      final body = jsonDecode(res.body);
-      throw Exception(body['message'] ?? 'Failed to fetch share setup');
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load your share setup right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body));
+    return ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load your share setup right now.',
+    );
   }
 
   /// MARK Cash ORDER AS PAID
   static Future<void> markCodOrderAsPaid(String orderId) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId/mark-paid'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId/mark-paid'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -83,9 +108,13 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to mark order as paid';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to mark the order as paid right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -94,11 +123,10 @@ class AdminOrderService {
     String orderId, {
     String reason = "COD deadline expired",
   }) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId/cancel'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId/cancel'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -107,8 +135,13 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to cancel order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to cancel the order right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -117,59 +150,83 @@ class AdminOrderService {
     String orderId,
     String deliveryBoyId,
   ) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/orders/$orderId/delivery-boy/$deliveryBoyId'),
+    final res = await ApiClient.get(
+      ApiClient.uri('orders/$orderId/delivery-boy/$deliveryBoyId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boy';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load the delivery partner right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body)['deliveryBoy']);
+    final data = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load the delivery partner right now.',
+    );
+    return Map<String, dynamic>.from(data['deliveryBoy'] ?? {});
   }
 
   /// GET SINGLE ORDER DETAILS
   static Future<Map<String, dynamic>> getAdminOrderById(String orderId) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/orders/admin/$orderId'),
+    final res = await ApiClient.get(
+      ApiClient.uri('orders/admin/$orderId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load the order details right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body)['order']);
+    final data = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load the order details right now.',
+    );
+    return Map<String, dynamic>.from(data['order'] ?? {});
   }
 
   /// GET DELIVERY BOYS
   static Future<List<Map<String, dynamic>>> getDeliveryBoys() async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/delivery-boys'),
+    final res = await ApiClient.get(
+      ApiClient.uri('delivery-boys'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to fetch delivery boys';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load delivery partners right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    final List data = jsonDecode(res.body)['deliveryBoys'];
-    return List<Map<String, dynamic>>.from(data);
+    final body = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load delivery partners right now.',
+    );
+    final List deliveryBoys = body['deliveryBoys'] is List
+        ? body['deliveryBoys'] as List
+        : const [];
+    return List<Map<String, dynamic>>.from(deliveryBoys);
   }
 
   /// UPDATE ORDER
@@ -177,11 +234,10 @@ class AdminOrderService {
     String orderId,
     Map<String, dynamic> updates,
   ) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -190,8 +246,13 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to update order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to update the order right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -204,15 +265,14 @@ class AdminOrderService {
     String orderId,
     DateTime qurbaniDateTime,
   ) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
     final formattedDt = DateFormat(
       'yyyy-MM-dd HH:mm:ss',
     ).format(qurbaniDateTime);
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId/schedule'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId/schedule'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -221,10 +281,13 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ??
-          'Failed to update qurbani schedule';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to update the qurbani schedule right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -236,11 +299,10 @@ class AdminOrderService {
     required String meatWeight,
     required String bodyPartsDescription,
   }) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/animal-details/$orderId'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/animal-details/$orderId'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -252,16 +314,13 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200) {
-      String msg = 'Failed to update meat details';
-
-      try {
-        final body = jsonDecode(res.body);
-        msg = body['message'] ?? msg;
-      } catch (_) {
-        msg = res.body; // fallback for HTML/text
-      }
-
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to update meat details right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
@@ -272,11 +331,10 @@ class AdminOrderService {
     String orderId,
     String deliveryPersonId,
   ) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId/delivery'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId/delivery'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -285,9 +343,13 @@ class AdminOrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to assign delivery';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to assign delivery right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 }

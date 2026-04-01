@@ -3,7 +3,6 @@ const { body, validationResult } = require("express-validator");
 
 const auth = require("../controllers/auth");
 const isAdmin = require("../middleware/isAdmin");
-const { addAnimal } = require("../controllers/add_animal_details");
 const logger = require("../middleware/logger");
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
@@ -164,6 +163,79 @@ function generateBarcode() {
   return timestampPart + randomPart; // total 12 digits
 }
 
+async function getAnimalsIdConfig(connection) {
+  const [columns] = await connection.query(
+    `
+    SELECT
+      COLUMN_NAME AS column_name,
+      DATA_TYPE AS data_type,
+      EXTRA AS extra
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'animals'
+      AND COLUMN_NAME = 'id'
+    `,
+  );
+
+  const idColumn = columns[0];
+  const idDataType = (idColumn?.data_type || "").toLowerCase();
+  const idExtra = (idColumn?.extra || "").toLowerCase();
+
+  return {
+    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
+    idIsNumeric: [
+      "tinyint",
+      "smallint",
+      "mediumint",
+      "int",
+      "bigint",
+      "decimal",
+      "numeric",
+    ].includes(idDataType),
+  };
+}
+
+async function buildAnimalInsertPayload(
+  connection,
+  adminId,
+  animalType,
+  shares,
+  qurbaniDay,
+  qurbaniDatetime,
+) {
+  const tableConfig = await getAnimalsIdConfig(connection);
+  const columns = [];
+  const values = [];
+
+  let animalId = null;
+  if (tableConfig.requiresExplicitId) {
+    columns.push("id");
+
+    if (tableConfig.idIsNumeric) {
+      const [[row]] = await connection.query(
+        `SELECT COALESCE(MAX(id), 0) AS maxId FROM animals`,
+      );
+      animalId = Number(row?.maxId || 0) + 1;
+    } else {
+      animalId = `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    values.push(animalId);
+  }
+
+  columns.push(
+    "admin_id",
+    "animal_type",
+    "shares",
+    "last_booked_date",
+    "qurbani_day",
+    "qurbani_datetime",
+  );
+  values.push(adminId, animalType, shares, null, qurbaniDay, qurbaniDatetime);
+
+  return { columns, values, animalId };
+}
+
 
 router.post(
   "/",
@@ -205,30 +277,32 @@ router.post(
       images,
     } = req.body;
 
-    console.log("Add Animal Request Body:", req.body);
-
     const connection = await pool.getConnection();
 
     try {
       await connection.beginTransaction();
 
+      const animalInsert = await buildAnimalInsertPayload(
+        connection,
+        adminId,
+        animalType,
+        shares,
+        qurbaniDay,
+        qurbaniDatetime,
+      );
+
       // Insert into animals
       const [animalResult] = await connection.query(
         `
         INSERT INTO animals (
-          admin_id,
-          animal_type,
-          shares,
-          last_booked_date,
-          qurbani_day,
-          qurbani_datetime
+          ${animalInsert.columns.join(", ")}
         )
-        VALUES (?, ?, ?, NULL, ?, ?)
+        VALUES (${animalInsert.columns.map(() => "?").join(", ")})
         `,
-        [adminId, animalType, shares, qurbaniDay, qurbaniDatetime]
+        animalInsert.values
       );
 
-      const animalId = animalResult.insertId;
+      const animalId = animalInsert.animalId ?? animalResult.insertId;
 
       // Insert into animal_details using same animalId
       await connection.query(
@@ -251,16 +325,31 @@ router.post(
 
       await connection.commit();
 
+      logger.info("Animal added successfully", {
+        adminId,
+        animalId,
+        animalType,
+        shares,
+        qurbaniDay,
+      });
+
       return res.status(201).json({
         message: "Animal added successfully",
         animalId,
       });
     } catch (err) {
       await connection.rollback();
-      console.error("[ADD ANIMAL ERROR]", err);
+      logger.error("Failed to add animal", {
+        adminId,
+        animalType,
+        shares,
+        qurbaniDay,
+        error: err.message,
+        stack: err.stack,
+      });
 
       return res.status(500).json({
-        message: "Failed to add animal",
+        message: "Unable to add the animal right now. Please try again later.",
       });
     } finally {
       connection.release();
@@ -343,7 +432,12 @@ router.post("/:animalId", async (req, res) => {
       id,
     });
   } catch (err) {
-    console.error("Animal details insert failed:", err);
+    logger.error("Animal details insert failed", {
+      animalId,
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
     return res.status(500).json({
       error: "Internal server error",
     });

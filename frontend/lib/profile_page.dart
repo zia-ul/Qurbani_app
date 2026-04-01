@@ -65,7 +65,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> loadProfile() async {
     try {
       final profile = await ProfileService.getProfile();
-      print("Profile: $profile");
       if (!mounted) return;
 
       setState(() {

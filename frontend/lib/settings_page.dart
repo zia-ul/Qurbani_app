@@ -1,5 +1,6 @@
 import 'package:Qurbani/faq_page.dart';
 import 'package:flutter/material.dart';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/services/admin_payment_service.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,14 +59,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
       setState(() {
         _selectedPaymentMethods = [];
-        if (data['allow_cod'] == 1) _selectedPaymentMethods.add('cod');
-        if (data['allow_online'] == 1) _selectedPaymentMethods.add('online');
+        if (_isEnabled(data['allow_cod'])) _selectedPaymentMethods.add('cod');
+        if (_isEnabled(data['allow_online'])) {
+          _selectedPaymentMethods.add('online');
+        }
         _codDeadline = data['cod_deadline'] != null
             ? DateTime.parse(data['cod_deadline'])
             : null;
       });
     } catch (e) {
-      ToastUtils.showError("Failed to load payment settings: $e");
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to load payment settings right now.",
+        ),
+      );
     }
   }
 
@@ -80,16 +88,31 @@ class _SettingsPageState extends State<SettingsPage> {
 
   /// Update admin payment methods
   Future<void> _updatePaymentMethods(List<String> methods) async {
+    if (methods.isEmpty) {
+      ToastUtils.showError("Select at least one payment method");
+      return;
+    }
+
     try {
       await PaymentService.updatePaymentSettings(
         allowCod: methods.contains('cod'),
         allowOnline: methods.contains('online'),
-        codDeadline: _codDeadline?.toIso8601String(),
+        codDeadline: methods.contains('cod') ? _formatDate(_codDeadline) : null,
       );
-      setState(() => _selectedPaymentMethods = methods);
+      setState(() {
+        _selectedPaymentMethods = methods;
+        if (!methods.contains('cod')) {
+          _codDeadline = null;
+        }
+      });
       ToastUtils.showSuccess("Payment methods updated");
     } catch (e) {
-      ToastUtils.showError("Failed to update payment methods: $e");
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to update payment methods right now.",
+        ),
+      );
     }
   }
 
@@ -99,12 +122,41 @@ class _SettingsPageState extends State<SettingsPage> {
       await PaymentService.updatePaymentSettings(
         allowCod: _selectedPaymentMethods.contains('cod'),
         allowOnline: _selectedPaymentMethods.contains('online'),
-        codDeadline: deadline?.toIso8601String(),
+        codDeadline: _formatDate(deadline),
       );
       setState(() => _codDeadline = deadline);
     } catch (e) {
-      ToastUtils.showError("Failed to update COD deadline: $e");
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to update the COD deadline right now.",
+        ),
+      );
     }
+  }
+
+  bool _isEnabled(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+    return value?.toString() == '1' || value?.toString().toLowerCase() == 'true';
+  }
+
+  String? _formatDate(DateTime? value) {
+    if (value == null) return null;
+    return DateFormat('yyyy-MM-dd').format(value);
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
 
@@ -269,7 +321,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   methods.add('cod');
                 } else {
                   methods.remove('cod');
-                  _updateCodDeadline(null);
                 }
                 _updatePaymentMethods(methods);
               },

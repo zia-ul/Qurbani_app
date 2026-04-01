@@ -1,12 +1,12 @@
-import 'package:Qurbani/utils/logger.dart';
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+
+import 'package:Qurbani/services/api_client.dart';
+import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/utils/logger.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
-import 'package:Qurbani/theme/theme.dart';
-import 'package:Qurbani/widgets/success_error_popup.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminSpecialRequestsPage extends StatefulWidget {
   const AdminSpecialRequestsPage({super.key});
@@ -20,7 +20,6 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   String activeFilter = 'All';
   final Color scaffoldBg = const Color(0xFFF4F7F4);
   final _storage = const FlutterSecureStorage();
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   List<Map<String, dynamic>> requests = [];
   bool isLoading = true;
@@ -40,36 +39,57 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
 
     try {
       final token = await _storage.read(key: 'token');
-      if (token == null) throw Exception('Not authenticated');
+      if (token == null) {
+        throw const ApiException('Not authenticated');
+      }
 
-      final statusParam = activeFilter != 'All' ? '?status=$activeFilter' : '';
-      final res = await http.get(
-        Uri.parse('$_baseUrl/requests/admin$statusParam'),
+      final queryParameters = activeFilter == 'All'
+          ? null
+          : <String, dynamic>{'status': activeFilter};
+
+      final res = await ApiClient.get(
+        ApiClient.uri('requests/admin', queryParameters: queryParameters),
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        AppLogger.info(
-          "Special requests loaded | count=${data['requests']?.length ?? 0}",
-        );
-        setState(() {
-          requests = List<Map<String, dynamic>>.from(data['requests']);
-        });
-      } else {
-        throw Exception(
-          jsonDecode(res.body)['message'] ?? 'Failed to fetch requests',
+      if (res.statusCode != 200) {
+        throw ApiException(
+          ApiClient.errorMessage(
+            res,
+            fallbackMessage: 'Unable to load special requests right now.',
+          ),
+          statusCode: res.statusCode,
         );
       }
+
+      final data = ApiClient.decodeMap(
+        res,
+        fallbackMessage: 'Unable to load special requests right now.',
+      );
+
+      AppLogger.info(
+        "Special requests loaded | count=${data['requests']?.length ?? 0}",
+      );
+
+      if (!mounted) return;
+      setState(() {
+        requests = List<Map<String, dynamic>>.from(data['requests'] ?? []);
+      });
     } catch (e, stack) {
       AppLogger.error("Failed to fetch special requests", e, stack);
+      if (!mounted) return;
       setState(() {
-        errorMessage = e.toString();
+        errorMessage = _friendlyErrorMessage(
+          e,
+          fallback: 'Unable to load special requests right now.',
+        );
       });
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -81,14 +101,17 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   }
 
   String _mapRequestStatus(dynamic status) {
-    final intStatus = int.tryParse(status?.toString() ?? '') ?? 0;
+    final normalized = status?.toString().trim().toLowerCase() ?? '';
 
-    switch (intStatus) {
-      case 0:
+    switch (normalized) {
+      case '0':
+      case 'pending':
         return 'Pending';
-      case 1:
+      case '1':
+      case 'replied':
         return 'Replied';
-      case 2:
+      case '2':
+      case 'closed':
         return 'Closed';
       default:
         return 'Pending';
@@ -96,10 +119,9 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
   }
 
   Future<void> _replyToRequest(Map<String, dynamic> request) async {
-    final TextEditingController replyController = TextEditingController();
-    if (request['reply_message'] != null) {
-      replyController.text = request['reply_message'];
-    }
+    final replyController = TextEditingController(
+      text: request['reply_message']?.toString() ?? '',
+    );
 
     await showDialog(
       context: context,
@@ -127,13 +149,15 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
               final reply = replyController.text.trim();
               if (reply.isEmpty) return;
 
-              await _updateRequest(
+              final wasUpdated = await _updateRequest(
                 request['id'].toString(),
                 'reply',
                 replyMessage: reply,
               );
+
+              if (!mounted || !dialogContext.mounted || !wasUpdated) return;
               Navigator.pop(dialogContext);
-              _fetchRequests(); // Refresh
+              _fetchRequests();
             },
             child: const Text(
               'Send Reply',
@@ -147,34 +171,57 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
 
   Future<void> _closeRequest(String requestId) async {
     AppLogger.warning("Closing request | requestId=$requestId");
-    await _updateRequest(requestId, 'close');
-    _fetchRequests();
+    final wasUpdated = await _updateRequest(requestId, 'close');
+    if (wasUpdated) {
+      _fetchRequests();
+    }
   }
 
-  Future<void> _updateRequest(
+  Future<bool> _updateRequest(
     String requestId,
     String action, {
     String? replyMessage,
   }) async {
     AppLogger.debug("Updating request | id=$requestId | action=$action");
+
     try {
       final token = await _storage.read(key: 'token');
-      if (token == null) throw Exception('Not authenticated');
+      if (token == null) {
+        throw const ApiException('Not authenticated');
+      }
 
-      final res = await http.put(
-        Uri.parse('$_baseUrl/requests/admin/$requestId'),
+      final res = await ApiClient.put(
+        ApiClient.uri('requests/admin/$requestId'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode({'action': action, 'replyMessage': replyMessage}),
+        body: jsonEncode({
+          'action': action,
+          'replyMessage': replyMessage,
+        }),
       );
 
       if (res.statusCode != 200) {
-        throw Exception(jsonDecode(res.body)['message']);
+        throw ApiException(
+          ApiClient.errorMessage(
+            res,
+            fallbackMessage: 'Unable to update the special request right now.',
+          ),
+          statusCode: res.statusCode,
+        );
       }
-    } catch (e) {
-      ToastUtils.showError("Error: $e");
+
+      return true;
+    } catch (e, stack) {
+      AppLogger.error("Failed to update special request", e, stack);
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to update the special request right now.",
+        ),
+      );
+      return false;
     }
   }
 
@@ -189,6 +236,27 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       default:
         return AppTheme.primaryGreen;
     }
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
+  }
+
+  String _emptyStateMessage() {
+    if (activeFilter == 'All') {
+      return "No special requests yet.";
+    }
+
+    return "No ${activeFilter.toLowerCase()} requests found.";
   }
 
   @override
@@ -210,19 +278,18 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
       ),
       body: Column(
         children: [
-          // Filter Tabs
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: ['All', 'Pending', 'Replied', 'Closed'].map((status) {
-                bool isSelected = activeFilter == status;
+                final isSelected = activeFilter == status;
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: ChoiceChip(
                     label: Text(status),
                     selected: isSelected,
-                    onSelected: (val) => _onFilterChanged(status),
+                    onSelected: (_) => _onFilterChanged(status),
                     selectedColor: _getStatusColor(status).withOpacity(0.2),
                     labelStyle: TextStyle(
                       color: isSelected
@@ -235,223 +302,253 @@ class _AdminSpecialRequestsPageState extends State<AdminSpecialRequestsPage> {
               }).toList(),
             ),
           ),
-
-          // Request List
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : errorMessage != null
-                ? Center(child: Text('Error: $errorMessage'))
-                : requests.isEmpty
-                ? const Center(child: Text("No requests found."))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: requests.length,
-                    itemBuilder: (context, index) {
-                      final request = requests[index];
-final requestId = request['id']?.toString() ?? '';
-final status = _mapRequestStatus(request['status']);
-final createdAtRaw = request['created_at'];
-final date = DateTime.tryParse(createdAtRaw?.toString() ?? '');
-final title = request['title']?.toString() ?? 'Urgent Request';
-final description =
-    request['description']?.toString() ?? 'No instructions provided.';
-final userName = request['user_name']?.toString() ?? 'User';
-final orderId = request['order_id']?.toString() ?? 'N/A';
-final replyMessage = request['reply_message']?.toString();
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.bgGradientEnd,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 10,
-                            ),
-                          ],
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _fetchRequests,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryGreen,
+                                  foregroundColor: AppTheme.bgGradientEnd,
+                                ),
+                                child: const Text("Try Again"),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            ListTile(
-                              title: Text(
-                                request['title'] ?? 'Urgent Request',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              subtitle: Text(
-                                DateFormat(
-                                  'dd MMM yyyy, hh:mm a',
-                                ).format(date ?? DateTime.now()),
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
+                      )
+                    : requests.isEmpty
+                        ? Center(child: Text(_emptyStateMessage()))
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: requests.length,
+                            itemBuilder: (context, index) {
+                              final request = requests[index];
+                              final requestId = request['id']?.toString() ?? '';
+                              final status = _mapRequestStatus(request['status']);
+                              final createdAtRaw = request['created_at'];
+                              final date =
+                                  DateTime.tryParse(createdAtRaw?.toString() ?? '');
+                              final title =
+                                  request['title']?.toString() ?? 'Urgent Request';
+                              final description = request['description']
+                                      ?.toString() ??
+                                  'No instructions provided.';
+                              final userName =
+                                  request['user_name']?.toString() ?? 'User';
+                              final orderId =
+                                  request['order_id']?.toString() ?? 'N/A';
+                              final replyMessage =
+                                  request['reply_message']?.toString();
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 16),
                                 decoration: BoxDecoration(
-                                  color: _getStatusColor(status),
-                                  borderRadius: BorderRadius.circular(20),
+                                  color: AppTheme.bgGradientEnd,
+                                  borderRadius: BorderRadius.circular(15),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
                                 ),
-                                child: Text(
-                                  status,
-                                  style: const TextStyle(
-                                    color: AppTheme.bgGradientEnd,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const Divider(height: 1),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Request Details:",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryGreen,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    request['description'] ??
-                                        'No instructions provided.',
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                  const SizedBox(height: 15),
-
-                                  // User Info
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        _infoRow(
-                                          Icons.person,
-                                          "Customer: ${request['user_name'] ?? 'User'}",
-                                        ),
-                                        _infoRow(
-                                          Icons.confirmation_number,
-                                          "Order ID: ${request['order_id'] ?? 'N/A'}",
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Admin Response
-                                  if (request['reply_message'] != null) ...[
-                                    const SizedBox(height: 15),
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.shade50,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: Colors.green.shade100,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ListTile(
+                                      title: Text(
+                                        title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
                                         ),
                                       ),
+                                      subtitle: Text(
+                                        DateFormat('dd MMM yyyy, hh:mm a')
+                                            .format(date ?? DateTime.now()),
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _getStatusColor(status),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: const TextStyle(
+                                            color: AppTheme.bgGradientEnd,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const Divider(height: 1),
+                                    Padding(
+                                      padding: const EdgeInsets.all(16),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.check_circle,
-                                                size: 16,
-                                                color: AppTheme.primaryGreen,
-                                              ),
-                                              const SizedBox(width: 5),
-                                              const Text(
-                                                "Confirmed Response",
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
+                                          const Text(
+                                            "Request Details:",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.primaryGreen,
+                                              fontSize: 12,
+                                            ),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            request['reply_message'],
-                                            style: const TextStyle(
-                                              fontSize: 13,
+                                            description,
+                                            style:
+                                                const TextStyle(fontSize: 14),
+                                          ),
+                                          const SizedBox(height: 15),
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade50,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                _infoRow(
+                                                  Icons.person,
+                                                  "Customer: $userName",
+                                                ),
+                                                _infoRow(
+                                                  Icons.confirmation_number,
+                                                  "Order ID: $orderId",
+                                                ),
+                                              ],
                                             ),
                                           ),
+                                          if (replyMessage != null &&
+                                              replyMessage.isNotEmpty) ...[
+                                            const SizedBox(height: 15),
+                                            Container(
+                                              width: double.infinity,
+                                              padding:
+                                                  const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.shade50,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: Colors.green.shade100,
+                                                ),
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.check_circle,
+                                                        size: 16,
+                                                        color:
+                                                            AppTheme.primaryGreen,
+                                                      ),
+                                                      const SizedBox(width: 5),
+                                                      const Text(
+                                                        "Confirmed Response",
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    replyMessage,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                          if (status != 'Closed') ...[
+                                            const SizedBox(height: 15),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: OutlinedButton.icon(
+                                                    onPressed: () =>
+                                                        _replyToRequest(request),
+                                                    icon: const Icon(
+                                                      Icons.edit,
+                                                      size: 16,
+                                                    ),
+                                                    label: Text(
+                                                      status == 'Replied'
+                                                          ? "Edit Reply"
+                                                          : "Reply",
+                                                    ),
+                                                    style:
+                                                        OutlinedButton.styleFrom(
+                                                      foregroundColor:
+                                                          AppTheme.primaryGreen,
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: ElevatedButton.icon(
+                                                    onPressed: () =>
+                                                        _closeRequest(requestId),
+                                                    icon: const Icon(
+                                                      Icons.close,
+                                                      size: 16,
+                                                    ),
+                                                    label:
+                                                        const Text("Close"),
+                                                    style:
+                                                        ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          AppTheme.warningRed,
+                                                      foregroundColor:
+                                                          AppTheme.bgGradientEnd,
+                                                      elevation: 0,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
                                   ],
-
-                                  // Action Buttons
-                                  if (status != 'Closed') ...[
-                                    const SizedBox(height: 15),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed: () =>
-                                                _replyToRequest(request),
-                                            icon: const Icon(
-                                              Icons.edit,
-                                              size: 16,
-                                            ),
-                                            label: Text(
-                                              status == 'Replied'
-                                                  ? "Edit Reply"
-                                                  : "Reply",
-                                            ),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor:
-                                                  AppTheme.primaryGreen,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: ElevatedButton.icon(
-                                            onPressed: () => _closeRequest(
-                                              request['id'].toString(),
-                                            ),
-                                            icon: const Icon(
-                                              Icons.close,
-                                              size: 16,
-                                            ),
-                                            label: const Text("Close"),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor:
-                                                  AppTheme.warningRed,
-                                              foregroundColor:
-                                                  AppTheme.bgGradientEnd,
-                                              elevation: 0,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                                ),
+                              );
+                            },
+                          ),
           ),
         ],
       ),

@@ -6,6 +6,112 @@ const logger = require("../middleware/logger");
 const { saveVendorShareSetup, getVendorShareSetup } = require("../controllers/admin_share_setup");
 const router = express.Router();
 
+const buildEmptyShareUsage = () => ({
+  used_shares: 0,
+  day1_booked: 0,
+  day2_booked: 0,
+  day3_booked: 0,
+});
+
+const fetchPreferredShareSetup = async (adminId) => {
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM admin_share_setups
+    WHERE admin_id = ?
+    `,
+    [adminId],
+  );
+
+  if (!rows.length) {
+    return null;
+  }
+
+  const activeSetup = rows.find((row) => Number(row.is_active ?? 1) === 1);
+  const setup = activeSetup || rows[0];
+
+  if (!activeSetup && rows.length > 1) {
+    logger.warn("Using fallback share setup for marketplace admin", {
+      adminId,
+      setupId: setup.id,
+    });
+  }
+
+  const totalShares = Number(setup.total_shares || 0);
+  const fallbackDayLimit = totalShares > 0 ? totalShares : 0;
+  const day1 = Number(setup.day1);
+  const day2 = Number(setup.day2);
+  const day3 = Number(setup.day3);
+
+  return {
+    ...setup,
+    total_shares: totalShares,
+    price_per_share: Number(setup.price_per_share || 0),
+    late_booking_fee: Number(setup.late_booking_fee || 0),
+    delivery_fee: Number(setup.delivery_fee || 0),
+    free_delivery_threshold:
+      setup.free_delivery_threshold == null
+        ? null
+        : Number(setup.free_delivery_threshold),
+    currency: setup.currency || "USD",
+    is_active: Number(setup.is_active ?? 1),
+    day1: Number.isFinite(day1) ? day1 : fallbackDayLimit,
+    day2: Number.isFinite(day2) ? day2 : fallbackDayLimit,
+    day3: Number.isFinite(day3) ? day3 : fallbackDayLimit,
+  };
+};
+
+const fetchShareUsage = async (adminId) => {
+  const [orders] = await pool.query(
+    `
+    SELECT *
+    FROM orders
+    WHERE admin_id = ?
+    `,
+    [adminId],
+  );
+
+  const activeOrderIds = orders
+    .filter((order) => Number(order.status ?? 0) !== 2)
+    .map((order) => order.id)
+    .filter(Boolean);
+
+  if (!activeOrderIds.length) {
+    return buildEmptyShareUsage();
+  }
+
+  const placeholders = activeOrderIds.map(() => "?").join(", ");
+
+  const [shareholders] = await pool.query(
+    `
+    SELECT *
+    FROM shareholder_details
+    WHERE order_id IN (${placeholders})
+    `,
+    activeOrderIds,
+  );
+
+  return shareholders.reduce((usage, shareholder) => {
+    usage.used_shares += 1;
+
+    switch (shareholder.qurbani_day) {
+      case "Day 1":
+        usage.day1_booked += 1;
+        break;
+      case "Day 2":
+        usage.day2_booked += 1;
+        break;
+      case "Day 3":
+        usage.day3_booked += 1;
+        break;
+      default:
+        break;
+    }
+
+    return usage;
+  }, buildEmptyShareUsage());
+};
+
 router.post("/share-setup", authMiddleware, saveVendorShareSetup);
 // GET existing share setup (for logged-in admin)
 router.get("/share-setup", authMiddleware, getVendorShareSetup);
@@ -15,43 +121,37 @@ router.get("/share-setup", authMiddleware, getVendorShareSetup);
  */
 router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
   const { adminId } = req.params;
-  console.log("Fetching share pricing for admin:", adminId);
   try {
-    const [[pricing]] = await pool.query(
-      `
-      SELECT
-        s.total_shares,
-        s.price_per_share,
-        s.late_booking_fee,
-        s.last_booking_date,
-        s.delivery_type,
-        s.delivery_fee,
-        s.free_delivery_threshold,
-        s.currency,
-        s.is_active,
+    const pricing = await fetchPreferredShareSetup(adminId);
 
-        p.allow_cod,
-        p.allow_online,
-        p.cod_deadline
-      FROM admin_share_setups s
-      LEFT JOIN admin_payment_settings p
-        ON p.admin_id = s.admin_id
-      WHERE s.admin_id = ?
-        AND s.is_active = 1
+    if (!pricing) {
+      return res.status(404).json({
+        message: "Order setup is not available for this admin yet.",
+      });
+    }
+
+    const [[paymentSettings]] = await pool.query(
+      `
+      SELECT allow_cod, allow_online, cod_deadline
+      FROM admin_payment_settings
+      WHERE admin_id = ?
       LIMIT 1
       `,
       [adminId],
     );
 
-    if (!pricing) {
-      return res.status(404).json({
-        message: "Share pricing not configured for this admin",
-      });
-    }
-
-    return res.json(pricing);
+    return res.json({
+      ...pricing,
+      allow_cod: paymentSettings?.allow_cod ?? 0,
+      allow_online: paymentSettings?.allow_online ?? 0,
+      cod_deadline: paymentSettings?.cod_deadline ?? null,
+    });
   } catch (err) {
-    console.error("Failed to fetch admin pricing:", err);
+    logger.error("Failed to fetch admin pricing", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
     return res.status(500).json({
       message: "Failed to load pricing",
     });
@@ -59,80 +159,54 @@ router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
 });
 
 router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
+  const { adminId } = req.params;
+
   try {
-    const { adminId } = req.params;
+    const setup = await fetchPreferredShareSetup(adminId);
 
-    const [rows] = await pool.query(
-      `
-      SELECT
-        s.admin_id,
-        s.total_shares,
-        s.price_per_share,
-        s.late_booking_fee,
-        s.last_booking_date,
-        s.delivery_type,
-        s.delivery_fee,
-        s.free_delivery_threshold,
-        s.currency,
-        s.day1,
-        s.day2,
-        s.day3,
-
-        IFNULL(COUNT(sd.id), 0) AS used_shares,
-        (s.total_shares - IFNULL(COUNT(sd.id), 0)) AS remaining_shares,
-
-        IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 1' THEN 1 ELSE 0 END), 0) AS day1_booked,
-        IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 2' THEN 1 ELSE 0 END), 0) AS day2_booked,
-        IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 3' THEN 1 ELSE 0 END), 0) AS day3_booked,
-
-        (s.day1 - IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 1' THEN 1 ELSE 0 END), 0)) AS day1_remaining,
-        (s.day2 - IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 2' THEN 1 ELSE 0 END), 0)) AS day2_remaining,
-        (s.day3 - IFNULL(SUM(CASE WHEN sd.qurbani_day = 'Day 3' THEN 1 ELSE 0 END), 0)) AS day3_remaining
-
-      FROM admin_share_setups s
-
-      LEFT JOIN orders o
-        ON o.admin_id = s.admin_id
-        AND o.status != 2
-
-      LEFT JOIN shareholder_details sd
-        ON sd.order_id = o.id
-
-      WHERE s.admin_id = ?
-        AND s.is_active = 1
-
-      GROUP BY
-        s.admin_id,
-        s.total_shares,
-        s.price_per_share,
-        s.late_booking_fee,
-        s.last_booking_date,
-        s.delivery_type,
-        s.delivery_fee,
-        s.free_delivery_threshold,
-        s.currency,
-        s.day1,
-        s.day2,
-        s.day3
-      `,
-      [adminId]
-    );
-
-    if (!rows.length) {
-      return res.status(404).json({ message: "Order config not found" });
+    if (!setup) {
+      return res.status(404).json({
+        message: "Order setup is not available for this admin yet.",
+      });
     }
 
-    const row = rows[0];
+    const usage = await fetchShareUsage(adminId);
 
-    row.remaining_shares = Math.max(0, Number(row.remaining_shares || 0));
-    row.day1_remaining = Math.max(0, Number(row.day1_remaining || 0));
-    row.day2_remaining = Math.max(0, Number(row.day2_remaining || 0));
-    row.day3_remaining = Math.max(0, Number(row.day3_remaining || 0));
+    const totalShares = Number(setup.total_shares || 0);
+    const day1 = Number(setup.day1 || 0);
+    const day2 = Number(setup.day2 || 0);
+    const day3 = Number(setup.day3 || 0);
+    const usedShares = Number(usage.used_shares || 0);
+    const day1Booked = Number(usage.day1_booked || 0);
+    const day2Booked = Number(usage.day2_booked || 0);
+    const day3Booked = Number(usage.day3_booked || 0);
+
+    const row = {
+      ...setup,
+      total_shares: totalShares,
+      day1,
+      day2,
+      day3,
+      used_shares: usedShares,
+      day1_booked: day1Booked,
+      day2_booked: day2Booked,
+      day3_booked: day3Booked,
+      remaining_shares: Math.max(0, totalShares - usedShares),
+      day1_remaining: Math.max(0, day1 - day1Booked),
+      day2_remaining: Math.max(0, day2 - day2Booked),
+      day3_remaining: Math.max(0, day3 - day3Booked),
+    };
 
     res.json(row);
   } catch (err) {
-    console.error("[ORDER CONFIG]", err);
-    res.status(500).json({ message: "Server error" });
+    logger.error("Failed to fetch admin order config", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+    res.status(500).json({
+      message: "Unable to load order setup right now. Please try again later.",
+    });
   }
 });
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:Qurbani/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:barcode_widget/barcode_widget.dart' as bw;
@@ -9,9 +10,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 
 import 'package:Qurbani/theme/theme.dart';
@@ -28,9 +27,9 @@ class BarcodePage extends StatefulWidget {
 class _BarcodePageState extends State<BarcodePage> {
   final GlobalKey _globalKey = GlobalKey();
   final _storage = const FlutterSecureStorage();
-  static final String _baseUrl = dotenv.env['BASE_URL']!;
 
   final Color bgParchment = const Color(0xffF2E8D5);
+  bool _isHandlingScan = false;
 
   String get displayBarcode {
     if (widget.barcodeValue.length > 12) {
@@ -85,23 +84,30 @@ class _BarcodePageState extends State<BarcodePage> {
   Future<Map<String, dynamic>> _fetchAnimalByBarcode(String barcode) async {
     final token = await _storage.read(key: 'token');
     if (token == null) {
-      throw Exception("Not authenticated");
+      throw const ApiException("Not authenticated");
     }
 
-    final response = await http.get(
-      Uri.parse("$_baseUrl/animals/barcode/$barcode"),
+    final response = await ApiClient.get(
+      ApiClient.uri('animals/barcode/$barcode'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
       },
     );
 
-    final decoded = jsonDecode(response.body);
-
     if (response.statusCode == 200) {
-      return Map<String, dynamic>.from(decoded);
+      return ApiClient.decodeMap(
+        response,
+        fallbackMessage: "Unable to load barcode details right now.",
+      );
     } else {
-      throw Exception(decoded['message'] ?? "Failed to fetch animal details");
+      throw ApiException(
+        ApiClient.errorMessage(
+          response,
+          fallbackMessage: "Unable to load barcode details right now.",
+        ),
+        statusCode: response.statusCode,
+      );
     }
   }
 
@@ -116,8 +122,11 @@ class _BarcodePageState extends State<BarcodePage> {
           ),
           body: MobileScanner(
             onDetect: (capture) async {
-              final barcode = capture.barcodes.first.rawValue;
+              if (_isHandlingScan) return;
+
+              final barcode = capture.barcodes.first.rawValue?.trim();
               if (barcode == null || barcode.isEmpty) return;
+              _isHandlingScan = true;
 
               Navigator.pop(context);
 
@@ -131,7 +140,12 @@ class _BarcodePageState extends State<BarcodePage> {
                   context: context,
                   builder: (_) => AlertDialog(
                     title: const Text("Error"),
-                    content: Text(e.toString()),
+                    content: Text(
+                      _friendlyErrorMessage(
+                        e,
+                        fallback: "Unable to load barcode details right now.",
+                      ),
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -140,12 +154,27 @@ class _BarcodePageState extends State<BarcodePage> {
                     ],
                   ),
                 );
+              } finally {
+                _isHandlingScan = false;
               }
             },
           ),
         ),
       ),
     );
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   String _formatQurbaniDay(dynamic value) {
@@ -227,8 +256,9 @@ class _BarcodePageState extends State<BarcodePage> {
 
   void _showAnimalDetailsDialog(Map<String, dynamic> data) {
     final animal = Map<String, dynamic>.from(data['animal'] ?? {});
-    final List<dynamic> shareholdersRaw =
-        data['shareholders'] is List ? data['shareholders'] as List<dynamic> : [];
+    final List<dynamic> shareholdersRaw = data['shareholders'] is List
+        ? data['shareholders'] as List<dynamic>
+        : [];
 
     final shareholders = shareholdersRaw
         .map((e) => Map<String, dynamic>.from(e))
@@ -255,7 +285,9 @@ class _BarcodePageState extends State<BarcodePage> {
                 const SizedBox(height: 12),
                 _infoRow(
                   "Animal #",
-                  animal['id']?.toString() ?? animal['animal_id']?.toString() ?? 'N/A',
+                  animal['id']?.toString() ??
+                      animal['animal_id']?.toString() ??
+                      'N/A',
                   icon: Icons.tag,
                 ),
                 _infoRow(
@@ -318,7 +350,8 @@ class _BarcodePageState extends State<BarcodePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            shareholder['shareholder_name']?.toString() ?? 'N/A',
+                            shareholder['shareholder_name']?.toString() ??
+                                'N/A',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,

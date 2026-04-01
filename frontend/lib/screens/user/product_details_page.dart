@@ -43,8 +43,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
     try {
       _orderData = await OrderService.getOrderDetails(widget.orderId);
-
-      print("checking particular order details $_orderData");
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -399,8 +397,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final status = order['processing_status']?.toString() ?? 'Unknown';
     final statusColor = _statusColor(_statusToCode(status));
     final paymentColor = _paymentColor(payment);
-    print("order sttaus check: $status");
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -916,8 +913,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         : () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) =>
-                                  SpecialRequestPage(orderData: order),
+                              builder: (_) => SpecialRequestPage(
+                                orderData: order,
+                                orderId: widget.orderId,
+                                userId: widget.userId,
+                              ),
                             ),
                           ),
                   ),

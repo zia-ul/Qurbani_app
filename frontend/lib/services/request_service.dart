@@ -1,12 +1,12 @@
 // services/request_service.dart
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'api_client.dart';
 
 class RequestService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   /// SUBMIT SPECIAL REQUEST
   static Future<void> submitRequest(
@@ -15,11 +15,29 @@ class RequestService {
     String title,
     String description,
   ) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final requestUri = ApiClient.uri('requests');
 
-    final res = await http.post(
-      Uri.parse('$_baseUrl/requests'),
+    if (kDebugMode) {
+      debugPrint(
+        '[RequestService] submitRequest uri=$requestUri orderId=$orderId userId=$userId titleLength=${title.trim().length} descriptionLength=${description.trim().length}',
+      );
+    }
+
+    if (orderId.trim().isEmpty) {
+      throw const ApiException(
+        'We could not identify this order. Please open it again and try.',
+      );
+    }
+
+    if (userId.trim().isEmpty) {
+      throw const ApiException('Not authenticated');
+    }
+
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw const ApiException('Not authenticated');
+
+    final res = await ApiClient.post(
+      requestUri,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -32,15 +50,24 @@ class RequestService {
       }),
     );
 
+    if (kDebugMode) {
+      debugPrint(
+        '[RequestService] submitRequest status=${res.statusCode} body=${res.body}',
+      );
+    }
+
     if (res.statusCode != 201) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to submit request';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Unable to submit your special request right now.',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
   }
 
   static Future<List<Map<String, dynamic>>> Function()? mockGetUserRequests;
 
-  /**
+  /*
    * Retrieves all special requests submitted by the authenticated user
    *
    * Fetches the user's request history including pending, replied, and closed
@@ -55,20 +82,34 @@ class RequestService {
     }
 
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/special-requests'),
+    final res = await ApiClient.get(
+      ApiClient.uri('special-requests'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch requests';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Unable to load your special requests right now.',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
 
-    final data = jsonDecode(res.body);
+    final data = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load your special requests right now.',
+    );
+    final requests = data['requests'];
 
-    return List<Map<String, dynamic>>.from(data['requests']);
+    if (requests is! List) {
+      throw const ApiException(ApiClient.invalidResponseMessage);
+    }
+
+    return requests
+        .whereType<Map>()
+        .map((request) => Map<String, dynamic>.from(request))
+        .toList();
   }
 }

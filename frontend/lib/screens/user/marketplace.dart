@@ -1,10 +1,7 @@
-import 'dart:convert';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:Qurbani/screens/user/admin_profile.dart';
 import 'package:Qurbani/theme/theme.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 
 class AdminDirectoryPage extends StatefulWidget {
   const AdminDirectoryPage({super.key});
@@ -19,7 +16,6 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
   late Future<List<dynamic>> _adminsFuture;
 
   final Color parchmentBg = const Color(0xffF2E8D5);
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
   String? selectedCountry;
   String? selectedState;
   String? selectedCity;
@@ -36,13 +32,31 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
       return AdminDirectoryPage.mockFetchVerifiedAdmins!();
     }
 
-    final res = await http.get(Uri.parse("$_baseUrl/admins/verified"));
+    try {
+      final res = await ApiClient.get(ApiClient.uri('admins/verified'));
 
-    if (res.statusCode != 200) {
-      throw Exception("Failed to load admins");
+      if (res.statusCode != 200) {
+        return [];
+      }
+
+      final decoded = ApiClient.decodeMap(
+        res,
+        fallbackMessage: 'No admins approved yet',
+      );
+      final admins = decoded['admins'];
+
+      if (admins is List) {
+        return admins;
+      }
+    } on ApiException {
+      return [];
+    } on FormatException {
+      return [];
+    } on Exception {
+      return [];
     }
 
-    return jsonDecode(res.body)['admins'];
+    return [];
   }
 
   List<String> _uniqueValues(
@@ -69,7 +83,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
       backgroundColor: parchmentBg,
       appBar: AppBar(
         title: const Text(
-          "Verified Qassab",
+          "Verified Admin",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppTheme.bgGradientEnd,
@@ -87,7 +101,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Text(
-              "Each city has one verified qassab to ensure quality, transparency, and proper Qurbani management.",
+              "Each city has one verified Admin to ensure quality, transparency, and proper Qurbani management.",
               style: TextStyle(
                 fontSize: 12,
                 color: AppTheme.darkBgGradientStart,
@@ -108,7 +122,7 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 }
 
                 if (snapshot.hasError) {
-                  return Center(child: Text("Error: ${snapshot.error}"));
+                  return const Center(child: Text("No admins approved yet"));
                 }
 
                 final admins = snapshot.data ?? [];
@@ -133,8 +147,14 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                   return true;
                 }).toList();
 
+                if (admins.isEmpty) {
+                  return const Center(child: Text("No admins approved yet"));
+                }
+
                 if (filteredAdmins.isEmpty) {
-                  return const Center(child: Text("No verified qassabs found"));
+                  return const Center(
+                    child: Text("No admins found for the selected filters"),
+                  );
                 }
 
                 return GridView.builder(
@@ -410,7 +430,6 @@ class _AdminDirectoryPageState extends State<AdminDirectoryPage> {
                 ),
               ),
             ),
-
           ],
         ),
       ),

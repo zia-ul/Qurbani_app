@@ -1,7 +1,8 @@
-import 'dart:convert'; // For JSON parsing
 // import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/models/admin_order_config.dart';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/services/auth_service.dart';
+import 'package:Qurbani/services/service_profile.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
@@ -10,8 +11,6 @@ import 'package:Qurbani/services/order_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:Qurbani/screens/user/payment_processing_page.dart';
 import 'package:Qurbani/theme/theme.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:country_state_city/country_state_city.dart' as csc;
 
 /// Represents a shareholder/participant in the Qurbani order.
@@ -168,10 +167,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   /// Used to show loading state until all required data is fetched.
   bool _paymentSettingsLoaded = false;
 
-  /// Base URL for API calls, loaded from environment configuration.
-  /// Points to the backend server endpoint.
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
-
   /// Deadline for Cash on Delivery payment.
   /// If the current date is past this deadline, COD is no longer available
   /// and a late fee may be applied.
@@ -192,8 +187,10 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   /// Used to show initial loading state.
   bool _loadingConfig = true;
 
+  /// Friendly error shown when the order configuration could not be loaded.
+  String? _orderConfigError;
+
   String? _selectedAnimalType = 'Camel';
-  final List<String> _animalTypes = ['Camel', 'Buffalo'];
 
   @override
   void initState() {
@@ -234,10 +231,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     }
   }
 
-  int _selectedCountForDay(String day) {
-    return _shareholders.where((s) => s.qurbaniDay == day).length;
-  }
-
   /// Remaining slots for a day, excluding the current shareholder if needed
   int _remainingSlotsForDay(String day, {Shareholder? excludeShareholder}) {
     final backendRemaining = _dayRemainingFromBackend(day);
@@ -261,29 +254,49 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       final token = await const FlutterSecureStorage().read(key: 'token');
       if (token == null) return;
 
-      final res = await http.get(
-        Uri.parse("$_baseUrl/users/profile/address"),
+      final res = await ApiClient.get(
+        ApiClient.uri('users/profile/address'),
         headers: {"Authorization": "Bearer $token"},
       );
 
+      print("Fetch saved address response: ${res.statusCode} - ${res.body}");
+
       if (res.statusCode != 200) return;
 
-      final data = jsonDecode(res.body);
+      final data = ApiClient.decodeBody(
+        res,
+        fallbackMessage: "Unable to load your saved address right now.",
+      );
 
-      // ensure minimum usable fields
-      if (data['country_iso'] == null ||
-          data['country'] == null ||
-          data['state'] == null ||
-          data['city'] == null) {
+      if (data is! Map) {
+        final profileAddress = await _loadSavedAddressFromProfile();
+        if (profileAddress == null || !mounted) return;
+
+        setState(() {
+          _savedAddress = profileAddress;
+        });
         return;
       }
 
-      if (!mounted) return;
+      final normalizedAddress = _normalizeSavedAddress(
+        Map<String, dynamic>.from(data),
+      );
+      final resolvedAddress = await _resolveSavedAddress(normalizedAddress);
+
+      if (resolvedAddress == null || !mounted) return;
+
       setState(() {
-        _savedAddress = data;
+        _savedAddress = resolvedAddress;
       });
     } catch (e, stack) {
       AppLogger.error("Failed to fetch saved address", e, stack);
+
+      final profileAddress = await _loadSavedAddressFromProfile();
+      if (profileAddress == null || !mounted) return;
+
+      setState(() {
+        _savedAddress = profileAddress;
+      });
     }
   }
 
@@ -292,30 +305,45 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       final token = await AuthService.getToken();
       if (token == null) {
         AppLogger.error("Admin order config fetch failed: token is null");
+        if (!mounted) return;
+        setState(() {
+          _orderConfig = null;
+          _orderConfigError = "Please log in again to continue.";
+        });
         return;
       }
 
-      final res = await http.get(
-        Uri.parse("$_baseUrl/admins/$adminId/order-config"),
+      final res = await ApiClient.get(
+        ApiClient.uri('admins/$adminId/order-config'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-
-      print("admin comfig: ${res.body}");
-
       if (res.statusCode != 200) {
-        AppLogger.error(
-          "Failed to fetch admin order config. Status: ${res.statusCode}, Body: ${res.body}",
+        final message = ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Order configuration is unavailable right now.',
         );
+        AppLogger.error(
+          "Failed to fetch admin order config. Status: ${res.statusCode}, Message: $message",
+        );
+        if (!mounted) return;
+        setState(() {
+          _orderConfig = null;
+          _orderConfigError = message;
+        });
         return;
       }
 
-      final data = jsonDecode(res.body);
+      final data = ApiClient.decodeMap(
+        res,
+        fallbackMessage: 'Order configuration is unavailable right now.',
+      );
 
       if (!mounted) return;
       setState(() {
+        _orderConfigError = null;
         _orderConfig = AdminOrderConfig.fromJson(data);
 
         // Add first shareholder only if shares exist
@@ -325,6 +353,14 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       });
     } catch (e, stack) {
       AppLogger.error("Error fetching admin order config", e, stack);
+      if (!mounted) return;
+      setState(() {
+        _orderConfig = null;
+        _orderConfigError = _friendlyErrorMessage(
+          e,
+          fallback: 'Order configuration is unavailable right now.',
+        );
+      });
     } finally {
       if (mounted) {
         setState(() => _loadingConfig = false);
@@ -334,19 +370,29 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   Future<void> _fetchPaymentSettings() async {
     try {
-      final res = await http.get(
-        Uri.parse("$_baseUrl/admins/${widget.adminId}/payment-settings"),
+      final res = await ApiClient.get(
+        ApiClient.uri('admins/${widget.adminId}/payment-settings'),
       );
 
       if (res.statusCode != 200) {
-        throw Exception("Failed to load payment settings");
+        throw ApiException(
+          ApiClient.errorMessage(
+            res,
+            fallbackMessage: "Unable to load payment settings right now.",
+          ),
+          statusCode: res.statusCode,
+        );
       }
 
-      final data = jsonDecode(res.body);
+      final data = ApiClient.decodeMap(
+        res,
+        fallbackMessage: "Unable to load payment settings right now.",
+      );
 
+      if (!mounted) return;
       setState(() {
-        _allowCOD = data['allow_cod'] == 1;
-        _allowOnline = data['allow_online'] == 1;
+        _allowCOD = _isEnabled(data['allow_cod']);
+        _allowOnline = _isEnabled(data['allow_online']);
 
         _codDeadline = data['cod_deadline'] != null
             ? DateTime.parse(data['cod_deadline'])
@@ -357,12 +403,10 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     } catch (e, stack) {
       AppLogger.error("Failed to load payment settings", e, stack);
       Fluttertoast.showToast(
-        msg: "Error loading payment settings",
-        backgroundColor: AppTheme.warningRed,
-      );
-
-      Fluttertoast.showToast(
-        msg: "Error loading payment settings",
+        msg: _friendlyErrorMessage(
+          e,
+          fallback: "Unable to load payment settings right now.",
+        ),
         backgroundColor: AppTheme.warningRed,
       );
     } finally {
@@ -381,8 +425,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         throw Exception("Not authenticated");
       }
 
-      final res = await http.get(
-        Uri.parse("$_baseUrl/admins/${widget.adminId}/share-pricing"),
+      final res = await ApiClient.get(
+        ApiClient.uri('admins/${widget.adminId}/share-pricing'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -390,16 +434,31 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       );
 
       if (res.statusCode != 200) {
-        throw Exception("Failed to load pricing");
+        throw ApiException(
+          ApiClient.errorMessage(
+            res,
+            fallbackMessage: "Unable to load share pricing right now.",
+          ),
+          statusCode: res.statusCode,
+        );
       }
 
+      final pricing = ApiClient.decodeMap(
+        res,
+        fallbackMessage: "Unable to load share pricing right now.",
+      );
+
+      if (!mounted) return;
       setState(() {
-        _pricing = jsonDecode(res.body);
+        _pricing = pricing;
       });
     } catch (e, stack) {
       AppLogger.error("Failed to fetch share pricing", e, stack);
       Fluttertoast.showToast(
-        msg: "Error loading price per share",
+        msg: _friendlyErrorMessage(
+          e,
+          fallback: "Unable to load share pricing right now.",
+        ),
         backgroundColor: AppTheme.warningRed,
       );
     }
@@ -484,15 +543,98 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     return _orderConfig!.lateBookingFee;
   }
 
+  Map<String, dynamic> _normalizeSavedAddress(Map<String, dynamic> raw) {
+    String textOf(dynamic value) => value?.toString().trim() ?? '';
+
+    return {
+      'country': textOf(raw['country']),
+      'country_iso': textOf(raw['country_iso']).toUpperCase(),
+      'state': textOf(raw['state']),
+      'city': textOf(raw['city']),
+      'postal_code': textOf(raw['postal_code']),
+      'address': textOf(raw['address'] ?? raw['address_line']),
+    };
+  }
+
+  Future<Map<String, dynamic>?> _resolveSavedAddress(
+    Map<String, dynamic> address,
+  ) async {
+    final profileAddress = await _loadSavedAddressFromProfile();
+    final mergedAddress = {
+      ...address,
+      'address': (address['address'] ?? '').toString().trim().isNotEmpty
+          ? address['address']
+          : profileAddress?['address'] ?? '',
+    };
+
+    if (_isSavedAddressEmpty(mergedAddress)) {
+      return profileAddress;
+    }
+
+    return mergedAddress;
+  }
+
+  Future<Map<String, dynamic>?> _loadSavedAddressFromProfile() async {
+    try {
+      final profile = await ProfileService.getProfile();
+      final normalizedAddress = _normalizeSavedAddress({
+        'address': profile['address'],
+      });
+
+      if (_isSavedAddressEmpty(normalizedAddress)) {
+        return null;
+      }
+
+      return normalizedAddress;
+    } catch (e, stack) {
+      AppLogger.error("Failed to load fallback profile address", e, stack);
+      return null;
+    }
+  }
+
+  bool _isSavedAddressEmpty(Map<String, dynamic> address) {
+    return [
+      address['country'],
+      address['country_iso'],
+      address['state'],
+      address['city'],
+      address['postal_code'],
+      address['address'],
+    ].every((value) => (value ?? '').toString().trim().isEmpty);
+  }
+
   Map<String, dynamic> _buildAddress(Shareholder s) {
     if (s.useSavedAddress && _savedAddress != null) {
+      final savedCountry = (_savedAddress!['country'] ?? '').toString().trim();
+      final savedCountryIso = (_savedAddress!['country_iso'] ?? '')
+          .toString()
+          .trim();
+      final savedState = (_savedAddress!['state'] ?? '').toString().trim();
+      final savedCity = (_savedAddress!['city'] ?? '').toString().trim();
+      final savedPostalCode = (_savedAddress!['postal_code'] ?? '')
+          .toString()
+          .trim();
+      final savedAddressLine = (_savedAddress!['address'] ?? '')
+          .toString()
+          .trim();
+      final typedAddressLine = s.addressController.text.trim();
+      final typedPostalCode = s.postalCodeController.text.trim();
+
       return {
-        'country': _savedAddress!['country'],
-        'country_iso': _savedAddress!['country_iso'],
-        'state': _savedAddress!['state'],
-        'city': _savedAddress!['city'],
-        'postal_code': _savedAddress!['postal_code'],
-        'address_line': _savedAddress!['address'],
+        'country': savedCountry.isNotEmpty
+            ? savedCountry
+            : s.selectedCountryName,
+        'country_iso': savedCountryIso.isNotEmpty
+            ? savedCountryIso
+            : s.countryISO,
+        'state': savedState.isNotEmpty ? savedState : s.selectedState?.name,
+        'city': savedCity.isNotEmpty ? savedCity : s.selectedCity?.name,
+        'postal_code': typedPostalCode.isNotEmpty
+            ? typedPostalCode
+            : savedPostalCode,
+        'address_line': typedAddressLine.isNotEmpty
+            ? typedAddressLine
+            : savedAddressLine,
       };
     }
 
@@ -505,6 +647,27 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       'postal_code': s.postalCodeController.text.trim(),
       'address_line': s.addressController.text.trim(),
     };
+  }
+
+  bool _isEnabled(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value == 1;
+
+    final normalized = value?.toString().toLowerCase();
+    return normalized == '1' || normalized == 'true';
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   // Get allowed payment methods from selected animals
@@ -529,8 +692,36 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     }
 
     if (_orderConfig == null) {
-      return const Scaffold(
-        body: Center(child: Text("Order configuration unavailable")),
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _orderConfigError ??
+                      "Order configuration is unavailable right now.",
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _loadingConfig = true;
+                    });
+                    _fetchAdminOrderConfig(widget.adminId);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: AppTheme.bgGradientEnd,
+                  ),
+                  child: const Text("Try Again"),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
@@ -804,32 +995,44 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                 ? null
                 : (val) async {
                     if (val == true) {
-                      final countryISO = _savedAddress!['country_iso'];
+                      final countryISO = (_savedAddress!['country_iso'] ?? '')
+                          .toString()
+                          .trim();
+                      final savedStateName = (_savedAddress!['state'] ?? '')
+                          .toString()
+                          .trim();
+                      final savedCityName = (_savedAddress!['city'] ?? '')
+                          .toString()
+                          .trim();
 
-                      final states = await csc.getStatesOfCountry(countryISO);
-
-                      final state = firstWhereOrNull<csc.State>(
-                        states,
-                        (s) =>
-                            s.name.toLowerCase() ==
-                            (_savedAddress!['state'] ?? '').toLowerCase(),
-                      );
-
+                      List<csc.State> states = [];
+                      csc.State? state;
                       List<csc.City> cities = [];
                       csc.City? city;
 
-                      if (state != null) {
-                        cities = await csc.getStateCities(
-                          state.countryCode,
-                          state.isoCode,
+                      if (countryISO.isNotEmpty) {
+                        states = await csc.getStatesOfCountry(countryISO);
+
+                        state = firstWhereOrNull<csc.State>(
+                          states,
+                          (s) =>
+                              s.name.toLowerCase() ==
+                              savedStateName.toLowerCase(),
                         );
 
-                        city = firstWhereOrNull<csc.City>(
-                          cities,
-                          (c) =>
-                              c.name.toLowerCase() ==
-                              (_savedAddress!['city'] ?? '').toLowerCase(),
-                        );
+                        if (state != null) {
+                          cities = await csc.getStateCities(
+                            state.countryCode,
+                            state.isoCode,
+                          );
+
+                          city = firstWhereOrNull<csc.City>(
+                            cities,
+                            (c) =>
+                                c.name.toLowerCase() ==
+                                savedCityName.toLowerCase(),
+                          );
+                        }
                       }
 
                       setState(() {
@@ -837,7 +1040,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
                         shareholder.selectedCountryName =
                             _savedAddress!['country'];
-                        shareholder.countryISO = countryISO;
+                        shareholder.countryISO = countryISO.isNotEmpty
+                            ? countryISO
+                            : null;
 
                         shareholder.states = states;
                         shareholder.selectedState = state;
@@ -1358,7 +1563,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       // Basic required fields
       if (s.nameController.text.trim().isEmpty ||
           s.guardianController.text.trim().isEmpty ||
-          s.addressController.text.trim().isEmpty ||
           _selectedAnimalType == null ||
           _selectedAnimalType!.isEmpty) {
         Fluttertoast.showToast(
@@ -1376,7 +1580,26 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       }
 
       // Skip address validation when using saved address
-      if (!s.useSavedAddress) {
+      if (s.useSavedAddress) {
+        final address = _buildAddress(s);
+
+        print("Built address from saved data: $address");
+        if ((address['address_line'] ?? '').toString().trim().isEmpty) {
+          Fluttertoast.showToast(
+            msg: "Saved address is not available",
+            backgroundColor: AppTheme.warningRed,
+          );
+          return;
+        }
+      } else {
+        if (s.addressController.text.trim().isEmpty) {
+          Fluttertoast.showToast(
+            msg: "Please enter the address",
+            backgroundColor: AppTheme.warningRed,
+          );
+          return;
+        }
+
         if (s.countryISO == null) {
           Fluttertoast.showToast(
             msg: "Please select a country",
@@ -1457,8 +1680,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           ? 'pending'
           : 'unpaid';
 
-
-
       final result = await OrderService.placeOrder(
         userId: '',
         adminId: widget.adminId,
@@ -1470,6 +1691,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
       // Payment flow
       if (_paymentMethod == 'Online') {
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1484,11 +1706,15 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           msg: "Order placed successfully!",
           backgroundColor: AppTheme.accentGreen,
         );
+        if (!mounted) return;
         Navigator.pop(context, true);
       }
     } catch (e) {
       Fluttertoast.showToast(
-        msg: "Error: $e",
+        msg: _friendlyErrorMessage(
+          e,
+          fallback: "Unable to place your order right now.",
+        ),
         backgroundColor: AppTheme.warningRed,
       );
     } finally {

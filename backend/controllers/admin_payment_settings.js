@@ -10,6 +10,19 @@ const db = require("../config/db");
 // Import logger middleware for logging operations
 const logger = require("../middleware/logger");
 
+const normalizeDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString().split("T")[0];
+};
+
 /**
  * ADMIN (authenticated)
  * GET /api/admin/payment-settings
@@ -69,13 +82,20 @@ exports.updateMyPaymentSettings = async (req, res) => {
   // Extract admin ID and settings from request
   const adminId = req.user.id;
   const { allow_cod, allow_online, cod_deadline } = req.body;
+  const normalizedCodDeadline = normalizeDate(cod_deadline);
 
   logger.info("Admin updating payment settings", {
     adminId,
     allow_cod,
     allow_online,
-    has_cod_deadline: !!cod_deadline,
+    has_cod_deadline: !!normalizedCodDeadline,
   });
+
+  if (cod_deadline && !normalizedCodDeadline) {
+    return res.status(400).json({
+      message: "Please choose a valid COD deadline.",
+    });
+  }
 
   try {
     // Insert or update payment settings in database
@@ -94,7 +114,7 @@ exports.updateMyPaymentSettings = async (req, res) => {
         adminId,
         allow_cod ?? 0,      // Default to 0 if not provided
         allow_online ?? 0,   // Default to 0 if not provided
-        cod_deadline ?? null, // Default to null if not provided
+        normalizedCodDeadline, // Default to null if not provided
       ]
     );
 

@@ -1,11 +1,9 @@
-import 'dart:convert';
-
 import 'package:Qurbani/screens/admin/add_animal_details.dart';
 import 'package:Qurbani/screens/admin/barcode_page.dart';
+import 'package:Qurbani/services/api_client.dart';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/screens/admin/animal_orders_page.dart';
@@ -20,7 +18,6 @@ class AnimalListingPage extends StatefulWidget {
 
 class _AnimalListingPageState extends State<AnimalListingPage> {
   final _storage = const FlutterSecureStorage();
-  static final String _baseUrl = dotenv.env['BASE_URL']!;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -34,6 +31,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
   final int limit = 10;
 
   String searchQuery = "";
+  String? _loadError;
 
   @override
   void initState() {
@@ -64,6 +62,7 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
         animals.clear();
         hasMore = true;
         isLoading = true;
+        _loadError = null;
       });
     } else {
       setState(() => isFetchingMore = true);
@@ -73,10 +72,11 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
       final token = await _storage.read(key: 'token');
       if (token == null) return;
 
-      final uri = Uri.parse("$_baseUrl/animals?page=$page&limit=$limit");
-
-      final response = await http.get(
-        uri,
+      final response = await ApiClient.get(
+        ApiClient.uri(
+          'animals',
+          queryParameters: {'page': page, 'limit': limit},
+        ),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -84,25 +84,45 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
       );
 
       if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
+        final decoded = ApiClient.decodeMap(
+          response,
+          fallbackMessage: "Unable to load animals right now.",
+        );
 
         final List newAnimals = decoded['animals'] ?? [];
 
+        if (!mounted) return;
         setState(() {
           animals.addAll(newAnimals.cast<Map<String, dynamic>>());
           hasMore = decoded['pagination']?['hasMore'] ?? false;
           page++;
+          _loadError = null;
         });
       } else {
-        ToastUtils.showError("Failed to load animals");
+        final message = ApiClient.errorMessage(
+          response,
+          fallbackMessage: "Unable to load animals right now.",
+        );
+        if (!mounted) return;
+        setState(() => _loadError = message);
+        ToastUtils.showError(message);
       }
-    } catch (e) {
-      ToastUtils.showError("Something went wrong");
+    } catch (e, stack) {
+      AppLogger.error("Failed to fetch animals", e, stack);
+      final message = _friendlyErrorMessage(
+        e,
+        fallback: "Unable to load animals right now.",
+      );
+      if (!mounted) return;
+      setState(() => _loadError = message);
+      ToastUtils.showError(message);
     } finally {
-      setState(() {
-        isLoading = false;
-        isFetchingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          isFetchingMore = false;
+        });
+      }
     }
   }
 
@@ -135,8 +155,8 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
       final token = await _storage.read(key: 'token');
       if (token == null) return;
 
-      final response = await http.delete(
-        Uri.parse("$_baseUrl/animals/$animalId"),
+      final response = await ApiClient.delete(
+        ApiClient.uri("animals/$animalId"),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -147,10 +167,21 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
         ToastUtils.showSuccess("Animal deleted successfully");
         fetchAnimals(initial: true);
       } else {
-        ToastUtils.showError("Failed to delete animal");
+        ToastUtils.showError(
+          ApiClient.errorMessage(
+            response,
+            fallbackMessage: "Unable to delete the animal right now.",
+          ),
+        );
       }
-    } catch (e) {
-      ToastUtils.showError("Something went wrong");
+    } catch (e, stack) {
+      AppLogger.error("Failed to delete animal", e, stack);
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to delete the animal right now.",
+        ),
+      );
     }
   }
 
@@ -180,6 +211,31 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
 
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null && animals.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _loadError!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () => fetchAnimals(initial: true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: AppTheme.bgGradientEnd,
+                      ),
+                      child: const Text("Try Again"),
+                    ),
+                  ],
+                ),
+              ),
+            )
           : animals.isEmpty
           ? const Center(child: Text("No animals found."))
           : ListView.builder(
@@ -202,20 +258,35 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
   }
 
   String formatQurbaniDateTime(String? dateTime) {
-  if (dateTime == null || dateTime.isEmpty) return "Not set";
+    if (dateTime == null || dateTime.isEmpty) return "Not set";
 
-  try {
-    final dt = DateTime.parse(dateTime).toLocal();
-    return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
-  } catch (e) {
-    return dateTime;
+    try {
+      final dt = DateTime.parse(dateTime).toLocal();
+      return DateFormat('dd MMM yyyy, hh:mm a').format(dt);
+    } catch (e) {
+      return dateTime;
+    }
   }
-}
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
+  }
 
   Widget _buildAnimalCard(Map<String, dynamic> animal) {
     final String animalType = animal['animal_type'] ?? '';
     final String barcode = animal['barcode'] ?? '';
-    final String qurbaniDateTime = animal['qurbani_datetime']?.toString() ?? '';
+    final String qurbaniDateTime = formatQurbaniDateTime(
+      animal['qurbani_datetime']?.toString(),
+    );
 
     return Card(
       elevation: 4,

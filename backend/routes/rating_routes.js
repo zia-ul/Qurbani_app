@@ -5,6 +5,12 @@ const auth = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
 
+function badRequest(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
 /**
  * @swagger
  * /api/ratings/{orderId}/{userId}:
@@ -221,6 +227,10 @@ router.post("/", auth, async (req, res) => {
     }
 
     const orderAdminId = orderRows[0].admin_id;
+    const [ratingColumns] = await connection.query("SHOW COLUMNS FROM ratings");
+    const hasDeliveryRatingColumn = ratingColumns.some(
+      (column) => column.Field === "delivery_rating",
+    );
 
     for (const r of ratings) {
       const { adminId, adminRating, feedback } = r;
@@ -232,7 +242,7 @@ router.post("/", auth, async (req, res) => {
           payloadAdminId: adminId,
           actualAdminId: orderAdminId,
         });
-        throw new Error("Invalid admin for this order");
+        throw badRequest("Invalid admin for this order");
       }
 
       const normalizedAdminRating = Number(adminRating);
@@ -248,26 +258,77 @@ router.post("/", auth, async (req, res) => {
           adminId: orderAdminId,
           adminRating,
         });
-        throw new Error("Invalid admin rating value");
+        throw badRequest("Invalid admin rating value");
       }
 
-      await connection.execute(
-        `
-        INSERT INTO ratings
-          (order_id, user_id, admin_id, admin_rating, feedback)
-        VALUES (?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          admin_rating = VALUES(admin_rating),
-          feedback = VALUES(feedback)
-        `,
-        [
-          orderId,
-          userId,
-          orderAdminId,
-          normalizedAdminRating,
-          feedback?.trim() || null,
-        ],
-      );
+      const trimmedFeedback = feedback?.trim() || null;
+
+      if (hasDeliveryRatingColumn) {
+        const deliveryRatingInput = r.deliveryRating;
+        const normalizedDeliveryRating =
+          deliveryRatingInput == null || deliveryRatingInput == ""
+            ? normalizedAdminRating
+            : Number(deliveryRatingInput);
+
+        if (
+          Number.isNaN(normalizedDeliveryRating) ||
+          normalizedDeliveryRating < 1 ||
+          normalizedDeliveryRating > 5
+        ) {
+          logger.warn("Invalid delivery rating value detected", {
+            userId,
+            orderId,
+            adminId: orderAdminId,
+            deliveryRating: deliveryRatingInput,
+          });
+          throw badRequest("Invalid delivery rating value");
+        }
+
+        await connection.execute(
+          `
+          INSERT INTO ratings
+            (
+              order_id,
+              user_id,
+              admin_id,
+              admin_rating,
+              delivery_rating,
+              feedback
+            )
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            admin_rating = VALUES(admin_rating),
+            delivery_rating = VALUES(delivery_rating),
+            feedback = VALUES(feedback)
+          `,
+          [
+            orderId,
+            userId,
+            orderAdminId,
+            normalizedAdminRating,
+            normalizedDeliveryRating,
+            trimmedFeedback,
+          ],
+        );
+      } else {
+        await connection.execute(
+          `
+          INSERT INTO ratings
+            (order_id, user_id, admin_id, admin_rating, feedback)
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            admin_rating = VALUES(admin_rating),
+            feedback = VALUES(feedback)
+          `,
+          [
+            orderId,
+            userId,
+            orderAdminId,
+            normalizedAdminRating,
+            trimmedFeedback,
+          ],
+        );
+      }
     }
 
     await connection.commit();
@@ -332,6 +393,7 @@ router.post("/", auth, async (req, res) => {
     return res.json({ message: "Ratings submitted successfully" });
   } catch (err) {
     await connection.rollback();
+    const statusCode = err.statusCode || 500;
 
     logger.error("Error submitting ratings", {
       userId,
@@ -340,8 +402,11 @@ router.post("/", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    return res.status(500).json({
-      message: err.message || "Something went wrong. Please try again later.",
+    return res.status(statusCode).json({
+      message:
+        statusCode >= 500
+          ? "Something went wrong. Please try again later."
+          : err.message,
     });
   } finally {
     connection.release();

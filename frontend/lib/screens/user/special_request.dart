@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:Qurbani/services/request_service.dart';
 import 'package:Qurbani/screens/user/user_home_screen.dart';
 import 'package:Qurbani/theme/theme.dart';
@@ -6,8 +7,15 @@ import 'package:Qurbani/widgets/success_error_popup.dart';
 
 class SpecialRequestPage extends StatefulWidget {
   final Map<String, dynamic> orderData;
+  final String? orderId;
+  final String? userId;
 
-  const SpecialRequestPage({super.key, required this.orderData});
+  const SpecialRequestPage({
+    super.key,
+    required this.orderData,
+    this.orderId,
+    this.userId,
+  });
 
   @override
   State<SpecialRequestPage> createState() => _SpecialRequestPageState();
@@ -22,24 +30,93 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
   // Constants to match the UI screenshot
   static const Color scaffoldBg = Color(0xffF9F4F1);
 
+  String _displayMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
+    }
+    return message;
+  }
+
+  String _valueFromOrder(List<String> keys) {
+    for (final key in keys) {
+      final value = widget.orderData[key];
+      final normalized = value?.toString().trim() ?? '';
+      if (normalized.isNotEmpty) {
+        return normalized;
+      }
+    }
+    return '';
+  }
+
+  String _resolveOrderId() {
+    final explicitOrderId = widget.orderId?.trim() ?? '';
+    if (explicitOrderId.isNotEmpty) {
+      return explicitOrderId;
+    }
+    return _valueFromOrder(['id', 'orderId', 'order_id']);
+  }
+
+  String _resolveUserId() {
+    final explicitUserId = widget.userId?.trim() ?? '';
+    if (explicitUserId.isNotEmpty) {
+      return explicitUserId;
+    }
+    return _valueFromOrder(['user_id', 'userId']);
+  }
+
+  String _resolveUserName() {
+    return _valueFromOrder(['userName', 'user_name', 'name']);
+  }
+
+  String _resolveRole() {
+    final role = _valueFromOrder(['role']);
+    return role.isEmpty ? 'user' : role;
+  }
+
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final orderId = _resolveOrderId();
+    final userId = _resolveUserId();
+
+    if (kDebugMode) {
+      debugPrint(
+        '[SpecialRequestPage] submit orderId=$orderId userId=$userId orderDataKeys=${widget.orderData.keys.toList()}',
+      );
+    }
+
+    if (orderId.isEmpty) {
+      ToastUtils.showError(
+        "We couldn't identify this order. Please open it again and try.",
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ToastUtils.showError(
+        "We couldn't identify your account. Please log in again and try.",
+      );
+      return;
+    }
 
     setState(() => _loading = true);
 
     try {
       await RequestService.submitRequest(
-        widget.orderData['id']?.toString() ?? '',
-        widget.orderData['user_id']?.toString() ?? '',
+        orderId,
+        userId,
         _titleController.text.trim(),
         _descriptionController.text.trim(),
       );
 
+      if (!mounted) return;
+
       ToastUtils.showSuccess('Special request submitted successfully');
 
-      final userId = widget.orderData['user_id']?.toString() ?? '';
-      final userName = widget.orderData['userName']?.toString() ?? 'User';
-      final String role = widget.orderData['role']?.toString() ?? 'user';
+      final resolvedUserName = _resolveUserName();
+      final userName = resolvedUserName.isEmpty ? 'User' : resolvedUserName;
+      final role = _resolveRole();
 
       Navigator.pushAndRemoveUntil(
         context,
@@ -49,9 +126,14 @@ class _SpecialRequestPageState extends State<SpecialRequestPage> {
         (_) => false,
       );
     } catch (e) {
-      ToastUtils.showError('Failed to submit request: $e');
+      if (kDebugMode) {
+        debugPrint('[SpecialRequestPage] submit failed error=$e');
+      }
+      ToastUtils.showError(_displayMessage(e));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 

@@ -1,11 +1,13 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../models/user_model.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 
-/**
+import '../models/user_model.dart';
+import 'api_client.dart';
+
+/*
  * AuthService Class
  *
  * Singleton service class that provides authentication functionality.
@@ -15,52 +17,10 @@ class AuthService {
   // Secure storage instance for JWT tokens and user data
   static const _storage = FlutterSecureStorage();
 
-  // Base URL for API endpoints (development server)
-  static final String _baseUrl = _normalizeBaseUrl(dotenv.env['BASE_URL']);
-
   static Future<void> Function(String current, String next)? mockChangePassword;
 
   static Future<String?> getToken() async {
     return await _storage.read(key: 'token');
-  }
-
-  static String _normalizeBaseUrl(String? rawUrl) {
-    var value = (rawUrl ?? '').trim();
-
-    if (value.isEmpty) {
-      throw Exception('BASE_URL is missing from assets/.env');
-    }
-
-    if (value.endsWith('/')) {
-      value = value.substring(0, value.length - 1);
-    }
-
-    if (!value.endsWith('/api')) {
-      value = '$value/api';
-    }
-
-    return value;
-  }
-
-  static String _extractErrorMessage(http.Response res, String fallback) {
-    final body = res.body.trim();
-
-    if (body.isEmpty) {
-      return fallback;
-    }
-
-    try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic> && decoded['message'] != null) {
-        return decoded['message'].toString();
-      }
-    } catch (_) {
-      if (body.toLowerCase().contains('the page could not be found')) {
-        return 'API endpoint not found. Check that BASE_URL points to your backend /api URL.';
-      }
-    }
-
-    return fallback;
   }
 
   // GET CURRENT USER (with token)
@@ -71,19 +31,25 @@ class AuthService {
       return null;
     }
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/auth/me'),
+    final res = await ApiClient.get(
+      ApiClient.uri('auth/me'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = _extractErrorMessage(res, 'Failed to fetch current user');
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Failed to fetch current user',
+      );
       await _storage.delete(key: 'token');
       await _storage.delete(key: 'userId');
-      throw Exception(msg);
+      throw ApiException(msg, statusCode: res.statusCode);
     }
 
-    final decoded = jsonDecode(res.body);
+    final decoded = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Failed to fetch current user',
+    );
 
     if (decoded['user'] == null) {
       return null;
@@ -92,7 +58,7 @@ class AuthService {
     return UserModel.fromJson(decoded['user']);
   }
 
-  /**
+  /*
    * Registers a new user account
    *
    * Sends user registration data to /auth/register endpoint.
@@ -103,32 +69,34 @@ class AuthService {
    * @throws Exception if registration fails with server error message
    */
   static Future<void> register(Map<String, dynamic> data) async {
-    final res = await http.post(
-      Uri.parse('$_baseUrl/auth/register'),
+    final res = await ApiClient.post(
+      ApiClient.uri('auth/register'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(data),
     );
 
     if (res.statusCode != 201) {
-      final msg = _extractErrorMessage(res, 'Registration failed');
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Registration failed',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
   }
 
-
   static Future<UserModel> login(Map<String, dynamic> data) async {
-    final res = await http.post(
-      Uri.parse('$_baseUrl/auth/login'),
+    final res = await ApiClient.post(
+      ApiClient.uri('auth/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(data),
     );
 
     if (res.statusCode != 200) {
-      final msg = _extractErrorMessage(res, 'Login failed');
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(res, fallbackMessage: 'Login failed');
+      throw ApiException(msg, statusCode: res.statusCode);
     }
 
-    final body = jsonDecode(res.body);
+    final body = ApiClient.decodeMap(res, fallbackMessage: 'Login failed');
     final token = body['token'];
     final user = body['user'];
 
@@ -154,9 +122,7 @@ class AuthService {
     final subscription = OneSignal.User.pushSubscription;
 
     final subscriptionId = subscription.id;
-    final optedIn = subscription.optedIn ?? false;
-
-    print("Immediate subscription check: id=$subscriptionId optedIn=$optedIn");
+    final optedIn = subscription.optedIn == true;
 
     if (subscriptionId != null && optedIn) {
       await _registerDevice(token, user, subscriptionId);
@@ -166,16 +132,13 @@ class AuthService {
   static void _attachSubscriptionObserver(String token, dynamic user) {
     OneSignal.User.pushSubscription.addObserver((state) async {
       final id = state.current.id;
-      final optedIn = state.current.optedIn ?? false;
-
-      print("Subscription changed: id=$id optedIn=$optedIn");
+      final optedIn = state.current.optedIn == true;
 
       if (id != null && optedIn) {
         await _registerDevice(token, user, id);
       }
     });
   }
-
 
   static Future<void> _registerDevice(
     String token,
@@ -184,7 +147,7 @@ class AuthService {
   ) async {
     try {
       await http.post(
-        Uri.parse('$_baseUrl/notifications/save-device'),
+        ApiClient.uri('notifications/save-device'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -195,14 +158,10 @@ class AuthService {
           'subscription_id': subscriptionId,
         }),
       );
-
-      print("Device registered successfully");
-    } catch (e) {
-      print("Device registration failed: $e");
-    }
+    } catch (_) {}
   }
 
-  /**
+  /*
    * Logs out the current user and clears session data
    *
    * Removes JWT token and user ID from secure storage, effectively
@@ -215,7 +174,7 @@ class AuthService {
     await OneSignal.logout();
   }
 
-  /**
+  /*
    * Changes the authenticated user's password
    *
    * Sends password change request to /auth/change-password endpoint.
@@ -234,10 +193,10 @@ class AuthService {
     }
 
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/auth/change-password'),
+    final res = await ApiClient.put(
+      ApiClient.uri('auth/change-password'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -249,8 +208,11 @@ class AuthService {
     );
 
     if (res.statusCode != 200) {
-      final msg = _extractErrorMessage(res, 'Failed to change password');
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Failed to change password',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
   }
 }

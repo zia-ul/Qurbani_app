@@ -13,6 +13,14 @@ class MySpecialRequestsPage extends StatefulWidget {
 class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
   Future<List<Map<String, dynamic>>>? _requestsFuture;
 
+  String _displayMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
+    }
+    return message;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -74,25 +82,18 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('Error: ${snapshot.error}'),
-                  ElevatedButton(
-                    onPressed: _fetchRequests,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+            return _errorState(_displayMessage(snapshot.error!));
+          }
+
+          if (!snapshot.hasData) {
+            return _errorState(
+              'Unable to load your special requests right now. Please try again later.',
             );
           }
 
           final requests = snapshot.data ?? [];
           if (requests.isEmpty) {
-            return const Center(
-              child: Text("No special requests created yet."),
-            );
+            return const _EmptyRequestsState();
           }
 
           return ListView.builder(
@@ -160,10 +161,7 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
 
                       const SizedBox(height: 10),
 
-                      Text(
-                        description,
-                        style: const TextStyle(fontSize: 15),
-                      ),
+                      Text(description, style: const TextStyle(fontSize: 15)),
 
                       const SizedBox(height: 10),
 
@@ -218,6 +216,60 @@ class _MySpecialRequestsPageState extends State<MySpecialRequestsPage> {
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _errorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.inbox_outlined, size: 46, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchRequests,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+                foregroundColor: AppTheme.bgGradientEnd,
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyRequestsState extends StatelessWidget {
+  const _EmptyRequestsState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.mark_email_read_outlined, size: 46, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              "No special requests created yet.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, color: Colors.black54),
+            ),
+          ],
+        ),
       ),
     );
   }

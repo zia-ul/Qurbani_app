@@ -1,4 +1,4 @@
-/**
+/*
  * Login Page Widget
  *
  * This screen handles user authentication for the Qurbani application.
@@ -9,19 +9,20 @@
  * - Email and password input validation
  * - Password visibility toggle
  * - Loading states during authentication
- * - Error handling with user-friendly dialogs
+ * - Error handling with user-friendly toasts
  * - Navigation to registration page
  * - Automatic redirect to wrapper screen on successful login
  */
 
 import 'package:Qurbani/utils/logger.dart';
+import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/wrapper_screen.dart';
-import '../services/auth_service.dart';
 import 'register_page.dart';
+import '../services/auth_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
-/**
+/*
  * LoginScreen Widget
  *
  * A stateful widget that displays the login form with email and password fields.
@@ -34,7 +35,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-/**
+/*
  * State class for LoginScreen
  *
  * Manages the login form state including form validation, loading states,
@@ -51,6 +52,14 @@ class _LoginScreenState extends State<LoginScreen> {
   // State variables for UI management
   bool _isLoading = false; // Controls loading spinner during authentication
   bool _obscurePassword = true; // Controls password field visibility
+
+  String _displayMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
+    }
+    return message;
+  }
 
   // LOGIN FUNCTION
   Future<void> _signIn() async {
@@ -81,21 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
       //   (route) => false,
       // );
     } catch (e) {
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Login Error"),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
-
+      ToastUtils.showError(_displayMessage(e));
       AppLogger.error("Login failed", e, StackTrace.current);
     } finally {
       if (mounted) setState(() => _isLoading = false);

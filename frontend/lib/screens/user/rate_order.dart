@@ -16,13 +16,23 @@ class RateOrderPage extends StatefulWidget {
 class _RateOrderPageState extends State<RateOrderPage> {
   Map<String, dynamic>? data;
   bool isLoading = true;
+  bool isSubmitting = false;
   bool submitted = false;
+  String? loadErrorMessage;
 
   double adminRating = 0;
   final TextEditingController feedbackController = TextEditingController();
 
   String adminId = '';
   String adminName = '';
+
+  String _displayMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
+    }
+    return message;
+  }
 
   @override
   void initState() {
@@ -37,15 +47,24 @@ class _RateOrderPageState extends State<RateOrderPage> {
   }
 
   Future<void> _fetchData() async {
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        loadErrorMessage = null;
+      });
+    }
+
     try {
       data = await RatingService.getRatings(widget.orderId, widget.userId);
 
       submitted = data?['submitted'] ?? false;
 
       final order = data?['order'];
-      final ratings = data?['ratings'] ?? {};
+      final ratings = data?['ratings'] is Map
+          ? Map<String, dynamic>.from(data?['ratings'] as Map)
+          : <String, dynamic>{};
 
-      if (order != null) {
+      if (order is Map) {
         adminId = (order['admin_id'] ?? '').toString();
         adminName = (order['admin_name'] ?? 'Admin').toString();
 
@@ -54,11 +73,18 @@ class _RateOrderPageState extends State<RateOrderPage> {
             ? existingAdminRating.toDouble()
             : double.tryParse(existingAdminRating?.toString() ?? '') ?? 0;
 
-        feedbackController.text =
-            (ratings[adminId]?['feedback'] ?? '').toString();
+        feedbackController.text = (ratings[adminId]?['feedback'] ?? '')
+            .toString();
       }
     } catch (e) {
-      ToastUtils.showError("Failed to load ratings: $e");
+      final message = _displayMessage(e);
+      ToastUtils.showError(message);
+
+      if (mounted) {
+        setState(() {
+          loadErrorMessage = message;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -72,7 +98,16 @@ class _RateOrderPageState extends State<RateOrderPage> {
       return;
     }
 
+    if (adminId.isEmpty) {
+      ToastUtils.showError(
+        "We couldn't identify the admin for this order. Please try again later.",
+      );
+      return;
+    }
+
     try {
+      setState(() => isSubmitting = true);
+
       await RatingService.submitRatings(widget.orderId, widget.userId, [
         {
           'adminId': adminId,
@@ -86,7 +121,11 @@ class _RateOrderPageState extends State<RateOrderPage> {
       setState(() => submitted = true);
       ToastUtils.showSuccess("Rating submitted successfully!");
     } catch (e) {
-      ToastUtils.showError("Failed to submit rating: $e");
+      ToastUtils.showError(_displayMessage(e));
+    } finally {
+      if (mounted) {
+        setState(() => isSubmitting = false);
+      }
     }
   }
 
@@ -119,7 +158,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryGreen.withOpacity(0.18),
+            color: AppTheme.primaryGreen.withValues(alpha: 0.18),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -160,10 +199,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
           children: [
             const Text(
               "Rate Admin",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
             const SizedBox(height: 12),
             starRow(adminRating, (v) => setState(() => adminRating = v)),
@@ -185,7 +221,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: submitRatings,
+                  onPressed: isSubmitting ? null : submitRatings,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryGreen,
                     foregroundColor: Colors.white,
@@ -194,10 +230,19 @@ class _RateOrderPageState extends State<RateOrderPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    "Submit Rating",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          "Submit Rating",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             if (submitted)
@@ -218,8 +263,50 @@ class _RateOrderPageState extends State<RateOrderPage> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (loadErrorMessage != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7F4),
+        appBar: AppBar(
+          title: const Text(
+            "Rate Your Order",
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: AppTheme.primaryGreen,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.rate_review_outlined,
+                  size: 44,
+                  color: Colors.grey,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  loadErrorMessage!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _fetchData,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Try Again"),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
 
@@ -236,11 +323,7 @@ class _RateOrderPageState extends State<RateOrderPage> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          children: [
-            _headerCard(),
-            const SizedBox(height: 16),
-            _ratingCard(),
-          ],
+          children: [_headerCard(), const SizedBox(height: 16), _ratingCard()],
         ),
       ),
     );

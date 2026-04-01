@@ -1,4 +1,5 @@
 import 'package:Qurbani/screens/admin/shareholder_order_details.dart';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/utils/logger.dart';
@@ -19,6 +20,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   String _searchQuery = "";
   List<Map<String, dynamic>> _allOrders = [];
   bool _isLoading = true;
+  String? _errorMessage;
 
   final Color lightBg = const Color(0xFFF4F7F4);
 
@@ -93,36 +95,96 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   Future<void> _fetchOrders() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
-      _allOrders = await AdminOrderService.getAdminOrders();
+      final orders = await AdminOrderService.getAdminOrders();
+
+      print("Fetched orders: ${orders.length} ${orders[1]}");
+      if (!mounted) return;
+      setState(() {
+        _allOrders = orders;
+      });
       AppLogger.info("Orders fetched: ${_allOrders.length}");
-
-      for (final order in _allOrders) {
-        final isExpired = _isCodExpired(order);
-        final isAlreadyCancelled =
-            _asInt(order['orderStatus']) == 2 ||
-            (order['processing_status']?.toString().toLowerCase() ==
-                'cancelled');
-
-        if (isExpired && !isAlreadyCancelled) {
-          AppLogger.warning(
-            "Auto-cancelling expired COD order: ${order['orderId']}",
-          );
-          await AdminOrderService.cancelOrder(order['orderId']);
-        }
-      }
-
-      _allOrders = await AdminOrderService.getAdminOrders();
-      AppLogger.info("Orders reloaded after cancellation cleanup");
     } catch (e, stack) {
       AppLogger.error("Failed to fetch admin orders", e, stack);
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = _friendlyErrorMessage(
+          e,
+          fallback: 'Unable to load orders right now.',
+        );
+      });
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
+  }
+
+  bool _isCancelledOrder(Map<String, dynamic> order) {
+    final orderStatus = _asInt(order['orderStatus']);
+    final processingStatus =
+        order['processing_status']?.toString().trim().toLowerCase() ?? '';
+
+    return orderStatus == 2 ||
+        processingStatus == 'cancelled' ||
+        _isCodExpired(order);
+  }
+
+  bool _isCompletedOrder(Map<String, dynamic> order) {
+    if (_isCancelledOrder(order)) return false;
+
+    final orderStatus = _asInt(order['orderStatus']);
+    final processingStatus = _getOverallShareholderStatusLabel(
+      order,
+    ).trim().toLowerCase();
+
+    return orderStatus == 1 || processingStatus == 'delivered';
+  }
+
+  int _countOrdersForTab(bool? isActive) {
+    return _allOrders.where((order) {
+      if (isActive == true) {
+        return !_isCompletedOrder(order) && !_isCancelledOrder(order);
+      }
+      if (isActive == false) {
+        return _isCompletedOrder(order);
+      }
+      return _isCancelledOrder(order);
+    }).length;
+  }
+
+  String _emptyStateMessage(bool? isActive) {
+    if (_searchQuery.isNotEmpty) {
+      return 'No matching orders found.';
+    }
+
+    if (isActive == true) {
+      return 'No active orders right now.';
+    }
+
+    if (isActive == false) {
+      return 'No completed orders yet.';
+    }
+
+    return 'No cancelled orders found.';
   }
 
   String _getOverallShareholderStatusLabel(Map<String, dynamic> order) {
@@ -237,21 +299,13 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
   Widget _buildOrderList({required bool? isActive}) {
     final filteredOrders = _allOrders.where((order) {
-      final orderStatus = _asInt(order['orderStatus']);
-      final shareholderStatusLabel = _getOverallShareholderStatusLabel(order);
-
-      final isCancelled = orderStatus == 2 || _isCodExpired(order);
-      final isCompleted =
-          orderStatus == 1 ||
-          shareholderStatusLabel.toLowerCase() == 'delivered';
-
       bool matchesStatus;
       if (isActive == true) {
-        matchesStatus = !isCompleted && !isCancelled;
+        matchesStatus = !_isCompletedOrder(order) && !_isCancelledOrder(order);
       } else if (isActive == false) {
-        matchesStatus = isCompleted && !isCancelled;
+        matchesStatus = _isCompletedOrder(order);
       } else {
-        matchesStatus = isCancelled;
+        matchesStatus = _isCancelledOrder(order);
       }
 
       final orderId = (order['orderId'] ?? '').toString().toLowerCase();
@@ -271,7 +325,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     }).toList();
 
     if (filteredOrders.isEmpty) {
-      return const Center(child: Text("No orders found"));
+      return Center(child: Text(_emptyStateMessage(isActive)));
     }
 
     return RefreshIndicator(
@@ -288,11 +342,13 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
               createdAt != null && isNewOrder(createdAt.toString());
 
           final orderStatusLabel = _getOrderStatusLabel(data);
-          final shareholderStatusLabel = _getOverallShareholderStatusLabel(data);
-          final paymentStatusLabel =
-              (data['payment_status_label'] ?? 'Pending').toString();
-          final paymentMethodLabel =
-              (data['paymentMethodLabel'] ?? 'Unknown').toString();
+          final shareholderStatusLabel = _getOverallShareholderStatusLabel(
+            data,
+          );
+          final paymentStatusLabel = (data['payment_status_label'] ?? 'Pending')
+              .toString();
+          final paymentMethodLabel = (data['paymentMethodLabel'] ?? 'Unknown')
+              .toString();
           final totalShares = (data['totalShares'] ?? 0).toString();
 
           return InkWell(
@@ -365,8 +421,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(shareholderStatusLabel)
-                                .withOpacity(0.10),
+                            color: _getStatusColor(
+                              shareholderStatusLabel,
+                            ).withOpacity(0.10),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -391,8 +448,8 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
                             color: paymentStatusLabel.toLowerCase() == 'paid'
                                 ? Colors.green
                                 : paymentStatusLabel.toLowerCase() == 'unpaid'
-                                    ? Colors.red
-                                    : Colors.orange,
+                                ? Colors.red
+                                : Colors.orange,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -496,6 +553,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
       ),
       child: TabBar(
         controller: _tabController,
+        isScrollable: true,
         indicator: BoxDecoration(
           color: AppTheme.primaryGreen,
           borderRadius: BorderRadius.circular(14),
@@ -503,10 +561,10 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         labelColor: Colors.white,
         unselectedLabelColor: Colors.black87,
         dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(text: "Active"),
-          Tab(text: "Completed"),
-          Tab(text: "Cancelled"),
+        tabs: [
+          Tab(text: "Active (${_countOrdersForTab(true)})"),
+          Tab(text: "Completed (${_countOrdersForTab(false)})"),
+          Tab(text: "Cancelled (${_countOrdersForTab(null)})"),
         ],
       ),
     );
@@ -521,10 +579,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
         elevation: 0,
         title: const Text(
           "Orders",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -541,6 +596,31 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: _fetchOrders,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryGreen,
+                              foregroundColor: AppTheme.bgGradientEnd,
+                            ),
+                            child: const Text("Try Again"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 : TabBarView(
                     controller: _tabController,
                     children: [

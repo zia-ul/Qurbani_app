@@ -1,10 +1,9 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
+import 'package:Qurbani/services/api_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class PaymentService {
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
   static const _storage = FlutterSecureStorage();
 
   /**
@@ -21,8 +20,8 @@ class PaymentService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception("Not authenticated");
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/admin/payment-settings'),
+    final res = await ApiClient.get(
+      ApiClient.uri('admin/payment-settings'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -30,12 +29,19 @@ class PaymentService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? "Failed to fetch payment settings";
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: "Unable to load payment settings right now.",
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body));
+    return ApiClient.decodeMap(
+      res,
+      fallbackMessage: "Unable to load payment settings right now.",
+    );
   }
 
   /// Update admin payment settings
@@ -53,8 +59,8 @@ class PaymentService {
       if (codDeadline != null) "cod_deadline": codDeadline,
     };
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/admin/payment-settings'),
+    final res = await ApiClient.put(
+      ApiClient.uri('admin/payment-settings'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -63,10 +69,13 @@ class PaymentService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ??
-          "Failed to update payment settings";
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: "Unable to update payment settings right now.",
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 }

@@ -1,6 +1,5 @@
-
-import 'dart:convert';
 import 'dart:async'; // For Timer
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/screens/admin/admin_share_setup.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
@@ -8,14 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
 import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/admin/admin_orders.dart';
 import 'package:Qurbani/screens/admin/animal_listing.dart';
 import 'package:Qurbani/screens/admin/special_requests_admin.dart';
 import 'package:Qurbani/services/admin_service.dart';
 import 'package:Qurbani/theme/theme.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminHomePage extends StatefulWidget {
   final String adminId;
@@ -31,9 +28,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final Color bgGradientStart = const Color(0xffF2E8D5); // Parchment style
   final Color bgGradientEnd = const Color(0xffFFFFFF);
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   Map<String, dynamic>? _stats;
+  bool _isStatsLoading = true;
+  String? _statsLoadError;
   Timer? _notificationTimer; // For polling notifications
 
   Timer? _statsTimer;
@@ -77,6 +75,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Future<void> _loadStats() async {
+    if (_stats == null && mounted) {
+      setState(() {
+        _isStatsLoading = true;
+        _statsLoadError = null;
+      });
+    }
+
     try {
       AppLogger.debug("Fetching dashboard stats from backend");
 
@@ -85,12 +90,25 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
       AppLogger.info("Dashboard stats loaded: $stats");
 
+      if (!mounted) return;
       setState(() {
-        _stats = stats; // update UI
+        _stats = _normalizeStats(stats);
+        _isStatsLoading = false;
+        _statsLoadError = null;
       });
     } catch (e, stack) {
       AppLogger.error("Failed to load dashboard stats", e, stack);
-      // optional: show toast or ignore
+
+      if (!mounted) return;
+      setState(() {
+        _isStatsLoading = false;
+        if (_stats == null) {
+          _statsLoadError = _friendlyErrorMessage(
+            e,
+            fallback: 'Unable to load dashboard stats right now.',
+          );
+        }
+      });
     }
   }
 
@@ -126,26 +144,36 @@ class _AdminHomePageState extends State<AdminHomePage> {
       return;
     }
 
-    AppLogger.debug("Checking admin profile for location");
+    try {
+      AppLogger.debug("Checking admin profile for location");
 
-    final res = await http.get(
-      Uri.parse("$_baseUrl/admin/profile"),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+      final res = await ApiClient.get(
+        ApiClient.uri('admin/profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        AppLogger.warning(
+          "Unable to check admin location: ${ApiClient.errorMessage(res, fallbackMessage: 'Failed to fetch admin profile')}",
+        );
+        return;
+      }
+
+      final data = ApiClient.decodeMap(
+        res,
+        fallbackMessage: 'Failed to fetch admin profile',
+      );
       AppLogger.info("Admin profile loaded: city=${data['city']}");
 
       if (data['city'] == null) {
         AppLogger.warning("Admin has no city selected");
         // TODO: show location picker
       }
-    } else {
-      AppLogger.error("Failed to fetch admin profile", res.body);
+    } catch (e, stack) {
+      AppLogger.error("Failed to verify admin location", e, stack);
     }
   }
 
@@ -328,8 +356,39 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _buildFeatureBanner() {
-    if (_stats == null) {
+    if (_isStatsLoading && _stats == null) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_stats == null) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppTheme.bgGradientEnd,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.1)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _statsLoadError ?? 'Unable to load dashboard stats right now.',
+              style: const TextStyle(fontSize: 13, color: Colors.black87),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: _loadStats,
+                child: const Text('Try Again'),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Container(
@@ -363,6 +422,33 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ],
       ),
     );
+  }
+
+  Map<String, int> _normalizeStats(Map<String, dynamic> stats) {
+    return {
+      'animals': _parseCount(stats['animals']),
+      'orders': _parseCount(stats['orders']),
+      'requests': _parseCount(stats['requests']),
+    };
+  }
+
+  int _parseCount(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   Widget _featureItem(IconData icon, String label, int count) {

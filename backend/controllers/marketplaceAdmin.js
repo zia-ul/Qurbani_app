@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const logger = require("../middleware/logger");
 
 /**
  * Get all VERIFIED admins

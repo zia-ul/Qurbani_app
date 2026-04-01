@@ -28,11 +28,434 @@ const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
 
+/**
+ * Sanitizes input text by converting it to a string and removing any leading/trailing whitespace
+ * @param {any} value - The input value to be sanitized
+ * @returns {string} The sanitized string, or empty string if input is null/undefined
+ */
+const sanitizeText = (value) => {
+  if (value == null) { // Check if value is null or undefined
+    return ""; // Return empty string for null/undefined values
+  }
+
+  return String(value).trim();
+};
+
+const normalizeIncomingAddress = (address) => {
+  if (typeof address === "string") {
+    const addressLine = sanitizeText(address);
+
+    return addressLine
+      ? {
+          country: null,
+          country_iso: null,
+          state: null,
+          city: null,
+          postal_code: null,
+          address_line: addressLine,
+        }
+      : null;
+  }
+
+  if (!address || typeof address !== "object") {
+    return null;
+  }
+
+  const normalized = {
+    country: sanitizeText(address.country) || null,
+    country_iso:
+      sanitizeText(address.country_iso || address.countryISO).toUpperCase() ||
+      null,
+    state: sanitizeText(address.state) || null,
+    city: sanitizeText(address.city) || null,
+    postal_code:
+      sanitizeText(address.postal_code || address.postalCode) || null,
+    address_line:
+      sanitizeText(
+        address.address_line || address.addressLine || address.address,
+      ) || null,
+  };
+
+  return normalized.address_line ? normalized : null;
+};
+
+const getTableIdConfig = async (connection, tableName) => {
+  const [columns] = await connection.query(
+    `
+    SELECT
+      COLUMN_NAME AS column_name,
+      DATA_TYPE AS data_type,
+      EXTRA AS extra
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = 'id'
+    `,
+    [tableName],
+  );
+
+  const idColumn = columns[0];
+  const idDataType = (idColumn?.data_type || "").toLowerCase();
+  const idExtra = (idColumn?.extra || "").toLowerCase();
+
+  return {
+    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
+    idIsNumeric: [
+      "tinyint",
+      "smallint",
+      "mediumint",
+      "int",
+      "bigint",
+      "decimal",
+      "numeric",
+    ].includes(idDataType),
+  };
+};
+
+const getShareholderTableConfig = async (connection) => {
+  const idConfig = await getTableIdConfig(connection, "shareholder_details");
+  const [columns] = await connection.query(
+    `
+    SELECT COLUMN_NAME AS column_name
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'shareholder_details'
+      AND COLUMN_NAME = 'payment_status'
+    `,
+  );
+
+  return {
+    ...idConfig,
+    hasPaymentStatus: columns.length > 0,
+  };
+};
+
+const buildOrderInsertPayload = async (
+  connection,
+  userId,
+  adminId,
+  normalizedPaymentMethod,
+  shareholderCount,
+  totalAmount,
+) => {
+  const tableConfig = await getTableIdConfig(connection, "orders");
+  const columns = [];
+  const values = [];
+
+  let orderId = null;
+  if (tableConfig.requiresExplicitId) {
+    columns.push("id");
+
+    if (tableConfig.idIsNumeric) {
+      const [[row]] = await connection.query(
+        `SELECT COALESCE(MAX(id), 0) AS maxId FROM orders`,
+      );
+      orderId = Number(row?.maxId || 0) + 1;
+    } else {
+      orderId = uuidv4();
+    }
+
+    values.push(orderId);
+  }
+
+  columns.push("user_id", "admin_id", "payment_method", "total_shares", "total_amt");
+  values.push(
+    userId,
+    adminId,
+    normalizedPaymentMethod,
+    shareholderCount,
+    totalAmount,
+  );
+
+  return { columns, values, orderId };
+};
+
+const buildShareholderInsertPayload = async (
+  connection,
+  orderId,
+  shareholders,
+  normalizedPaymentStatus,
+) => {
+  const tableConfig = await getShareholderTableConfig(connection);
+  const columns = [];
+
+  if (tableConfig.requiresExplicitId) {
+    columns.push("id");
+  }
+
+  columns.push(
+    "order_id",
+    "shareholder_name",
+    "guardian_name",
+    "qurbani_day",
+    "price",
+    "address",
+  );
+
+  if (tableConfig.hasPaymentStatus) {
+    columns.push("payment_status");
+  }
+
+  let nextNumericId = null;
+  if (tableConfig.requiresExplicitId && tableConfig.idIsNumeric) {
+    const [[row]] = await connection.query(
+      `SELECT COALESCE(MAX(id), 0) AS maxId FROM shareholder_details`,
+    );
+    nextNumericId = Number(row?.maxId || 0) + 1;
+  }
+
+  const rows = shareholders.map((shareholder) => {
+    const normalizedAddress = normalizeIncomingAddress(shareholder.address);
+
+    if (!normalizedAddress?.address_line) {
+      throw new Error("Address is required for each shareholder");
+    }
+
+    const values = [];
+
+    if (tableConfig.requiresExplicitId) {
+      values.push(tableConfig.idIsNumeric ? nextNumericId++ : uuidv4());
+    }
+
+    values.push(
+      orderId,
+      sanitizeText(shareholder.name),
+      sanitizeText(shareholder.guardianName),
+      sanitizeText(shareholder.qurbaniDay),
+      Number(shareholder.price || 0),
+      JSON.stringify(normalizedAddress),
+    );
+
+    if (tableConfig.hasPaymentStatus) {
+      values.push(normalizedPaymentStatus);
+    }
+
+    return values;
+  });
+
+  return { columns, rows };
+};
+
+const parseNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const applyComputedOrderStatuses = (order, shareholders, hasPaymentStatus = true) => {
+  if (!shareholders.length) {
+    order.processing_status = "Not started";
+    order.delivery_status = "Pending";
+    order.payment_status = 2;
+    order.payment_status_label = "Pending";
+    return;
+  }
+
+  const statuses = shareholders.map((shareholder) => parseNumber(shareholder.status));
+  const maxStatus = Math.max(...statuses);
+
+  if (maxStatus === 6) {
+    order.processing_status = "Cancelled";
+    order.delivery_status = "Cancelled";
+  } else if (maxStatus === 5) {
+    order.processing_status = "Delivered";
+    order.delivery_status = "Delivered";
+  } else if (maxStatus === 4) {
+    order.processing_status = "Sent for delivery";
+    order.delivery_status = "Sent for delivery";
+  } else if (maxStatus === 3) {
+    order.processing_status = "Meat Packaged";
+    order.delivery_status = "Pending";
+  } else if (maxStatus === 2) {
+    order.processing_status = "Processing";
+    order.delivery_status = "Pending";
+  } else if (maxStatus === 1) {
+    order.processing_status = "Qurbani Started";
+    order.delivery_status = "Pending";
+  } else {
+    order.processing_status = "Not started";
+    order.delivery_status = "Pending";
+  }
+
+  const paymentStatuses = hasPaymentStatus
+    ? shareholders.map((shareholder) => parseNumber(shareholder.payment_status, 2))
+    : [2];
+
+  if (paymentStatuses.every((status) => status === 0)) {
+    order.payment_status = 0;
+    order.payment_status_label = "Paid";
+  } else if (paymentStatuses.every((status) => status === 1)) {
+    order.payment_status = 1;
+    order.payment_status_label = "Unpaid";
+  } else {
+    order.payment_status = 2;
+    order.payment_status_label = "Pending";
+  }
+};
+
+const buildOrderAnimalsAndShareholders = async (orderId, shareholders) => {
+  const animalIds = [
+    ...new Set(
+      shareholders
+        .map((shareholder) => parseNumber(shareholder.animal_id, 0))
+        .filter((animalId) => animalId > 0),
+    ),
+  ];
+
+  if (!animalIds.length) {
+    return {
+      animals: [],
+      shareholders,
+    };
+  }
+
+  const placeholders = animalIds.map(() => "?").join(", ");
+  const [animals] = await pool.query(
+    `
+    SELECT *
+    FROM animals
+    WHERE id IN (${placeholders})
+    `,
+    animalIds,
+  );
+  const [animalDetailsRows] = await pool.query(
+    `
+    SELECT *
+    FROM animal_details
+    WHERE animal_id IN (${placeholders})
+    `,
+    animalIds,
+  );
+
+  const animalsById = new Map(
+    animals.map((animal) => [parseNumber(animal.id, 0), animal]),
+  );
+  const detailsByAnimalId = new Map();
+
+  for (const detail of animalDetailsRows) {
+    const animalId = parseNumber(detail.animal_id, 0);
+    if (!animalId) {
+      continue;
+    }
+
+    const existing = detailsByAnimalId.get(animalId);
+    const belongsToOrder = String(detail.order_id ?? "") === String(orderId);
+
+    if (!existing || belongsToOrder) {
+      detailsByAnimalId.set(animalId, detail);
+    }
+  }
+
+  const enrichedShareholders = shareholders.map((shareholder) => {
+    const animalId = parseNumber(shareholder.animal_id, 0);
+    const animal = animalsById.get(animalId);
+    const animalDetail = detailsByAnimalId.get(animalId);
+
+    return {
+      ...shareholder,
+      animal_type: shareholder.animal_type ?? animal?.animal_type ?? null,
+      qurbani_day: animal?.qurbani_day ?? shareholder.qurbani_day ?? null,
+      qurbani_datetime:
+        animalDetail?.qurbani_datetime ??
+        animal?.qurbani_datetime ??
+        shareholder.qurbani_datetime ??
+        null,
+      photo_urls: animalDetail?.photo_urls ?? shareholder.photo_urls ?? null,
+      barcode: animalDetail?.barcode ?? shareholder.barcode ?? null,
+    };
+  });
+
+  const enrichedAnimals = animalIds
+    .map((animalId) => {
+      const animal = animalsById.get(animalId);
+      if (!animal) {
+        return null;
+      }
+
+      const animalDetail = detailsByAnimalId.get(animalId);
+
+      return {
+        ...animal,
+        barcode: animalDetail?.barcode ?? null,
+        photo_urls: animalDetail?.photo_urls ?? null,
+        qurbani_datetime:
+          animalDetail?.qurbani_datetime ?? animal.qurbani_datetime ?? null,
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    animals: enrichedAnimals,
+    shareholders: enrichedShareholders,
+  };
+};
+
+const formatAdminShareholders = (shareholders, hasPaymentStatus = true) =>
+  shareholders.map((shareholder) => ({
+    id: shareholder.id,
+    shareholder_name: shareholder.shareholder_name,
+    guardian_name: shareholder.guardian_name,
+    animal_id: shareholder.animal_id ?? null,
+    animal_type: shareholder.animal_type ?? null,
+    share_number: shareholder.share_number ?? null,
+    qurbani_datetime: shareholder.qurbani_datetime ?? null,
+    address: shareholder.address ?? null,
+    price: shareholder.price ?? 0,
+    qurbani_day: shareholder.qurbani_day ?? null,
+    status: parseNumber(shareholder.status, 0),
+    status_label: mapShareholderStatus(shareholder.status),
+    payment_status: hasPaymentStatus
+      ? parseNumber(shareholder.payment_status, 2)
+      : 2,
+    payment_status_label: hasPaymentStatus
+      ? mapPaymentStatus(shareholder.payment_status)
+      : "Pending",
+    photo_urls: shareholder.photo_urls ?? null,
+    barcode: shareholder.barcode ?? null,
+  }));
+
+const buildAdminOrderResponse = (
+  order,
+  formattedShareholders,
+  hasPaymentStatus = true,
+) => {
+  const rawOrderStatus = parseNumber(order.order_status ?? order.status, 0);
+  const response = {
+    orderId: order.id,
+    userId: order.user_id,
+    adminId: order.admin_id,
+    user_name: order.user_name ?? null,
+    email: order.user_email ?? order.email ?? null,
+    contact_no: order.contact_no ?? null,
+    address: order.address ?? null,
+    admin_name: order.admin_name ?? null,
+    total_amt: order.total_amt ?? 0,
+    totalShares: order.total_shares,
+    total_shares: order.total_shares,
+    paymentMethod: order.payment_method,
+    payment_method: order.payment_method,
+    paymentMethodLabel: mapPaymentMethod(order.payment_method),
+    payment_method_label: mapPaymentMethod(order.payment_method),
+    orderStatus: rawOrderStatus,
+    order_status: rawOrderStatus,
+    orderStatusLabel: mapOrderStatus(rawOrderStatus),
+    order_status_label: mapOrderStatus(rawOrderStatus),
+    createdAt: order.created_at,
+    created_at: order.created_at,
+    cod_deadline: order.cod_deadline ?? null,
+    shareholders: formattedShareholders,
+  };
+
+  applyComputedOrderStatuses(response, formattedShareholders, hasPaymentStatus);
+
+  return response;
+};
+
 
 router.get("/my", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
+    const shareholderTableConfig = await getShareholderTableConfig(pool);
     const [orders] = await pool.execute(
       `SELECT 
           o.id,
@@ -57,71 +480,27 @@ router.get("/my", authMiddleware, async (req, res) => {
 
     for (const order of orders) {
       const [shareholders] = await pool.execute(
-        `SELECT status, payment_status
+        `SELECT *
          FROM shareholder_details
          WHERE order_id = ?`,
         [order.id]
       );
 
       order.shareholders = shareholders;
-
-      if (!shareholders.length) {
-        order.processing_status = "Not started";
-        order.delivery_status = "Pending";
-        order.payment_status = 2; // pending
-        order.payment_status_label = "Pending";
-        continue;
-      }
-
-      const statuses = shareholders.map((s) => Number(s.status));
-      const paymentStatuses = shareholders.map((s) => Number(s.payment_status));
-
-      const maxStatus = Math.max(...statuses);
-
-      // Processing / delivery status
-      if (maxStatus === 6) {
-        order.processing_status = "Cancelled";
-        order.delivery_status = "Cancelled";
-      } else if (maxStatus === 5) {
-        order.processing_status = "Delivered";
-        order.delivery_status = "Delivered";
-      } else if (maxStatus === 4) {
-        order.processing_status = "Sent for delivery";
-        order.delivery_status = "Sent for delivery";
-      } else if (maxStatus === 3) {
-        order.processing_status = "Meat Packaged";
-        order.delivery_status = "Pending";
-      } else if (maxStatus === 2) {
-        order.processing_status = "Processing";
-        order.delivery_status = "Pending";
-      } else if (maxStatus === 1) {
-        order.processing_status = "Qurbani Started";
-        order.delivery_status = "Pending";
-      } else {
-        order.processing_status = "Not started";
-        order.delivery_status = "Pending";
-      }
-
-      // Payment status from shareholder_details only
-      // Current mapping:
-      // 0 = paid, 1 = unpaid, 2 = pending
-      if (paymentStatuses.every((s) => s === 0)) {
-        order.payment_status = 0;
-        order.payment_status_label = "Paid";
-      } else if (paymentStatuses.every((s) => s === 1)) {
-        order.payment_status = 1;
-        order.payment_status_label = "Unpaid";
-      } else {
-        order.payment_status = 2;
-        order.payment_status_label = "Pending";
-      }
+      applyComputedOrderStatuses(
+        order,
+        shareholders,
+        shareholderTableConfig.hasPaymentStatus,
+      );
     }
-
-    console.log("orders with computed statuses", orders);
 
     res.json({ orders });
   } catch (err) {
-    console.error("Failed to fetch user orders:", err);
+    logger.error("Failed to fetch user orders", {
+      userId,
+      error: err.message,
+      stack: err.stack,
+    });
     res.status(500).json({
       message: "Something went wrong. Please try again later.",
     });
@@ -302,57 +681,40 @@ router.post("/", authMiddleware, async (req, res) => {
       }
     }
 
-    // Create order
+    const orderInsert = await buildOrderInsertPayload(
+      connection,
+      userId,
+      adminId,
+      normalizedPaymentMethod,
+      shareholders.length,
+      totalAmount,
+    );
+
     const [orderResult] = await connection.execute(
       `
       INSERT INTO orders
-        (user_id, admin_id, payment_method, total_shares, total_amt)
-      VALUES (?, ?, ?, ?, ?)
+        (${orderInsert.columns.join(", ")})
+      VALUES (${orderInsert.columns.map(() => "?").join(", ")})
       `,
-      [
-        userId,
-        adminId,
-        normalizedPaymentMethod,
-        shareholders.length,
-        totalAmount,
-        // normalizedPaymentStatus,
-      ]
+      orderInsert.values,
     );
 
-    const orderId = orderResult.insertId;
-// console.log("checking pay status on new order", normalizedPaymentStatus)
-    // Insert shareholders
+    const orderId = orderInsert.orderId ?? orderResult.insertId;
+
+    const shareholderInsert = await buildShareholderInsertPayload(
+      connection,
+      orderId,
+      shareholders,
+      normalizedPaymentStatus,
+    );
+
     await connection.query(
       `
       INSERT INTO shareholder_details
-        (
-          order_id,
-          shareholder_name,
-          guardian_name,
-          qurbani_day,
-          price,
-          address,
-          payment_status
-        )
+        (${shareholderInsert.columns.join(", ")})
       VALUES ?
       `,
-      [
-        shareholders.map((s) => {
-          if (!s.address || !s.address.address_line) {
-            throw new Error("Address is required for each shareholder");
-          }
-
-          return [
-            orderId,
-            s.name,
-            s.guardianName,
-            s.qurbaniDay,
-            s.price,
-            JSON.stringify(s.address),
-            normalizedPaymentStatus,
-          ];
-        }),
-      ]
+      [shareholderInsert.rows],
     );
 
     await connection.commit();
@@ -414,6 +776,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
+    const shareholderTableConfig = await getShareholderTableConfig(pool);
     const [orders] = await pool.execute(
       `
       SELECT 
@@ -436,73 +799,25 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
 
     const [shareholders] = await pool.execute(
       `
-      SELECT 
-        s.*,
-        a.animal_type,
-        a.qurbani_day,
-        a.qurbani_datetime,
-        ad.photo_urls
-      FROM shareholder_details s
-      LEFT JOIN animals a ON s.animal_id = a.id
-      LEFT JOIN animal_details ad ON ad.animal_id = a.id
-      WHERE s.order_id = ?
+      SELECT *
+      FROM shareholder_details
+      WHERE order_id = ?
       `,
       [orderId]
     );
+    const orderDetails = await buildOrderAnimalsAndShareholders(
+      orderId,
+      shareholders,
+    );
 
-    console.log(shareholders);
+    order.shareholders = orderDetails.shareholders;
+    order.animals = orderDetails.animals;
 
-    order.shareholders = shareholders;
-
-    if (!shareholders.length) {
-      order.processing_status = "Not started";
-      order.delivery_status = "Pending";
-      order.payment_status = 2; // 0=paid, 1=unpaid, 2=pending
-      order.payment_status_label = "Pending";
-    } else {
-      const statuses = shareholders.map((s) => Number(s.status));
-      const paymentStatuses = shareholders.map((s) => Number(s.payment_status));
-
-      const maxStatus = Math.max(...statuses);
-
-      if (maxStatus === 6) {
-        order.processing_status = "Cancelled";
-        order.delivery_status = "Cancelled";
-      } else if (maxStatus === 5) {
-        order.processing_status = "Delivered";
-        order.delivery_status = "Delivered";
-      } else if (maxStatus === 4) {
-        order.processing_status = "Sent for delivery";
-        order.delivery_status = "Sent for delivery";
-      } else if (maxStatus === 3) {
-        order.processing_status = "Meat Packaged";
-        order.delivery_status = "Pending";
-      } else if (maxStatus === 2) {
-        order.processing_status = "Processing";
-        order.delivery_status = "Pending";
-      } else if (maxStatus === 1) {
-        order.processing_status = "Qurbani Started";
-        order.delivery_status = "Pending";
-      } else {
-        order.processing_status = "Not started";
-        order.delivery_status = "Pending";
-      }
-
-      // Use this ONLY if shareholder_details has been migrated to:
-      // 0=paid, 1=unpaid, 2=pending
-      if (paymentStatuses.every((s) => s === 0)) {
-        order.payment_status = 0;
-        order.payment_status_label = "Paid";
-      } else if (paymentStatuses.every((s) => s === 1)) {
-        order.payment_status = 1;
-        order.payment_status_label = "Unpaid";
-      } else {
-        order.payment_status = 2;
-        order.payment_status_label = "Pending";
-      }
-    }
-
-    console.log();
+    applyComputedOrderStatuses(
+      order,
+      orderDetails.shareholders,
+      shareholderTableConfig.hasPaymentStatus,
+    );
 
 
     res.json({
@@ -587,11 +902,11 @@ function mapShareholderStatus(status) {
 function mapPaymentStatus(status) {
   switch (Number(status)) {
     case 0:
-      return "Pending";
-    case 1:
       return "Paid";
-    case 2:
+    case 1:
       return "Unpaid";
+    case 2:
+      return "Pending";
     default:
       return "Unknown";
   }
@@ -628,140 +943,64 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
   logger.info("Admin fetching own orders", { adminId });
 
   try {
-    const [rows] = await pool.execute(
+    const shareholderTableConfig = await getShareholderTableConfig(pool);
+    const [orders] = await pool.execute(
       `
       SELECT
-        o.id AS order_id,
+        o.id,
         o.user_id,
         o.admin_id,
         o.payment_method,
         o.total_shares,
+        o.total_amt,
         o.status AS order_status,
         o.created_at,
-
-        aps.cod_deadline,
-
-        s.id AS shareholder_id,
-        s.shareholder_name,
-        s.guardian_name,
-        s.qurbani_day,
-        s.status AS shareholder_status,
-        s.payment_status AS shareholder_payment_status,
-        s.animal_id,
-        s.share_number,
-        s.qurbani_datetime
-
+        aps.cod_deadline
       FROM orders o
       LEFT JOIN admin_payment_settings aps
         ON aps.admin_id = o.admin_id
-      LEFT JOIN shareholder_details s
-        ON s.order_id = o.id
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
       [adminId]
     );
 
-    const ordersMap = {};
+    if (!orders.length) {
+      return res.json({ orders: [] });
+    }
 
-    rows.forEach((row) => {
-      if (!ordersMap[row.order_id]) {
-        ordersMap[row.order_id] = {
-          orderId: row.order_id,
-          userId: row.user_id,
-          adminId: row.admin_id,
-          paymentMethod: row.payment_method,
-          paymentMethodLabel: mapPaymentMethod(row.payment_method),
-          totalShares: row.total_shares,
-          orderStatus: row.order_status, // raw orders.status
-          orderStatusLabel: mapOrderStatus(row.order_status), // active/completed/cancelled
-          createdAt: row.created_at,
-          cod_deadline: row.cod_deadline,
-          shareholders: [],
-        };
-      }
+    const orderIds = orders.map((order) => order.id);
+    const placeholders = orderIds.map(() => "?").join(", ");
+    const [shareholders] = await pool.query(
+      `
+      SELECT *
+      FROM shareholder_details
+      WHERE order_id IN (${placeholders})
+      ORDER BY order_id DESC, id ASC
+      `,
+      orderIds,
+    );
 
-      if (row.shareholder_id) {
-        ordersMap[row.order_id].shareholders.push({
-          id: row.shareholder_id,
-          shareholder_name: row.shareholder_name,
-          guardian_name: row.guardian_name,
-          qurbani_day: row.qurbani_day,
-          status: row.shareholder_status,
-          status_label: mapShareholderStatus(row.shareholder_status),
-          payment_status: row.shareholder_payment_status,
-          payment_status_label: mapPaymentStatus(row.shareholder_payment_status),
-          animal_id: row.animal_id,
-          share_number: row.share_number,
-          qurbani_datetime: row.qurbani_datetime,
-        });
-      }
-    });
+    const shareholdersByOrderId = new Map();
+    for (const shareholder of shareholders) {
+      const key = String(shareholder.order_id);
+      const existing = shareholdersByOrderId.get(key) || [];
+      existing.push(shareholder);
+      shareholdersByOrderId.set(key, existing);
+    }
 
-    const formattedOrders = Object.values(ordersMap).map((order) => {
-      const shareholders = order.shareholders || [];
+    const formattedOrders = orders.map((order) => {
+      const rawShareholders = shareholdersByOrderId.get(String(order.id)) || [];
+      const formattedShareholders = formatAdminShareholders(
+        rawShareholders,
+        shareholderTableConfig.hasPaymentStatus,
+      );
 
-      if (!shareholders.length) {
-        return {
-          ...order,
-          processing_status: "Not started",
-          delivery_status: "Pending",
-          payment_status: 2,
-          payment_status_label: "Pending",
-        };
-      }
-
-      const statuses = shareholders.map((s) => Number(s.status));
-      const paymentStatuses = shareholders.map((s) => Number(s.payment_status));
-
-      const maxStatus = Math.max(...statuses);
-
-      let processing_status = "Not started";
-      let delivery_status = "Pending";
-
-      if (maxStatus === 6) {
-        processing_status = "Cancelled";
-        delivery_status = "Cancelled";
-      } else if (maxStatus === 5) {
-        processing_status = "Delivered";
-        delivery_status = "Delivered";
-      } else if (maxStatus === 4) {
-        processing_status = "Sent for delivery";
-        delivery_status = "Sent for delivery";
-      } else if (maxStatus === 3) {
-        processing_status = "Meat Packaged";
-        delivery_status = "Pending";
-      } else if (maxStatus === 2) {
-        processing_status = "Processing";
-        delivery_status = "Pending";
-      } else if (maxStatus === 1) {
-        processing_status = "Qurbani Started";
-        delivery_status = "Pending";
-      }
-
-      let payment_status = 2;
-      let payment_status_label = "Pending";
-
-      // shareholder_details.payment_status:
-      // 0 = paid, 1 = unpaid, 2 = pending
-      if (paymentStatuses.every((s) => s === 0)) {
-        payment_status = 0;
-        payment_status_label = "Paid";
-      } else if (paymentStatuses.every((s) => s === 1)) {
-        payment_status = 1;
-        payment_status_label = "Unpaid";
-      } else {
-        payment_status = 2;
-        payment_status_label = "Pending";
-      }
-
-      return {
-        ...order,
-        processing_status,
-        delivery_status,
-        payment_status,
-        payment_status_label,
-      };
+      return buildAdminOrderResponse(
+        order,
+        formattedShareholders,
+        shareholderTableConfig.hasPaymentStatus,
+      );
     });
 
     logger.info("Admin orders fetched", {
@@ -915,11 +1154,11 @@ function mapShareholderStatus(status) {
 function mapPaymentStatus(status) {
   switch (Number(status)) {
     case 0:
-      return "Pending";
-    case 1:
       return "Paid";
-    case 2:
+    case 1:
       return "Unpaid";
+    case 2:
+      return "Pending";
     default:
       return "Unknown";
   }
@@ -942,6 +1181,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
   try {
+    const shareholderTableConfig = await getShareholderTableConfig(pool);
     const [orders] = await pool.execute(
       `
       SELECT 
@@ -979,118 +1219,33 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
 
     const [shareholders] = await pool.execute(
       `
-      SELECT 
-        s.id,
-        s.shareholder_name,
-        s.guardian_name,
-        s.animal_id,
-        s.share_number,
-        s.address,
-        s.price,
-        s.status,
-        s.payment_status,
-        an.animal_type,
-        an.qurbani_datetime,
-        an.qurbani_day
-      FROM shareholder_details s
-      LEFT JOIN animals an ON s.animal_id = an.id
-      WHERE s.order_id = ?
+      SELECT *
+      FROM shareholder_details
+      WHERE order_id = ?
       `,
       [order.id],
     );
-
-    const formattedShareholders = shareholders.map((s) => ({
-      id: s.id,
-      shareholder_name: s.shareholder_name,
-      guardian_name: s.guardian_name,
-      animal_id: s.animal_id,
-      animal_type: s.animal_type,
-      share_number: s.share_number,
-      qurbani_datetime: s.qurbani_datetime,
-      address: s.address,
-      price: s.price,
-      qurbani_day: s.qurbani_day,
-      status: s.status,
-      status_label: mapShareholderStatus(s.status),
-      payment_status: s.payment_status,
-      payment_status_label: mapPaymentStatus(s.payment_status),
-    }));
-
-    let processing_status = "Not started";
-    let delivery_status = "Pending";
-    let payment_status = 2; // 0=paid, 1=unpaid, 2=pending
-    let payment_status_label = "Pending";
-
-    if (formattedShareholders.length > 0) {
-      const statuses = formattedShareholders.map((s) => Number(s.status));
-      const paymentStatuses = formattedShareholders.map((s) =>
-        Number(s.payment_status),
-      );
-
-      const maxStatus = Math.max(...statuses);
-
-      if (maxStatus === 6) {
-        processing_status = "Cancelled";
-        delivery_status = "Cancelled";
-      } else if (maxStatus === 5) {
-        processing_status = "Delivered";
-        delivery_status = "Delivered";
-      } else if (maxStatus === 4) {
-        processing_status = "Sent for delivery";
-        delivery_status = "Sent for delivery";
-      } else if (maxStatus === 3) {
-        processing_status = "Meat Packaged";
-        delivery_status = "Pending";
-      } else if (maxStatus === 2) {
-        processing_status = "Processing";
-        delivery_status = "Pending";
-      } else if (maxStatus === 1) {
-        processing_status = "Qurbani Started";
-        delivery_status = "Pending";
-      }
-
-      if (paymentStatuses.every((s) => s === 0)) {
-        payment_status = 0;
-        payment_status_label = "Paid";
-      } else if (paymentStatuses.every((s) => s === 1)) {
-        payment_status = 1;
-        payment_status_label = "Unpaid";
-      } else {
-        payment_status = 2;
-        payment_status_label = "Pending";
-      }
-    }
-
-    const orderWithDetails = {
-      orderId: order.id,
-      userId: order.user_id,
-      adminId: order.admin_id,
-      user_name: order.user_name,
-      email: order.user_email,
-      contact_no: order.contact_no,
-      address: order.address,
-      admin_name: order.admin_name,
-      total_amt: order.total_amt,
-      total_shares: order.total_shares,
-      payment_method: order.payment_method,
-      payment_method_label: mapPaymentMethod(order.payment_method),
-      order_status: order.order_status,
-      order_status_label: mapOrderStatus(order.order_status),
-      created_at: order.created_at,
-      cod_deadline: order.cod_deadline,
-      processing_status,
-      delivery_status,
-      payment_status,
-      payment_status_label,
-      shareholders: formattedShareholders,
-    };
+    const orderDetails = await buildOrderAnimalsAndShareholders(
+      order.id,
+      shareholders,
+    );
+    const formattedShareholders = formatAdminShareholders(
+      orderDetails.shareholders,
+      shareholderTableConfig.hasPaymentStatus,
+    );
+    const orderWithDetails = buildAdminOrderResponse(
+      order,
+      formattedShareholders,
+      shareholderTableConfig.hasPaymentStatus,
+    );
+    orderWithDetails.animals = orderDetails.animals;
 
     logger.info("Admin order details fetched", {
       adminId,
       orderId,
       shareholderCount: formattedShareholders.length,
-      processing_status,
-      payment_status,
+      processing_status: orderWithDetails.processing_status,
+      payment_status: orderWithDetails.payment_status,
     });
 
     res.json({ order: orderWithDetails });

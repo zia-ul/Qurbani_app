@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,7 +8,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AddAnimalPage extends StatefulWidget {
   const AddAnimalPage({super.key});
@@ -36,7 +36,6 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   final List<XFile> _images = [];
 
   final Color lightBg = const Color(0xFFF9FBF9);
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
   String? selectedQurbaniDay;
   DateTime? selectedQurbaniDate;
   TimeOfDay? selectedQurbaniTime;
@@ -238,10 +237,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
         "images": imageUrls,
       };
 
-      print("we are here to add animal $_baseUrl/animals");
-
-      final res = await http.post(
-        Uri.parse("$_baseUrl/animals"),
+      final res = await ApiClient.post(
+        ApiClient.uri('animals'),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
@@ -250,8 +247,12 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       );
 
       if (res.statusCode != 201) {
-        throw Exception(
-          jsonDecode(res.body)["message"] ?? "Failed to add animal",
+        throw ApiException(
+          ApiClient.errorMessage(
+            res,
+            fallbackMessage: "Unable to add the animal right now.",
+          ),
+          statusCode: res.statusCode,
         );
       }
 
@@ -262,10 +263,28 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       }
     } catch (e, stack) {
       AppLogger.error("Add animal exception", e, stack);
-      ToastUtils.showError("Failed to add animal: ${e.toString()}");
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to add the animal right now.",
+        ),
+      );
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   @override

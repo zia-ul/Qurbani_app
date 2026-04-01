@@ -1,12 +1,18 @@
-// controllers/vendorShareSetup.controller.js
 const db = require("../config/db.js");
+const { v4: uuidv4 } = require("uuid");
+
+const normalizeDate = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString().split("T")[0];
+};
 
 const saveVendorShareSetup = async (req, res) => {
   try {
     const vendorId = req.user.id;
-
-    console.log(req.body);
-
     const {
       totalShares,
       pricePerShare,
@@ -17,7 +23,7 @@ const saveVendorShareSetup = async (req, res) => {
       deliveryThreshold = null,
       dayOneLimit,
       dayTwoLimit,
-      dayThreeLimit
+      dayThreeLimit,
     } = req.body;
 
     if (!totalShares || !pricePerShare || !lastBookingDate || !deliveryType) {
@@ -26,57 +32,137 @@ const saveVendorShareSetup = async (req, res) => {
       });
     }
 
-    const query = `
-      INSERT INTO admin_share_setups (
-        admin_id,
-        total_shares,
-        price_per_share,
-        late_booking_fee,
-        last_booking_date,
-        delivery_type,
-        delivery_fee,
-        free_delivery_threshold,
-        day1,
-        day2,
-        day3
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        total_shares = VALUES(total_shares),
-        price_per_share = VALUES(price_per_share),
-        late_booking_fee = VALUES(late_booking_fee),
-        last_booking_date = VALUES(last_booking_date),
-        delivery_type = VALUES(delivery_type),
-        delivery_fee = VALUES(delivery_fee),
-        free_delivery_threshold = VALUES(free_delivery_threshold),
-        day1 = VALUES(day1),
-        day2 = VALUES(day2),
-        day3 = VALUES(day3),
-        updated_at = CURRENT_TIMESTAMP
-    `;
+    const normalizedTotalShares = Number(totalShares);
+    const normalizedPricePerShare = Number(pricePerShare);
+    const normalizedLateBookingFee = Number(lateBookingFee ?? 0);
+    const normalizedDeliveryFee = Number(deliveryFee ?? 0);
+    const normalizedDeliveryThreshold =
+      deliveryThreshold == null || deliveryThreshold === ""
+        ? null
+        : Number(deliveryThreshold);
+    const normalizedDayOneLimit = Number(dayOneLimit ?? 0);
+    const normalizedDayTwoLimit = Number(dayTwoLimit ?? 0);
+    const normalizedDayThreeLimit = Number(dayThreeLimit ?? 0);
+    const normalizedLastBookingDate = normalizeDate(lastBookingDate);
 
-    await db.query(query, [
-      vendorId,
-      totalShares,
-      pricePerShare,
-      lateBookingFee,
-      lastBookingDate,
-      deliveryType,
-      deliveryFee,
-      deliveryThreshold,
-      dayOneLimit,
-      dayTwoLimit,
-      dayThreeLimit
-    ]);
+    if (!["free", "paid"].includes(deliveryType)) {
+      return res.status(400).json({
+        message: "Please choose a valid delivery type.",
+      });
+    }
 
-    // Update order_deadline in users table
-    const updateUserDeadlineQuery = `
+    const invalidNumberField = [
+      normalizedTotalShares,
+      normalizedPricePerShare,
+      normalizedLateBookingFee,
+      normalizedDeliveryFee,
+      normalizedDayOneLimit,
+      normalizedDayTwoLimit,
+      normalizedDayThreeLimit,
+      ...(normalizedDeliveryThreshold == null
+        ? []
+        : [normalizedDeliveryThreshold]),
+    ].some((value) => Number.isNaN(value));
+
+    if (invalidNumberField) {
+      return res.status(400).json({
+        message: "Please enter valid numeric values for the share setup.",
+      });
+    }
+
+    if (!normalizedLastBookingDate) {
+      return res.status(400).json({
+        message: "Please select a valid last booking date.",
+      });
+    }
+
+    const [existingRows] = await db.query(
+      `
+      SELECT id
+      FROM admin_share_setups
+      WHERE admin_id = ?
+        AND is_active = 1
+      LIMIT 1
+      `,
+      [vendorId]
+    );
+
+    if (existingRows.length) {
+      await db.query(
+        `
+        UPDATE admin_share_setups
+        SET
+          total_shares = ?,
+          price_per_share = ?,
+          late_booking_fee = ?,
+          last_booking_date = ?,
+          delivery_type = ?,
+          delivery_fee = ?,
+          free_delivery_threshold = ?,
+          day1 = ?,
+          day2 = ?,
+          day3 = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [
+          normalizedTotalShares,
+          normalizedPricePerShare,
+          normalizedLateBookingFee,
+          normalizedLastBookingDate,
+          deliveryType,
+          normalizedDeliveryFee,
+          normalizedDeliveryThreshold,
+          normalizedDayOneLimit,
+          normalizedDayTwoLimit,
+          normalizedDayThreeLimit,
+          existingRows[0].id,
+        ]
+      );
+    } else {
+      await db.query(
+        `
+        INSERT INTO admin_share_setups (
+          id,
+          admin_id,
+          total_shares,
+          price_per_share,
+          late_booking_fee,
+          last_booking_date,
+          delivery_type,
+          delivery_fee,
+          free_delivery_threshold,
+          day1,
+          day2,
+          day3
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          uuidv4(),
+          vendorId,
+          normalizedTotalShares,
+          normalizedPricePerShare,
+          normalizedLateBookingFee,
+          normalizedLastBookingDate,
+          deliveryType,
+          normalizedDeliveryFee,
+          normalizedDeliveryThreshold,
+          normalizedDayOneLimit,
+          normalizedDayTwoLimit,
+          normalizedDayThreeLimit,
+        ]
+      );
+    }
+
+    await db.query(
+      `
       UPDATE users
       SET order_deadline = ?
       WHERE id = ?
-    `;
-
-    await db.query(updateUserDeadlineQuery, [lastBookingDate, vendorId]);
+      `,
+      [normalizedLastBookingDate, vendorId]
+    );
 
     res.status(200).json({
       message: "Share setup saved successfully",
@@ -89,9 +175,6 @@ const saveVendorShareSetup = async (req, res) => {
   }
 };
 
-/**
- * GET Logged-in Admin Share Setup
- */
 const getVendorShareSetup = async (req, res) => {
   try {
     const vendorId = req.user.id;
@@ -112,12 +195,11 @@ const getVendorShareSetup = async (req, res) => {
       FROM admin_share_setups
       WHERE admin_id = ?
         AND is_active = 1
+      ORDER BY updated_at DESC
       LIMIT 1
       `,
-      [vendorId],
+      [vendorId]
     );
-
-    console.log("Fetched share setup from DB:", rows);
 
     if (!rows.length) {
       return res.status(404).json({
@@ -137,7 +219,7 @@ const getVendorShareSetup = async (req, res) => {
       deliveryThreshold: setup.free_delivery_threshold,
       dayOneLimit: setup.day1,
       dayTwoLimit: setup.day2,
-      dayThreeLimit: setup.day3
+      dayThreeLimit: setup.day3,
     });
   } catch (err) {
     console.error("Fetch vendor share setup error:", err);

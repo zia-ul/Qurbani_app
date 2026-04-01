@@ -1,39 +1,41 @@
 // services/profile_service.dart
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'api_client.dart';
 
 class ProfileService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
-  /**
-   * Retrieves the authenticated user's profile information
-   *
-   * Fetches comprehensive user profile data including personal details,
-   * contact information, and account settings. Used for profile display
-   * and user account management throughout the application.
-   *
-   * @return Map containing user profile data
-   * @throws Exception if profile fetch fails or user is not authenticated
-   */
+  /// Retrieves the authenticated user's profile information.
+  ///
+  /// Fetches comprehensive user profile data including personal details,
+  /// contact information, and account settings. Used for profile display
+  /// and user account management throughout the application.
   static Future<Map<String, dynamic>> getProfile() async {
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/profile'),
+    final res = await ApiClient.get(
+      ApiClient.uri('profile'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch profile';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Unable to load your profile right now.',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body)['profile']);
+    final body = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load your profile right now.',
+    );
+    return Map<String, dynamic>.from(body['profile']);
   }
 
   static Future<void> setUserCurrency(String currency) async {
@@ -41,11 +43,11 @@ class ProfileService {
     final token = await storage.read(key: 'token');
 
     if (token == null) {
-      throw Exception('User not authenticated');
+      throw const ApiException('User not authenticated');
     }
 
-    final response = await http.put(
-      Uri.parse('$_baseUrl/users/currencies'),
+    final response = await ApiClient.put(
+      ApiClient.uri('users/profile/currency'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -54,17 +56,21 @@ class ProfileService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to update currency: ${response.body}');
+      final msg = ApiClient.errorMessage(
+        response,
+        fallbackMessage: 'Failed to update currency',
+      );
+      throw ApiException(msg, statusCode: response.statusCode);
     }
   }
 
   /// UPDATE USER PROFILE
   static Future<void> updateProfile(Map<String, dynamic> updates) async {
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/profile'),
+    final res = await ApiClient.put(
+      ApiClient.uri('profile'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -73,18 +79,21 @@ class ProfileService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to update profile';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Failed to update profile',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
   }
 
   // Currency update
   static Future<void> updateCurrency(String currency) async {
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/profile/currency'),
+    final res = await ApiClient.put(
+      ApiClient.uri('users/profile/currency'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -93,9 +102,11 @@ class ProfileService {
     );
 
     if (res.statusCode != 200) {
-      final msg =
-          jsonDecode(res.body)['message'] ?? 'Failed to update currency';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Failed to update currency',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
   }
 }

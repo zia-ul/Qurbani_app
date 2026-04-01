@@ -2,6 +2,7 @@
 /// for admin-specific operations like fetching profiles, notifications, and dashboard statistics.
 
 import 'dart:convert';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -128,17 +129,24 @@ class AdminService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/admins/dashboard-stats'),
+    final res = await ApiClient.get(
+      ApiClient.uri('admins/dashboard-stats'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      throw Exception(
-        jsonDecode(res.body)['message'] ?? 'Failed to fetch stats',
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load dashboard stats right now.',
+        ),
+        statusCode: res.statusCode,
       );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body));
+    return ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load dashboard stats right now.',
+    );
   }
 }

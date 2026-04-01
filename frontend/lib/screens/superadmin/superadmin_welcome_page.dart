@@ -1,5 +1,6 @@
-/// This file contains the Super Admin Dashboard screen, which allows super admins
-/// to view and manage users, filter by roles, and approve or reject admin verifications.
+// This file contains the Super Admin Dashboard screen, which allows super
+// admins to view and manage users, filter by verification state, and approve
+// or reject admin records.
 
 import 'package:Qurbani/drawer.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +9,7 @@ import 'package:Qurbani/screens/superadmin/admin_details.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 
-enum AdminVerificationFilter { approved, notSubmitted, rejected }
+enum AdminVerificationFilter { pending, approved, notSubmitted, rejected }
 
 /// The main dashboard widget for super admins to manage users and verifications.
 class SuperAdminDashboard extends StatefulWidget {
@@ -23,17 +24,33 @@ class SuperAdminDashboard extends StatefulWidget {
 
 class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   AdminVerificationFilter _selectedFilter =
-      AdminVerificationFilter.notSubmitted;
+      AdminVerificationFilter.pending;
 
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
   String? _errorMessage;
 
+  String _displayMessage(Object error) {
+    final message = error.toString().trim();
+    if (message.startsWith('Exception: ')) {
+      return message.substring('Exception: '.length);
+    }
+    return message;
+  }
+
   @override
   void initState() {
     super.initState();
-    _selectedFilter = AdminVerificationFilter.notSubmitted;
+    _selectedFilter = AdminVerificationFilter.pending;
     _fetchUsers();
+  }
+
+  bool _isAdminRecordRole(String role) {
+    return role == 'admin' || role == 'pending_admin';
+  }
+
+  String _displayRole(String role) {
+    return _isAdminRecordRole(role) ? 'admin' : role;
   }
 
   Future<void> _fetchUsers() async {
@@ -47,11 +64,21 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 
       final users = await SuperAdminService.getUsers(filterRole);
 
+      if (!mounted) return;
+
       setState(() {
         _users = users.where((user) {
+          final role = (user['role'] ?? '').toString();
+          if (!_isAdminRecordRole(role)) {
+            return false;
+          }
+
           final status = user['verification_status'] ?? 'not_submitted';
 
           switch (_selectedFilter) {
+            case AdminVerificationFilter.pending:
+              return status == 'pending';
+
             case AdminVerificationFilter.approved:
               return status == 'approved';
 
@@ -66,13 +93,20 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
         }).toList();
       });
     } catch (e) {
+      final message = _displayMessage(e);
+      ToastUtils.showError(message);
+
+      if (!mounted) return;
+
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = message;
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -85,9 +119,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       );
 
       ToastUtils.showSuccess('Admin approved successfully');
-      _fetchUsers(); // refresh list
+      await _fetchUsers();
     } catch (e) {
-      ToastUtils.showError('Failed to approve admin');
+      ToastUtils.showError(_displayMessage(e));
     }
   }
 
@@ -125,9 +159,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
       );
 
       ToastUtils.showSuccess('Admin rejected');
-      _fetchUsers(); 
+      await _fetchUsers();
     } catch (e) {
-      ToastUtils.showError('Failed to reject admin');
+      ToastUtils.showError(_displayMessage(e));
     }
   }
 
@@ -167,6 +201,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                       ...AdminVerificationFilter.values.map((filter) {
                         String label;
                         switch (filter) {
+                          case AdminVerificationFilter.pending:
+                            label = "PENDING";
+                            break;
                           case AdminVerificationFilter.approved:
                             label = "APPROVED";
                             break;
@@ -178,15 +215,22 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                             break;
                         }
 
-                        return RadioListTile<AdminVerificationFilter>(
-                          value: filter,
-                          groupValue: tempFilter,
-                          activeColor: AppTheme.primaryGreen,
+                        final isSelected = tempFilter == filter;
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(
+                            isSelected
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: isSelected
+                                ? AppTheme.primaryGreen
+                                : Colors.grey,
+                          ),
                           title: Text(label),
-                          onChanged: (val) =>
-                              setModalState(() => tempFilter = val!),
+                          onTap: () => setModalState(() => tempFilter = filter),
                         );
-                      }).toList(),
+                      }),
 
                       const SizedBox(height: 16),
 
@@ -197,7 +241,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                               onPressed: () {
                                 setState(
                                   () => _selectedFilter =
-                                      AdminVerificationFilter.notSubmitted,
+                                      AdminVerificationFilter.pending,
                                 );
                                 _fetchUsers();
                                 Navigator.pop(context);
@@ -273,9 +317,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
-                ? Center(child: Text('Error: $_errorMessage'))
+                ? _errorState()
                 : _users.isEmpty
-                ? const Center(child: Text('No users found'))
+                ? Center(child: Text(_emptyStateMessage()))
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _users.length,
@@ -336,6 +380,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 
           String label;
           switch (filter) {
+            case AdminVerificationFilter.pending:
+              label = "PENDING";
+              break;
             case AdminVerificationFilter.approved:
               label = "APPROVED";
               break;
@@ -361,7 +408,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                 ),
               ),
               selected: isSelected,
-              selectedColor: AppTheme.primaryGreen.withOpacity(0.15),
+              selectedColor: AppTheme.primaryGreen.withValues(alpha: 0.15),
               backgroundColor: AppTheme.bgGradientEnd,
               shape: StadiumBorder(
                 side: BorderSide(
@@ -381,22 +428,64 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
+  String _emptyStateMessage() {
+    switch (_selectedFilter) {
+      case AdminVerificationFilter.pending:
+        return 'No pending admin verifications found';
+      case AdminVerificationFilter.approved:
+        return 'No approved admin records found';
+      case AdminVerificationFilter.rejected:
+        return 'No rejected admin records found';
+      case AdminVerificationFilter.notSubmitted:
+        return 'No admin records without submitted documents found';
+    }
+  }
+
+  Widget _errorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 42, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage ?? 'Unable to load admin records right now.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchUsers,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryGreen,
+              ),
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Mimics the "Shareholder List" item style
   Widget _userListItem(Map<String, dynamic> data) {
-    final String role = data['role'] ?? 'user';
+    final String role = (data['role'] ?? 'user').toString();
+    final String displayRole = _displayRole(role);
     final String userId = data['id'];
     final String verificationStatus =
         data['verification_status'] ?? 'not_submitted';
 
-    final bool canApprove =
-        verificationStatus == 'pending' ||
-        verificationStatus == 'not_submitted';
+    final bool canViewVerification = verificationStatus != 'not_submitted';
+    final bool canApprove = verificationStatus == 'pending';
 
-    final bool canReject = verificationStatus != 'rejected';
+    final bool canReject =
+        verificationStatus == 'pending' || verificationStatus == 'approved';
 
     // (role == 'admin' || role == 'delivery') && verificationStatus == 'pending';
     final bool isVerifiedAdmin =
-        role == 'admin' && verificationStatus == 'approved';
+        _isAdminRecordRole(role) && verificationStatus == 'approved';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -412,7 +501,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                backgroundColor: AppTheme.primaryGreen.withOpacity(0.1),
+                backgroundColor: AppTheme.primaryGreen.withValues(alpha: 0.1),
                 child: Text(
                   data['name']?[0] ?? 'U',
                   style: TextStyle(color: AppTheme.primaryGreen),
@@ -463,7 +552,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    _getRoleBadge(role),
+                    _getRoleBadge(displayRole),
                   ],
                 ),
               ),
@@ -474,15 +563,24 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   color: Colors.grey,
                 ),
                 onPressed: () {
-                  if (role == 'admin') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AdminVerificationDetailsPage(adminId: userId),
-                      ),
+                  if (!_isAdminRecordRole(role)) {
+                    return;
+                  }
+
+                  if (!canViewVerification) {
+                    ToastUtils.showError(
+                      'No verification documents submitted yet.',
                     );
-                  } 
+                    return;
+                  }
+
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AdminVerificationDetailsPage(adminId: userId),
+                    ),
+                  );
                 },
               ),
             ],
@@ -514,8 +612,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  
-
   Widget _getRoleBadge(String role) {
     Color color = Colors.grey;
     if (role == 'admin') color = Colors.green;
@@ -524,9 +620,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
         role.toUpperCase(),

@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/services/admin_order_service.dart';
+import 'package:Qurbani/utils/logger.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 
@@ -21,12 +21,12 @@ class ShareholderOrderDetails extends StatefulWidget {
 class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Map<String, dynamic>? orderData;
   bool isLoading = true;
+  String? _loadError;
 
   List<Map<String, dynamic>> availableAnimals = [];
   bool loadingAnimals = true;
 
   final _storage = const FlutterSecureStorage();
-  static final String _baseUrl = dotenv.env['BASE_URL']!;
 
   final Map<String, int> _tempPaymentStatus = {};
   final Map<String, String> _tempAnimalId = {};
@@ -158,14 +158,33 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   }
 
   Future<void> _fetchOrderDetails() async {
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        _loadError = null;
+      });
+    }
+
     try {
-      orderData = await AdminOrderService.getAdminOrderById(
+      final data = await AdminOrderService.getAdminOrderById(
         widget.orderId.toString(),
       );
-
-      print("$orderData");
+      if (!mounted) return;
+      setState(() {
+        orderData = data;
+        _loadError = null;
+      });
     } catch (e) {
-      ToastUtils.showError('Failed to load order: $e');
+      final message = _friendlyErrorMessage(
+        e,
+        fallback: 'Unable to load the order details right now.',
+      );
+      if (!mounted) return;
+      setState(() {
+        orderData = null;
+        _loadError = message;
+      });
+      ToastUtils.showError(message);
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -177,11 +196,10 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     setState(() => loadingAnimals = true);
 
     try {
-      final token = await _storage.read(key: 'token');
-      if (token == null) return;
+      final token = await _requireToken();
 
-      final response = await http.get(
-        Uri.parse("$_baseUrl/animals"),
+      final response = await ApiClient.get(
+        ApiClient.uri('animals'),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -189,7 +207,10 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       );
 
       if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
+        final decoded = ApiClient.decodeMap(
+          response,
+          fallbackMessage: "Unable to load animals right now.",
+        );
         final List rawAnimals = decoded['animals'] ?? [];
 
         final Map<String, Map<String, dynamic>> uniqueAnimals = {};
@@ -203,10 +224,18 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
           availableAnimals = uniqueAnimals.values.toList();
         });
       } else {
-        ToastUtils.showError("Failed to load animals");
+        ToastUtils.showError(
+          ApiClient.errorMessage(
+            response,
+            fallbackMessage: "Unable to load animals right now.",
+          ),
+        );
       }
-    } catch (_) {
-      ToastUtils.showError("Something went wrong while loading animals");
+    } catch (e, stack) {
+      AppLogger.error("Failed to load animals for order details", e, stack);
+      ToastUtils.showError(
+        _friendlyErrorMessage(e, fallback: "Unable to load animals right now."),
+      );
     } finally {
       if (mounted) {
         setState(() => loadingAnimals = false);
@@ -218,10 +247,10 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     String shareholderId,
     int status,
   ) async {
-    final token = await _storage.read(key: 'token');
+    final token = await _requireToken();
 
-    final response = await http.post(
-      Uri.parse("$_baseUrl/shareholders/$shareholderId/payment"),
+    final response = await ApiClient.post(
+      ApiClient.uri('shareholders/$shareholderId/payment'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -233,7 +262,12 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       ToastUtils.showSuccess("Payment updated successfully");
       await _fetchOrderDetails();
     } else {
-      ToastUtils.showError("Failed to update payment");
+      ToastUtils.showError(
+        ApiClient.errorMessage(
+          response,
+          fallbackMessage: "Unable to update payment right now.",
+        ),
+      );
     }
   }
 
@@ -242,10 +276,10 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     String animalId,
     int shareNumber,
   ) async {
-    final token = await _storage.read(key: 'token');
+    final token = await _requireToken();
 
-    final response = await http.post(
-      Uri.parse("$_baseUrl/shareholders/$shareholderId/assign-animal"),
+    final response = await ApiClient.post(
+      ApiClient.uri('shareholders/$shareholderId/assign-animal'),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -260,7 +294,12 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       ToastUtils.showSuccess("Animal assigned successfully");
       await _fetchOrderDetails();
     } else {
-      ToastUtils.showError("Failed to assign animal");
+      ToastUtils.showError(
+        ApiClient.errorMessage(
+          response,
+          fallbackMessage: "Unable to assign the animal right now.",
+        ),
+      );
     }
   }
 
@@ -269,10 +308,10 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     int status,
   ) async {
     try {
-      final token = await _storage.read(key: 'token');
+      final token = await _requireToken();
 
-      final response = await http.patch(
-        Uri.parse("$_baseUrl/shareholders/$shareholderId/status"),
+      final response = await ApiClient.patch(
+        ApiClient.uri('shareholders/$shareholderId/status'),
         headers: {
           "Authorization": "Bearer $token",
           "Content-Type": "application/json",
@@ -280,7 +319,10 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
         body: jsonEncode({"status": status}),
       );
 
-      final decoded = jsonDecode(response.body);
+      final decoded = ApiClient.decodeMap(
+        response,
+        fallbackMessage: "Unable to update the status right now.",
+      );
 
       if (response.statusCode == 200) {
         ToastUtils.showSuccess(decoded["message"] ?? "Status updated");
@@ -288,9 +330,36 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       } else {
         ToastUtils.showError(decoded["message"] ?? "Failed to update status");
       }
-    } catch (_) {
-      ToastUtils.showError("Something went wrong");
+    } catch (e, stack) {
+      AppLogger.error("Failed to update shareholder status", e, stack);
+      ToastUtils.showError(
+        _friendlyErrorMessage(
+          e,
+          fallback: "Unable to update the status right now.",
+        ),
+      );
     }
+  }
+
+  Future<String> _requireToken() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) {
+      throw const ApiException('Not authenticated');
+    }
+    return token;
+  }
+
+  String _friendlyErrorMessage(Object error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        .toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    return cleaned.isEmpty ? fallback : cleaned;
   }
 
   Widget _sectionTitle(String text, IconData icon) {
@@ -526,10 +595,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   }
 
   String formatQurbaniDay(dynamic value) {
-    print("Day: $value");
-
     final day = value?.toString().trim().toLowerCase();
-    print("Day: $day");
     switch (day) {
       case 'day_1':
       case 'day 1':
@@ -837,6 +903,43 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
   Widget build(BuildContext context) {
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (_loadError != null || orderData == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7F4),
+        appBar: AppBar(
+          title: const Text(
+            'Order Details',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: AppTheme.primaryGreen,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _loadError ?? 'Unable to load the order details right now.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: _fetchOrderDetails,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Try Again"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     final data = orderData!;

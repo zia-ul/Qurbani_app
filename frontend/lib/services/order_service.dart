@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:Qurbani/services/api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -39,8 +40,8 @@ class OrderService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
-    final res = await http.post(
-      Uri.parse('$_baseUrl/orders'),
+    final res = await ApiClient.post(
+      ApiClient.uri('orders'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -55,11 +56,30 @@ class OrderService {
     );
 
     if (res.statusCode != 201) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to place order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to place your order right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body));
+    return ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to place your order right now.',
+    );
+  }
+
+  static Future<String> _requireToken({
+    String message = 'Not authenticated',
+  }) async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) {
+      throw ApiException(message);
+    }
+
+    return token;
   }
 
   // Fetch barcode for a specific animal order
@@ -130,8 +150,8 @@ class OrderService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId/payment-success'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId/payment-success'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -140,66 +160,94 @@ class OrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to update payment';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to update the payment status right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 
   /// GET ALL ORDERS FOR CURRENT USER
   static Future<List<Map<String, dynamic>>> getUserOrders() async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('User not authenticated');
+    final token = await _requireToken(message: 'User not authenticated');
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/orders/my'),
+    final res = await ApiClient.get(
+      ApiClient.uri('orders/my'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch orders';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load your bookings right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    final List data = jsonDecode(res.body)['orders'];
+    final body = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load your bookings right now.',
+    );
+    final List data = body['orders'] is List ? body['orders'] as List : [];
     return List<Map<String, dynamic>>.from(data);
   }
 
   /// GET SINGLE ORDER DETAILS
   static Future<Map<String, dynamic>> getOrderById(String orderId) async {
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('User not authenticated');
+    final token = await _requireToken(message: 'User not authenticated');
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/orders/$orderId'),
+    final res = await ApiClient.get(
+      ApiClient.uri('orders/$orderId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load this order right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body)['order']);
+    final body = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load this order right now.',
+    );
+    return Map<String, dynamic>.from(body['order']);
   }
 
   static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
     if (mockGetOrderDetails != null) {
       return mockGetOrderDetails!(orderId);
     }
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/orders/$orderId'),
+    final res = await ApiClient.get(
+      ApiClient.uri('orders/$orderId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load this order right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
 
-    final data = jsonDecode(res.body);
+    final data = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load this order right now.',
+    );
     return Map<String, dynamic>.from(data['order']);
   }
 
@@ -207,11 +255,10 @@ class OrderService {
     if (mockCancelOrder != null) {
       return mockCancelOrder!(orderId);
     }
-    final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    final token = await _requireToken();
 
-    final res = await http.put(
-      Uri.parse('$_baseUrl/orders/$orderId/cancel'),
+    final res = await ApiClient.put(
+      ApiClient.uri('orders/$orderId/cancel'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -219,8 +266,13 @@ class OrderService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to cancel order';
-      throw Exception(msg);
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to cancel this order right now.',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 

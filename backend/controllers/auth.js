@@ -84,7 +84,9 @@ router.post(
       // Hash password
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const adminStatus = role === "admin" ? "pending_admin" : null;
+      // `admin_status` is a DB enum: pending | approved | rejected.
+      // New admin signups should start in the pending state until reviewed.
+      const adminStatus = role === "admin" ? "pending" : null;
       const userId = uuidv4();
       const verificationToken = uuidv4();
 

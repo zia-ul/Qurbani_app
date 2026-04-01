@@ -1,12 +1,10 @@
+import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/screens/user/order_form.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AdminProfilePage extends StatefulWidget {
   final String adminId;
@@ -23,7 +21,6 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   final Color backgroundGrey = const Color(0xffF8F9FA);
   final _storage = const FlutterSecureStorage();
   late Future<Map<String, dynamic>> _adminFuture;
-  static final String? _baseUrl = dotenv.env['BASE_URL'];
 
   @override
   void initState() {
@@ -41,8 +38,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     }
 
     try {
-      final res = await http.get(
-        Uri.parse('$_baseUrl/auth/adminprofile/${widget.adminId}'),
+      final res = await ApiClient.get(
+        ApiClient.uri('auth/adminprofile/${widget.adminId}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -54,7 +51,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
       );
 
       if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final data = ApiClient.decodeMap(
+          res,
+          fallbackMessage: 'Unable to load admin profile right now.',
+        );
 
         AppLogger.info(
           "Admin profile loaded successfully | adminId=${widget.adminId}",
@@ -62,10 +62,14 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
         return data;
       } else {
-        AppLogger.error(
-          "Failed to load admin profile | statusCode=${res.statusCode} | body=${res.body}",
+        final message = ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to load admin profile right now.',
         );
-        throw Exception('Failed to load admin profile');
+        AppLogger.error(
+          "Failed to load admin profile | statusCode=${res.statusCode} | message=$message",
+        );
+        throw ApiException(message, statusCode: res.statusCode);
       }
     } catch (e, stack) {
       AppLogger.error(
@@ -93,7 +97,36 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
               "Admin profile load failed | adminId=${widget.adminId}",
               snapshot.error,
             );
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _friendlyErrorMessage(
+                        snapshot.error,
+                        fallback: 'Unable to load admin profile right now.',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _adminFuture = _fetchAdminProfile();
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryGreen,
+                        foregroundColor: AppTheme.bgGradientEnd,
+                      ),
+                      child: const Text('Try Again'),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
 
           final data = snapshot.data!;
@@ -139,7 +172,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                           color: AppTheme.bgGradientEnd,
                         ),
                         title: const Text(
-                          "Qassab Profile",
+                          "Admin Profile",
                           style: TextStyle(color: AppTheme.bgGradientEnd),
                         ),
                       ),
@@ -198,7 +231,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          "Verified Qassab",
+                          "Verified Admin",
                           style: TextStyle(color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
@@ -469,5 +502,22 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         ],
       ),
     );
+  }
+
+  String _friendlyErrorMessage(Object? error, {required String fallback}) {
+    if (error is ApiException) {
+      return error.message;
+    }
+
+    final cleaned = error
+        ?.toString()
+        .replaceFirst(RegExp(r'^(Exception|Error):\s*'), '')
+        .trim();
+
+    if (cleaned == null || cleaned.isEmpty) {
+      return fallback;
+    }
+
+    return cleaned;
   }
 }

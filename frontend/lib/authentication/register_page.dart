@@ -20,7 +20,6 @@
 import 'package:Qurbani/utils/logger.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/authentication/login_page.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/terms_condition_dialog.dart';
@@ -87,6 +86,54 @@ class _RegisterPageState extends State<RegisterPage> {
   csc.State? selectedState;
   csc.City? selectedCity;
 
+  Future<void> _applyCountrySelection(Country country) async {
+    AppLogger.info(
+      'Register country selected: ${country.name} '
+      '(${country.countryCode}, +${country.phoneCode})',
+    );
+
+    setState(() {
+      countryCode = "+${country.phoneCode}";
+      countryISO = country.countryCode;
+      selectedCountryName = country.name;
+      countryController.text = country.name;
+
+      selectedState = null;
+      selectedCity = null;
+      states = [];
+      cities = [];
+      cityController.clear();
+    });
+
+    try {
+      final fetchedStates = await csc.getStatesOfCountry(country.countryCode);
+
+      if (!mounted) return;
+
+      setState(() {
+        states = fetchedStates;
+      });
+    } catch (e, stack) {
+      AppLogger.error('Failed to load states for selected country', e, stack);
+
+      if (!mounted) return;
+
+      setState(() {
+        states = [];
+      });
+    }
+  }
+
+  void _openCountryPicker({required bool showPhoneCode}) {
+    showCountryPicker(
+      context: context,
+      showPhoneCode: showPhoneCode,
+      onSelect: (country) {
+        _applyCountrySelection(country);
+      },
+    );
+  }
+
   // ---------------- PASSWORD ----------------
   String _checkPasswordStrength(String password) {
     if (password.length < 8) return "Too short";
@@ -125,11 +172,21 @@ class _RegisterPageState extends State<RegisterPage> {
 
     _formKey.currentState!.save();
 
-    if (phoneNumber == null || countryCode == null) {
+    final trimmedPhone = phoneController.text.trim();
+
+    if (countryCode == null || countryISO == null) {
+      AppLogger.warning('Register failed: country code not selected');
+      ToastUtils.showError('Please choose a country code');
+      return;
+    }
+
+    if (trimmedPhone.isEmpty) {
       AppLogger.warning('Register failed: phone number missing');
       ToastUtils.showError('Please enter phone number');
       return;
     }
+
+    phoneNumber = trimmedPhone;
 
     if (!termsAccepted) {
       AppLogger.warning('Register failed: terms not accepted');
@@ -474,20 +531,10 @@ class _RegisterPageState extends State<RegisterPage> {
                                               children: [
                                                 // Country Code Dropdown
                                                 GestureDetector(
-                                                  onTap: () {
-                                                    showCountryPicker(
-                                                      context: context,
-                                                      showPhoneCode: true,
-                                                      onSelect: (country) {
-                                                        setState(() {
-                                                          countryCode =
-                                                              "+${country.phoneCode}";
-                                                          countryISO = country
-                                                              .countryCode;
-                                                        });
-                                                      },
-                                                    );
-                                                  },
+                                                  onTap: () =>
+                                                      _openCountryPicker(
+                                                        showPhoneCode: true,
+                                                      ),
                                                   child: Container(
                                                     padding:
                                                         const EdgeInsets.symmetric(
@@ -506,13 +553,34 @@ class _RegisterPageState extends State<RegisterPage> {
                                                             .shade400,
                                                       ),
                                                     ),
-                                                    child: Text(
-                                                      countryCode ?? "+91",
-                                                      style: const TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
+                                                    child: Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Text(
+                                                          countryCode ??
+                                                              "Choose Code",
+                                                          style: TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w500,
+                                                            color:
+                                                                countryCode ==
+                                                                    null
+                                                                ? Colors
+                                                                      .grey
+                                                                      .shade600
+                                                                : Colors.black,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 4,
+                                                        ),
+                                                        const Icon(
+                                                          Icons.arrow_drop_down,
+                                                          size: 18,
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
                                                 ),
@@ -530,13 +598,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                                           v.trim().isEmpty) {
                                                         return "Phone number is required";
                                                       }
-                                                      if (v.length < 7) {
+                                                      if (v.trim().length < 7) {
                                                         return "Invalid phone number";
                                                       }
                                                       return null;
                                                     },
                                                     onChanged: (value) {
-                                                      phoneNumber = value;
+                                                      phoneNumber = value
+                                                          .trim();
                                                     },
                                                     decoration: InputDecoration(
                                                       filled: true,
@@ -576,40 +645,9 @@ class _RegisterPageState extends State<RegisterPage> {
                                           // ),
                                           // Country
                                           InkWell(
-                                            onTap: () {
-                                              showCountryPicker(
-                                                context: context,
-                                                onSelect: (country) async {
-                                                  // Set selected country
-                                                  setState(() {
-                                                    selectedCountryName =
-                                                        country.name;
-                                                    countryISO =
-                                                        country.countryCode;
-                                                    countryController.text =
-                                                        country.name;
-
-                                                    // Reset state & city
-                                                    selectedState = null;
-                                                    selectedCity = null;
-                                                    states = [];
-                                                    cities = [];
-                                                    cityController.clear();
-                                                  });
-
-                                                  // Load states for selected country
-                                                  states = await csc
-                                                      .getStatesOfCountry(
-                                                        country.countryCode,
-                                                      );
-
-                                                  // Refresh UI
-                                                  if (mounted) {
-                                                    setState(() {});
-                                                  }
-                                                },
-                                              );
-                                            },
+                                            onTap: () => _openCountryPicker(
+                                              showPhoneCode: false,
+                                            ),
 
                                             child: AbsorbPointer(
                                               child: _field(
@@ -853,7 +891,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                               DropdownMenuItem(
                                                 value: 'admin',
                                                 child: Text(
-                                                  "Qassab",
+                                                  "Admin",
                                                   style: TextStyle(
                                                     color: Colors.black,
                                                   ),

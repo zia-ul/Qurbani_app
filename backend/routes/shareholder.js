@@ -48,6 +48,7 @@ const { sendPushNotification } = require("../utils/notification_service");
 router.post("/:id/payment", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const paymentStatus = Number(req.body.payment_status);
+  const adminId = req.user.id;
 
   if (![0, 1, 2].includes(paymentStatus)) {
     return res.status(400).json({ message: "Invalid payment status" });
@@ -55,10 +56,13 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
 
   try {
     const [rows] = await pool.execute(
-      `SELECT id, order_id 
-       FROM shareholder_details 
-       WHERE id = ?`,
-      [id],
+      `
+      SELECT s.id, s.order_id
+      FROM shareholder_details s
+      JOIN orders o ON o.id = s.order_id
+      WHERE s.id = ? AND o.admin_id = ?
+      `,
+      [id, adminId],
     );
 
     if (!rows.length) {
@@ -96,8 +100,8 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
       const subscriptionIds = devices.map((d) => d.subscription_id);
 
       let paymentStatusLabel = "Pending";
-      if (paymentStatus == 1) paymentStatusLabel = "Paid";
-      if (paymentStatus == 2) paymentStatusLabel = "Unpaid";
+      if (paymentStatus === 0) paymentStatusLabel = "Paid";
+      if (paymentStatus === 1) paymentStatusLabel = "Unpaid";
 
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
@@ -124,6 +128,7 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
     logger.error("Route error", {
       message: err.message,
       stack: err.stack,
+      adminId,
     });
 
     res.status(500).json({ message: "Something went wrong" });
@@ -133,6 +138,7 @@ router.post("/:id/payment", authMiddleware, async (req, res) => {
 router.patch("/:id/status", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  const adminId = req.user.id;
 
   const shareholderId = Number(id);
   const nextStatus = Number(status);
@@ -145,16 +151,17 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
     const [rows] = await pool.execute(
       `
       SELECT 
-        id,
-        order_id,
-        status,
-        payment_status,
-        animal_id,
-        share_number
-      FROM shareholder_details
-      WHERE id = ?
+        s.id,
+        s.order_id,
+        s.status,
+        s.payment_status,
+        s.animal_id,
+        s.share_number
+      FROM shareholder_details s
+      JOIN orders o ON o.id = s.order_id
+      WHERE s.id = ? AND o.admin_id = ?
       `,
-      [shareholderId],
+      [shareholderId, adminId],
     );
 
     if (!rows.length) {
@@ -299,6 +306,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
     logger.error("Route error", {
       message: err.message,
       stack: err.stack,
+      adminId,
       shareholderId,
       requestedStatus: nextStatus,
     });
@@ -350,6 +358,7 @@ router.patch("/:id/status", authMiddleware, async (req, res) => {
 router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { animal_id, share_number } = req.body;
+  const adminId = req.user.id;
 
   const shareholderId = Number(id);
   const animalId = Number(animal_id);
@@ -364,11 +373,14 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
   try {
     // Check shareholder
     const [shareholders] = await pool.execute(
-      "SELECT * FROM shareholder_details WHERE id = ?",
-      [shareholderId],
+      `
+      SELECT s.*
+      FROM shareholder_details s
+      JOIN orders o ON o.id = s.order_id
+      WHERE s.id = ? AND o.admin_id = ?
+      `,
+      [shareholderId, adminId],
     );
-
-    console.log("printing shareholder for assign-animal", shareholders);
 
     if (!shareholders.length) {
       return res.status(404).json({ message: "Shareholder not found" });
@@ -384,10 +396,10 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
     }
 
     // Check animal
-    const [animals] = await pool.execute("SELECT * FROM animals WHERE id = ?", [
-      animalId,
-    ]);
-    console.log("printing animal for assign-animal", animals);
+    const [animals] = await pool.execute(
+      "SELECT * FROM animals WHERE id = ? AND admin_id = ?",
+      [animalId, adminId],
+    );
 
     if (!animals.length) {
       return res.status(404).json({ message: "Animal not found" });
@@ -436,8 +448,6 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
         message: "This share number is already assigned",
       });
     }
-
-    console.log("printing test", shareNumber, animalId);
 
     // Update shareholder
     await pool.execute(
@@ -495,6 +505,9 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
     logger.error("Route error", {
       message: err.message,
       stack: err.stack,
+      adminId,
+      shareholderId,
+      animalId,
     });
 
     res.status(500).json({ message: "Something went wrong" });
@@ -819,219 +832,5 @@ router.post(
     }
   },
 );
-
-/**
- * @swagger
- * /api/shareholders/{id}/status:
- *   patch:
- *     summary: Update delivery status (quick update)
- *     description: Updates only the delivery status field.
- *     tags: [Shareholders]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - delivery_status
- *             properties:
- *               delivery_status:
- *                 type: string
- *                 example: sent
- *     responses:
- *       200:
- *         description: Status updated successfully
- *       500:
- *         description: Something went wrong
- */
-
-router.patch("/:id/status", authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-console.log("we are here");
-  const shareholderId = Number(id);
-  const nextStatus = Number(status);
-
-  if (![1, 2, 3, 4, 5, 6].includes(nextStatus)) {
-    return res.status(400).json({ message: "Invalid status value" });
-  }
-
-  try {
-    const [rows] = await pool.execute(
-      `
-      SELECT 
-        id,
-        order_id,
-        status,
-        payment_status,
-        animal_id,
-        share_number
-      FROM shareholder_details
-      WHERE id = ?
-      `,
-      [shareholderId],
-    );
-
-    console.log("testing status");
-    console.log(rows);
-
-    if (!rows.length) {
-      return res.status(404).json({ message: "Shareholder not found" });
-    }
-
-    const shareholder = rows[0];
-
-    const currentStatus = Number(shareholder.status);
-    const paymentStatus = Number(shareholder.payment_status);
-    const hasAnimal = !!shareholder.animal_id;
-    const hasShareNumber = shareholder.share_number !== null;
-    const orderId = shareholder.order_id;
-
-    if (currentStatus === 6) {
-      return res.status(400).json({
-        message: "Cancelled shareholder status cannot be updated",
-      });
-    }
-
-    // Step conditions
-    switch (nextStatus) {
-      case 1: // Qurbani Started
-        // Current payment mapping:
-        // 0 = paid, 1 = unpaid, 2 = pending
-        if (paymentStatus !== 0) {
-          return res.status(400).json({
-            message: "Payment must be marked as Paid before starting qurbani",
-          });
-        }
-
-        if (!hasAnimal || !hasShareNumber) {
-          return res.status(400).json({
-            message: "Animal and share number must be assigned first",
-          });
-        }
-
-        if (currentStatus !== 0) {
-          return res.status(400).json({
-            message: "Qurbani can only be started from Not started status",
-          });
-        }
-        break;
-
-      case 2: // Processing
-        if (currentStatus !== 1) {
-          return res.status(400).json({
-            message: "Processing can only be set after Qurbani Started",
-          });
-        }
-        break;
-
-      case 3: // Meat Packaged
-        if (![1, 2].includes(currentStatus)) {
-          return res.status(400).json({
-            message:
-              "Meat can only be packaged after Qurbani Started or Processing",
-          });
-        }
-        break;
-
-      case 4: // Sent for delivery
-        if (currentStatus !== 3) {
-          return res.status(400).json({
-            message: "Order can only be sent for delivery after Meat Packaged",
-          });
-        }
-        break;
-
-      case 5: // Delivered
-        if (currentStatus !== 4) {
-          return res.status(400).json({
-            message: "Order can only be delivered after Sent for delivery",
-          });
-        }
-        break;
-
-      case 6: // Cancelled
-        if (currentStatus === 5) {
-          return res.status(400).json({
-            message: "Delivered order cannot be cancelled",
-          });
-        }
-        break;
-    }
-
-    // Update shareholder status
-    await pool.execute(
-      `
-      UPDATE shareholder_details
-      SET status = ?
-      WHERE id = ?
-      `,
-      [nextStatus, shareholderId],
-    );
-
-    // Recalculate parent order status
-    const [shareholderRows] = await pool.execute(
-      `
-      SELECT status
-      FROM shareholder_details
-      WHERE order_id = ?
-      `,
-      [orderId],
-    );
-
-    const statuses = shareholderRows.map((row) => Number(row.status));
-
-    let nextOrderStatus = 0; // active by default
-
-    if (statuses.length > 0 && statuses.every((s) => s === 5)) {
-      nextOrderStatus = 1; // completed
-    } else if (statuses.length > 0 && statuses.every((s) => s === 6)) {
-      nextOrderStatus = 2; // cancelled
-    } else {
-      nextOrderStatus = 0; // active
-    }
-
-    await pool.execute(
-      `
-      UPDATE orders
-      SET status = ?
-      WHERE id = ?
-      `,
-      [nextOrderStatus, orderId],
-    );
-
-    logger.info("Shareholder status updated", {
-      shareholderId,
-      orderId,
-      previousStatus: currentStatus,
-      nextStatus,
-      nextOrderStatus,
-    });
-
-    return res.json({
-      message: "Status updated successfully",
-      shareholder_status: nextStatus,
-      order_status: nextOrderStatus,
-    });
-  } catch (err) {
-    logger.error("Route error", {
-      message: err.message,
-      stack: err.stack,
-      shareholderId,
-      requestedStatus: nextStatus,
-    });
-
-    return res.status(500).json({ message: "Something went wrong" });
-  }
-});
 
 module.exports = router;

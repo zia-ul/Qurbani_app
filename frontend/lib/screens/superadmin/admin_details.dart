@@ -1,6 +1,6 @@
-/// This file contains the Admin Verification Details page, which displays
-/// detailed information about an admin's verification status, including
-/// organization details, documents, and review history.
+// This file contains the Admin Verification Details page, which displays
+// detailed information about an admin's verification status, including
+// organization details, documents, and review history.
 
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
@@ -166,7 +166,7 @@ class _AdminVerificationDetailsPageState
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: color.withOpacity(0.1),
+            backgroundColor: color.withValues(alpha: 0.1),
             child: Icon(Icons.verified_user, color: color),
           ),
           const SizedBox(width: 16),
@@ -272,6 +272,7 @@ class _AdminVerificationDetailsPageState
       trailing: TextButton(
         onPressed: () async {
           final uri = Uri.parse(url);
+          final messenger = ScaffoldMessenger.of(context);
 
           if (await canLaunchUrl(uri)) {
             await launchUrl(
@@ -280,7 +281,7 @@ class _AdminVerificationDetailsPageState
                   LaunchMode.externalApplication, // opens in browser/pdf viewer
             );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               const SnackBar(content: Text('Could not open document')),
             );
           }
@@ -291,8 +292,9 @@ class _AdminVerificationDetailsPageState
   }
 
   Widget _buildReviewSection(Map<String, dynamic> data) {
-    if (data['reviewed_by'] == null && data['review_note'] == null)
+    if (data['reviewed_by'] == null && data['review_note'] == null) {
       return const SizedBox.shrink();
+    }
 
     return _buildSectionCard(
       title: 'Review Audit',

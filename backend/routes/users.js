@@ -311,6 +311,39 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
     farm_photo_url,
   } = req.body;
 
+  const trimmedOrganizationName = organization_name?.trim();
+  const trimmedPhone = phone?.trim();
+  const trimmedExperience = experience?.trim();
+  const trimmedAddress = address?.trim();
+  const trimmedGovtIdUrl = govt_id_url?.trim();
+  const trimmedBusinessProofUrl = business_proof_url?.trim();
+  const trimmedBankProofUrl = bank_proof_url?.trim();
+  const trimmedFarmPhotoUrl = farm_photo_url?.trim();
+
+  if (
+    !trimmedOrganizationName ||
+    !trimmedPhone ||
+    !trimmedGovtIdUrl ||
+    !trimmedBusinessProofUrl ||
+    !trimmedBankProofUrl ||
+    !trimmedFarmPhotoUrl
+  ) {
+    logger.warn("Admin verification blocked: missing required fields", {
+      userId,
+      hasOrganizationName: Boolean(trimmedOrganizationName),
+      hasPhone: Boolean(trimmedPhone),
+      hasGovtIdUrl: Boolean(trimmedGovtIdUrl),
+      hasBusinessProofUrl: Boolean(trimmedBusinessProofUrl),
+      hasBankProofUrl: Boolean(trimmedBankProofUrl),
+      hasFarmPhotoUrl: Boolean(trimmedFarmPhotoUrl),
+    });
+
+    return res.status(400).json({
+      message:
+        "Please provide organization details and upload all required documents.",
+    });
+  }
+
   try {
     // Insert or update admin verification request in database
     // ON DUPLICATE KEY UPDATE allows users to resubmit their application
@@ -347,16 +380,20 @@ router.post("/admin/verification", authMiddleware, async (req, res) => {
       [
         verificationId,
         userId,
-        organization_name,
-        phone,
-        experience,
-        address,
-        govt_id_url,
-        business_proof_url,
-        bank_proof_url,
-        farm_photo_url,
+        trimmedOrganizationName,
+        trimmedPhone,
+        trimmedExperience || null,
+        trimmedAddress || null,
+        trimmedGovtIdUrl,
+        trimmedBusinessProofUrl,
+        trimmedBankProofUrl,
+        trimmedFarmPhotoUrl,
       ]
     );
+
+    await pool.execute("UPDATE users SET admin_status = 'pending' WHERE id = ?", [
+      userId,
+    ]);
 
     logger.info("Admin verification submitted", {
       userId,
@@ -400,7 +437,7 @@ router.get("/verification/status", authMiddleware, async (req, res) => {
 
   try {
     const [verifications] = await pool.execute(
-      `SELECT status FROM admin_verification_requests WHERE admin_id = ?`,
+      `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
       [userId],
     );
     if (verifications.length === 0) {
@@ -472,12 +509,13 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
         u.email,
         u.phone,
         u.role,
+        u.admin_status,
         u.created_at,
         COALESCE(avr.status, 'not_submitted') AS verification_status
       FROM users u
       LEFT JOIN admin_verification_requests avr
         ON avr.user_id = u.id
-      WHERE u.role IN ('user', 'admin', 'delivery')
+      WHERE 1 = 1
     `;
 
     // Initialize parameters array for prepared statement
@@ -492,9 +530,17 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
         return res.status(400).json({ message: "Invalid role filter" });
       }
 
-      // Add role condition to query
-      query += ` AND u.role = ?`;
-      params.push(role);
+      if (role === "admin") {
+        query += ` AND (u.role = 'admin' OR u.role = 'pending_admin')`;
+      } else {
+        query += ` AND u.role = ?`;
+        params.push(role);
+      }
+    } else {
+      query += ` AND (
+        u.role IN ('user', 'admin', 'delivery')
+        OR u.role = 'pending_admin'
+      )`;
     }
 
     // Order results by creation date (newest first) for better UX

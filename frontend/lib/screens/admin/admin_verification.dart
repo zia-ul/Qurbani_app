@@ -68,7 +68,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
     } catch (e, stack) {
       AppLogger.error("Failed to fetch admin profile", e, stack);
       setState(() => fetchingProfile = false);
-      ToastUtils.showError("Failed to fetch profile: $e");
+      // ToastUtils.showError("Failed to fetch profile: $e");
     }
   }
 
@@ -125,11 +125,18 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (govtId == null || businessProof == null) {
+    if (
+      govtId == null ||
+      businessProof == null ||
+      bankProof == null ||
+      farmPhoto == null
+    ) {
       AppLogger.warning(
         "Verification submit blocked: missing required documents",
       );
-      ToastUtils.showError("Please upload required documents");
+      ToastUtils.showError(
+        "Please upload Government ID, Business Proof, Bank Proof, and Farm Photo.",
+      );
       return;
     }
 
@@ -153,6 +160,8 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
 
       AppLogger.info("Admin verification submitted successfully");
 
+      if (!mounted) return;
+
       ToastUtils.showSuccess("Verification submitted");
 
       Navigator.pushReplacement(
@@ -172,6 +181,15 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
     } finally {
       setState(() => loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    orgController.dispose();
+    phoneController.dispose();
+    expController.dispose();
+    addressController.dispose();
+    super.dispose();
   }
 
   @override
@@ -204,8 +222,6 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 controller: phoneController,
                 decoration: const InputDecoration(labelText: "Phone"),
                 initialCountryCode: 'IN',
-                onChanged: (phone) =>
-                    phoneController.text = phone.completeNumber,
                 validator: (phone) {
                   if (phone == null || phone.number.isEmpty) return 'Required';
                   return null;
@@ -223,8 +239,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
                   final exp = int.tryParse(v);
-                  if (exp == null || exp < 1)
+                  if (exp == null || exp < 1) {
                     return 'Minimum 1 year experience required';
+                  }
                   return null;
                 },
               ),
@@ -262,7 +279,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
               buildPicker(
                 label: "Bank Proof",
                 file: bankProof,
-                required: false,
+                required: true,
                 onPick: () async {
                   bankProof = await pickImage();
                   setState(() {});
@@ -272,7 +289,7 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
               buildPicker(
                 label: "Farm Photo",
                 file: farmPhoto,
-                required: false,
+                required: true,
                 onPick: () async {
                   farmPhoto = await pickImage();
                   setState(() {});

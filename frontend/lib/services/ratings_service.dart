@@ -1,25 +1,24 @@
 // services/rating_service.dart
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'api_client.dart';
 
 class RatingService {
   static const _storage = FlutterSecureStorage();
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
 
-  static Future<Map<String, dynamic>> Function(
-    String orderId,
-    String userId,
-  )? mockGetRatings;
+  static Future<Map<String, dynamic>> Function(String orderId, String userId)?
+  mockGetRatings;
 
   static Future<void> Function(
     String orderId,
     String userId,
     List<Map<String, dynamic>> ratings,
-  )? mockSubmitRatings;
+  )?
+  mockSubmitRatings;
 
-  /**
+  /*
    * Retrieves existing ratings and order details for a specific order
    *
    * Fetches rating information and associated order details for display
@@ -35,25 +34,30 @@ class RatingService {
     String orderId,
     String userId,
   ) async {
-
-     if (mockGetRatings != null) {
-    return mockGetRatings!(orderId, userId);
-  }
+    if (mockGetRatings != null) {
+      return mockGetRatings!(orderId, userId);
+    }
 
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.get(
-      Uri.parse('$_baseUrl/ratings/$orderId/$userId'),
+    final res = await ApiClient.get(
+      ApiClient.uri('ratings/$orderId/$userId'),
       headers: {'Authorization': 'Bearer $token'},
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to fetch ratings';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Unable to load ratings right now.',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
 
-    return Map<String, dynamic>.from(jsonDecode(res.body));
+    return ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load ratings right now.',
+    );
   }
 
   /// SUBMIT RATINGS
@@ -62,16 +66,15 @@ class RatingService {
     String userId,
     List<Map<String, dynamic>> ratings,
   ) async {
-
     if (mockSubmitRatings != null) {
-    return mockSubmitRatings!(orderId, userId, ratings);
-  }
+      return mockSubmitRatings!(orderId, userId, ratings);
+    }
 
     final token = await _storage.read(key: 'token');
-    if (token == null) throw Exception('Not authenticated');
+    if (token == null) throw const ApiException('Not authenticated');
 
-    final res = await http.post(
-      Uri.parse('$_baseUrl/ratings'),
+    final res = await ApiClient.post(
+      ApiClient.uri('ratings'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -84,8 +87,11 @@ class RatingService {
     );
 
     if (res.statusCode != 200) {
-      final msg = jsonDecode(res.body)['message'] ?? 'Failed to submit ratings';
-      throw Exception(msg);
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Unable to submit your rating right now.',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
     }
   }
 }
