@@ -135,6 +135,7 @@ router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
       SELECT allow_cod, allow_online, cod_deadline
       FROM admin_payment_settings
       WHERE admin_id = ?
+      ORDER BY updated_at DESC
       LIMIT 1
       `,
       [adminId],

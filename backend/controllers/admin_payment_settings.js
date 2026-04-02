@@ -23,6 +23,14 @@ const normalizeDate = (value) => {
   return date.toISOString().split("T")[0];
 };
 
+const latestPaymentSettingsQuery = `
+  SELECT allow_cod, allow_online, cod_deadline
+  FROM admin_payment_settings
+  WHERE admin_id = ?
+  ORDER BY updated_at DESC
+  LIMIT 1
+`;
+
 /**
  * ADMIN (authenticated)
  * GET /api/admin/payment-settings
@@ -38,9 +46,7 @@ exports.getMyPaymentSettings = async (req, res) => {
   try {
     // Query database for admin's payment settings
     const [rows] = await db.query(
-      `SELECT allow_cod, allow_online, cod_deadline
-       FROM admin_payment_settings
-       WHERE admin_id = ?`,
+      latestPaymentSettingsQuery,
       [adminId]
     );
 
@@ -76,7 +82,7 @@ exports.getMyPaymentSettings = async (req, res) => {
  * ADMIN (authenticated)
  * PUT /api/admin/payment-settings
  * Updates the payment settings for the authenticated admin.
- * Uses INSERT ... ON DUPLICATE KEY UPDATE to handle both insert and update operations.
+ * Updates existing rows first and inserts a new row only when none exists.
  */
 exports.updateMyPaymentSettings = async (req, res) => {
   // Extract admin ID and settings from request
@@ -98,25 +104,38 @@ exports.updateMyPaymentSettings = async (req, res) => {
   }
 
   try {
-    // Insert or update payment settings in database
-    // ON DUPLICATE KEY UPDATE handles both new and existing records
-    await db.query(
+    const normalizedAllowCod = allow_cod ?? 0;
+    const normalizedAllowOnline = allow_online ?? 0;
+
+    const [updateResult] = await db.query(
       `
-      INSERT INTO admin_payment_settings
-        (admin_id, allow_cod, allow_online, cod_deadline)
-      VALUES (?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE
-        allow_cod = VALUES(allow_cod),
-        allow_online = VALUES(allow_online),
-        cod_deadline = VALUES(cod_deadline)
+      UPDATE admin_payment_settings
+      SET allow_cod = ?, allow_online = ?, cod_deadline = ?
+      WHERE admin_id = ?
       `,
       [
+        normalizedAllowCod,
+        normalizedAllowOnline,
+        normalizedCodDeadline,
         adminId,
-        allow_cod ?? 0,      // Default to 0 if not provided
-        allow_online ?? 0,   // Default to 0 if not provided
-        normalizedCodDeadline, // Default to null if not provided
       ]
     );
+
+    if (updateResult.affectedRows === 0) {
+      await db.query(
+        `
+        INSERT INTO admin_payment_settings
+          (admin_id, allow_cod, allow_online, cod_deadline)
+        VALUES (?, ?, ?, ?)
+        `,
+        [
+          adminId,
+          normalizedAllowCod,
+          normalizedAllowOnline,
+          normalizedCodDeadline,
+        ]
+      );
+    }
 
     logger.info("Admin payment settings updated successfully", {
       adminId,
@@ -152,9 +171,7 @@ exports.getAdminPaymentSettingsPublic = async (req, res) => {
   try {
     // Query database for the specified admin's payment settings
     const [rows] = await db.query(
-      `SELECT allow_cod, allow_online, cod_deadline
-       FROM admin_payment_settings
-       WHERE admin_id = ?`,
+      latestPaymentSettingsQuery,
       [adminId]
     );
 

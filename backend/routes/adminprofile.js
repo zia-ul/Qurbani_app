@@ -71,6 +71,12 @@ const router = express.Router();
  *                 completedOrders:
  *                   type: integer
  *                   example: 18
+ *                 averageRating:
+ *                   type: number
+ *                   example: 4.7
+ *                 totalRatings:
+ *                   type: integer
+ *                   example: 23
  *       401:
  *         description: Unauthorized – missing or invalid JWT token
  *       404:
@@ -116,21 +122,41 @@ router.get("/:id", authMiddleware, async (req, res) => {
       [adminId]
     );
 
+    const [[ratingSummary]] = await db.query(
+      `
+      SELECT
+        COUNT(*) AS totalRatings,
+        COALESCE(ROUND(AVG(admin_rating), 1), 0) AS averageRating
+      FROM ratings
+      WHERE admin_id = ?
+      `,
+      [adminId],
+    );
+
     const totalOrders = orders.length;
     const completedOrders = orders.filter(
-      (o) => o.status === "completed"
+      (o) => {
+        const normalizedStatus = String(o.status ?? "").trim().toLowerCase();
+        return normalizedStatus === "completed" || normalizedStatus === "1";
+      }
     ).length;
+    const totalRatings = Number(ratingSummary?.totalRatings || 0);
+    const averageRating = Number(ratingSummary?.averageRating || 0);
 
     logger.info("Admin profile fetched successfully", {
       adminId,
       totalOrders,
       completedOrders,
+      totalRatings,
+      averageRating,
     });
 
     return res.json({
       ...admin,
       totalOrders,
       completedOrders,
+      totalRatings,
+      averageRating,
     });
   } catch (err) {
     logger.error("Error fetching admin profile", {

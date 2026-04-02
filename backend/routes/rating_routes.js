@@ -11,6 +11,56 @@ function badRequest(message) {
   return error;
 }
 
+async function getRatingsTableConfig(connection) {
+  const [columns] = await connection.query(
+    `
+    SELECT
+      COLUMN_NAME AS column_name,
+      DATA_TYPE AS data_type,
+      EXTRA AS extra
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'ratings'
+      AND COLUMN_NAME IN ('id', 'delivery_rating')
+    `,
+  );
+
+  const idColumn = columns.find((column) => column.column_name === "id");
+  const idDataType = (idColumn?.data_type || "").toLowerCase();
+  const idExtra = (idColumn?.extra || "").toLowerCase();
+
+  return {
+    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
+    idIsNumeric: [
+      "tinyint",
+      "smallint",
+      "mediumint",
+      "int",
+      "bigint",
+      "decimal",
+      "numeric",
+    ].includes(idDataType),
+    hasDeliveryRatingColumn: columns.some(
+      (column) => column.column_name === "delivery_rating",
+    ),
+  };
+}
+
+async function getNextRatingsId(connection, ratingsTableConfig) {
+  if (!ratingsTableConfig.requiresExplicitId) {
+    return null;
+  }
+
+  if (ratingsTableConfig.idIsNumeric) {
+    const [[row]] = await connection.query(
+      `SELECT COALESCE(MAX(id), 0) + 1 AS nextId FROM ratings`,
+    );
+    return Number(row?.nextId || 1);
+  }
+
+  return `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
+}
+
 /**
  * @swagger
  * /api/ratings/{orderId}/{userId}:
@@ -105,8 +155,14 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       ratingsCount: ratings.length,
     });
 
+    const order = {
+      ...orders[0],
+      adminId: orders[0].admin_id,
+      adminName: orders[0].admin_name,
+    };
+
     return res.json({
-      order: orders[0],
+      order,
       ratings: ratingsMap,
       submitted: ratings.length > 0,
     });
@@ -227,10 +283,7 @@ router.post("/", auth, async (req, res) => {
     }
 
     const orderAdminId = orderRows[0].admin_id;
-    const [ratingColumns] = await connection.query("SHOW COLUMNS FROM ratings");
-    const hasDeliveryRatingColumn = ratingColumns.some(
-      (column) => column.Field === "delivery_rating",
-    );
+    const ratingsTableConfig = await getRatingsTableConfig(connection);
 
     for (const r of ratings) {
       const { adminId, adminRating, feedback } = r;
@@ -263,10 +316,11 @@ router.post("/", auth, async (req, res) => {
 
       const trimmedFeedback = feedback?.trim() || null;
 
-      if (hasDeliveryRatingColumn) {
+      let normalizedDeliveryRating = null;
+      if (ratingsTableConfig.hasDeliveryRatingColumn) {
         const deliveryRatingInput = r.deliveryRating;
-        const normalizedDeliveryRating =
-          deliveryRatingInput == null || deliveryRatingInput == ""
+        normalizedDeliveryRating =
+          deliveryRatingInput == null || deliveryRatingInput === ""
             ? normalizedAdminRating
             : Number(deliveryRatingInput);
 
@@ -283,52 +337,61 @@ router.post("/", auth, async (req, res) => {
           });
           throw badRequest("Invalid delivery rating value");
         }
+      }
+
+      const [existingRows] = await connection.execute(
+        `
+        SELECT id
+        FROM ratings
+        WHERE order_id = ? AND user_id = ? AND admin_id = ?
+        LIMIT 1
+        `,
+        [orderId, userId, orderAdminId],
+      );
+
+      if (existingRows.length) {
+        const updateColumns = ["admin_rating = ?", "feedback = ?"];
+        const updateValues = [normalizedAdminRating, trimmedFeedback];
+
+        if (ratingsTableConfig.hasDeliveryRatingColumn) {
+          updateColumns.splice(1, 0, "delivery_rating = ?");
+          updateValues.splice(1, 0, normalizedDeliveryRating);
+        }
+
+        updateValues.push(existingRows[0].id);
 
         await connection.execute(
-          `
-          INSERT INTO ratings
-            (
-              order_id,
-              user_id,
-              admin_id,
-              admin_rating,
-              delivery_rating,
-              feedback
-            )
-          VALUES (?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            admin_rating = VALUES(admin_rating),
-            delivery_rating = VALUES(delivery_rating),
-            feedback = VALUES(feedback)
-          `,
-          [
-            orderId,
-            userId,
-            orderAdminId,
-            normalizedAdminRating,
-            normalizedDeliveryRating,
-            trimmedFeedback,
-          ],
+          `UPDATE ratings SET ${updateColumns.join(", ")} WHERE id = ?`,
+          updateValues,
         );
-      } else {
-        await connection.execute(
-          `
-          INSERT INTO ratings
-            (order_id, user_id, admin_id, admin_rating, feedback)
-          VALUES (?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            admin_rating = VALUES(admin_rating),
-            feedback = VALUES(feedback)
-          `,
-          [
-            orderId,
-            userId,
-            orderAdminId,
-            normalizedAdminRating,
-            trimmedFeedback,
-          ],
+        continue;
+      }
+
+      const insertColumns = ["order_id", "user_id", "admin_id", "admin_rating"];
+      const insertValues = [orderId, userId, orderAdminId, normalizedAdminRating];
+
+      if (ratingsTableConfig.requiresExplicitId) {
+        insertColumns.unshift("id");
+        insertValues.unshift(
+          await getNextRatingsId(connection, ratingsTableConfig),
         );
       }
+
+      if (ratingsTableConfig.hasDeliveryRatingColumn) {
+        insertColumns.push("delivery_rating");
+        insertValues.push(normalizedDeliveryRating);
+      }
+
+      insertColumns.push("feedback");
+      insertValues.push(trimmedFeedback);
+
+      await connection.execute(
+        `
+        INSERT INTO ratings (${insertColumns.join(", ")})
+        VALUES (${insertColumns.map(() => "?").join(", ")})
+        `,
+        insertValues,
+      );
     }
 
     await connection.commit();

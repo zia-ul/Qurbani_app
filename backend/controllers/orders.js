@@ -241,6 +241,35 @@ const parseNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const latestAdminPaymentSettingsSelect = `
+          (
+            SELECT aps.cod_deadline
+            FROM admin_payment_settings aps
+            WHERE aps.admin_id = o.admin_id
+            ORDER BY aps.updated_at DESC
+            LIMIT 1
+          ) AS cod_deadline
+`;
+
+const dedupeOrdersById = (orders) => {
+  const seen = new Set();
+
+  return orders.filter((order) => {
+    const key = String(order.id ?? order.orderId ?? "").trim();
+
+    if (!key) {
+      return true;
+    }
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
 const applyComputedOrderStatuses = (order, shareholders, hasPaymentStatus = true) => {
   if (!shareholders.length) {
     order.processing_status = "Not started";
@@ -467,18 +496,18 @@ router.get("/my", authMiddleware, async (req, res) => {
           o.created_at,
           u.name AS admin_name,
           u.email AS admin_email,
-          aps.cod_deadline
+          ${latestAdminPaymentSettingsSelect}
        FROM orders o
        JOIN users u 
          ON o.admin_id = u.id
-       LEFT JOIN admin_payment_settings aps
-         ON aps.admin_id = o.admin_id
        WHERE o.user_id = ?
        ORDER BY o.created_at DESC`,
       [userId]
     );
 
-    for (const order of orders) {
+    const uniqueOrders = dedupeOrdersById(orders);
+
+    for (const order of uniqueOrders) {
       const [shareholders] = await pool.execute(
         `SELECT *
          FROM shareholder_details
@@ -494,7 +523,7 @@ router.get("/my", authMiddleware, async (req, res) => {
       );
     }
 
-    res.json({ orders });
+    res.json({ orders: uniqueOrders });
   } catch (err) {
     logger.error("Failed to fetch user orders", {
       userId,
@@ -955,21 +984,21 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
         o.total_amt,
         o.status AS order_status,
         o.created_at,
-        aps.cod_deadline
+        ${latestAdminPaymentSettingsSelect}
       FROM orders o
-      LEFT JOIN admin_payment_settings aps
-        ON aps.admin_id = o.admin_id
       WHERE o.admin_id = ?
       ORDER BY o.created_at DESC
       `,
       [adminId]
     );
 
-    if (!orders.length) {
+    const uniqueOrders = dedupeOrdersById(orders);
+
+    if (!uniqueOrders.length) {
       return res.json({ orders: [] });
     }
 
-    const orderIds = orders.map((order) => order.id);
+    const orderIds = uniqueOrders.map((order) => order.id);
     const placeholders = orderIds.map(() => "?").join(", ");
     const [shareholders] = await pool.query(
       `
@@ -989,7 +1018,7 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       shareholdersByOrderId.set(key, existing);
     }
 
-    const formattedOrders = orders.map((order) => {
+    const formattedOrders = uniqueOrders.map((order) => {
       const rawShareholders = shareholdersByOrderId.get(String(order.id)) || [];
       const formattedShareholders = formatAdminShareholders(
         rawShareholders,
@@ -1198,13 +1227,12 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
         u.phone AS contact_no,
         u.address,
         a.name AS admin_name,
-        aps.cod_deadline
+        ${latestAdminPaymentSettingsSelect}
       FROM orders o
       JOIN users u ON o.user_id = u.id
       JOIN users a ON o.admin_id = a.id
-      LEFT JOIN admin_payment_settings aps
-        ON aps.admin_id = o.admin_id
       WHERE o.id = ? AND o.admin_id = ?
+      LIMIT 1
       `,
       [orderId, adminId],
     );

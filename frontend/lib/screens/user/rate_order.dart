@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Qurbani/services/order_service.dart';
 import 'package:Qurbani/services/ratings_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
@@ -6,8 +7,16 @@ import 'package:Qurbani/widgets/success_error_popup.dart';
 class RateOrderPage extends StatefulWidget {
   final String orderId;
   final String userId;
+  final String? initialAdminId;
+  final String? initialAdminName;
 
-  const RateOrderPage({super.key, required this.orderId, required this.userId});
+  const RateOrderPage({
+    super.key,
+    required this.orderId,
+    required this.userId,
+    this.initialAdminId,
+    this.initialAdminName,
+  });
 
   @override
   State<RateOrderPage> createState() => _RateOrderPageState();
@@ -37,6 +46,11 @@ class _RateOrderPageState extends State<RateOrderPage> {
   @override
   void initState() {
     super.initState();
+    adminId = (widget.initialAdminId ?? '').trim();
+    adminName = (widget.initialAdminName ?? 'Admin').trim();
+    if (adminName.isEmpty) {
+      adminName = 'Admin';
+    }
     _fetchData();
   }
 
@@ -44,6 +58,89 @@ class _RateOrderPageState extends State<RateOrderPage> {
   void dispose() {
     feedbackController.dispose();
     super.dispose();
+  }
+
+  String _firstNonEmptyValue(Map<String, dynamic>? source, List<String> keys) {
+    if (source == null) {
+      return '';
+    }
+
+    for (final key in keys) {
+      final normalized = (source[key] ?? '').toString().trim();
+      if (normalized.isNotEmpty && normalized.toLowerCase() != 'null') {
+        return normalized;
+      }
+    }
+
+    return '';
+  }
+
+  void _applyAdminIdentity(
+    Map<String, dynamic>? order,
+    Map<String, dynamic> ratings,
+  ) {
+    final resolvedAdminId = _firstNonEmptyValue(order, ['admin_id', 'adminId']);
+    final resolvedAdminName = _firstNonEmptyValue(order, [
+      'admin_name',
+      'adminName',
+    ]);
+
+    if (resolvedAdminId.isNotEmpty) {
+      adminId = resolvedAdminId;
+    }
+
+    if (resolvedAdminName.isNotEmpty) {
+      adminName = resolvedAdminName;
+    }
+
+    if (adminId.isEmpty) {
+      for (final entry in ratings.entries) {
+        if (entry.value is Map && entry.key.trim().isNotEmpty) {
+          adminId = entry.key.trim();
+          break;
+        }
+      }
+    }
+
+    if (adminName.isEmpty) {
+      adminName = 'Admin';
+    }
+  }
+
+  Future<void> _ensureAdminIdentity(Map<String, dynamic> ratings) async {
+    if (adminId.isNotEmpty && adminName.isNotEmpty && adminName != 'Admin') {
+      return;
+    }
+
+    try {
+      final orderDetails = await OrderService.getOrderDetails(widget.orderId);
+      _applyAdminIdentity(orderDetails, ratings);
+    } catch (_) {
+      if (adminName.isEmpty) {
+        adminName = 'Admin';
+      }
+    }
+  }
+
+  Map<String, dynamic> _resolveExistingRating(Map<String, dynamic> ratings) {
+    if (adminId.isNotEmpty && ratings[adminId] is Map) {
+      return Map<String, dynamic>.from(ratings[adminId] as Map);
+    }
+
+    if (ratings['adminRating'] != null || ratings['feedback'] != null) {
+      return Map<String, dynamic>.from(ratings);
+    }
+
+    for (final entry in ratings.entries) {
+      if (entry.value is Map) {
+        if (adminId.isEmpty && entry.key.trim().isNotEmpty) {
+          adminId = entry.key.trim();
+        }
+        return Map<String, dynamic>.from(entry.value as Map);
+      }
+    }
+
+    return <String, dynamic>{};
   }
 
   Future<void> _fetchData() async {
@@ -65,17 +162,18 @@ class _RateOrderPageState extends State<RateOrderPage> {
           : <String, dynamic>{};
 
       if (order is Map) {
-        adminId = (order['admin_id'] ?? '').toString();
-        adminName = (order['admin_name'] ?? 'Admin').toString();
-
-        final existingAdminRating = ratings[adminId]?['adminRating'];
-        adminRating = existingAdminRating is num
-            ? existingAdminRating.toDouble()
-            : double.tryParse(existingAdminRating?.toString() ?? '') ?? 0;
-
-        feedbackController.text = (ratings[adminId]?['feedback'] ?? '')
-            .toString();
+        _applyAdminIdentity(Map<String, dynamic>.from(order), ratings);
       }
+
+      await _ensureAdminIdentity(ratings);
+
+      final existingRating = _resolveExistingRating(ratings);
+      final existingAdminRating = existingRating['adminRating'];
+      adminRating = existingAdminRating is num
+          ? existingAdminRating.toDouble()
+          : double.tryParse(existingAdminRating?.toString() ?? '') ?? 0;
+
+      feedbackController.text = (existingRating['feedback'] ?? '').toString();
     } catch (e) {
       final message = _displayMessage(e);
       ToastUtils.showError(message);
@@ -98,22 +196,22 @@ class _RateOrderPageState extends State<RateOrderPage> {
       return;
     }
 
-    if (adminId.isEmpty) {
-      ToastUtils.showError(
-        "We couldn't identify the admin for this order. Please try again later.",
-      );
-      return;
-    }
-
     try {
       setState(() => isSubmitting = true);
 
+      await _ensureAdminIdentity(const <String, dynamic>{});
+
+      final ratingPayload = <String, dynamic>{
+        'adminRating': adminRating,
+        'feedback': feedbackController.text.trim(),
+      };
+
+      if (adminId.isNotEmpty) {
+        ratingPayload['adminId'] = adminId;
+      }
+
       await RatingService.submitRatings(widget.orderId, widget.userId, [
-        {
-          'adminId': adminId,
-          'adminRating': adminRating,
-          'feedback': feedbackController.text.trim(),
-        },
+        ratingPayload,
       ]);
 
       if (!mounted) return;

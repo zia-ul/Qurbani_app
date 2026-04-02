@@ -8,6 +8,24 @@ class OrderService {
   static const _storage = FlutterSecureStorage();
   static final String? _baseUrl = dotenv.env['BASE_URL'];
 
+  static List<Map<String, dynamic>> _dedupeOrders(List orders) {
+    final seen = <String>{};
+    final deduped = <Map<String, dynamic>>[];
+
+    for (final item in orders) {
+      final order = Map<String, dynamic>.from(item as Map);
+      final key = (order['orderId'] ?? order['id'] ?? '').toString().trim();
+
+      if (key.isNotEmpty && !seen.add(key)) {
+        continue;
+      }
+
+      deduped.add(order);
+    }
+
+    return deduped;
+  }
+
   static Future<Map<String, dynamic>> Function(String orderId)?
   mockGetOrderDetails;
 
@@ -36,7 +54,6 @@ class OrderService {
     required List<Map<String, dynamic>> shareholders,
     required double totalAmount,
   }) async {
-
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Not authenticated');
 
@@ -194,7 +211,7 @@ class OrderService {
       fallbackMessage: 'Unable to load your bookings right now.',
     );
     final List data = body['orders'] is List ? body['orders'] as List : [];
-    return List<Map<String, dynamic>>.from(data);
+    return _dedupeOrders(data);
   }
 
   /// GET SINGLE ORDER DETAILS
@@ -379,6 +396,6 @@ class AdminOrderService {
     }
 
     final List data = jsonDecode(res.body)['orders'];
-    return List<Map<String, dynamic>>.from(data);
+    return OrderService._dedupeOrders(data);
   }
 }

@@ -1,5 +1,6 @@
 // import 'package:Qurbani/services/currency_notifier.dart';
 import 'package:Qurbani/models/admin_order_config.dart';
+import 'package:Qurbani/profile_page.dart';
 import 'package:Qurbani/services/api_client.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/service_profile.dart';
@@ -210,6 +211,10 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Map<String, dynamic>? _savedAddress;
+  bool _isFetchingSavedAddress = true;
+
+  bool get _hasSavedProfileAddress =>
+      _savedAddress != null && !_isSavedAddressEmpty(_savedAddress!);
 
   int get _remainingShares {
     if (_orderConfig == null) return 0;
@@ -250,9 +255,13 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Future<void> _fetchSavedAddress() async {
+    Map<String, dynamic>? resolvedAddress;
+
     try {
       final token = await const FlutterSecureStorage().read(key: 'token');
-      if (token == null) return;
+      if (token == null) {
+        return;
+      }
 
       final res = await ApiClient.get(
         ApiClient.uri('users/profile/address'),
@@ -261,42 +270,31 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
       print("Fetch saved address response: ${res.statusCode} - ${res.body}");
 
-      if (res.statusCode != 200) return;
+      if (res.statusCode == 200) {
+        final data = ApiClient.decodeBody(
+          res,
+          fallbackMessage: "Unable to load your saved address right now.",
+        );
 
-      final data = ApiClient.decodeBody(
-        res,
-        fallbackMessage: "Unable to load your saved address right now.",
-      );
-
-      if (data is! Map) {
-        final profileAddress = await _loadSavedAddressFromProfile();
-        if (profileAddress == null || !mounted) return;
-
-        setState(() {
-          _savedAddress = profileAddress;
-        });
-        return;
+        if (data is Map) {
+          final normalizedAddress = _normalizeSavedAddress(
+            Map<String, dynamic>.from(data),
+          );
+          resolvedAddress = await _resolveSavedAddress(normalizedAddress);
+        }
       }
 
-      final normalizedAddress = _normalizeSavedAddress(
-        Map<String, dynamic>.from(data),
-      );
-      final resolvedAddress = await _resolveSavedAddress(normalizedAddress);
-
-      if (resolvedAddress == null || !mounted) return;
-
-      setState(() {
-        _savedAddress = resolvedAddress;
-      });
+      resolvedAddress ??= await _loadSavedAddressFromProfile();
     } catch (e, stack) {
       AppLogger.error("Failed to fetch saved address", e, stack);
-
-      final profileAddress = await _loadSavedAddressFromProfile();
-      if (profileAddress == null || !mounted) return;
-
-      setState(() {
-        _savedAddress = profileAddress;
-      });
+      resolvedAddress = await _loadSavedAddressFromProfile();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savedAddress = resolvedAddress;
+          _isFetchingSavedAddress = false;
+        });
+      }
     }
   }
 
@@ -601,6 +599,27 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       address['postal_code'],
       address['address'],
     ].every((value) => (value ?? '').toString().trim().isEmpty);
+  }
+
+  Future<void> _openProfileForAddress() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfilePage()),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isFetchingSavedAddress = true;
+    });
+    await _fetchSavedAddress();
+  }
+
+  void _showMissingSavedAddressMessage() {
+    Fluttertoast.showToast(
+      msg: "Please add your address in Profile page first.",
+      backgroundColor: AppTheme.warningRed,
+    );
   }
 
   Map<String, dynamic> _buildAddress(Shareholder s) {
@@ -1226,7 +1245,96 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   }
 
   Widget _savedAddressCard() {
-    if (_savedAddress == null) return const SizedBox.shrink();
+    if (_isFetchingSavedAddress) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.bgGradientEnd,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.2)),
+        ),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 12),
+            Expanded(child: Text("Checking your saved address...")),
+          ],
+        ),
+      );
+    }
+
+    if (!_hasSavedProfileAddress) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xffFFF7E8),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xffE2B24A)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.info_outline, color: Color(0xffB7791F)),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Saved address not found",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xff8A5A12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "Please add your address in the Profile page first before placing an order.",
+              style: TextStyle(color: Color(0xff8A5A12), height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _openProfileForAddress,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryGreen,
+                    foregroundColor: AppTheme.bgGradientEnd,
+                  ),
+                  icon: const Icon(Icons.person_outline),
+                  label: const Text("Open Profile"),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isFetchingSavedAddress = true;
+                    });
+                    _fetchSavedAddress();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xff8A5A12),
+                    side: const BorderSide(color: Color(0xffE2B24A)),
+                  ),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Refresh"),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -1482,6 +1590,9 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   Widget _buildBottomBar() {
     final bool noSharesLeft = remainingShares <= 0;
+    final bool missingSavedAddress =
+        !_isFetchingSavedAddress && !_hasSavedProfileAddress;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -1498,6 +1609,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
         child: ElevatedButton(
           onPressed: (_isLoading || _isShareLimitExceeded || noSharesLeft)
               ? null
+              : missingSavedAddress
+              ? _openProfileForAddress
               : _submitOrder,
 
           style: ElevatedButton.styleFrom(
@@ -1512,6 +1625,8 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                 ? "No Shares Available"
                 : _isShareLimitExceeded
                 ? "Too many shareholders"
+                : missingSavedAddress
+                ? "Add Address in Profile"
                 : "Confirm & Place Order",
 
             style: TextStyle(fontSize: 18, color: AppTheme.bgGradientEnd),
@@ -1523,6 +1638,19 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   Future<void> _submitOrder() async {
     final allowedMethods = _getAllowedPaymentMethods();
+
+    if (_isFetchingSavedAddress) {
+      Fluttertoast.showToast(
+        msg: "Checking your saved address. Please try again in a moment.",
+        backgroundColor: AppTheme.warningRed,
+      );
+      return;
+    }
+
+    if (!_hasSavedProfileAddress) {
+      _showMissingSavedAddressMessage();
+      return;
+    }
 
     if (_pricing == null) {
       Fluttertoast.showToast(

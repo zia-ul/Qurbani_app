@@ -7,6 +7,24 @@ import 'package:intl/intl.dart';
 class AdminOrderService {
   static const _storage = FlutterSecureStorage();
 
+  static List<Map<String, dynamic>> _dedupeOrders(List orders) {
+    final seen = <String>{};
+    final deduped = <Map<String, dynamic>>[];
+
+    for (final item in orders) {
+      final order = Map<String, dynamic>.from(item as Map);
+      final key = (order['orderId'] ?? order['id'] ?? '').toString().trim();
+
+      if (key.isNotEmpty && !seen.add(key)) {
+        continue;
+      }
+
+      deduped.add(order);
+    }
+
+    return deduped;
+  }
+
   static Future<String> _requireToken() async {
     final token = await _storage.read(key: 'token');
     if (token == null) {
@@ -41,7 +59,7 @@ class AdminOrderService {
     final List orders = body['orders'] is List
         ? body['orders'] as List
         : const [];
-    return List<Map<String, dynamic>>.from(orders);
+    return _dedupeOrders(orders);
   }
 
   /// SAVE / UPDATE ADMIN (VENDOR) SHARE SETUP

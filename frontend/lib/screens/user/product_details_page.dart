@@ -950,6 +950,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     builder: (_) => RateOrderPage(
                       orderId: order['id'].toString(),
                       userId: widget.userId,
+                      initialAdminId: (order['admin_id'] ?? order['adminId'])
+                          ?.toString(),
+                      initialAdminName:
+                          (order['admin_name'] ?? order['adminName'])
+                              ?.toString(),
                     ),
                   ),
                 ),

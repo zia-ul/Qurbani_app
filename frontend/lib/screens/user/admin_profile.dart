@@ -137,9 +137,24 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           final String address = data['address'] ?? 'N/A';
           final String photoUrl = (data['photo_url'] ?? '').toString().trim();
 
-          final double avgRating = (data['averageRating'] ?? 0).toDouble();
-          final int totalOrders = data['totalOrders'] ?? 0;
-          final int completedOrders = data['completedOrders'] ?? 0;
+          final double avgRating =
+              data['averageRating'] is num
+                  ? (data['averageRating'] as num).toDouble()
+                  : double.tryParse(data['averageRating']?.toString() ?? '') ??
+                      0;
+          final int totalRatings =
+              data['totalRatings'] is num
+                  ? (data['totalRatings'] as num).toInt()
+                  : int.tryParse(data['totalRatings']?.toString() ?? '') ?? 0;
+          final int totalOrders =
+              data['totalOrders'] is num
+                  ? (data['totalOrders'] as num).toInt()
+                  : int.tryParse(data['totalOrders']?.toString() ?? '') ?? 0;
+          final int completedOrders =
+              data['completedOrders'] is num
+                  ? (data['completedOrders'] as num).toInt()
+                  : int.tryParse(data['completedOrders']?.toString() ?? '') ??
+                      0;
           DateTime? orderDeadline;
 
           if (data['order_deadline'] != null) {
@@ -237,8 +252,15 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                         const SizedBox(width: 8),
                         Icon(Icons.star, color: Colors.orange[400], size: 18),
                         Text(
-                          " $avgRating",
+                          " ${avgRating.toStringAsFixed(1)}",
                           style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          totalRatings == 1
+                              ? "(1 rating)"
+                              : "($totalRatings ratings)",
+                          style: const TextStyle(color: Colors.grey),
                         ),
                       ],
                     ),
