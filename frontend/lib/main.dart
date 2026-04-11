@@ -8,8 +8,71 @@ import 'package:provider/provider.dart';
 import 'wrapper_screen.dart';
 import 'theme/theme.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+const String qurbaniNotificationChannelId = 'qurbani_channel';
+bool _oneSignalHandlersAttached = false;
+
+void _configureOneSignalHandlers() {
+  if (_oneSignalHandlersAttached) {
+    return;
+  }
+
+  _oneSignalHandlersAttached = true;
+
+  OneSignal.Notifications.addPermissionObserver((permission) {
+    debugPrint('[push] permission=$permission');
+    AppLogger.info('OneSignal permission changed: $permission');
+  });
+
+  OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+    final notification = event.notification;
+    final title = notification.title ?? '';
+    final body = notification.body ?? '';
+
+    debugPrint(
+      '[push] foreground notification id=${notification.notificationId} '
+      'title=$title body=$body data=${notification.additionalData}',
+    );
+    AppLogger.info(
+      'Foreground push received: id=${notification.notificationId}, title=$title',
+    );
+
+    // Keep showing the system notification while the app is open.
+    event.preventDefault();
+    notification.display();
+  });
+
+  OneSignal.Notifications.addClickListener((event) {
+    final notification = event.notification;
+
+    debugPrint(
+      '[push] notification clicked id=${notification.notificationId} '
+      'data=${notification.additionalData}',
+    );
+    AppLogger.info(
+      'Push notification clicked: id=${notification.notificationId}',
+    );
+  });
+}
+
+Future<void> _logCurrentPushState() async {
+  final subscription = OneSignal.User.pushSubscription;
+  final permission = OneSignal.Notifications.permission;
+
+  debugPrint(
+    '[push] startup permission=$permission '
+    'subscriptionId=${subscription.id} '
+    'optedIn=${subscription.optedIn} '
+    'tokenPresent=${subscription.token != null}',
+  );
+  AppLogger.info(
+    'OneSignal startup state: permission=$permission, '
+    'subscriptionId=${subscription.id}, optedIn=${subscription.optedIn}, '
+    'tokenPresent=${subscription.token != null}',
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +97,7 @@ void main() async {
 
   /// Android notification channel (used by backend-triggered notifications)
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'qurbani_channel',
+    qurbaniNotificationChannelId,
     'Qurbani Notifications',
     description: 'Centralized notifications from backend',
     importance: Importance.max,
@@ -82,16 +145,20 @@ void main() async {
   /// ✅ Initialize OneSignal FIRST
   OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
 
-  OneSignal.initialize(
-    dotenv.env['APP_ID_ONE_SIGNAL']!,
+  OneSignal.initialize(dotenv.env['APP_ID_ONE_SIGNAL']!);
+
+  _configureOneSignalHandlers();
+
+  final permissionGranted = await OneSignal.Notifications.requestPermission(
+    true,
   );
+  debugPrint('[push] permission request result=$permissionGranted');
+  AppLogger.info('OneSignal permission request result: $permissionGranted');
 
-  await OneSignal.Notifications.requestPermission(true);
+  await Future<void>.delayed(const Duration(milliseconds: 500));
+  await _logCurrentPushState();
 
-  runApp(
-    MyApp()
-  );
-
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {

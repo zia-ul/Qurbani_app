@@ -172,7 +172,7 @@ async function buildRequestInsertPayload(
  */
 router.post("/", auth, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
-  const authUserId = req.user.id;
+  const authUserId = req.user.id?.toString().trim();
   const normalizedUserId = (userId ?? authUserId).toString().trim();
   const normalizedOrderId = orderId?.toString().trim();
   const normalizedTitle = title?.toString().trim();
