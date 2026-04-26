@@ -18,6 +18,7 @@ import 'package:Qurbani/utils/logger.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/wrapper_screen.dart';
+import 'phone_verification_page.dart';
 import 'register_page.dart';
 import '../services/auth_service.dart';
 import 'package:Qurbani/theme/theme.dart';
@@ -29,7 +30,9 @@ import 'package:Qurbani/theme/theme.dart';
  * Handles user authentication flow and navigation upon successful login.
  */
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialEmail;
+
+  const LoginScreen({super.key, this.initialEmail});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -53,12 +56,42 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false; // Controls loading spinner during authentication
   bool _obscurePassword = true; // Controls password field visibility
 
+  @override
+  void initState() {
+    super.initState();
+    _emailController.text = widget.initialEmail ?? '';
+  }
+
   String _displayMessage(Object error) {
     final message = error.toString().trim();
     if (message.startsWith('Exception: ')) {
       return message.substring('Exception: '.length);
     }
     return message;
+  }
+
+  void _openPhoneVerification({
+    String? email,
+    String? expectedCountryCode,
+    String? expectedPhoneNumber,
+  }) {
+    final resolvedEmail = (email ?? _emailController.text).trim();
+
+    if (resolvedEmail.isEmpty || !resolvedEmail.contains('@')) {
+      ToastUtils.showError('Enter your registered email first.');
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PhoneVerificationPage(
+          email: resolvedEmail,
+          expectedCountryCode: expectedCountryCode,
+          expectedPhoneNumber: expectedPhoneNumber,
+        ),
+      ),
+    );
   }
 
   // LOGIN FUNCTION
@@ -70,8 +103,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
+    final email = _emailController.text.trim();
+
     try {
-      final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
       // Login (JWT saved inside AuthService)
@@ -83,15 +117,30 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const WrapperScreen()),
         (route) => false,
       );
+    } on PhoneVerificationRequiredException catch (error) {
+      ToastUtils.showError(error.message);
 
-      // Go to WrapperScreen
-      // Navigator.of(context).pushNamedAndRemoveUntil(
-      //   '/wrapper',
-      //   (route) => false,
-      // );
-    } catch (e) {
-      ToastUtils.showError(_displayMessage(e));
-      AppLogger.error("Login failed", e, StackTrace.current);
+      if (mounted) {
+        _openPhoneVerification(
+          email: error.email.isNotEmpty ? error.email : email,
+          expectedCountryCode: error.countryCode,
+          expectedPhoneNumber: error.phoneNumber,
+        );
+      }
+
+      AppLogger.warning(
+        'Login blocked until phone verification is completed for ${error.email.isNotEmpty ? error.email : email}',
+      );
+    } catch (error) {
+      final message = _displayMessage(error);
+
+      ToastUtils.showError(message);
+
+      if (mounted && message.toLowerCase().contains('verify your phone')) {
+        _openPhoneVerification(email: email);
+      }
+
+      AppLogger.error("Login failed", error, StackTrace.current);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -166,7 +215,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
-                            validator: (v) => v != null && v.contains('@')
+                            validator: (value) =>
+                                value != null && value.contains('@')
                                 ? null
                                 : 'Enter a valid email',
                           ),
@@ -197,7 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               ),
                             ),
-                            validator: (v) => v != null && v.length >= 6
+                            validator: (value) =>
+                                value != null && value.length >= 6
                                 ? null
                                 : 'Password must be at least 6 chars',
                           ),
@@ -230,12 +281,31 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
 
+                          const SizedBox(height: 10),
+
+                          TextButton.icon(
+                            onPressed: _isLoading
+                                ? null
+                                : () => _openPhoneVerification(),
+                            icon: const Icon(Icons.verified_user_outlined),
+                            label: const Text('Verify phone with OTP'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppTheme.primaryGreen,
+                            ),
+                          ),
+
+                          const Text(
+                            'You can log in only after both email verification and phone OTP verification are complete.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12),
+                          ),
+
                           const SizedBox(height: 12),
 
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text("Don’t have an account? "),
+                              const Text("Don't have an account? "),
                               GestureDetector(
                                 onTap: () => Navigator.push(
                                   context,

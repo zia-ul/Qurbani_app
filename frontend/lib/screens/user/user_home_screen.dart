@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/user/marketplace.dart';
 import 'package:Qurbani/screens/user/booked_page.dart';
+import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -23,7 +24,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
   @override
   void initState() {
     super.initState();
@@ -33,7 +33,6 @@ class _HomePageState extends State<HomePage> {
     // Notification Listeners
     // _listenForStatusUpdates();
   }
-
 
   Future<void> _checkPermissions() async {
     await [Permission.notification, Permission.location].request();
@@ -46,106 +45,131 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: MasterDrawer(name: widget.name, id: widget.id, role: widget.role),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppTheme.bgGradientStart, AppTheme.bgGradientEnd],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+    return ValueListenableBuilder(
+      valueListenable: AuthService.currentUserNotifier,
+      builder: (context, currentUser, _) {
+        final displayName = currentUser?.id == widget.id
+            ? currentUser!.name
+            : widget.name;
+
+        return Scaffold(
+          drawer: MasterDrawer(
+            name: displayName,
+            id: widget.id,
+            role: widget.role,
           ),
-        ),
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              floating: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconTheme: IconThemeData(color: AppTheme.primaryGreen),
-              // title: Text("QURBANI MARKETPLACE",
-              //   style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 16)),
-              // actions: [
-              //   CartBadge(userId: widget.id),
-              //   const SizedBox(width: 15),
-              // ],
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Assalamu Alaikum,",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                    Text(
-                      "${widget.name}!",
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xff2D3E50),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "Track your Qurbani orders and status in real time.",
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 25),
-
-                    // FEATURE BAR
-                    _buildFeatureBanner(),
-                    const SizedBox(height: 30),
-
-                    // MAIN ACTION CARDS
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildActionCard(
-                            title: "Marketplace",
-                            subtitle: "Choose and book your Qurbani animal",
-                            icon: Icons.storefront,
-                            color: AppTheme.primaryGreen,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                // builder: (_) => const AnimalGridPage(),
-                                builder: (_) => const AdminDirectoryPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: _buildActionCard(
-                            title: "My Qurbani",
-                            subtitle: "View animal details and track delivery",
-                            icon: Icons.assignment_turned_in_outlined,
-                            color: const Color(0xff2196F3),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => BookedPage(userId: widget.id),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 40),
-                    _buildSupportFooter(),
-                  ],
-                ),
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.bgGradientStart, AppTheme.bgGradientEnd],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
-          ],
-        ),
-      ),
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  floating: true,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  iconTheme: IconThemeData(color: AppTheme.primaryGreen),
+                  // title: Text("QURBANI MARKETPLACE",
+                  //   style: TextStyle(color: AppTheme.primaryGreen, fontWeight: FontWeight.bold, fontSize: 16)),
+                  // actions: [
+                  //   CartBadge(userId: widget.id),
+                  //   const SizedBox(width: 15),
+                  // ],
+                ),
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Assalamu Alaikum,",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                          Text(
+                            "$displayName!",
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xff2D3E50),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            "Track your Qurbani orders and status in real time.",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(height: 25),
+
+                          // FEATURE BAR
+                          _buildFeatureBanner(),
+                          const SizedBox(height: 30),
+
+                          // MAIN ACTION CARDS
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildActionCard(
+                                  title: "Marketplace",
+                                  subtitle:
+                                      "Choose and book your Qurbani animal",
+                                  icon: Icons.storefront,
+                                  color: AppTheme.primaryGreen,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      // builder: (_) => const AnimalGridPage(),
+                                      builder: (_) =>
+                                          const AdminDirectoryPage(),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: _buildActionCard(
+                                  title: "My Qurbani",
+                                  subtitle:
+                                      "View animal details and track delivery",
+                                  icon: Icons.assignment_turned_in_outlined,
+                                  color: const Color(0xff2196F3),
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          BookedPage(userId: widget.id),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 40),
+                          const Spacer(),
+                          _buildSupportFooter(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

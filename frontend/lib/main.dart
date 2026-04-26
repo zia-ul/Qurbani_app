@@ -1,10 +1,10 @@
-import 'package:Qurbani/permission_service.dart';
+import 'package:Qurbani/services/phone_email_config.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:provider/provider.dart';
+import 'package:phone_email_auth/phone_email_auth.dart';
 import 'wrapper_screen.dart';
 import 'theme/theme.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
@@ -84,15 +84,22 @@ void main() async {
   const AndroidInitializationSettings androidInit =
       AndroidInitializationSettings('@mipmap/ic_launcher');
 
+  if (PhoneEmailConfig.isConfigured) {
+    await PhoneEmail.initializeApp(clientId: PhoneEmailConfig.clientId);
+    AppLogger.info('Phone.Email initialized successfully');
+  } else {
+    AppLogger.warning(
+      'Phone.Email skipped because PHONE_EMAIL_CLIENT_ID is missing in assets/.env',
+    );
+  }
+
   const InitializationSettings initSettings = InitializationSettings(
     android: androidInit,
   );
 
   await flutterLocalNotificationsPlugin.initialize(
     initSettings,
-    onDidReceiveNotificationResponse: (details) {
-      ;
-    },
+    onDidReceiveNotificationResponse: (details) {},
   );
 
   /// Android notification channel (used by backend-triggered notifications)

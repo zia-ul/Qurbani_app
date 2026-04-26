@@ -1,4 +1,5 @@
 const express = require("express");
+const axios = require("axios");
 const bcrypt = require("bcryptjs");
 const { body, validationResult } = require("express-validator");
 const db = require("../config/db");
@@ -10,6 +11,83 @@ const logger = require("../middleware/logger"); // Winston logger
 const { loginLimiter, registerLimiter } = require("../middleware/rate_limiter");
 const { sendVerificationEmail } = require("../src/email_service");
 const router = express.Router();
+let phoneVerificationColumnReady = false;
+let phoneVerificationColumnPromise = null;
+
+async function ensurePhoneVerificationColumn() {
+  if (phoneVerificationColumnReady) {
+    return;
+  }
+
+  if (!phoneVerificationColumnPromise) {
+    phoneVerificationColumnPromise = (async () => {
+      const [columns] = await db.query(
+        "SHOW COLUMNS FROM users LIKE 'is_phone_verified'",
+      );
+
+      if (columns.length === 0) {
+        logger.info("Adding users.is_phone_verified column");
+        await db.query(
+          "ALTER TABLE users ADD COLUMN is_phone_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER is_verified",
+        );
+      }
+
+      phoneVerificationColumnReady = true;
+    })();
+  }
+
+  try {
+    await phoneVerificationColumnPromise;
+  } finally {
+    phoneVerificationColumnPromise = null;
+  }
+}
+
+function normalizePhoneNumber(phoneNumber) {
+  return (phoneNumber || "").toString().replace(/\D/g, "");
+}
+
+function normalizeRole(role) {
+  return (role || "")
+    .toString()
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .toLowerCase();
+}
+
+function isSuperAdminRole(role) {
+  return normalizeRole(role) === "super_admin";
+}
+
+async function getPhoneEmailUser({ accessToken, clientId }) {
+  const response = await axios.post(
+    "https://eapi.phone.email/getuser",
+    new URLSearchParams({
+      access_token: accessToken,
+      client_id: clientId,
+    }).toString(),
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      timeout: 15000,
+    },
+  );
+
+  const data = response.data;
+
+  if (
+    !data ||
+    Number(data.status) !== 200 ||
+    !data.phone_no ||
+    !data.country_code
+  ) {
+    throw new Error("Phone.Email did not return a verified phone number.");
+  }
+
+  return data;
+}
 
 // POST /api/auth/register - User registration endpoint
 // Validates input, checks for existing email, hashes password, creates user, and sends verification email
@@ -66,6 +144,8 @@ router.post(
     } = req.body;
 
     try {
+      await ensurePhoneVerificationColumn();
+
       logger.info("Registration attempt", { email, role });
 
       // Check email uniqueness
@@ -109,8 +189,9 @@ router.post(
           admin_status,
           currency,
           is_verified,
+          is_phone_verified,
           verification_token
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           name,
@@ -128,6 +209,7 @@ router.post(
           role,
           adminStatus,
           currency || "USD",
+          false,
           false,
           verificationToken,
         ],
@@ -191,6 +273,176 @@ router.get("/verify-email", async (req, res) => {
   }
 });
 
+router.post("/verify-phone", async (req, res) => {
+  const email = req.body?.email?.toString().trim().toLowerCase();
+  const accessToken = req.body?.accessToken?.toString().trim();
+  const clientId =
+    process.env.PHONE_EMAIL_CLIENT_ID?.trim() ||
+    req.body?.clientId?.toString().trim() ||
+    "";
+
+  if (!email || !accessToken) {
+    return res.status(400).json({
+      message: "Email and Phone.Email access token are required",
+    });
+  }
+
+  if (!clientId) {
+    return res.status(400).json({
+      message: "Phone.Email client ID is missing",
+    });
+  }
+
+  try {
+    await ensurePhoneVerificationColumn();
+
+    const [users] = await db.query(
+      `SELECT id, phone, country_code, is_phone_verified
+       FROM users
+       WHERE email = ?`,
+      [email],
+    );
+
+    if (users.length === 0) {
+      logger.warn("Phone verification failed: user not found", { email });
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = users[0];
+
+    if (!user.phone || !user.country_code) {
+      logger.warn("Phone verification failed: phone missing on user", {
+        userId: user.id,
+      });
+      return res.status(400).json({
+        message: "No registered phone number was found for this account",
+      });
+    }
+
+    const phoneEmailUser = await getPhoneEmailUser({
+      accessToken,
+      clientId,
+    });
+
+    const storedPhone = normalizePhoneNumber(user.phone);
+    const verifiedPhone = normalizePhoneNumber(phoneEmailUser.phone_no);
+    const storedCountryCode = user.country_code.toString().trim();
+    const verifiedCountryCode = phoneEmailUser.country_code.toString().trim();
+
+    if (
+      storedPhone != verifiedPhone ||
+      storedCountryCode != verifiedCountryCode
+    ) {
+      logger.warn("Phone verification failed: phone mismatch", {
+        userId: user.id,
+        storedCountryCode,
+        verifiedCountryCode,
+      });
+      return res.status(400).json({
+        message:
+          "The verified phone number does not match the number used during registration",
+      });
+    }
+
+    if (!user.is_phone_verified) {
+      await db.query("UPDATE users SET is_phone_verified = 1 WHERE id = ?", [
+        user.id,
+      ]);
+    }
+
+    logger.info("Phone verified successfully", { userId: user.id });
+
+    return res.json({
+      message: "Phone verified successfully",
+      phone: phoneEmailUser.phone_no,
+      country_code: phoneEmailUser.country_code,
+    });
+  } catch (err) {
+    logger.error("Phone verification error", {
+      email,
+      error: err.message,
+      response: err.response?.data,
+    });
+
+    return res.status(500).json({
+      message: "Unable to verify phone right now. Please try again.",
+    });
+  }
+});
+
+router.post(
+  "/phone-verification-context",
+  loginLimiter,
+  [body("email").isEmail()],
+  async (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ message: "A valid email is required" });
+    }
+
+    const email = req.body.email.toString().trim().toLowerCase();
+
+    try {
+      await ensurePhoneVerificationColumn();
+
+      const [users] = await db.query(
+        `SELECT email, phone, country_code, role, is_phone_verified
+         FROM users
+         WHERE email = ?`,
+        [email],
+      );
+
+      if (users.length === 0) {
+        logger.warn("Phone verification context lookup failed: user not found", {
+          email,
+        });
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const user = users[0];
+      const isSuperAdmin = isSuperAdminRole(user.role);
+
+      if (isSuperAdmin) {
+        return res.json({
+          email: user.email,
+          phone: user.phone,
+          country_code: user.country_code,
+          role: user.role,
+          is_phone_verified: true,
+          verification_not_required: true,
+        });
+      }
+
+      if (!user.phone || !user.country_code) {
+        logger.warn(
+          "Phone verification context lookup failed: phone missing on user",
+          { email },
+        );
+        return res.status(400).json({
+          message: "No registered phone number was found for this account",
+        });
+      }
+
+      return res.json({
+        email: user.email,
+        phone: user.phone,
+        country_code: user.country_code,
+        role: user.role,
+        is_phone_verified: Boolean(user.is_phone_verified),
+      });
+    } catch (err) {
+      logger.error("Phone verification context lookup error", {
+        email,
+        error: err.message,
+      });
+      return res.status(500).json({
+        message: "Unable to load the registered phone number right now.",
+      });
+    }
+  },
+);
+
 /**
  * POST /api/auth/login
  */
@@ -198,6 +450,8 @@ router.post("/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    await ensurePhoneVerificationColumn();
+
     if (!email || !password) {
       logger.warn("Login failed: missing email or password", {
         body: req.body,
@@ -213,7 +467,8 @@ router.post("/login", loginLimiter, async (req, res) => {
     const [users] = await db.query(
       `SELECT 
         id, name, email, password_hash, role, admin_status,
-        is_verified, is_active, city, currency
+        is_verified, is_phone_verified, is_active, city, currency,
+        phone, country_code
        FROM users
        WHERE email = ?`,
       [emailNormalized],
@@ -227,6 +482,7 @@ router.post("/login", loginLimiter, async (req, res) => {
     }
 
     const user = users[0];
+    const isSuperAdmin = isSuperAdminRole(user.role);
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!isMatch) {
@@ -234,11 +490,21 @@ router.post("/login", loginLimiter, async (req, res) => {
       return res.status(401).json({ message: "Incorrect password" });
     }
 
-    if (!user.is_verified) {
+    if (!isSuperAdmin && !user.is_verified) {
       logger.warn("Login blocked: email not verified", { userId: user.id });
       return res
         .status(403)
         .json({ message: "Please verify your email before logging in" });
+    }
+
+    if (!isSuperAdmin && !user.is_phone_verified) {
+      logger.warn("Login blocked: phone not verified", { userId: user.id });
+      return res.status(403).json({
+        message: "Please verify your phone before logging in",
+        email: user.email,
+        phone: user.phone,
+        country_code: user.country_code,
+      });
     }
 
     if (!user.is_active) {

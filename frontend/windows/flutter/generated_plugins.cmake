@@ -7,7 +7,9 @@ list(APPEND FLUTTER_PLUGIN_LIST
   cloud_firestore
   file_selector_windows
   firebase_core
+  flutter_inappwebview_windows
   flutter_secure_storage_windows
+  flutter_udid
   geolocator_windows
   permission_handler_windows
   printing

@@ -18,6 +18,8 @@ import 'api_client.dart';
 class AuthService {
   // Secure storage instance for JWT tokens and user data
   static const _storage = FlutterSecureStorage();
+  static final ValueNotifier<UserModel?> currentUserNotifier =
+      ValueNotifier<UserModel?>(null);
   static bool _subscriptionObserverAttached = false;
   static String? _pushToken;
   static Map<String, dynamic>? _pushUser;
@@ -33,6 +35,7 @@ class AuthService {
     final token = await _storage.read(key: 'token');
 
     if (token == null) {
+      currentUserNotifier.value = null;
       return null;
     }
 
@@ -48,6 +51,7 @@ class AuthService {
       );
       await _storage.delete(key: 'token');
       await _storage.delete(key: 'userId');
+      currentUserNotifier.value = null;
       throw ApiException(msg, statusCode: res.statusCode);
     }
 
@@ -63,7 +67,9 @@ class AuthService {
     final user = Map<String, dynamic>.from(decoded['user']);
     await _syncPushSession(token, user);
 
-    return UserModel.fromJson(user);
+    final currentUser = UserModel.fromJson(user);
+    currentUserNotifier.value = currentUser;
+    return currentUser;
   }
 
   /*
@@ -100,6 +106,33 @@ class AuthService {
     );
 
     if (res.statusCode != 200) {
+      if (res.statusCode == 403) {
+        Map<String, dynamic>? decoded;
+
+        try {
+          decoded = ApiClient.decodeMap(res, fallbackMessage: 'Login failed');
+        } on ApiException {
+          decoded = null;
+        }
+
+        final message =
+            decoded?['message']?.toString() ??
+            ApiClient.errorMessage(res, fallbackMessage: 'Login failed');
+
+        if (message.toLowerCase().contains('verify your phone')) {
+          throw PhoneVerificationRequiredException(
+            message: message,
+            email:
+                decoded?['email']?.toString() ??
+                data['email']?.toString() ??
+                '',
+            countryCode: decoded?['country_code']?.toString(),
+            phoneNumber: decoded?['phone']?.toString(),
+            statusCode: res.statusCode,
+          );
+        }
+      }
+
       final msg = ApiClient.errorMessage(res, fallbackMessage: 'Login failed');
       throw ApiException(msg, statusCode: res.statusCode);
     }
@@ -113,7 +146,79 @@ class AuthService {
 
     await _syncPushSession(token, user);
 
-    return UserModel.fromJson(user);
+    final currentUser = UserModel.fromJson(user);
+    currentUserNotifier.value = currentUser;
+    return currentUser;
+  }
+
+  static void updateCurrentUser({String? name}) {
+    final currentUser = currentUserNotifier.value;
+    if (currentUser == null) return;
+
+    currentUserNotifier.value = currentUser.copyWith(name: name);
+    if (_pushUser != null && name != null) {
+      _pushUser = {..._pushUser!, 'name': name};
+    }
+  }
+
+  static Future<void> verifyPhone({
+    required String email,
+    required String accessToken,
+    required String clientId,
+  }) async {
+    final res = await ApiClient.post(
+      ApiClient.uri('auth/verify-phone'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'accessToken': accessToken,
+        'clientId': clientId,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Phone verification failed',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
+    }
+  }
+
+  static Future<PhoneVerificationContext> fetchPhoneVerificationContext(
+    String email,
+  ) async {
+    final res = await ApiClient.post(
+      ApiClient.uri('auth/phone-verification-context'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (res.statusCode != 200) {
+      final msg = ApiClient.errorMessage(
+        res,
+        fallbackMessage: 'Unable to load the registered phone number',
+      );
+      throw ApiException(msg, statusCode: res.statusCode);
+    }
+
+    final body = ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to load the registered phone number',
+    );
+
+    return PhoneVerificationContext(
+      email: body['email']?.toString() ?? email,
+      phoneNumber: body['phone']?.toString() ?? '',
+      countryCode: body['country_code']?.toString(),
+      isPhoneVerified:
+          body['is_phone_verified'] == true ||
+          body['is_phone_verified']?.toString() == '1',
+      role: body['role']?.toString(),
+      verificationNotRequired:
+          body['verification_not_required'] == true ||
+          body['verification_not_required']?.toString() == '1',
+    );
   }
 
   static Future<void> _syncPushSession(
@@ -245,6 +350,7 @@ class AuthService {
   static Future<void> logout() async {
     await _storage.delete(key: 'token');
     await _storage.delete(key: 'userId');
+    currentUserNotifier.value = null;
     _pushToken = null;
     _pushUser = null;
 
@@ -292,4 +398,36 @@ class AuthService {
       throw ApiException(msg, statusCode: res.statusCode);
     }
   }
+}
+
+class PhoneVerificationRequiredException extends ApiException {
+  final String email;
+  final String? countryCode;
+  final String? phoneNumber;
+
+  const PhoneVerificationRequiredException({
+    required String message,
+    required this.email,
+    this.countryCode,
+    this.phoneNumber,
+    int? statusCode,
+  }) : super(message, statusCode: statusCode);
+}
+
+class PhoneVerificationContext {
+  final String email;
+  final String phoneNumber;
+  final String? countryCode;
+  final bool isPhoneVerified;
+  final String? role;
+  final bool verificationNotRequired;
+
+  const PhoneVerificationContext({
+    required this.email,
+    required this.phoneNumber,
+    this.countryCode,
+    required this.isPhoneVerified,
+    this.role,
+    this.verificationNotRequired = false,
+  });
 }

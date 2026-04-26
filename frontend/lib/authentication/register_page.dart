@@ -21,6 +21,7 @@ import 'package:Qurbani/utils/logger.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/authentication/login_page.dart';
+import 'package:Qurbani/authentication/phone_verification_page.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/terms_condition_dialog.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
@@ -221,18 +222,22 @@ class _RegisterPageState extends State<RegisterPage> {
       AppLogger.info('User registered successfully');
 
       ToastUtils.showSuccess(
-        'Registration successful. Please verify your email.',
+        'Registration successful. Verify your email and phone to continue.',
       );
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => PhoneVerificationPage(
+            email: emailController.text.trim(),
+            expectedCountryCode: countryCode,
+            expectedPhoneNumber: phoneNumber,
+          ),
+        ),
       );
     } catch (e, stack) {
       AppLogger.error('Register API failed', e, stack);
-      ToastUtils.showError(
-        "${e.toString().replaceAll('Exception:', '').trim()}",
-      );
+      ToastUtils.showError(e.toString().replaceAll('Exception:', '').trim());
     } finally {
       if (mounted) setState(() => isLoading = false);
     }

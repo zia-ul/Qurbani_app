@@ -1,4 +1,3 @@
-import 'package:Qurbani/screens/superadmin/superadmin_welcome_page.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/authentication/login_page.dart';
@@ -51,7 +50,6 @@ class MasterDrawer extends StatelessWidget {
           profile['profile_image'] ??
           profile['image'];
     } catch (e) {
-      
       return null;
     }
   }
@@ -73,256 +71,269 @@ class MasterDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Drawer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          DrawerHeader(
-            decoration: const BoxDecoration(color: AppTheme.accentGreen),
-            child: Row(
-              children: [
-                FutureBuilder<String?>(
-                  future: _getProfilePicture(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircleAvatar(
-                        radius: 35,
-                        backgroundColor: AppTheme.bgGradientEnd,
-                        child: CircularProgressIndicator(
-                          color: AppTheme.accentGreen,
-                          strokeWidth: 2,
-                        ),
-                      );
-                    }
+    return ValueListenableBuilder(
+      valueListenable: AuthService.currentUserNotifier,
+      builder: (context, currentUser, _) {
+        final displayName = currentUser?.id == id ? currentUser!.name : name;
 
-                    final img = snapshot.data;
-                    return CircleAvatar(
-                      radius: 35,
-                      backgroundColor: AppTheme.bgGradientEnd,
-                      backgroundImage: (img != null && img.isNotEmpty)
-                          ? NetworkImage(img)
-                          : null,
-                      child: (img == null || img.isEmpty)
-                          ? const Icon(
-                              Icons.person,
-                              size: 40,
+        return Drawer(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              DrawerHeader(
+                decoration: const BoxDecoration(color: AppTheme.accentGreen),
+                child: Row(
+                  children: [
+                    FutureBuilder<String?>(
+                      future: _getProfilePicture(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const CircleAvatar(
+                            radius: 35,
+                            backgroundColor: AppTheme.bgGradientEnd,
+                            child: CircularProgressIndicator(
                               color: AppTheme.accentGreen,
-                            )
-                          : null,
-                    );
-                  },
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _getWelcomeText(),
-                        style: const TextStyle(
-                          color: AppTheme.bgGradientEnd,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: AppTheme.bgGradientEnd,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        id.length > 8 ? "${id.substring(0, 8)}..." : id,
-                        style: const TextStyle(
-                          color: AppTheme.bgGradientEnd,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+                              strokeWidth: 2,
+                            ),
+                          );
+                        }
 
-          if (role == 'super_admin') ...[
-            _drawerItem(
-              context,
-              Icons.person,
-              "Profile",
-              ProfilePage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.lock_reset,
-              "Reset Password",
-              const ResetPasswordPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.person_add,
-              "Invite Friend",
-              const InviteFriendPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.star,
-              "Qurbani Features",
-              const AboutUsPage(),
-            ),
-          ],
-
-          // Menu Items
-          if (role == 'admin') ...[
-            _drawerItem(context, Icons.person, "Profile", ProfilePage()),
-            _drawerItem(
-              context,
-              Icons.assignment,
-              "Animal Inventory",
-              AnimalListingPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.lock_reset,
-              "Reset Password",
-              const ResetPasswordPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.settings,
-              "Settings",
-              SettingsPage(userId: id, role: role),
-            ),
-            _drawerItem(
-              context,
-              Icons.person_add,
-              "Invite Friend",
-              const InviteFriendPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.star,
-              "Qurbani Features",
-              const AboutUsPage(),
-            ),
-          ] else if (role == 'pending') ...[
-            _drawerItem(context, Icons.person, "Profile", ProfilePage()),
-
-            _drawerItem(
-              context,
-              Icons.lock_reset,
-              "Reset Password",
-              const ResetPasswordPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.person_add,
-              "Invite Friend",
-              const InviteFriendPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.star,
-              "Qurbani Features",
-              const AboutUsPage(),
-            ),
-          ] else if (role == 'delivery') ...[
-            // _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
-            _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
-            _drawerItem(
-              context,
-              Icons.lock_reset,
-              "Reset Password",
-              const ResetPasswordPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.person_add,
-              "Invite Friend",
-              const InviteFriendPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.star,
-              "Qurbani Features",
-              const AboutUsPage(),
-            ),
-          ] else if (role == 'user') ...[
-            _drawerItem(context, Icons.person, "Profile", const ProfilePage()),
-            _drawerItem(
-              context,
-              Icons.settings,
-              "Settings",
-              SettingsPage(userId: id, role: role),
-            ),
-            _drawerItem(
-              context,
-              Icons.lock_reset,
-              "Reset Password",
-              const ResetPasswordPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.assignment,
-              "Special Requests",
-              MySpecialRequestsPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.person_add,
-              "Invite Friend",
-              const InviteFriendPage(),
-            ),
-            _drawerItem(
-              context,
-              Icons.star,
-              "Qurbani Features",
-              const AboutUsPage(),
-            ),
-          ],
-
-          const Spacer(),
-
-          // Logout
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.logout, color: AppTheme.warningRed),
-            title: const Text(
-              "Logout",
-              style: TextStyle(color: AppTheme.warningRed),
-            ),
-            onTap: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (_) => AlertDialog(
-                  title: const Text("Logout"),
-                  content: const Text("Are you sure you want to logout?"),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("Cancel"),
+                        final img = snapshot.data;
+                        return CircleAvatar(
+                          radius: 35,
+                          backgroundColor: AppTheme.bgGradientEnd,
+                          backgroundImage: (img != null && img.isNotEmpty)
+                              ? NetworkImage(img)
+                              : null,
+                          child: (img == null || img.isEmpty)
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: AppTheme.accentGreen,
+                                )
+                              : null,
+                        );
+                      },
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("Logout"),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getWelcomeText(),
+                            style: const TextStyle(
+                              color: AppTheme.bgGradientEnd,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            displayName,
+                            style: const TextStyle(
+                              color: AppTheme.bgGradientEnd,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            id.length > 8 ? "${id.substring(0, 8)}..." : id,
+                            style: const TextStyle(
+                              color: AppTheme.bgGradientEnd,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              );
-              if (confirm == true && context.mounted) {
-                await _logout(context);
-              }
-            },
+              ),
+
+              if (role == 'super_admin') ...[
+                _drawerItem(context, Icons.person, "Profile", ProfilePage()),
+                _drawerItem(
+                  context,
+                  Icons.lock_reset,
+                  "Reset Password",
+                  const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.person_add,
+                  "Invite Friend",
+                  const InviteFriendPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.star,
+                  "Qurbani Features",
+                  const AboutUsPage(),
+                ),
+              ],
+
+              // Menu Items
+              if (role == 'admin') ...[
+                _drawerItem(context, Icons.person, "Profile", ProfilePage()),
+                _drawerItem(
+                  context,
+                  Icons.assignment,
+                  "Animal Inventory",
+                  AnimalListingPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.lock_reset,
+                  "Reset Password",
+                  const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.settings,
+                  "Settings",
+                  SettingsPage(userId: id, role: role),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.person_add,
+                  "Invite Friend",
+                  const InviteFriendPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.star,
+                  "Qurbani Features",
+                  const AboutUsPage(),
+                ),
+              ] else if (role == 'pending') ...[
+                _drawerItem(context, Icons.person, "Profile", ProfilePage()),
+
+                _drawerItem(
+                  context,
+                  Icons.lock_reset,
+                  "Reset Password",
+                  const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.person_add,
+                  "Invite Friend",
+                  const InviteFriendPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.star,
+                  "Qurbani Features",
+                  const AboutUsPage(),
+                ),
+              ] else if (role == 'delivery') ...[
+                // _drawerItem(context, Icons.settings, "Settings", const SettingsPage()),
+                _drawerItem(
+                  context,
+                  Icons.person,
+                  "Profile",
+                  const ProfilePage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.lock_reset,
+                  "Reset Password",
+                  const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.person_add,
+                  "Invite Friend",
+                  const InviteFriendPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.star,
+                  "Qurbani Features",
+                  const AboutUsPage(),
+                ),
+              ] else if (role == 'user') ...[
+                _drawerItem(
+                  context,
+                  Icons.person,
+                  "Profile",
+                  const ProfilePage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.settings,
+                  "Settings",
+                  SettingsPage(userId: id, role: role),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.lock_reset,
+                  "Reset Password",
+                  const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.assignment,
+                  "Special Requests",
+                  MySpecialRequestsPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.person_add,
+                  "Invite Friend",
+                  const InviteFriendPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.star,
+                  "Qurbani Features",
+                  const AboutUsPage(),
+                ),
+              ],
+
+              const Spacer(),
+
+              // Logout
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.logout, color: AppTheme.warningRed),
+                title: const Text(
+                  "Logout",
+                  style: TextStyle(color: AppTheme.warningRed),
+                ),
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text("Logout"),
+                      content: const Text("Are you sure you want to logout?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text("Cancel"),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text("Logout"),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true && context.mounted) {
+                    await _logout(context);
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
           ),
-          const SizedBox(height: 20),
-        ],
-      ),
+        );
+      },
     );
   }
 

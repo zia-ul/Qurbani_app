@@ -83,6 +83,8 @@ dependencies:
   country_state_city: ^0.1.6
   location: ^8.0.1
   onesignal_flutter: ^5.4.1
+  phone_email_auth: ^0.0.6
+  flutter_inappwebview: ^6.1.5
 
 flutter_launcher_icons:
   android: true

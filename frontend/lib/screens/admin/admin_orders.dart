@@ -28,13 +28,21 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange);
     _fetchOrders();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   bool isNewOrder(String createdAt) {
@@ -103,7 +111,6 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
     try {
       final orders = await AdminOrderService.getAdminOrders();
 
-      print("Fetched orders: ${orders.length} ${orders[1]}");
       if (!mounted) return;
       setState(() {
         _allOrders = orders;
@@ -545,27 +552,153 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
   }
 
   Widget _buildTabs() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        indicator: BoxDecoration(
-          color: AppTheme.primaryGreen,
-          borderRadius: BorderRadius.circular(14),
+    final tabs = [
+      ('Active', _countOrdersForTab(true)),
+      ('Completed', _countOrdersForTab(false)),
+      ('Cancelled', _countOrdersForTab(null)),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 360;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.primaryGreen.withOpacity(0.10)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              for (var index = 0; index < tabs.length; index++)
+                Expanded(
+                  child: _buildTabSegment(
+                    label: tabs[index].$1,
+                    count: tabs[index].$2,
+                    index: index,
+                    isCompact: isCompact,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabSegment({
+    required String label,
+    required int count,
+    required int index,
+    required bool isCompact,
+  }) {
+    final isSelected = _tabController.index == index;
+    final foreground = isSelected ? Colors.white : Colors.black87;
+    final muted = isSelected ? Colors.white70 : Colors.black54;
+
+    return Padding(
+      padding: EdgeInsets.only(right: index == 2 ? 0 : 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _tabController.animateTo(index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 6 : 10,
+              vertical: 8,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.primaryGreen : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? AppTheme.primaryGreen
+                    : AppTheme.primaryGreen.withOpacity(0.08),
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: isCompact
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: foreground,
+                            fontSize: 12,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          count.toString(),
+                          style: TextStyle(
+                            color: muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          label,
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: foreground,
+                            fontSize: 13,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.white.withOpacity(0.18)
+                                : AppTheme.primaryGreen.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            count.toString(),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppTheme.primaryGreen,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
         ),
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.black87,
-        dividerColor: Colors.transparent,
-        tabs: [
-          Tab(text: "Active (${_countOrdersForTab(true)})"),
-          Tab(text: "Completed (${_countOrdersForTab(false)})"),
-          Tab(text: "Cancelled (${_countOrdersForTab(null)})"),
-        ],
       ),
     );
   }

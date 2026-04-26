@@ -15,8 +15,6 @@ class WrapperScreen extends StatefulWidget {
   State<WrapperScreen> createState() => _WrapperScreenState();
 }
 
-
-
 class _WrapperScreenState extends State<WrapperScreen> {
   late Future<UserModel?> _userFuture;
 
@@ -36,7 +34,6 @@ class _WrapperScreenState extends State<WrapperScreen> {
     return FutureBuilder<UserModel?>(
       future: _userFuture,
       builder: (context, snapshot) {
-
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -51,7 +48,7 @@ class _WrapperScreenState extends State<WrapperScreen> {
         final user = snapshot.data!;
 
         // Route based on role
-        switch (user.role) {
+        switch (UserModel.normalizeRole(user.role)) {
           case 'user':
             return HomePage(id: user.id, name: user.name, role: user.role);
 

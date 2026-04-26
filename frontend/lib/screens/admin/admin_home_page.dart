@@ -12,6 +12,7 @@ import 'package:Qurbani/screens/admin/admin_orders.dart';
 import 'package:Qurbani/screens/admin/animal_listing.dart';
 import 'package:Qurbani/screens/admin/special_requests_admin.dart';
 import 'package:Qurbani/services/admin_service.dart';
+import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 
 class AdminHomePage extends StatefulWidget {
@@ -183,175 +184,184 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: MasterDrawer(
-        name: widget.name,
-        id: widget.adminId,
-        role: 'admin',
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [bgGradientStart, bgGradientEnd],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+    return ValueListenableBuilder(
+      valueListenable: AuthService.currentUserNotifier,
+      builder: (context, currentUser, _) {
+        final displayName = currentUser?.id == widget.adminId
+            ? currentUser!.name
+            : widget.name;
+
+        return Scaffold(
+          drawer: MasterDrawer(
+            name: displayName,
+            id: widget.adminId,
+            role: 'admin',
           ),
-        ),
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              floating: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconTheme: IconThemeData(color: AppTheme.primaryGreen),
-              title: Text(
-                "Admin Dashboard",
-                style: TextStyle(
-                  color: AppTheme.darkBgGradientStart,
-                  fontWeight: FontWeight.w400,
-                  fontSize: 16,
-                ),
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [bgGradientStart, bgGradientEnd],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ElevatedButton(
-                    //   onPressed: () {
-                    //     _triggerAdminNotification(
-                    //       title: "Test Admin Notification",
-                    //       body: "If you see this, it works 🎉",
-                    //     );
-                    //   },
-                    //   child: const Text("TEST NOTIFICATION"),
-                    // ),
-                    Text(
-                      "Assalamu Alaikum,",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.darkBgGradientStart,
-                      ),
+            child: CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  floating: true,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  iconTheme: IconThemeData(color: AppTheme.primaryGreen),
+                  title: Text(
+                    "Admin Dashboard",
+                    style: TextStyle(
+                      color: AppTheme.darkBgGradientStart,
+                      fontWeight: FontWeight.w400,
+                      fontSize: 16,
                     ),
-                    Text(
-                      "${widget.name}!",
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xff2D3E50),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      "Manage your Qurbani operations efficiently.",
-                      style: TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 25),
-
-                    // FEATURE BAR (Admin Stats or Features)
-                    _buildFeatureBanner(),
-                    const SizedBox(height: 30),
-
-                    // MAIN ACTION CARDS
-                    Row(
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Expanded(
-                        //   child: _buildActionCard(
-                        //     title: "Add Animal",
-                        //     subtitle: "List new animals",
-                        //     icon: Icons.add_circle_outline,
-                        //     color: const Color(0xff4CAF50),
-                        //     onTap: () => Navigator.push(
-                        //       context,
-                        //       MaterialPageRoute(
-                        //         builder: (_) => const AddAnimalPage(),
-                        //       ),
-                        //     ),
-                        //   ),
+                        // ElevatedButton(
+                        //   onPressed: () {
+                        //     _triggerAdminNotification(
+                        //       title: "Test Admin Notification",
+                        //       body: "If you see this, it works 🎉",
+                        //     );
+                        //   },
+                        //   child: const Text("TEST NOTIFICATION"),
                         // ),
-                        Expanded(
-                          child: _buildActionCard(
-                            title: "Shares Setup", // <-- Friendly name
-                            subtitle: "Configure shares and pricing",
-                            icon: Icons
-                                .settings, // You can use a gear icon for settings
-                            color: const Color(0xff4CAF50),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const AdminShareSetupPage(), // <-- Your new page
+                        Text(
+                          "Assalamu Alaikum,",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppTheme.darkBgGradientStart,
+                          ),
+                        ),
+                        Text(
+                          "$displayName!",
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xff2D3E50),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          "Manage your Qurbani operations efficiently.",
+                          style: TextStyle(fontSize: 13, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 25),
+
+                        // FEATURE BAR (Admin Stats or Features)
+                        _buildFeatureBanner(),
+                        const SizedBox(height: 30),
+
+                        // MAIN ACTION CARDS
+                        Row(
+                          children: [
+                            // Expanded(
+                            //   child: _buildActionCard(
+                            //     title: "Add Animal",
+                            //     subtitle: "List new animals",
+                            //     icon: Icons.add_circle_outline,
+                            //     color: const Color(0xff4CAF50),
+                            //     onTap: () => Navigator.push(
+                            //       context,
+                            //       MaterialPageRoute(
+                            //         builder: (_) => const AddAnimalPage(),
+                            //       ),
+                            //     ),
+                            //   ),
+                            // ),
+                            Expanded(
+                              child: _buildActionCard(
+                                title: "Shares Setup", // <-- Friendly name
+                                subtitle: "Configure shares and pricing",
+                                icon: Icons
+                                    .settings, // You can use a gear icon for settings
+                                color: const Color(0xff4CAF50),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AdminShareSetupPage(), // <-- Your new page
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+
+                            const SizedBox(width: 15),
+                            Expanded(
+                              child: _buildActionCard(
+                                title: "View Orders",
+                                subtitle: "Track all orders",
+                                icon: Icons.shopping_bag_outlined,
+                                color: const Color(0xff2196F3),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminOrdersPage(
+                                      adminId: widget.adminId,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildActionCard(
+                                title: "Special Requests",
+                                subtitle: "Handle custom orders",
+                                icon: Icons.message_outlined,
+                                color: const Color(0xffFF9800),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AdminSpecialRequestsPage(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 15),
+                            Expanded(
+                              child: _buildActionCard(
+                                title: "Animal Management",
+                                subtitle: "Edit & manage listings",
+                                icon: Icons.inventory,
+                                color: const Color(0xff9C27B0),
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AnimalListingPage(),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
 
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: _buildActionCard(
-                            title: "View Orders",
-                            subtitle: "Track all orders",
-                            icon: Icons.shopping_bag_outlined,
-                            color: const Color(0xff2196F3),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    AdminOrdersPage(adminId: widget.adminId),
-                              ),
-                            ),
-                          ),
-                        ),
+                        const SizedBox(height: 40),
+                        _buildSupportFooter(),
                       ],
                     ),
-                    const SizedBox(height: 15),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildActionCard(
-                            title: "Special Requests",
-                            subtitle: "Handle custom orders",
-                            icon: Icons.message_outlined,
-                            color: const Color(0xffFF9800),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const AdminSpecialRequestsPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: _buildActionCard(
-                            title: "Animal Management",
-                            subtitle: "Edit & manage listings",
-                            icon: Icons.inventory,
-                            color: const Color(0xff9C27B0),
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AnimalListingPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-
-                    const SizedBox(height: 40),
-                    _buildSupportFooter(),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

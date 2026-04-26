@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/service_profile.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/theme/theme.dart';
@@ -181,8 +182,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
+      final updatedName = nameController.text.trim();
+
       await ProfileService.updateProfile({
-        'name': nameController.text.trim(),
+        'name': updatedName,
         'phone': phoneController.text.trim(),
         'address': addressController.text.trim(),
         'description': descriptionController.text.trim(),
@@ -191,6 +194,8 @@ class _ProfilePageState extends State<ProfilePage> {
           'T',
         )[0], // YYYY-MM-DD
       });
+
+      AuthService.updateCurrentUser(name: updatedName);
 
       setState(() {
         _photoUrl = imageUrl;

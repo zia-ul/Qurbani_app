@@ -7,9 +7,9 @@ import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/ratings_service.dart';
 import 'package:Qurbani/services/request_service.dart';
 import 'package:Qurbani/settings_page.dart';
+import 'package:Qurbani/models/user_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
 
 void main() {
   // User Home Page
@@ -37,6 +37,34 @@ void main() {
     expect(find.text('Healthy'), findsOneWidget);
     expect(find.text('Live Track'), findsOneWidget);
     expect(find.text('Secure'), findsOneWidget);
+  });
+
+  testWidgets('HomePage updates user name when auth state changes', (
+    WidgetTester tester,
+  ) async {
+    AuthService.currentUserNotifier.value = null;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomePage(id: 'test-user-id', name: 'Ali', role: 'user'),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ali!'), findsOneWidget);
+
+    AuthService.currentUserNotifier.value = UserModel(
+      id: 'test-user-id',
+      name: 'Hamza',
+      role: 'user',
+    );
+    await tester.pump();
+
+    expect(find.text('Hamza!'), findsOneWidget);
+    expect(find.text('Ali!'), findsNothing);
+
+    AuthService.currentUserNotifier.value = null;
   });
 
   // Special Request
@@ -80,30 +108,34 @@ void main() {
     AuthService.mockChangePassword = null;
   });
 
-testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTester tester) async {
-  bool called = false;
+  testWidgets('ResetPasswordPage validates and submits successfully', (
+    WidgetTester tester,
+  ) async {
+    bool called = false;
 
-  AuthService.mockChangePassword = (String current, String next) async {
-    called = true;
-    expect(current, 'Abc@1234');
-    expect(next, 'newpass123');
-  };
+    AuthService.mockChangePassword = (String current, String next) async {
+      called = true;
+      expect(current, 'Abc@1234');
+      expect(next, 'newpass123');
+    };
 
-  await tester.pumpWidget(const MaterialApp(home: ResetPasswordPage()));
-  await tester.pumpAndSettle();
+    await tester.pumpWidget(const MaterialApp(home: ResetPasswordPage()));
+    await tester.pumpAndSettle();
 
-  await tester.enterText(find.byType(TextFormField).at(0), 'oldpass123');
-  await tester.enterText(find.byType(TextFormField).at(1), 'newpass123');
-  await tester.enterText(find.byType(TextFormField).at(2), 'newpass123');
+    await tester.enterText(find.byType(TextFormField).at(0), 'oldpass123');
+    await tester.enterText(find.byType(TextFormField).at(1), 'newpass123');
+    await tester.enterText(find.byType(TextFormField).at(2), 'newpass123');
 
-  // Scoped finder
-  final changePasswordButton = find.widgetWithText(ElevatedButton, 'Change Password');
-  await tester.tap(changePasswordButton);
-  await tester.pumpAndSettle();
+    // Scoped finder
+    final changePasswordButton = find.widgetWithText(
+      ElevatedButton,
+      'Change Password',
+    );
+    await tester.tap(changePasswordButton);
+    await tester.pumpAndSettle();
 
-  expect(called, true);
-});
-
+    expect(called, true);
+  });
 
   testWidgets('Shows validation error when passwords do not match', (
     WidgetTester tester,
@@ -319,8 +351,6 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
     expect(find.textContaining('Error:'), findsOneWidget);
   });
 
-
-
   // settings
   testWidgets('Settings page loads with currency dropdown', (
     WidgetTester tester,
@@ -328,8 +358,6 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
     SettingsPage.mockCurrencies = () async => ['USD', 'PKR'];
     SettingsPage.mockProfile = () async => {'currency': 'PKR'};
     SettingsPage.mockOpenLink = (_) async {};
-
-  
 
     await tester.pumpAndSettle();
 
