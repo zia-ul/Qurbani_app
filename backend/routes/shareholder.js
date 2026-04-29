@@ -407,6 +407,17 @@ router.post("/:id/assign-animal", authMiddleware, async (req, res) => {
 
     const animal = animals[0];
     const totalShares = Number(animal.shares || 0);
+    const requestedAnimalType = (shareholder.animal_type || "").toString().trim();
+    const selectedAnimalType = (animal.animal_type || "").toString().trim();
+
+    if (
+      requestedAnimalType &&
+      selectedAnimalType.toLowerCase() !== requestedAnimalType.toLowerCase()
+    ) {
+      return res.status(400).json({
+        message: `Please select a ${requestedAnimalType} animal for this shareholder`,
+      });
+    }
 
     // Count already assigned shares for this animal
     const [countResult] = await pool.execute(

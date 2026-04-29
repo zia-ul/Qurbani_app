@@ -51,8 +51,6 @@ INSERT INTO `admin_payment_settings` (`admin_id`, `allow_cod`, `allow_online`, `
 CREATE TABLE `admin_share_setups` (
   `id` char(36) NOT NULL,
   `admin_id` char(36) NOT NULL,
-  `total_shares` int(11) NOT NULL,
-  `price_per_share` decimal(10,2) NOT NULL,
   `late_booking_fee` decimal(10,2) NOT NULL DEFAULT 0.00,
   `last_booking_date` date NOT NULL,
   `delivery_type` enum('free','paid') NOT NULL DEFAULT 'free',
@@ -71,8 +69,8 @@ CREATE TABLE `admin_share_setups` (
 -- Dumping data for table `admin_share_setups`
 --
 
-INSERT INTO `admin_share_setups` (`id`, `admin_id`, `total_shares`, `price_per_share`, `late_booking_fee`, `last_booking_date`, `delivery_type`, `delivery_fee`, `free_delivery_threshold`, `currency`, `is_active`, `created_at`, `updated_at`, `day1`, `day2`, `day3`) VALUES
-('', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 350, 2356.00, 56.00, '2026-03-25', 'paid', 25.00, NULL, 'USD', 1, '2026-02-05 07:54:46', '2026-03-20 15:02:11', 3, 12, 10);
+INSERT INTO `admin_share_setups` (`id`, `admin_id`, `late_booking_fee`, `last_booking_date`, `delivery_type`, `delivery_fee`, `free_delivery_threshold`, `currency`, `is_active`, `created_at`, `updated_at`, `day1`, `day2`, `day3`) VALUES
+('', '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 56.00, '2026-03-25', 'paid', 25.00, NULL, 'USD', 1, '2026-02-05 07:54:46', '2026-03-20 15:02:11', 3, 12, 10);
 
 -- --------------------------------------------------------
 
@@ -117,6 +115,7 @@ CREATE TABLE `animals` (
   `admin_id` char(36) NOT NULL,
   `animal_type` varchar(50) NOT NULL,
   `shares` int(11) DEFAULT 7,
+  `price_per_share` decimal(10,2) NOT NULL DEFAULT 0.00,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `last_booked_date` date DEFAULT NULL,
   `qurbani_datetime` datetime DEFAULT NULL,
@@ -127,10 +126,10 @@ CREATE TABLE `animals` (
 -- Dumping data for table `animals`
 --
 
-INSERT INTO `animals` (`id`, `admin_id`, `animal_type`, `shares`, `created_at`, `last_booked_date`, `qurbani_datetime`, `qurbani_day`) VALUES
-(1, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', 7, '2026-03-16 15:02:40', NULL, NULL, NULL),
-(2, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', 7, '2026-03-19 16:09:00', NULL, '2026-03-20 21:38:00', 'day_1'),
-(3, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Buffalo', 7, '2026-03-20 05:38:45', NULL, '2026-03-23 04:13:00', 'day_2');
+INSERT INTO `animals` (`id`, `admin_id`, `animal_type`, `shares`, `price_per_share`, `created_at`, `last_booked_date`, `qurbani_datetime`, `qurbani_day`) VALUES
+(1, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', 7, 2356.00, '2026-03-16 15:02:40', NULL, NULL, NULL),
+(2, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Camel', 7, 2356.00, '2026-03-19 16:09:00', NULL, '2026-03-20 21:38:00', 'day_1'),
+(3, '573b7cb3-a55e-40e8-a3c8-40369b5e83ec', 'Buffalo', 7, 2356.00, '2026-03-20 05:38:45', NULL, '2026-03-23 04:13:00', 'day_2');
 
 -- --------------------------------------------------------
 
@@ -243,6 +242,7 @@ CREATE TABLE `shareholder_details` (
   `guardian_name` varchar(100) NOT NULL,
   `address` longtext DEFAULT NULL,
   `qurbani_day` enum('Day 1','Day 2','Day 3') NOT NULL,
+  `animal_type` varchar(50) DEFAULT NULL,
   `price` decimal(10,2) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `animal_id` int(11) DEFAULT NULL,
@@ -256,12 +256,12 @@ CREATE TABLE `shareholder_details` (
 -- Dumping data for table `shareholder_details`
 --
 
-INSERT INTO `shareholder_details` (`id`, `order_id`, `shareholder_name`, `guardian_name`, `address`, `qurbani_day`, `price`, `created_at`, `animal_id`, `share_number`, `status`, `qurbani_datetime`, `payment_status`) VALUES
-(1, 5038, 'test', 'f1', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-16 15:06:30', 1, 1, 0, NULL, 0),
-(3, 5040, 'gsg', 'b', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-17 16:10:13', 2, 1, 5, NULL, 0),
-(4, 5041, 'hb', 'hh', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-17 16:10:31', 1, 1, 5, NULL, 0),
-(5, 5042, 'ddd', 'bb', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 2356.00, '2026-03-20 15:01:40', NULL, NULL, 0, NULL, 2),
-(6, 5043, 'tutu', 'turu', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 2', 2356.00, '2026-03-20 15:49:55', NULL, NULL, 0, NULL, 0);
+INSERT INTO `shareholder_details` (`id`, `order_id`, `shareholder_name`, `guardian_name`, `address`, `qurbani_day`, `animal_type`, `price`, `created_at`, `animal_id`, `share_number`, `status`, `qurbani_datetime`, `payment_status`) VALUES
+(1, 5038, 'test', 'f1', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 'Camel', 2356.00, '2026-03-16 15:06:30', 1, 1, 0, NULL, 0),
+(3, 5040, 'gsg', 'b', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 'Camel', 2356.00, '2026-03-17 16:10:13', 2, 1, 5, NULL, 0),
+(4, 5041, 'hb', 'hh', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', 'Camel', 2356.00, '2026-03-17 16:10:31', 1, 1, 5, NULL, 0),
+(5, 5042, 'ddd', 'bb', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 1', NULL, 2356.00, '2026-03-20 15:01:40', NULL, NULL, 0, NULL, 2),
+(6, 5043, 'tutu', 'turu', '{\"country\":\"Argentina\",\"country_iso\":\"IN\",\"state\":\"Mendoza\",\"city\":\"Departamento de La Paz\",\"postal_code\":null,\"address_line\":\"geye\"}', 'Day 2', NULL, 2356.00, '2026-03-20 15:49:55', NULL, NULL, 0, NULL, 0);
 
 -- --------------------------------------------------------
 

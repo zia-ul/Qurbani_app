@@ -15,8 +15,6 @@ class AdminShareSetupPage extends StatefulWidget {
 class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final totalSharesController = TextEditingController();
-  final pricePerShareController = TextEditingController();
   final lateBookingFeeController = TextEditingController();
   final lastBookingDateController = TextEditingController();
   final deliveryFeeController = TextEditingController();
@@ -37,8 +35,6 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
 
   @override
   void dispose() {
-    totalSharesController.dispose();
-    pricePerShareController.dispose();
     lateBookingFeeController.dispose();
     lastBookingDateController.dispose();
     deliveryFeeController.dispose();
@@ -57,10 +53,8 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
       if (!mounted || data == null) return;
 
       setState(() {
-        totalSharesController.text = (data['totalShares'] ?? '').toString();
-        pricePerShareController.text = (data['pricePerShare'] ?? '').toString();
-        lateBookingFeeController.text =
-            (data['lateBookingFee'] ?? '').toString();
+        lateBookingFeeController.text = (data['lateBookingFee'] ?? '')
+            .toString();
 
         if (data['lastBookingDate'] != null) {
           lastBookingDate = DateTime.parse(data['lastBookingDate']).toLocal();
@@ -71,8 +65,9 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
         }
 
         isDeliveryPaid = data['deliveryType'] == "paid";
-        deliveryFeeController.text =
-            isDeliveryPaid ? (data['deliveryFee'] ?? '').toString() : '';
+        deliveryFeeController.text = isDeliveryPaid
+            ? (data['deliveryFee'] ?? '').toString()
+            : '';
         deliveryThresholdController.text =
             data['deliveryThreshold']?.toString() ?? '';
         dayOneLimit.text = (data['dayOneLimit'] ?? '').toString();
@@ -97,11 +92,23 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
   Future<void> pickLastBookingDate() async {
     try {
       final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final selectedDate = lastBookingDate == null
+          ? today
+          : DateTime(
+              lastBookingDate!.year,
+              lastBookingDate!.month,
+              lastBookingDate!.day,
+            );
+      final safeInitialDate = selectedDate.isBefore(today)
+          ? today
+          : selectedDate;
+
       final picked = await showDatePicker(
         context: context,
-        initialDate: lastBookingDate ?? now,
-        firstDate: DateTime(now.year, 1, 1),
-        lastDate: DateTime(now.year + 1, 12, 31),
+        initialDate: safeInitialDate,
+        firstDate: today,
+        lastDate: today.add(const Duration(days: 365)),
       );
 
       if (picked != null) {
@@ -121,7 +128,7 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (lastBookingDate == null) {
-      ToastUtils.showError("Please select the last booking date");
+      ToastUtils.showError("Please select the order deadline");
       return;
     }
 
@@ -129,11 +136,10 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
 
     try {
       final payload = {
-        "totalShares": int.parse(totalSharesController.text.trim()),
-        "pricePerShare": double.parse(pricePerShareController.text.trim()),
         "lateBookingFee": lateBookingFeeController.text.trim().isNotEmpty
             ? double.parse(lateBookingFeeController.text.trim())
             : 0,
+        "orderDeadline": lastBookingDateController.text.trim(),
         "lastBookingDate": lastBookingDateController.text.trim(),
         "deliveryType": isDeliveryPaid ? "paid" : "free",
         "deliveryFee":
@@ -217,33 +223,14 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
                 child: Column(
                   children: [
                     _card([
-                      _label("Total Shares", required: true),
-                      TextFormField(
-                        controller: totalSharesController,
-                        keyboardType: TextInputType.number,
-                        decoration: _decoration("Enter total shares"),
-                        validator: _requiredNumberValidator,
-                      ),
-                      const SizedBox(height: 15),
-                      _label("Price per Share", required: true),
-                      TextFormField(
-                        controller: pricePerShareController,
-                        keyboardType: TextInputType.number,
-                        decoration: _decoration(
-                          "Enter price per share",
-                        ).copyWith(prefixText: "Rs. "),
-                        validator: _requiredNumberValidator,
-                      ),
-                    ]),
-                    const SizedBox(height: 20),
-                    _card([
-                      _label("Last Booking Date", required: true),
+                      _label("Order Deadline", required: true),
                       TextFormField(
                         controller: lastBookingDateController,
                         readOnly: true,
-                        decoration: _decoration("Select date").copyWith(
-                          suffixIcon: const Icon(Icons.calendar_today),
-                        ),
+                        decoration: _decoration("Select order deadline")
+                            .copyWith(
+                              suffixIcon: const Icon(Icons.calendar_today),
+                            ),
                         onTap: pickLastBookingDate,
                       ),
                     ]),
@@ -340,45 +327,45 @@ class _AdminShareSetupPageState extends State<AdminShareSetupPage> {
   }
 
   Widget _card(List<Widget> children) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.bgGradientEnd,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
-      );
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: AppTheme.bgGradientEnd,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    ),
+  );
 
   Widget _label(String text, {bool required = false}) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: RichText(
-          text: TextSpan(
-            text: text,
-            style: const TextStyle(
-              color: Colors.black87,
-              fontWeight: FontWeight.bold,
-            ),
-            children: required
-                ? const [
-                    TextSpan(
-                      text: " *",
-                      style: TextStyle(color: AppTheme.warningRed),
-                    ),
-                  ]
-                : [],
-          ),
+    padding: const EdgeInsets.only(bottom: 6),
+    child: RichText(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Colors.black87,
+          fontWeight: FontWeight.bold,
         ),
-      );
+        children: required
+            ? const [
+                TextSpan(
+                  text: " *",
+                  style: TextStyle(color: AppTheme.warningRed),
+                ),
+              ]
+            : [],
+      ),
+    ),
+  );
 
   InputDecoration _decoration(String hint) => InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      );
+    hintText: hint,
+    filled: true,
+    fillColor: Colors.grey[50],
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  );
 }

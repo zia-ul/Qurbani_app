@@ -14,10 +14,9 @@ const saveVendorShareSetup = async (req, res) => {
   try {
     const vendorId = req.user.id;
     const {
-      totalShares,
-      pricePerShare,
       lateBookingFee = 0,
       lastBookingDate,
+      orderDeadline,
       deliveryType,
       deliveryFee = 0,
       deliveryThreshold = null,
@@ -25,15 +24,14 @@ const saveVendorShareSetup = async (req, res) => {
       dayTwoLimit,
       dayThreeLimit,
     } = req.body;
+    const deadlineValue = orderDeadline || lastBookingDate;
 
-    if (!totalShares || !pricePerShare || !lastBookingDate || !deliveryType) {
+    if (!deadlineValue || !deliveryType) {
       return res.status(400).json({
         message: "Missing required fields",
       });
     }
 
-    const normalizedTotalShares = Number(totalShares);
-    const normalizedPricePerShare = Number(pricePerShare);
     const normalizedLateBookingFee = Number(lateBookingFee ?? 0);
     const normalizedDeliveryFee = Number(deliveryFee ?? 0);
     const normalizedDeliveryThreshold =
@@ -43,7 +41,7 @@ const saveVendorShareSetup = async (req, res) => {
     const normalizedDayOneLimit = Number(dayOneLimit ?? 0);
     const normalizedDayTwoLimit = Number(dayTwoLimit ?? 0);
     const normalizedDayThreeLimit = Number(dayThreeLimit ?? 0);
-    const normalizedLastBookingDate = normalizeDate(lastBookingDate);
+    const normalizedLastBookingDate = normalizeDate(deadlineValue);
 
     if (!["free", "paid"].includes(deliveryType)) {
       return res.status(400).json({
@@ -52,8 +50,6 @@ const saveVendorShareSetup = async (req, res) => {
     }
 
     const invalidNumberField = [
-      normalizedTotalShares,
-      normalizedPricePerShare,
       normalizedLateBookingFee,
       normalizedDeliveryFee,
       normalizedDayOneLimit,
@@ -72,7 +68,7 @@ const saveVendorShareSetup = async (req, res) => {
 
     if (!normalizedLastBookingDate) {
       return res.status(400).json({
-        message: "Please select a valid last booking date.",
+        message: "Please select a valid order deadline.",
       });
     }
 
@@ -92,8 +88,6 @@ const saveVendorShareSetup = async (req, res) => {
         `
         UPDATE admin_share_setups
         SET
-          total_shares = ?,
-          price_per_share = ?,
           late_booking_fee = ?,
           last_booking_date = ?,
           delivery_type = ?,
@@ -106,8 +100,6 @@ const saveVendorShareSetup = async (req, res) => {
         WHERE id = ?
         `,
         [
-          normalizedTotalShares,
-          normalizedPricePerShare,
           normalizedLateBookingFee,
           normalizedLastBookingDate,
           deliveryType,
@@ -125,8 +117,6 @@ const saveVendorShareSetup = async (req, res) => {
         INSERT INTO admin_share_setups (
           id,
           admin_id,
-          total_shares,
-          price_per_share,
           late_booking_fee,
           last_booking_date,
           delivery_type,
@@ -136,13 +126,11 @@ const saveVendorShareSetup = async (req, res) => {
           day2,
           day3
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           uuidv4(),
           vendorId,
-          normalizedTotalShares,
-          normalizedPricePerShare,
           normalizedLateBookingFee,
           normalizedLastBookingDate,
           deliveryType,
@@ -182,8 +170,6 @@ const getVendorShareSetup = async (req, res) => {
     const [rows] = await db.query(
       `
       SELECT
-        total_shares,
-        price_per_share,
         late_booking_fee,
         last_booking_date,
         delivery_type,
@@ -210,10 +196,9 @@ const getVendorShareSetup = async (req, res) => {
     const setup = rows[0];
 
     res.status(200).json({
-      totalShares: setup.total_shares,
-      pricePerShare: setup.price_per_share,
       lateBookingFee: setup.late_booking_fee,
       lastBookingDate: setup.last_booking_date,
+      orderDeadline: setup.last_booking_date,
       deliveryType: setup.delivery_type,
       deliveryFee: setup.delivery_fee,
       deliveryThreshold: setup.free_delivery_threshold,

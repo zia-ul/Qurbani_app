@@ -157,6 +157,19 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     ).format(total);
   }
 
+  List<Map<String, dynamic>> _animalsForShareholder(
+    Map<String, dynamic> shareholder,
+  ) {
+    final requestedType = _asString(shareholder['animal_type']).toLowerCase();
+
+    return availableAnimals.where((animal) {
+      final animalType = _asString(animal['animal_type']).toLowerCase();
+      final remainingShares = _asInt(animal['remaining_shares']);
+      final typeMatches = requestedType.isEmpty || animalType == requestedType;
+      return typeMatches && remainingShares > 0;
+    }).toList();
+  }
+
   Future<void> _fetchOrderDetails() async {
     if (mounted) {
       setState(() {
@@ -628,6 +641,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
     final isSent = workflowStatus >= 4;
     final isDelivered = workflowStatus >= 5;
     final isCancelled = workflowStatus == 6;
+    final assignableAnimals = _animalsForShareholder(shareholder);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 18),
@@ -792,7 +806,7 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                items: availableAnimals.map((animal) {
+                items: assignableAnimals.map((animal) {
                   final scheduleText = _formatDateTime(
                     animal['qurbani_datetime'],
                   );
@@ -801,10 +815,13 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
                       animal['qurbani_day']?.toString().replaceAll('_', ' ') ??
                       '';
 
+                  final remaining = _asInt(animal['remaining_shares']);
+                  final price = _formatAmount(animal['price_per_share']);
+
                   return DropdownMenuItem<String>(
                     value: animal['id'].toString(),
                     child: Text(
-                      "${animal['animal_type']} - ${qurbaniDay.toUpperCase()} - $scheduleText",
+                      "${animal['animal_type']} - $price/share - $remaining left - ${qurbaniDay.toUpperCase()} - $scheduleText",
                       overflow: TextOverflow.ellipsis,
                     ),
                   );
@@ -827,14 +844,26 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  items: List.generate(7, (index) => index + 1)
-                      .map(
-                        (share) => DropdownMenuItem<int>(
-                          value: share,
-                          child: Text("Share $share"),
-                        ),
-                      )
-                      .toList(),
+                  items:
+                      List.generate(
+                            _asInt(
+                              assignableAnimals.firstWhere(
+                                (animal) =>
+                                    animal['id'].toString() ==
+                                    _tempAnimalId[shareholderId],
+                                orElse: () => const {'shares': 7},
+                              )['shares'],
+                              fallback: 7,
+                            ),
+                            (index) => index + 1,
+                          )
+                          .map(
+                            (share) => DropdownMenuItem<int>(
+                              value: share,
+                              child: Text("Share $share"),
+                            ),
+                          )
+                          .toList(),
                   onChanged: (value) {
                     if (value == null) return;
                     setState(() => _tempShareNumber[shareholderId] = value);

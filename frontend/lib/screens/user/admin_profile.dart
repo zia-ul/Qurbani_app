@@ -81,6 +81,53 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     }
   }
 
+  void _showProfilePhoto(String photoUrl) {
+    if (photoUrl.isEmpty) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(dialogContext),
+              child: Container(
+                color: Colors.transparent,
+                alignment: Alignment.center,
+                child: InteractiveViewer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      photoUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 96,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton.filled(
+              onPressed: () => Navigator.pop(dialogContext),
+              icon: const Icon(Icons.close),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black54,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -137,24 +184,18 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
           final String address = data['address'] ?? 'N/A';
           final String photoUrl = (data['photo_url'] ?? '').toString().trim();
 
-          final double avgRating =
-              data['averageRating'] is num
-                  ? (data['averageRating'] as num).toDouble()
-                  : double.tryParse(data['averageRating']?.toString() ?? '') ??
-                      0;
-          final int totalRatings =
-              data['totalRatings'] is num
-                  ? (data['totalRatings'] as num).toInt()
-                  : int.tryParse(data['totalRatings']?.toString() ?? '') ?? 0;
-          final int totalOrders =
-              data['totalOrders'] is num
-                  ? (data['totalOrders'] as num).toInt()
-                  : int.tryParse(data['totalOrders']?.toString() ?? '') ?? 0;
-          final int completedOrders =
-              data['completedOrders'] is num
-                  ? (data['completedOrders'] as num).toInt()
-                  : int.tryParse(data['completedOrders']?.toString() ?? '') ??
-                      0;
+          final double avgRating = data['averageRating'] is num
+              ? (data['averageRating'] as num).toDouble()
+              : double.tryParse(data['averageRating']?.toString() ?? '') ?? 0;
+          final int totalRatings = data['totalRatings'] is num
+              ? (data['totalRatings'] as num).toInt()
+              : int.tryParse(data['totalRatings']?.toString() ?? '') ?? 0;
+          final int totalOrders = data['totalOrders'] is num
+              ? (data['totalOrders'] as num).toInt()
+              : int.tryParse(data['totalOrders']?.toString() ?? '') ?? 0;
+          final int completedOrders = data['completedOrders'] is num
+              ? (data['completedOrders'] as num).toInt()
+              : int.tryParse(data['completedOrders']?.toString() ?? '') ?? 0;
           DateTime? orderDeadline;
 
           if (data['order_deadline'] != null) {
@@ -200,20 +241,23 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                           color: AppTheme.bgGradientEnd,
                           shape: BoxShape.circle,
                         ),
-                        child: CircleAvatar(
-                          radius: 60,
-                          backgroundColor: Colors.grey[200],
-                          child: ClipOval(
-                            child: photoUrl.isNotEmpty
-                                ? Image.network(
-                                    photoUrl,
-                                    width: 120,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const Icon(Icons.person, size: 60),
-                                  )
-                                : const Icon(Icons.person, size: 60),
+                        child: GestureDetector(
+                          onTap: () => _showProfilePhoto(photoUrl),
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundColor: Colors.grey[200],
+                            child: ClipOval(
+                              child: photoUrl.isNotEmpty
+                                  ? Image.network(
+                                      photoUrl,
+                                      width: 120,
+                                      height: 120,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.person, size: 60),
+                                    )
+                                  : const Icon(Icons.person, size: 60),
+                            ),
                           ),
                         ),
                       ),

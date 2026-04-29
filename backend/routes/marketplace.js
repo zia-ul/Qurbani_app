@@ -37,16 +37,12 @@ const fetchPreferredShareSetup = async (adminId) => {
     });
   }
 
-  const totalShares = Number(setup.total_shares || 0);
-  const fallbackDayLimit = totalShares > 0 ? totalShares : 0;
   const day1 = Number(setup.day1);
   const day2 = Number(setup.day2);
   const day3 = Number(setup.day3);
 
   return {
     ...setup,
-    total_shares: totalShares,
-    price_per_share: Number(setup.price_per_share || 0),
     late_booking_fee: Number(setup.late_booking_fee || 0),
     delivery_fee: Number(setup.delivery_fee || 0),
     free_delivery_threshold:
@@ -55,10 +51,40 @@ const fetchPreferredShareSetup = async (adminId) => {
         : Number(setup.free_delivery_threshold),
     currency: setup.currency || "USD",
     is_active: Number(setup.is_active ?? 1),
-    day1: Number.isFinite(day1) ? day1 : fallbackDayLimit,
-    day2: Number.isFinite(day2) ? day2 : fallbackDayLimit,
-    day3: Number.isFinite(day3) ? day3 : fallbackDayLimit,
+    day1: Number.isFinite(day1) ? day1 : 0,
+    day2: Number.isFinite(day2) ? day2 : 0,
+    day3: Number.isFinite(day3) ? day3 : 0,
   };
+};
+
+const fetchAdminAnimalsWithAvailability = async (adminId) => {
+  const [animals] = await pool.query(
+    `
+    SELECT
+      a.id,
+      a.animal_type,
+      a.price_per_share,
+      a.shares,
+      a.qurbani_day,
+      a.qurbani_datetime,
+      COUNT(sd.id) AS assigned_shares,
+      GREATEST(a.shares - COUNT(sd.id), 0) AS remaining_shares
+    FROM animals a
+    LEFT JOIN shareholder_details sd ON sd.animal_id = a.id
+    WHERE a.admin_id = ?
+    GROUP BY a.id, a.animal_type, a.price_per_share, a.shares, a.qurbani_day, a.qurbani_datetime
+    ORDER BY a.created_at DESC
+    `,
+    [adminId],
+  );
+
+  return animals.map((animal) => ({
+    ...animal,
+    price_per_share: Number(animal.price_per_share || 0),
+    shares: Number(animal.shares || 0),
+    assigned_shares: Number(animal.assigned_shares || 0),
+    remaining_shares: Number(animal.remaining_shares || 0),
+  }));
 };
 
 const fetchShareUsage = async (adminId) => {
@@ -130,6 +156,10 @@ router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
       });
     }
 
+    const animals = await fetchAdminAnimalsWithAvailability(adminId);
+    const firstAvailableAnimal =
+      animals.find((animal) => animal.remaining_shares > 0) || animals[0];
+
     const [[paymentSettings]] = await pool.query(
       `
       SELECT allow_cod, allow_online, cod_deadline
@@ -143,6 +173,8 @@ router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
 
     return res.json({
       ...pricing,
+      price_per_share: firstAvailableAnimal?.price_per_share ?? 0,
+      animals,
       allow_cod: paymentSettings?.allow_cod ?? 0,
       allow_online: paymentSettings?.allow_online ?? 0,
       cod_deadline: paymentSettings?.cod_deadline ?? null,
@@ -172,8 +204,12 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
     }
 
     const usage = await fetchShareUsage(adminId);
+    const animals = await fetchAdminAnimalsWithAvailability(adminId);
 
-    const totalShares = Number(setup.total_shares || 0);
+    const totalShares = animals.reduce(
+      (sum, animal) => sum + Number(animal.shares || 0),
+      0,
+    );
     const day1 = Number(setup.day1 || 0);
     const day2 = Number(setup.day2 || 0);
     const day3 = Number(setup.day3 || 0);
@@ -196,6 +232,7 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
       day1_remaining: Math.max(0, day1 - day1Booked),
       day2_remaining: Math.max(0, day2 - day2Booked),
       day3_remaining: Math.max(0, day3 - day3Booked),
+      animals,
     };
 
     res.json(row);
@@ -494,20 +531,7 @@ router.get("/:adminId/animals", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Admin not found" });
     }
 
-    const [animals] = await pool.execute(
-      `
-      SELECT 
-        id,
-        animal_type,
-        price,
-        delivery_type,
-        delivery_fee,
-        delivery_threshold
-      FROM animals
-      WHERE admin_id = ?
-      `,
-      [adminId],
-    );
+    const animals = await fetchAdminAnimalsWithAvailability(adminId);
 
     //find Cash last payment date
 

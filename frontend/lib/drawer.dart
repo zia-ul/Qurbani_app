@@ -8,7 +8,9 @@ import 'package:Qurbani/screens/admin/animal_listing.dart';
 
 // User Pages
 import 'package:Qurbani/profile_page.dart';
+import 'package:Qurbani/screens/user/reset_email_page.dart';
 import 'package:Qurbani/screens/user/reset_password_page.dart';
+import 'package:Qurbani/screens/user/reset_phone_page.dart';
 import 'package:Qurbani/screens/user/user_special_request.dart';
 import 'package:Qurbani/screens/user/invite_friend_page.dart';
 import 'package:Qurbani/screens/user/qurbani_feature_page.dart'; // Assuming AboutUsPage is here
@@ -165,6 +167,21 @@ class MasterDrawer extends StatelessWidget {
                 ),
                 _drawerItem(
                   context,
+                  Icons.email_outlined,
+                  "Reset Email",
+                  ResetEmailPage(currentEmail: currentUser?.email ?? ''),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.phone_outlined,
+                  "Reset Phone",
+                  ResetPhonePage(
+                    currentPhone: currentUser?.phone ?? '',
+                    currentCountryCode: currentUser?.countryCode ?? '',
+                  ),
+                ),
+                _drawerItem(
+                  context,
                   Icons.person_add,
                   "Invite Friend",
                   const InviteFriendPage(),
@@ -191,6 +208,21 @@ class MasterDrawer extends StatelessWidget {
                   Icons.lock_reset,
                   "Reset Password",
                   const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.email_outlined,
+                  "Reset Email",
+                  ResetEmailPage(currentEmail: currentUser?.email ?? ''),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.phone_outlined,
+                  "Reset Phone",
+                  ResetPhonePage(
+                    currentPhone: currentUser?.phone ?? '',
+                    currentCountryCode: currentUser?.countryCode ?? '',
+                  ),
                 ),
                 _drawerItem(
                   context,
@@ -275,6 +307,21 @@ class MasterDrawer extends StatelessWidget {
                   Icons.lock_reset,
                   "Reset Password",
                   const ResetPasswordPage(),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.email_outlined,
+                  "Reset Email",
+                  ResetEmailPage(currentEmail: currentUser?.email ?? ''),
+                ),
+                _drawerItem(
+                  context,
+                  Icons.phone_outlined,
+                  "Reset Phone",
+                  ResetPhonePage(
+                    currentPhone: currentUser?.phone ?? '',
+                    currentCountryCode: currentUser?.countryCode ?? '',
+                  ),
                 ),
                 _drawerItem(
                   context,

@@ -151,13 +151,29 @@ class AuthService {
     return currentUser;
   }
 
-  static void updateCurrentUser({String? name}) {
+  static void updateCurrentUser({
+    String? name,
+    String? email,
+    String? phone,
+    String? countryCode,
+  }) {
     final currentUser = currentUserNotifier.value;
     if (currentUser == null) return;
 
-    currentUserNotifier.value = currentUser.copyWith(name: name);
-    if (_pushUser != null && name != null) {
-      _pushUser = {..._pushUser!, 'name': name};
+    currentUserNotifier.value = currentUser.copyWith(
+      name: name,
+      email: email,
+      phone: phone,
+      countryCode: countryCode,
+    );
+    if (_pushUser != null) {
+      _pushUser = {
+        ..._pushUser!,
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+        if (phone != null) 'phone': phone,
+        if (countryCode != null) 'country_code': countryCode,
+      };
     }
   }
 

@@ -5,10 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/service_profile.dart';
+import 'package:Qurbani/screens/user/reset_email_page.dart';
+import 'package:Qurbani/screens/user/reset_phone_page.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
-import 'package:intl/intl.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -21,21 +22,19 @@ class _ProfilePageState extends State<ProfilePage> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = true;
   bool _isEditing = false;
-  bool _isAdmin = false;
 
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final descriptionController = TextEditingController();
-  DateTime? _orderDeadline;
+  String _countryCode = '';
 
   // Backup data for cancel functionality
   String _oldName = "";
   String _oldPhone = "";
   String _oldAddress = "";
   String _oldDescription = "";
-  DateTime? _oldDeadline;
   String? _oldPhotoUrl;
 
   String? _photoUrl;
@@ -72,14 +71,10 @@ class _ProfilePageState extends State<ProfilePage> {
         nameController.text = profile['name'] ?? '';
         emailController.text = profile['email'] ?? '';
         phoneController.text = profile['phone'] ?? '';
+        _countryCode = profile['country_code']?.toString() ?? '';
         addressController.text = profile['address'] ?? '';
         descriptionController.text = profile['description'] ?? '';
         _photoUrl = profile['photo_url'];
-        _isAdmin = profile['isAdmin'] ?? false;
-
-        if (profile['order_deadline'] != null) {
-          _orderDeadline = DateTime.tryParse(profile['order_deadline']);
-        }
 
         _isLoading = false;
       });
@@ -97,7 +92,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _oldPhone = phoneController.text;
         _oldAddress = addressController.text;
         _oldDescription = descriptionController.text;
-        _oldDeadline = _orderDeadline;
         _oldPhotoUrl = _photoUrl;
         _isEditing = true;
       } else {
@@ -106,7 +100,6 @@ class _ProfilePageState extends State<ProfilePage> {
         phoneController.text = _oldPhone;
         addressController.text = _oldAddress;
         descriptionController.text = _oldDescription;
-        _orderDeadline = _oldDeadline;
         _photoUrl = _oldPhotoUrl;
         _selectedImage = null;
         _isEditing = false;
@@ -121,17 +114,6 @@ class _ProfilePageState extends State<ProfilePage> {
       imageQuality: 80,
     );
     if (image != null) setState(() => _selectedImage = File(image.path));
-  }
-
-  Future<void> selectDeadline() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate:
-          _orderDeadline ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) setState(() => _orderDeadline = picked);
   }
 
   Future<String?> uploadToCloudinary(File image) async {
@@ -162,13 +144,6 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    if (_isAdmin &&
-        _orderDeadline != null &&
-        _orderDeadline!.isBefore(DateTime.now())) {
-      ToastUtils.showError("Deadline must be in the future");
-      return;
-    }
-
     setState(() => _isLoading = true);
     String? imageUrl = _photoUrl;
 
@@ -190,9 +165,6 @@ class _ProfilePageState extends State<ProfilePage> {
         'address': addressController.text.trim(),
         'description': descriptionController.text.trim(),
         'photoUrl': imageUrl,
-        'orderDeadline': _orderDeadline?.toIso8601String().split(
-          'T',
-        )[0], // YYYY-MM-DD
       });
 
       AuthService.updateCurrentUser(name: updatedName);
@@ -207,6 +179,43 @@ class _ProfilePageState extends State<ProfilePage> {
       ToastUtils.showError("Update failed: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatPhoneForDisplay() {
+    final phone = phoneController.text.trim();
+    final countryCode = _countryCode.trim();
+    if (countryCode.isEmpty) return phone.isEmpty ? "Not set" : phone;
+    if (phone.isEmpty) return countryCode;
+    return "$countryCode $phone";
+  }
+
+  Future<void> _openResetEmail() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResetEmailPage(currentEmail: emailController.text),
+      ),
+    );
+
+    if (changed == true && mounted) {
+      await loadProfile();
+    }
+  }
+
+  Future<void> _openResetPhone() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResetPhonePage(
+          currentPhone: phoneController.text,
+          currentCountryCode: _countryCode,
+        ),
+      ),
+    );
+
+    if (changed == true && mounted) {
+      await loadProfile();
     }
   }
 
@@ -244,29 +253,33 @@ class _ProfilePageState extends State<ProfilePage> {
                                 isNameField: true,
                               ),
 
-                            // Phone Number Field
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: Container(
-                                decoration: _cardDecoration(),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                child: AbsorbPointer(
-                                  absorbing: !_isEditing,
+                            _buildAccountActionCard(
+                              icon: Icons.email_outlined,
+                              title: "Email",
+                              value: emailController.text,
+                              actionLabel: "Change",
+                              onPressed: _isLoading ? null : _openResetEmail,
+                            ),
+
+                            if (_isEditing)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Container(
+                                  decoration: _cardDecoration(),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
                                   child: IntlPhoneField(
                                     controller: phoneController,
                                     initialCountryCode: 'IN',
                                     keyboardType: TextInputType.phone,
                                     disableLengthCheck: false,
-                                    decoration: InputDecoration(
+                                    decoration: const InputDecoration(
                                       filled: true,
-                                      fillColor: _isEditing
-                                          ? AppTheme.bgGradientEnd
-                                          : Colors.grey.shade50,
+                                      fillColor: AppTheme.bgGradientEnd,
                                       labelText: 'Phone Number',
-                                      labelStyle: const TextStyle(
+                                      labelStyle: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -284,8 +297,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                     },
                                   ),
                                 ),
+                              )
+                            else
+                              _buildAccountActionCard(
+                                icon: Icons.phone_outlined,
+                                title: "Phone Number",
+                                value: _formatPhoneForDisplay(),
+                                actionLabel: "Change",
+                                onPressed: _isLoading ? null : _openResetPhone,
                               ),
-                            ),
 
                             _buildInfoCard(
                               Icons.location_on,
@@ -293,84 +313,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               addressController,
                             ),
                             _buildDescriptionCard(),
-
-                            // Deadline for Admins
-                            if (_isAdmin) ...[
-                              const SizedBox(height: 12),
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                padding: const EdgeInsets.all(16),
-                                decoration: _cardDecoration(),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_today,
-                                      color: AppTheme.primaryGreen,
-                                      size: 24,
-                                    ),
-                                    const SizedBox(width: 15),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Order Deadline",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.black87,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          if (_isEditing)
-                                            GestureDetector(
-                                              onTap: selectDeadline,
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 12,
-                                                      horizontal: 8,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  border: Border.all(
-                                                    color: Colors.grey,
-                                                  ),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Text(
-                                                  _orderDeadline != null
-                                                      ? DateFormat(
-                                                          'yyyy-MM-dd',
-                                                        ).format(
-                                                          _orderDeadline!,
-                                                        )
-                                                      : 'Select Deadline',
-                                                  style: const TextStyle(
-                                                    color: Colors.black87,
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                          else
-                                            Text(
-                                              _orderDeadline != null
-                                                  ? DateFormat(
-                                                      'yyyy-MM-dd',
-                                                    ).format(_orderDeadline!)
-                                                  : "No deadline set",
-                                              style: const TextStyle(
-                                                color: Colors.black54,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
 
                             const SizedBox(height: 30),
                             _buildActionButtons(),
@@ -431,6 +373,56 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: const TextStyle(color: Colors.black54, fontSize: 14),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountActionCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required String actionLabel,
+    required VoidCallback? onPressed,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.primaryGreen, size: 24),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value.trim().isEmpty ? "Not set" : value,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onPressed,
+            child: Text(
+              actionLabel,
+              style: const TextStyle(
+                color: AppTheme.primaryGreen,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],

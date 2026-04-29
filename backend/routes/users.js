@@ -18,6 +18,31 @@ const router = express.Router();
 const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
+const bcrypt = require("bcryptjs");
+
+const sanitizeText = (value) => (value == null ? "" : String(value).trim());
+
+const normalizeEmail = (value) => sanitizeText(value).toLowerCase();
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const requireCurrentPassword = async (userId, currentPassword) => {
+  if (!currentPassword) {
+    return "Current password is required";
+  }
+
+  const [users] = await pool.execute(
+    "SELECT password_hash FROM users WHERE id = ?",
+    [userId],
+  );
+
+  if (!users.length) {
+    return "User not found";
+  }
+
+  const isValid = await bcrypt.compare(currentPassword, users[0].password_hash);
+  return isValid ? null : "Current password is incorrect";
+};
 
 /**
  * ===========================================
@@ -64,7 +89,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 
   try {
     const [users] = await pool.execute(
-      "SELECT name, email, phone, address, description, role, order_deadline, photo_url, currency FROM users WHERE id = ?",
+      "SELECT name, email, phone, country_code, address, description, role, order_deadline, photo_url, currency FROM users WHERE id = ?",
       [userId],
     );
 
@@ -116,13 +141,12 @@ router.put("/profile", authMiddleware, async (req, res) => {
 
   try {
     await pool.execute(
-      "UPDATE users SET name=?, phone=?, address=?, description=?, order_deadline=?, photo_url=? WHERE id=?",
+      "UPDATE users SET name=?, phone=?, address=?, description=?, photo_url=? WHERE id=?",
       [
         req.body.name,
         req.body.phone,
         req.body.address,
         req.body.description,
-        req.body.orderDeadline,
         req.body.photoUrl,
         userId,
       ],
@@ -136,6 +160,150 @@ router.put("/profile", authMiddleware, async (req, res) => {
       error: err.message,
     });
     res.status(500).json({ message: "Something went wrong. Please try again later." });
+  }
+});
+
+router.put("/users/email", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const newEmail = normalizeEmail(req.body.newEmail || req.body.email);
+  const currentPassword = req.body.currentPassword;
+
+  try {
+    if (!newEmail || !isValidEmail(newEmail)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    const passwordError = await requireCurrentPassword(userId, currentPassword);
+    if (passwordError) {
+      const status = passwordError === "User not found" ? 404 : 400;
+      return res.status(status).json({ message: passwordError });
+    }
+
+    const [currentRows] = await pool.execute(
+      "SELECT email FROM users WHERE id = ?",
+      [userId],
+    );
+
+    if (!currentRows.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (normalizeEmail(currentRows[0].email) === newEmail) {
+      return res.status(400).json({ message: "New email must be different from current email" });
+    }
+
+    const [duplicates] = await pool.execute(
+      "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
+      [newEmail, userId],
+    );
+
+    if (duplicates.length) {
+      return res.status(409).json({ message: "This email is already registered" });
+    }
+
+    await pool.execute(
+      "UPDATE users SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [newEmail, userId],
+    );
+
+    const [updatedRows] = await pool.execute(
+      "SELECT id, name, email, phone, country_code, role FROM users WHERE id = ?",
+      [userId],
+    );
+
+    logger.info("Email updated", { userId });
+    return res.json({
+      message: "Email updated successfully",
+      user: updatedRows[0],
+      profile: updatedRows[0],
+    });
+  } catch (err) {
+    logger.error("Email update failed", {
+      userId,
+      error: err.message,
+      code: err.code,
+    });
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "This email is already registered" });
+    }
+
+    return res.status(500).json({ message: "Something went wrong. Please try again later." });
+  }
+});
+
+router.put("/users/phone", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const newPhone = sanitizeText(req.body.newPhone || req.body.phone);
+  const countryCode = sanitizeText(req.body.countryCode || req.body.country_code);
+  const currentPassword = req.body.currentPassword;
+
+  try {
+    if (!newPhone || !countryCode) {
+      return res.status(400).json({ message: "Phone number and country code are required" });
+    }
+
+    const passwordError = await requireCurrentPassword(userId, currentPassword);
+    if (passwordError) {
+      const status = passwordError === "User not found" ? 404 : 400;
+      return res.status(status).json({ message: passwordError });
+    }
+
+    const [currentRows] = await pool.execute(
+      "SELECT phone, country_code FROM users WHERE id = ?",
+      [userId],
+    );
+
+    if (!currentRows.length) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (
+      sanitizeText(currentRows[0].phone) === newPhone &&
+      sanitizeText(currentRows[0].country_code) === countryCode
+    ) {
+      return res.status(400).json({
+        message: "New phone number must be different from current phone number",
+      });
+    }
+
+    const [duplicates] = await pool.execute(
+      "SELECT id FROM users WHERE country_code = ? AND phone = ? AND id <> ? LIMIT 1",
+      [countryCode, newPhone, userId],
+    );
+
+    if (duplicates.length) {
+      return res.status(409).json({ message: "This phone number is already registered" });
+    }
+
+    await pool.execute(
+      "UPDATE users SET phone = ?, country_code = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [newPhone, countryCode, userId],
+    );
+
+    const [updatedRows] = await pool.execute(
+      "SELECT id, name, email, phone, country_code, role FROM users WHERE id = ?",
+      [userId],
+    );
+
+    logger.info("Phone updated", { userId });
+    return res.json({
+      message: "Phone number updated successfully",
+      user: updatedRows[0],
+      profile: updatedRows[0],
+    });
+  } catch (err) {
+    logger.error("Phone update failed", {
+      userId,
+      error: err.message,
+      code: err.code,
+    });
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "This phone number is already registered" });
+    }
+
+    return res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 

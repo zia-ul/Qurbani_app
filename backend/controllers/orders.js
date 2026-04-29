@@ -188,6 +188,7 @@ const buildShareholderInsertPayload = async (
     "shareholder_name",
     "guardian_name",
     "qurbani_day",
+    "animal_type",
     "price",
     "address",
   );
@@ -222,6 +223,7 @@ const buildShareholderInsertPayload = async (
       sanitizeText(shareholder.name),
       sanitizeText(shareholder.guardianName),
       sanitizeText(shareholder.qurbaniDay),
+      sanitizeText(shareholder.animal_type || shareholder.animalType || shareholder.animal),
       Number(shareholder.price || 0),
       JSON.stringify(normalizedAddress),
     );
@@ -651,7 +653,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { adminId, paymentMethod, shareholders, totalAmount, paymentStatus } =
+  const { adminId, paymentMethod, shareholders, paymentStatus } =
     req.body;
 
   console.log(req.body);
@@ -710,13 +712,45 @@ router.post("/", authMiddleware, async (req, res) => {
       }
     }
 
+    const normalizedShareholders = shareholders.map((shareholder) => {
+      const lateFee = parseNumber(shareholder.lateFee ?? shareholder.late_fee, 0);
+      const price = parseNumber(shareholder.price, 0);
+
+      return {
+        ...shareholder,
+        animal_type: null,
+        price: price > 0 ? price : lateFee,
+      };
+    });
+
+    const shareSubtotal = normalizedShareholders.reduce(
+      (sum, shareholder) => sum + Number(shareholder.price || 0),
+      0,
+    );
+    const [[shareSetup]] = await connection.query(
+      `
+      SELECT delivery_type, delivery_fee
+      FROM admin_share_setups
+      WHERE admin_id = ?
+        AND is_active = 1
+      ORDER BY updated_at DESC
+      LIMIT 1
+      `,
+      [adminId],
+    );
+    const deliveryFee =
+      shareSetup?.delivery_type === "paid"
+        ? Number(shareSetup.delivery_fee || 0)
+        : 0;
+    const normalizedTotalAmount = shareSubtotal + deliveryFee;
+
     const orderInsert = await buildOrderInsertPayload(
       connection,
       userId,
       adminId,
       normalizedPaymentMethod,
-      shareholders.length,
-      totalAmount,
+      normalizedShareholders.length,
+      normalizedTotalAmount,
     );
 
     const [orderResult] = await connection.execute(
@@ -733,7 +767,7 @@ router.post("/", authMiddleware, async (req, res) => {
     const shareholderInsert = await buildShareholderInsertPayload(
       connection,
       orderId,
-      shareholders,
+      normalizedShareholders,
       normalizedPaymentStatus,
     );
 

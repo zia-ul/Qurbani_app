@@ -191,8 +191,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   /// Friendly error shown when the order configuration could not be loaded.
   String? _orderConfigError;
 
-  String? _selectedAnimalType = 'Camel';
-
   @override
   void initState() {
     super.initState();
@@ -215,11 +213,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   bool get _hasSavedProfileAddress =>
       _savedAddress != null && !_isSavedAddressEmpty(_savedAddress!);
-
-  int get _remainingShares {
-    if (_orderConfig == null) return 0;
-    return _orderConfig!.remainingShares.floor();
-  }
 
   int _dayRemainingFromBackend(String day) {
     if (_orderConfig == null) return 0;
@@ -497,6 +490,10 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
 
   bool get _isShareLimitExceeded => selectedShares > remainingShares;
 
+  double _asDouble(dynamic value, {double fallback = 0}) {
+    return double.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
   // int get _remainingShares =>
   //     _orderConfig?.remainingShares ?? 0;
 
@@ -510,8 +507,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
   double _calculateTotalPrice() {
     if (_pricing == null) return 0.0;
 
-    final double pricePerShare =
-        double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
+    final double pricePerShare = _asDouble(_pricing!['price_per_share']);
 
     final int shareCount = _shareholders.length;
 
@@ -781,7 +777,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _savedAddressCard(),
-                  _remainingSharesBanner(),
 
                   Text(
                     "Shareholder Information",
@@ -792,15 +787,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (_remainingShares > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        "You can add up to $_remainingShares shareholders",
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
-                      ),
-                    ),
-
                   ...List.generate(
                     _shareholders.length,
                     (index) => _shareholderCard(index),
@@ -854,64 +840,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
       if (test(item)) return item;
     }
     return null;
-  }
-
-  int get _sharesAfterSelection => remainingShares - _shareholders.length;
-
-  Widget _remainingSharesBanner() {
-    final remaining = remainingShares;
-    final after = _sharesAfterSelection;
-
-    final bool warning = after <= 3 && after >= 0;
-    final bool error = after < 0;
-
-    Color bgColor = AppTheme.primaryGreen.withOpacity(0.1);
-    Color textColor = AppTheme.primaryGreen;
-    IconData icon = Icons.check_circle;
-    if (remaining <= 0) {
-      bgColor = Colors.red.withOpacity(0.15);
-      textColor = Colors.red;
-      icon = Icons.block;
-    }
-
-    if (warning) {
-      bgColor = Colors.orange.withOpacity(0.15);
-      textColor = Colors.orange;
-      icon = Icons.warning_amber_rounded;
-    }
-
-    if (error) {
-      bgColor = Colors.red.withOpacity(0.15);
-      textColor = Colors.red;
-      icon = Icons.error;
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: textColor.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: textColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              remaining <= 0
-                  ? "All shares are sold out."
-                  : error
-                  ? "Only $remaining shares available. Please remove extra shareholders."
-                  : "Remaining shares: $after",
-
-              style: TextStyle(fontWeight: FontWeight.w600, color: textColor),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _shareholderCard(int index) {
@@ -972,35 +900,6 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             icon: Icons.family_restroom_outlined,
           ),
           const SizedBox(height: 15),
-
-          DropdownButtonFormField<String>(
-            initialValue: _selectedAnimalType,
-            items: const [
-              DropdownMenuItem(
-                value: 'Buffalo',
-                child: Text('Buffalo', style: TextStyle(color: Colors.black)),
-              ),
-              DropdownMenuItem(
-                value: 'Camel',
-                child: Text('Camel', style: TextStyle(color: Colors.black)),
-              ),
-            ],
-            onChanged: (v) => setState(() => _selectedAnimalType = v),
-            decoration: const InputDecoration(
-              filled: true,
-              fillColor: AppTheme.bgGradientEnd,
-              labelText: "Gender",
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12)),
-              ),
-            ),
-            validator: (v) => v == null ? "Please select gender" : null,
-          ),
-          SizedBox(width: 15),
 
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
@@ -1389,8 +1288,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     // ✅ Declare FIRST
     final int shareCount = _shareholders.length;
 
-    final double pricePerShare =
-        double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
+    final double pricePerShare = _asDouble(_pricing!['price_per_share']);
 
     final double subtotal = pricePerShare * shareCount;
 
@@ -1690,9 +1588,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     for (var s in _shareholders) {
       // Basic required fields
       if (s.nameController.text.trim().isEmpty ||
-          s.guardianController.text.trim().isEmpty ||
-          _selectedAnimalType == null ||
-          _selectedAnimalType!.isEmpty) {
+          s.guardianController.text.trim().isEmpty) {
         Fluttertoast.showToast(
           msg: "Please fill all required fields",
           backgroundColor: AppTheme.warningRed,
@@ -1757,8 +1653,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
     setState(() => _isLoading = true);
 
     try {
-      final double pricePerShare =
-          double.tryParse(_pricing!['price_per_share'].toString()) ?? 0.0;
+      final double pricePerShare = _asDouble(_pricing!['price_per_share']);
 
       // Shareholders payload (NO animals)
       final shareholdersData = _shareholders.map((s) {
@@ -1768,7 +1663,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
           'qurbaniDay': s.qurbaniDay,
 
           'address': _buildAddress(s),
-          'animal': _selectedAnimalType,
+          'lateFee': _lateFeePerShare,
           'price': pricePerShare + _lateFeePerShare,
         };
       }).toList();

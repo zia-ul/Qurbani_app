@@ -199,6 +199,7 @@ async function buildAnimalInsertPayload(
   connection,
   adminId,
   animalType,
+  pricePerShare,
   shares,
   qurbaniDay,
   qurbaniDatetime,
@@ -226,12 +227,13 @@ async function buildAnimalInsertPayload(
   columns.push(
     "admin_id",
     "animal_type",
+    "price_per_share",
     "shares",
     "last_booked_date",
     "qurbani_day",
     "qurbani_datetime",
   );
-  values.push(adminId, animalType, shares, null, qurbaniDay, qurbaniDatetime);
+  values.push(adminId, animalType, pricePerShare, shares, null, qurbaniDay, qurbaniDatetime);
 
   return { columns, values, animalId };
 }
@@ -243,6 +245,12 @@ router.post(
   isAdmin,
   [
     body("animalType").notEmpty().withMessage("animalType is required"),
+    body("price_per_share")
+      .custom((value, { req }) => {
+        const price = value ?? req.body.pricePerShare;
+        return Number.isFinite(Number(price)) && Number(price) >= 0;
+      })
+      .withMessage("price_per_share must be a non-negative number"),
     body("shares").isInt({ min: 1 }).withMessage("shares must be >= 1"),
 
     body("qurbaniDay")
@@ -271,11 +279,26 @@ router.post(
 
     const {
       animalType,
+      customAnimalType,
+      custom_animal_type,
+      price_per_share,
+      pricePerShare,
       shares,
       qurbaniDay,
       qurbaniDatetime,
       images,
     } = req.body;
+    const normalizedPricePerShare = Number(price_per_share ?? pricePerShare);
+    const resolvedAnimalType =
+      animalType === "Others"
+        ? String(custom_animal_type ?? customAnimalType ?? "").trim()
+        : String(animalType).trim();
+
+    if (!resolvedAnimalType) {
+      return res.status(400).json({
+        message: "Custom animal type is required when Others is selected",
+      });
+    }
 
     const connection = await pool.getConnection();
 
@@ -285,7 +308,8 @@ router.post(
       const animalInsert = await buildAnimalInsertPayload(
         connection,
         adminId,
-        animalType,
+        resolvedAnimalType,
+        normalizedPricePerShare,
         shares,
         qurbaniDay,
         qurbaniDatetime,
@@ -328,7 +352,8 @@ router.post(
       logger.info("Animal added successfully", {
         adminId,
         animalId,
-        animalType,
+        animalType: resolvedAnimalType,
+        pricePerShare: normalizedPricePerShare,
         shares,
         qurbaniDay,
       });

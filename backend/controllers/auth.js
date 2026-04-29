@@ -539,6 +539,8 @@ router.post("/login", loginLimiter, async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        country_code: user.country_code,
         role: user.role,
         city: user.city,
         currency: user.currency,
@@ -559,7 +561,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 router.get("/me", authMiddleware, async (req, res) => {
   try {
     const [users] = await pool.execute(
-      `SELECT id, name, email, role FROM users WHERE id = ?`,
+      `SELECT id, name, email, phone, country_code, role FROM users WHERE id = ?`,
       [req.user.id],
     );
 

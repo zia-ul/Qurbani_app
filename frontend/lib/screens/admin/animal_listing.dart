@@ -284,6 +284,9 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
   Widget _buildAnimalCard(Map<String, dynamic> animal) {
     final String animalType = animal['animal_type'] ?? '';
     final String barcode = animal['barcode'] ?? '';
+    final String pricePerShare =
+        (double.tryParse(animal['price_per_share']?.toString() ?? '') ?? 0)
+            .toStringAsFixed(2);
     final String qurbaniDateTime = formatQurbaniDateTime(
       animal['qurbani_datetime']?.toString(),
     );
@@ -307,6 +310,13 @@ class _AnimalListingPageState extends State<AnimalListingPage> {
             Text(
               "Barcode: $barcode",
               style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+
+            const SizedBox(height: 6),
+
+            Text(
+              "Price per Share: Rs. $pricePerShare",
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
 
             const SizedBox(height: 6),

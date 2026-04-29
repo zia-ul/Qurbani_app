@@ -22,7 +22,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   // final descriptionController = TextEditingController();
   // final breedController = TextEditingController();
   final sharesController = TextEditingController();
-  // final customAnimalTypeController = TextEditingController();
+  final pricePerShareController = TextEditingController();
+  final customAnimalTypeController = TextEditingController();
   // final heightController = TextEditingController();
   // final weightController = TextEditingController();
   // final ageController = TextEditingController();
@@ -47,6 +48,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
   void dispose() {
     // descriptionController.dispose();
     sharesController.dispose();
+    pricePerShareController.dispose();
+    customAnimalTypeController.dispose();
     qurbaniDateController.dispose();
     qurbaniTimeController.dispose();
     super.dispose();
@@ -189,6 +192,15 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       return;
     }
 
+    final resolvedAnimalType = selectedAnimalType == "Others"
+        ? customAnimalTypeController.text.trim()
+        : selectedAnimalType!.trim();
+
+    if (resolvedAnimalType.isEmpty) {
+      ToastUtils.showError('Custom animal type is required');
+      return;
+    }
+
     if (selectedQurbaniDay == null) {
       ToastUtils.showError('Qurbani Day is required');
       return;
@@ -216,7 +228,8 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
       final imageUrls = await uploadImagesToCloudinary();
       final qurbaniDateTime = getCombinedQurbaniDateTime();
       final body = {
-        "animalType": selectedAnimalType,
+        "animalType": resolvedAnimalType,
+        "price_per_share": double.parse(pricePerShareController.text.trim()),
         // "breed": breedController.text.trim(), //Optional
         // "description": descriptionController.text.trim().isNotEmpty
         //     ? descriptionController.text.trim()
@@ -318,30 +331,33 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                       _buildLabel("Animal Type", isRequired: true),
                       DropdownButtonFormField<String>(
                         decoration: _inputDecoration("Select Type"),
-                        // items: ["Goat", "Buffalo", "Sheep", "Camel", "Others"]
-                        items: ["Camel", "Buffalo"]
+                        items: ["Camel", "Goat", "Buffalo", "Sheep", "Others"]
                             .map(
                               (e) => DropdownMenuItem(value: e, child: Text(e)),
                             )
                             .toList(),
-                        onChanged: (val) =>
-                            setState(() => selectedAnimalType = val),
+                        onChanged: (val) => setState(() {
+                          selectedAnimalType = val;
+                          if (val != "Others") {
+                            customAnimalTypeController.clear();
+                          }
+                        }),
                         validator: (v) => v == null ? "Required" : null,
                       ),
-                      // if (selectedAnimalType == "Others") ...[
-                      //   const SizedBox(height: 10),
-                      //   TextFormField(
-                      //     controller: customAnimalTypeController,
-                      //     decoration: _inputDecoration(
-                      //       "Enter Animal Type Name",
-                      //     ),
-                      //     validator: (v) =>
-                      //         (selectedAnimalType == "Others" &&
-                      //             (v == null || v.isEmpty))
-                      //         ? "Required"
-                      //         : null,
-                      //   ),
-                      // ],
+                      if (selectedAnimalType == "Others") ...[
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: customAnimalTypeController,
+                          decoration: _inputDecoration(
+                            "Enter custom animal type",
+                          ),
+                          validator: (v) =>
+                              (selectedAnimalType == "Others" &&
+                                  (v == null || v.trim().isEmpty))
+                              ? "Required"
+                              : null,
+                        ),
+                      ],
                       // const SizedBox(height: 15),
                       // _buildLabel("Animal Breed", isRequired: false),
                       // TextFormField(
@@ -434,6 +450,22 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
                         ),
                         validator: (v) =>
                             (v == null || v.isEmpty) ? "Required" : null,
+                      ),
+
+                      const SizedBox(height: 15),
+                      _buildLabel("Price per Share", isRequired: true),
+                      TextFormField(
+                        controller: pricePerShareController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: _inputDecoration("Enter price per share"),
+                        validator: (v) {
+                          final value = double.tryParse(v?.trim() ?? '');
+                          if (value == null) return "Enter a valid amount";
+                          if (value < 0) return "Price cannot be negative";
+                          return null;
+                        },
                       ),
 
                       const SizedBox(height: 15),

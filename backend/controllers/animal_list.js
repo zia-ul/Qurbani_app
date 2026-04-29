@@ -19,6 +19,7 @@ exports.getAnimals = async (req, res) => {
       SELECT 
         a.id,
         a.animal_type,
+        a.price_per_share,
         a.shares,
         a.created_at,
         a.qurbani_datetime,
@@ -37,7 +38,7 @@ exports.getAnimals = async (req, res) => {
 
       WHERE a.admin_id = ?
 
-      GROUP BY a.id, a.animal_type, a.shares, a.created_at, ad.barcode, a.qurbani_datetime
+      GROUP BY a.id, a.animal_type, a.price_per_share, a.shares, a.created_at, ad.barcode, a.qurbani_datetime
 
       ORDER BY a.created_at DESC
       `,
@@ -186,6 +187,8 @@ exports.updateAnimal = async (req, res) => {
 
   const {
     animalType,
+    price_per_share,
+    pricePerShare,
     breed,
     description,
     price,
@@ -203,6 +206,7 @@ exports.updateAnimal = async (req, res) => {
     const [result] = await db.query(
       `UPDATE animals SET
         animal_type = ?,
+        price_per_share = COALESCE(?, price_per_share),
         breed = ?,
         description = ?,
         price = ?,
@@ -217,6 +221,7 @@ exports.updateAnimal = async (req, res) => {
        WHERE id = ? AND admin_id = ?`,
       [
         animalType,
+        price_per_share ?? pricePerShare,
         breed,
         description,
         price,
