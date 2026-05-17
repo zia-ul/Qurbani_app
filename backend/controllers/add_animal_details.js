@@ -21,9 +21,15 @@ exports.addAnimal = async function addAnimal(adminId, data) {
   );
 
   // Get system base currency (USD)
-  const [[meta]] = await pool.execute(
-    "SELECT base_currency FROM currency_meta WHERE id = 1",
+  const metaResult = await pool.query(
+    "SELECT base_currency FROM currency_meta WHERE id = 1"
   );
+
+  const meta = metaResult.rows[0];
+
+  if (!meta) {
+    throw new Error("Base currency configuration not found");
+  }
 
   const baseCurrency = meta.base_currency;
 
@@ -31,15 +37,17 @@ exports.addAnimal = async function addAnimal(adminId, data) {
 
   // Convert if needed
   if (currency !== baseCurrency) {
-    const [[rateRow]] = await pool.execute(
+    const rateResult = await pool.query(
       `
       SELECT rate
       FROM currency_rates
-      WHERE currency_code = ?
-        AND base_currency = ?
+      WHERE currency_code = $1
+        AND base_currency = $2
       `,
-      [currency, baseCurrency],
+      [currency, baseCurrency]
     );
+
+    const rateRow = rateResult.rows[0];
 
     if (!rateRow) {
       throw new Error(`Missing exchange rate for ${currency}`);
@@ -48,41 +56,50 @@ exports.addAnimal = async function addAnimal(adminId, data) {
     finalPrice = price / rateRow.rate;
 
     console.log(
-      `[ADD ANIMAL] Converted ${price} ${currency} → ${finalPrice} ${baseCurrency}`,
+      `[ADD ANIMAL] Converted ${price} ${currency} → ${finalPrice} ${baseCurrency}`
     );
   }
 
-  // Store ONLY base price
-  // const animalId = crypto.randomUUID();
-
-  await pool.execute(
+  // Insert animal
+  const insertResult = await pool.query(
     `
     INSERT INTO animals
-    (admin_id, animal_type, price, shares, last_booked_date,
-     delivery_type, delivery_fee, delivery_threshold)
-    VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
+    (
+      admin_id,
+      animal_type,
+      price,
+      shares,
+      last_booked_date,
+      delivery_type,
+      delivery_fee,
+      delivery_threshold
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING id
     `,
     [
       adminId,
       animalType,
-      finalPrice, 
+      finalPrice,
       shares,
       lastBookedDate,
       deliveryType,
       deliveryFee,
       deliveryThreshold,
-    ],
+    ]
   );
 
-   logger.info("Animal created successfully", {
-      animalId,
-      adminId,
-      storedPrice: finalPrice,
-      baseCurrency,
-    });
+  const animalId = insertResult.rows[0].id;
+
+  logger.info("Animal created successfully", {
+    animalId,
+    adminId,
+    storedPrice: finalPrice,
+    baseCurrency,
+  });
 
   console.log(
-    `[ADD ANIMAL] Stored base price: ${finalPrice} ${baseCurrency}`,
+    `[ADD ANIMAL] Stored base price: ${finalPrice} ${baseCurrency}`
   );
 
   return animalId;

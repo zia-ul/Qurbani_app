@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/services/service_profile.dart';
+import 'package:Qurbani/services/upload_service.dart';
 import 'package:Qurbani/screens/user/reset_email_page.dart';
 import 'package:Qurbani/screens/user/reset_phone_page.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -116,26 +115,6 @@ class _ProfilePageState extends State<ProfilePage> {
     if (image != null) setState(() => _selectedImage = File(image.path));
   }
 
-  Future<String?> uploadToCloudinary(File image) async {
-    const cloudName = 'dfezveorl';
-    const uploadPreset = 'qurbani';
-    final uri = Uri.parse(
-      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
-    );
-
-    try {
-      final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = uploadPreset
-        ..files.add(await http.MultipartFile.fromPath('file', image.path));
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(await response.stream.bytesToString());
-        return decoded['secure_url'];
-      }
-    } catch (e) {}
-    return null;
-  }
-
   Future<void> saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -148,8 +127,14 @@ class _ProfilePageState extends State<ProfilePage> {
     String? imageUrl = _photoUrl;
 
     if (_selectedImage != null) {
-      imageUrl = await uploadToCloudinary(_selectedImage!);
-      if (imageUrl == null) {
+      try {
+        imageUrl = await UploadService.uploadFile(
+          _selectedImage!.path,
+          context: 'profile',
+          saveProfilePhoto: true,
+        );
+      } catch (e) {
+        print("Image upload error: $e");
         ToastUtils.showError("Image upload failed");
         setState(() => _isLoading = false);
         return;

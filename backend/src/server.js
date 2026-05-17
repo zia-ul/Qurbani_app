@@ -10,11 +10,14 @@ const adminProfileRoutes = require("../routes/adminprofile");
 const orderRoutes = require("../controllers/orders"); 
 const userRoutes = require("../routes/users"); 
 const adminPaymentRoutes = require("../routes/admin_payment_routes");
+const uploadRoutes = require("../controllers/uploads");
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('../swagger');
 const requestLogger = require("../middleware/request_logger");
 const errorHandler = require("../middleware/error_logger");
 const rateLimit = require("express-rate-limit");
+const pool = require("../config/db");
+const { ensurePaymentSchema } = require("../services/paymentSchema");
 
 require("./cron");
 require('dotenv').config();
@@ -41,6 +44,11 @@ app.use(globalLimiter);
 
 // Cross-Origin Resource Sharing
 app.use(cors());
+app.use(
+  "/api/webhooks/razorpay",
+  express.raw({ type: "application/json" }),
+  require("../routes/razorpay_webhook"),
+);
 app.use(bodyParser.json());
 app.use(requestLogger); 
 app.use(errorHandler);
@@ -59,7 +67,7 @@ app.use("/api/superadmin", require("../routes/superadmin"));
 // Orders
 // app.use("/api/orders", require("../routes/orders"));
 
-app.use("/api/users", require("../routes/currency_rates"))
+// app.use("/api/users", require("../routes/currency_rates"))
 app.use("/api/notifications", require("../routes/notifications"))
 
 // Rating Routes
@@ -72,6 +80,7 @@ app.use("/api/requests", require("../routes/requests_routes"));
 app.use("/api/admin/payment-settings", adminPaymentRoutes);
 app.use("/api/admin", require("../routes/admin_payment_routes"));
 app.use("/api", require("../routes/public_admin_routes"));
+app.use("/api/uploads", uploadRoutes);
 
 // user-related routes (profile, ratings, requests, delivery-boys)
 app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/requests, /api/delivery-boys
@@ -80,6 +89,13 @@ app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/req
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const PORT = 3000;
+
+ensurePaymentSchema().catch((error) => {
+  logger.error("Payment schema bootstrap failed", {
+    error: error.message,
+    stack: error.stack,
+  });
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);

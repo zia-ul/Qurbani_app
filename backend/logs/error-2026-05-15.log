@@ -1,0 +1,2 @@
+2026-05-15 10:32:01 [error]: File upload failed {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","context":"profile","error":"Cloudinary environment variables are not configured"}
+2026-05-15 10:33:27 [error]: File upload failed {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","context":"profile","error":"Cloudinary environment variables are not configured"}

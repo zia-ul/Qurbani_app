@@ -1,22 +1,60 @@
-const requireApprovedAdmin = async (req, res, next) => {
-  if (req.user.role !== 'admin') return res.sendStatus(403);
+const supabase = require("../config/db");
 
-  const [rows] = await db.query(
-    `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-    [req.user.id]
-  );
+const requireApprovedAdmin = async (
+  req,
+  res,
+  next
+) => {
 
-  if (rows.length === 0) {
-    return res.status(403).json({
-      message: 'Admin verification not submitted'
+  try {
+
+    if (req.user.role !== "admin") {
+      return res.sendStatus(403);
+    }
+
+    const { data, error } =
+      await supabase
+        .from(
+          "admin_verification_requests"
+        )
+        .select("status")
+        .eq("user_id", req.user.id)
+        .single();
+
+    if (error && error.code !== "PGRST116") {
+      throw new Error(error.message);
+    }
+
+    // No verification request found
+    if (!data) {
+      return res.status(403).json({
+        message:
+          "Admin verification not submitted",
+      });
+    }
+
+    // Verification exists but not approved
+    if (data.status !== "approved") {
+      return res.status(403).json({
+        message:
+          "Admin verification pending approval",
+      });
+    }
+
+    next();
+
+  } catch (err) {
+
+    console.error(
+      "Admin approval middleware error:",
+      err.message
+    );
+
+    return res.status(500).json({
+      message:
+        "Internal server error",
     });
   }
-
-  if (rows[0].status !== 'approved') {
-    return res.status(403).json({
-      message: 'Admin verification pending approval'
-    });
-  }
-
-  next();
 };
+
+module.exports = requireApprovedAdmin;

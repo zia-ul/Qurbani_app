@@ -6,42 +6,14 @@ const db = require("../config/db");
 const { v4: uuidv4 } = require("uuid");
 const jwt = require("jsonwebtoken");
 const authMiddleware = require("../middleware/authmiddleware");
-const pool = require("../config/db");
-const logger = require("../middleware/logger"); // Winston logger
-const { loginLimiter, registerLimiter } = require("../middleware/rate_limiter");
+const logger = require("../middleware/logger");
+const {
+  loginLimiter,
+  registerLimiter,
+} = require("../middleware/rate_limiter");
 const { sendVerificationEmail } = require("../src/email_service");
+
 const router = express.Router();
-let phoneVerificationColumnReady = false;
-let phoneVerificationColumnPromise = null;
-
-async function ensurePhoneVerificationColumn() {
-  if (phoneVerificationColumnReady) {
-    return;
-  }
-
-  if (!phoneVerificationColumnPromise) {
-    phoneVerificationColumnPromise = (async () => {
-      const [columns] = await db.query(
-        "SHOW COLUMNS FROM users LIKE 'is_phone_verified'",
-      );
-
-      if (columns.length === 0) {
-        logger.info("Adding users.is_phone_verified column");
-        await db.query(
-          "ALTER TABLE users ADD COLUMN is_phone_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER is_verified",
-        );
-      }
-
-      phoneVerificationColumnReady = true;
-    })();
-  }
-
-  try {
-    await phoneVerificationColumnPromise;
-  } finally {
-    phoneVerificationColumnPromise = null;
-  }
-}
 
 function normalizePhoneNumber(phoneNumber) {
   return (phoneNumber || "").toString().replace(/\D/g, "");
@@ -72,7 +44,7 @@ async function getPhoneEmailUser({ accessToken, clientId }) {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       timeout: 15000,
-    },
+    }
   );
 
   const data = response.data;
@@ -83,14 +55,17 @@ async function getPhoneEmailUser({ accessToken, clientId }) {
     !data.phone_no ||
     !data.country_code
   ) {
-    throw new Error("Phone.Email did not return a verified phone number.");
+    throw new Error(
+      "Phone.Email did not return a verified phone number."
+    );
   }
 
   return data;
 }
 
-// POST /api/auth/register - User registration endpoint
-// Validates input, checks for existing email, hashes password, creates user, and sends verification email
+/**
+ * POST /api/auth/register
+ */
 router.post(
   "/register",
   registerLimiter,
@@ -107,9 +82,15 @@ router.post(
     body("country_iso").notEmpty().isLength({ min: 2, max: 2 }),
 
     body("country").notEmpty(),
-    body("state").optional({ nullable: true, checkFalsy: true }).isString(),
-    body("city").optional({ nullable: true, checkFalsy: true }).isString(),
-    body("postal_code").notEmpty().isLength({ min: 3, max: 20 }),
+    body("state")
+      .optional({ nullable: true, checkFalsy: true })
+      .isString(),
+    body("city")
+      .optional({ nullable: true, checkFalsy: true })
+      .isString(),
+    body("postal_code")
+      .notEmpty()
+      .isLength({ min: 3, max: 20 }),
 
     body("currency").optional().isLength({ min: 3, max: 3 }),
     body("gender").optional().isIn(["Male", "Female"]),
@@ -118,10 +99,14 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
 
-    console.log("Registration Request Body:", req.body, errors);
     if (!errors.isEmpty()) {
-      logger.warn("Registration failed: invalid input", { body: req.body });
-      return res.status(400).json({ message: "Invalid input" });
+      logger.warn("Registration failed: invalid input", {
+        body: req.body,
+      });
+
+      return res.status(400).json({
+        message: "Invalid input",
+      });
     }
 
     const {
@@ -131,47 +116,50 @@ router.post(
       phone,
       country_code,
       country_iso,
-
       country,
       state,
       city,
       postal_code,
       address,
-
       gender,
       role,
       currency,
     } = req.body;
 
     try {
-      await ensurePhoneVerificationColumn();
+      logger.info("Registration attempt", {
+        email,
+        role,
+      });
 
-      logger.info("Registration attempt", { email, role });
-
-      // Check email uniqueness
-      const [existing] = await db.query(
-        "SELECT id FROM users WHERE email = ?",
-        [email],
+      // PostgreSQL syntax
+      const existingResult = await db.query(
+        "SELECT id FROM users WHERE email = $1",
+        [email]
       );
 
-      console.log(existing);
+      if (existingResult.rows.length > 0) {
+        logger.warn(
+          "Registration failed: email already registered",
+          { email }
+        );
 
-      if (existing.length > 0) {
-        logger.warn("Registration failed: email already registered", { email });
-        return res.status(409).json({ message: "Email already registered" });
+        return res.status(409).json({
+          message: "Email already registered",
+        });
       }
 
-      // Hash password
       const passwordHash = await bcrypt.hash(password, 12);
 
-      // `admin_status` is a DB enum: pending | approved | rejected.
-      // New admin signups should start in the pending state until reviewed.
-      const adminStatus = role === "admin" ? "pending" : null;
+      const adminStatus =
+        role === "admin" ? "pending" : null;
+
       const userId = uuidv4();
       const verificationToken = uuidv4();
 
       await db.query(
-        `INSERT INTO users (
+        `
+        INSERT INTO users (
           id,
           name,
           email,
@@ -191,7 +179,14 @@ router.post(
           is_verified,
           is_phone_verified,
           verification_token
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7, $8, $9, $10,
+          $11, $12, $13, $14, $15,
+          $16, $17, $18, $19
+        )
+        `,
         [
           userId,
           name,
@@ -212,19 +207,30 @@ router.post(
           false,
           false,
           verificationToken,
-        ],
+        ]
       );
 
-      logger.info("User registered successfully", { userId, role });
-
+      logger.info("User registered successfully", {
+        userId,
+        role,
+      });
 
       try {
-        await sendVerificationEmail(email, verificationToken);
-        logger.info(`Verification email sent to ${email}`);
+        await sendVerificationEmail(
+          email,
+          verificationToken
+        );
+
+        logger.info(
+          `Verification email sent to ${email}`
+        );
       } catch (err) {
-        logger.error(`Failed to send verification email to ${email}`, {
-          error: err.message,
-        });
+        logger.error(
+          `Failed to send verification email to ${email}`,
+          {
+            error: err.message,
+          }
+        );
       }
 
       return res.status(201).json({
@@ -234,48 +240,75 @@ router.post(
             : "Registration successful",
       });
     } catch (err) {
-      logger.error("Registration error", { email, role, error: err.message });
+      logger.error("Registration error", {
+        email,
+        role,
+        error: err.message,
+      });
+
       res.status(500).json({
-        message: err.message || "Something went wrong. Please try again later.",
+        message:
+          err.message ||
+          "Something went wrong. Please try again later.",
       });
     }
-  },
+  }
 );
 
-// POST /api/auth/verify-email
+/**
+ * GET /api/auth/verify-email
+ */
 router.get("/verify-email", async (req, res) => {
   try {
     const { token } = req.query;
 
-    const conn = await pool.getConnection();
-
-    // Find user with this token
-    const [users] = await conn.query(
-      "SELECT * FROM users WHERE verification_token = ? AND is_verified = 0",
-      [token],
+    const usersResult = await db.query(
+      `
+      SELECT *
+      FROM users
+      WHERE verification_token = $1
+        AND is_verified = false
+      `,
+      [token]
     );
 
-    if (users.length === 0) {
-      conn.release();
-      return res.status(400).send("Token invalid or already used");
+    if (usersResult.rows.length === 0) {
+      return res
+        .status(400)
+        .send("Token invalid or already used");
     }
 
-    // Update user as verified
-    await conn.query(
-      "UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?",
-      [users[0].id],
+    await db.query(
+      `
+      UPDATE users
+      SET is_verified = true,
+          verification_token = NULL
+      WHERE id = $1
+      `,
+      [usersResult.rows[0].id]
     );
 
-    conn.release();
-    res.send("Email verified successfully! You can now login.");
+    res.send(
+      "Email verified successfully! You can now login."
+    );
   } catch (err) {
     res.status(500).send(err.message);
   }
 });
 
+/**
+ * POST /api/auth/verify-phone
+ */
 router.post("/verify-phone", async (req, res) => {
-  const email = req.body?.email?.toString().trim().toLowerCase();
-  const accessToken = req.body?.accessToken?.toString().trim();
+  const email = req.body?.email
+    ?.toString()
+    .trim()
+    .toLowerCase();
+
+  const accessToken = req.body?.accessToken
+    ?.toString()
+    .trim();
+
   const clientId =
     process.env.PHONE_EMAIL_CLIENT_ID?.trim() ||
     req.body?.clientId?.toString().trim() ||
@@ -283,7 +316,8 @@ router.post("/verify-phone", async (req, res) => {
 
   if (!email || !accessToken) {
     return res.status(400).json({
-      message: "Email and Phone.Email access token are required",
+      message:
+        "Email and Phone.Email access token are required",
     });
   }
 
@@ -294,28 +328,43 @@ router.post("/verify-phone", async (req, res) => {
   }
 
   try {
-    await ensurePhoneVerificationColumn();
-
-    const [users] = await db.query(
-      `SELECT id, phone, country_code, is_phone_verified
-       FROM users
-       WHERE email = ?`,
-      [email],
+    const usersResult = await db.query(
+      `
+      SELECT
+        id,
+        phone,
+        country_code,
+        is_phone_verified
+      FROM users
+      WHERE email = $1
+      `,
+      [email]
     );
 
-    if (users.length === 0) {
-      logger.warn("Phone verification failed: user not found", { email });
-      return res.status(404).json({ message: "User not found" });
+    if (usersResult.rows.length === 0) {
+      logger.warn(
+        "Phone verification failed: user not found",
+        { email }
+      );
+
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
 
-    const user = users[0];
+    const user = usersResult.rows[0];
 
     if (!user.phone || !user.country_code) {
-      logger.warn("Phone verification failed: phone missing on user", {
-        userId: user.id,
-      });
+      logger.warn(
+        "Phone verification failed: phone missing on user",
+        {
+          userId: user.id,
+        }
+      );
+
       return res.status(400).json({
-        message: "No registered phone number was found for this account",
+        message:
+          "No registered phone number was found for this account",
       });
     }
 
@@ -324,20 +373,33 @@ router.post("/verify-phone", async (req, res) => {
       clientId,
     });
 
-    const storedPhone = normalizePhoneNumber(user.phone);
-    const verifiedPhone = normalizePhoneNumber(phoneEmailUser.phone_no);
-    const storedCountryCode = user.country_code.toString().trim();
-    const verifiedCountryCode = phoneEmailUser.country_code.toString().trim();
+    const storedPhone = normalizePhoneNumber(
+      user.phone
+    );
+
+    const verifiedPhone = normalizePhoneNumber(
+      phoneEmailUser.phone_no
+    );
+
+    const storedCountryCode =
+      user.country_code.toString().trim();
+
+    const verifiedCountryCode =
+      phoneEmailUser.country_code
+        .toString()
+        .trim();
 
     if (
-      storedPhone != verifiedPhone ||
-      storedCountryCode != verifiedCountryCode
+      storedPhone !== verifiedPhone ||
+      storedCountryCode !== verifiedCountryCode
     ) {
-      logger.warn("Phone verification failed: phone mismatch", {
-        userId: user.id,
-        storedCountryCode,
-        verifiedCountryCode,
-      });
+      logger.warn(
+        "Phone verification failed: phone mismatch",
+        {
+          userId: user.id,
+        }
+      );
+
       return res.status(400).json({
         message:
           "The verified phone number does not match the number used during registration",
@@ -345,17 +407,25 @@ router.post("/verify-phone", async (req, res) => {
     }
 
     if (!user.is_phone_verified) {
-      await db.query("UPDATE users SET is_phone_verified = 1 WHERE id = ?", [
-        user.id,
-      ]);
+      await db.query(
+        `
+        UPDATE users
+        SET is_phone_verified = true
+        WHERE id = $1
+        `,
+        [user.id]
+      );
     }
 
-    logger.info("Phone verified successfully", { userId: user.id });
+    logger.info("Phone verified successfully", {
+      userId: user.id,
+    });
 
     return res.json({
       message: "Phone verified successfully",
       phone: phoneEmailUser.phone_no,
-      country_code: phoneEmailUser.country_code,
+      country_code:
+        phoneEmailUser.country_code,
     });
   } catch (err) {
     logger.error("Phone verification error", {
@@ -365,11 +435,15 @@ router.post("/verify-phone", async (req, res) => {
     });
 
     return res.status(500).json({
-      message: "Unable to verify phone right now. Please try again.",
+      message:
+        "Unable to verify phone right now. Please try again.",
     });
   }
 });
 
+/**
+ * POST /api/auth/phone-verification-context
+ */
 router.post(
   "/phone-verification-context",
   loginLimiter,
@@ -378,30 +452,47 @@ router.post(
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      return res.status(400).json({ message: "A valid email is required" });
+      return res.status(400).json({
+        message: "A valid email is required",
+      });
     }
 
-    const email = req.body.email.toString().trim().toLowerCase();
+    const email = req.body.email
+      .toString()
+      .trim()
+      .toLowerCase();
 
     try {
-      await ensurePhoneVerificationColumn();
-
-      const [users] = await db.query(
-        `SELECT email, phone, country_code, role, is_phone_verified
-         FROM users
-         WHERE email = ?`,
-        [email],
+      const usersResult = await db.query(
+        `
+        SELECT
+          email,
+          phone,
+          country_code,
+          role,
+          is_phone_verified
+        FROM users
+        WHERE email = $1
+        `,
+        [email]
       );
 
-      if (users.length === 0) {
-        logger.warn("Phone verification context lookup failed: user not found", {
-          email,
+      if (usersResult.rows.length === 0) {
+        logger.warn(
+          "Phone verification context lookup failed: user not found",
+          { email }
+        );
+
+        return res.status(404).json({
+          message: "User not found",
         });
-        return res.status(404).json({ message: "User not found" });
       }
 
-      const user = users[0];
-      const isSuperAdmin = isSuperAdminRole(user.role);
+      const user = usersResult.rows[0];
+
+      const isSuperAdmin = isSuperAdminRole(
+        user.role
+      );
 
       if (isSuperAdmin) {
         return res.json({
@@ -417,10 +508,12 @@ router.post(
       if (!user.phone || !user.country_code) {
         logger.warn(
           "Phone verification context lookup failed: phone missing on user",
-          { email },
+          { email }
         );
+
         return res.status(400).json({
-          message: "No registered phone number was found for this account",
+          message:
+            "No registered phone number was found for this account",
         });
       }
 
@@ -429,249 +522,409 @@ router.post(
         phone: user.phone,
         country_code: user.country_code,
         role: user.role,
-        is_phone_verified: Boolean(user.is_phone_verified),
+        is_phone_verified: Boolean(
+          user.is_phone_verified
+        ),
       });
     } catch (err) {
-      logger.error("Phone verification context lookup error", {
-        email,
-        error: err.message,
-      });
+      logger.error(
+        "Phone verification context lookup error",
+        {
+          email,
+          error: err.message,
+        }
+      );
+
       return res.status(500).json({
-        message: "Unable to load the registered phone number right now.",
+        message:
+          "Unable to load the registered phone number right now.",
       });
     }
-  },
+  }
 );
 
 /**
  * POST /api/auth/login
  */
-router.post("/login", loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
+router.post(
+  "/login",
+  loginLimiter,
+  async (req, res) => {
+    const { email, password } = req.body;
 
-  try {
-    await ensurePhoneVerificationColumn();
+    try {
+      if (!email || !password) {
+        logger.warn(
+          "Login failed: missing email or password",
+          {
+            body: req.body,
+          }
+        );
 
-    if (!email || !password) {
-      logger.warn("Login failed: missing email or password", {
-        body: req.body,
-      });
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
-    }
+        return res.status(400).json({
+          message:
+            "Email and password are required",
+        });
+      }
 
-    const emailNormalized = email.toLowerCase();
-    logger.info("Login attempt", { email: emailNormalized });
+      const emailNormalized =
+        email.toLowerCase();
 
-    const [users] = await db.query(
-      `SELECT 
-        id, name, email, password_hash, role, admin_status,
-        is_verified, is_phone_verified, is_active, city, currency,
-        phone, country_code
-       FROM users
-       WHERE email = ?`,
-      [emailNormalized],
-    );
-
-    if (users.length === 0) {
-      logger.warn("Login failed: unregistered email", {
+      logger.info("Login attempt", {
         email: emailNormalized,
       });
-      return res.status(404).json({ message: "Unregistered Mail id" });
-    }
 
-    const user = users[0];
-    const isSuperAdmin = isSuperAdminRole(user.role);
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+      const usersResult = await db.query(
+        `
+        SELECT
+          id,
+          name,
+          email,
+          password_hash,
+          role,
+          admin_status,
+          is_verified,
+          is_phone_verified,
+          is_active,
+          city,
+          currency,
+          phone,
+          country_code
+        FROM users
+        WHERE email = $1
+        `,
+        [emailNormalized]
+      );
 
-    if (!isMatch) {
-      logger.warn("Login failed: incorrect password", { userId: user.id });
-      return res.status(401).json({ message: "Incorrect password" });
-    }
+      if (usersResult.rows.length === 0) {
+        logger.warn(
+          "Login failed: unregistered email",
+          {
+            email: emailNormalized,
+          }
+        );
 
-    if (!isSuperAdmin && !user.is_verified) {
-      logger.warn("Login blocked: email not verified", { userId: user.id });
-      return res
-        .status(403)
-        .json({ message: "Please verify your email before logging in" });
-    }
+        return res.status(404).json({
+          message: "Unregistered Mail id",
+        });
+      }
 
-    if (!isSuperAdmin && !user.is_phone_verified) {
-      logger.warn("Login blocked: phone not verified", { userId: user.id });
-      return res.status(403).json({
-        message: "Please verify your phone before logging in",
-        email: user.email,
-        phone: user.phone,
-        country_code: user.country_code,
+      const user = usersResult.rows[0];
+
+      const isSuperAdmin = isSuperAdminRole(
+        user.role
+      );
+
+      const isMatch = await bcrypt.compare(
+        password,
+        user.password_hash
+      );
+
+      if (!isMatch) {
+        logger.warn(
+          "Login failed: incorrect password",
+          {
+            userId: user.id,
+          }
+        );
+
+        return res.status(401).json({
+          message: "Incorrect password",
+        });
+      }
+
+      if (!isSuperAdmin && !user.is_verified) {
+        return res.status(403).json({
+          message:
+            "Please verify your email before logging in",
+        });
+      }
+
+      if (
+        !isSuperAdmin &&
+        !user.is_phone_verified
+      ) {
+        return res.status(403).json({
+          message:
+            "Please verify your phone before logging in",
+          email: user.email,
+          phone: user.phone,
+          country_code: user.country_code,
+        });
+      }
+
+      if (!user.is_active) {
+        return res.status(403).json({
+          message:
+            "Account is deactivated. Contact support.",
+        });
+      }
+
+      let adminVerificationStatus = null;
+
+      if (user.role === "admin") {
+        const rowsResult = await db.query(
+          `
+          SELECT status
+          FROM admin_verification_requests
+          WHERE user_id = $1
+          `,
+          [user.id]
+        );
+
+        adminVerificationStatus =
+          rowsResult.rows.length
+            ? rowsResult.rows[0].status
+            : "not_submitted";
+      }
+
+      const token = jwt.sign(
+        {
+          id: user.id,
+          role: user.role,
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d",
+        }
+      );
+
+      logger.info("Login successful", {
+        userId: user.id,
+        role: user.role,
+      });
+
+      return res.json({
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          country_code: user.country_code,
+          role: user.role,
+          city: user.city,
+          currency: user.currency,
+          admin_verification_status:
+            adminVerificationStatus,
+        },
+      });
+    } catch (err) {
+      logger.error("Login error", {
+        email,
+        error: err.message,
+      });
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
       });
     }
-
-    if (!user.is_active) {
-      logger.warn("Login blocked: account deactivated", { userId: user.id });
-      return res
-        .status(403)
-        .json({ message: "Account is deactivated. Contact support." });
-    }
-
-    let adminVerificationStatus = null;
-    if (user.role === "admin") {
-      const [rows] = await db.query(
-        `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-        [user.id],
-      );
-      adminVerificationStatus = rows.length ? rows[0].status : "not_submitted";
-    }
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "7d",
-      },
-    );
-
-    logger.info("Login successful", { userId: user.id, role: user.role });
-
-    return res.json({
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        country_code: user.country_code,
-        role: user.role,
-        city: user.city,
-        currency: user.currency,
-        admin_verification_status: adminVerificationStatus,
-      },
-    });
-  } catch (err) {
-    logger.error("Login error", { email, error: err.message });
-    return res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
   }
-});
+);
 
 /**
  * GET /api/auth/me
  */
-router.get("/me", authMiddleware, async (req, res) => {
-  try {
-    const [users] = await pool.execute(
-      `SELECT id, name, email, phone, country_code, role FROM users WHERE id = ?`,
-      [req.user.id],
-    );
-
-    if (users.length === 0) {
-      logger.warn("Fetch current user failed: user not found", {
-        userId: req.user.id,
-      });
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    let verificationStatus = null;
-    if (users[0].role === "admin") {
-      const [rows] = await pool.execute(
-        `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-        [req.user.id],
+router.get(
+  "/me",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const usersResult = await db.query(
+        `
+        SELECT
+          id,
+          name,
+          email,
+          phone,
+          country_code,
+          role
+        FROM users
+        WHERE id = $1
+        `,
+        [req.user.id]
       );
-      verificationStatus = rows.length ? rows[0].status : "not_submitted";
+
+      if (usersResult.rows.length === 0) {
+        logger.warn(
+          "Fetch current user failed: user not found",
+          {
+            userId: req.user.id,
+          }
+        );
+
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      const user = usersResult.rows[0];
+
+      let verificationStatus = null;
+
+      if (user.role === "admin") {
+        const rowsResult = await db.query(
+          `
+          SELECT status
+          FROM admin_verification_requests
+          WHERE user_id = $1
+          `,
+          [req.user.id]
+        );
+
+        verificationStatus =
+          rowsResult.rows.length
+            ? rowsResult.rows[0].status
+            : "not_submitted";
+      }
+
+      res.json({
+        user: {
+          ...user,
+          verification_status:
+            verificationStatus,
+        },
+      });
+    } catch (err) {
+      logger.error(
+        "Fetch current user error",
+        {
+          userId: req.user.id,
+          error: err.message,
+        }
+      );
+
+      res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
+    }
+  }
+);
+
+/**
+ * PUT /api/auth/update-profile-photo
+ */
+router.put(
+  "/update-profile-photo",
+  authMiddleware,
+  async (req, res) => {
+    const userId = req.user.id;
+    const { photoUrl } = req.body;
+
+    if (!photoUrl) {
+      return res.status(400).json({
+        message: "Photo URL is required",
+      });
     }
 
-    logger.debug("Fetched current user profile", { userId: req.user.id });
+    try {
+      await db.query(
+        `
+        UPDATE users
+        SET photo_url = $1
+        WHERE id = $2
+        `,
+        [photoUrl, userId]
+      );
 
-    res.json({
-      user: {
-        ...users[0],
-        verification_status: verificationStatus,
-      },
-    });
-  } catch (err) {
-    logger.error("Fetch current user error", {
-      userId: req.user.id,
-      error: err.message,
-    });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+      res.json({
+        message: "Profile photo updated",
+        photoUrl,
+      });
+    } catch (err) {
+      logger.error(
+        "Profile photo update failed",
+        {
+          userId,
+          error: err.message,
+        }
+      );
+
+      res.status(500).json({
+        message:
+          "Something went wrong. Please try again.",
+      });
+    }
   }
-});
-
-// Update profile photo
-router.put("/update-profile-photo", authMiddleware, async (req, res) => {
-  const userId = req.user.id;
-  const { photoUrl } = req.body;
-
-  if (!photoUrl) {
-    return res.status(400).json({ message: "Photo URL is required" });
-  }
-
-  try {
-    await db.query("UPDATE users SET photo_url = ? WHERE id = ?", [
-      photoUrl,
-      userId,
-    ]);
-
-    res.json({ message: "Profile photo updated", photoUrl });
-  } catch (err) {
-    logger.error("Profile photo update failed", {
-      userId,
-      error: err.message,
-    });
-
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again." });
-  }
-});
+);
 
 /**
  * PUT /api/auth/change-password
  */
-router.put("/change-password", authMiddleware, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  const userId = req.user.id;
+router.put(
+  "/change-password",
+  authMiddleware,
+  async (req, res) => {
+    const { currentPassword, newPassword } =
+      req.body;
 
-  try {
-    const [users] = await pool.execute(
-      `SELECT password_hash FROM users WHERE id = ?`,
-      [userId],
-    );
+    const userId = req.user.id;
 
-    if (users.length === 0) {
-      logger.warn("Password change failed: user not found", { userId });
-      return res.status(404).json({ message: "User not found" });
-    }
+    try {
+      const usersResult = await db.query(
+        `
+        SELECT password_hash
+        FROM users
+        WHERE id = $1
+        `,
+        [userId]
+      );
 
-    const isValid = await bcrypt.compare(
-      currentPassword,
-      users[0].password_hash,
-    );
-    if (!isValid) {
-      logger.warn("Password change failed: incorrect current password", {
-        userId,
+      if (usersResult.rows.length === 0) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      const isValid = await bcrypt.compare(
+        currentPassword,
+        usersResult.rows[0].password_hash
+      );
+
+      if (!isValid) {
+        return res.status(400).json({
+          message:
+            "Current password is incorrect",
+        });
+      }
+
+      const hashedPassword =
+        await bcrypt.hash(newPassword, 10);
+
+      await db.query(
+        `
+        UPDATE users
+        SET password_hash = $1
+        WHERE id = $2
+        `,
+        [hashedPassword, userId]
+      );
+
+      logger.info(
+        "Password changed successfully",
+        {
+          userId,
+        }
+      );
+
+      res.json({
+        message:
+          "Password changed successfully",
       });
-      return res.status(400).json({ message: "Current password is incorrect" });
+    } catch (err) {
+      logger.error("Change password error", {
+        userId,
+        error: err.message,
+      });
+
+      res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
     }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await pool.execute(`UPDATE users SET password_hash = ? WHERE id = ?`, [
-      hashedPassword,
-      userId,
-    ]);
-
-    logger.info("Password changed successfully", { userId });
-
-    res.json({ message: "Password changed successfully" });
-  } catch (err) {
-    logger.error("Change password error", { userId, error: err.message });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
   }
-});
+);
 
 module.exports = router;

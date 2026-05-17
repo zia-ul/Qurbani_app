@@ -1,0 +1,60 @@
+2026-05-15 10:07:10 [info]: Application starting 
+2026-05-15 10:12:58 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.4"}
+2026-05-15 10:13:34 [info]: Incoming request {"method":"POST","url":"/api/auth/login","ip":"192.168.1.4"}
+2026-05-15 10:13:34 [info]: Login attempt {"email":"hajra.mshahid24@gmail.com"}
+2026-05-15 10:13:34 [info]: Login successful {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","role":"user"}
+2026-05-15 10:13:35 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:13:35 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:13:35 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:13:35 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:13:35 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.4"}
+2026-05-15 10:13:35 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:13:35 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:13:35 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:13:35 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:13:35 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:13:41 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:13:41 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:13:42 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:13:42 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:14:09 [info]: Incoming request {"method":"POST","url":"/api/uploads","ip":"192.168.1.4"}
+2026-05-15 10:14:09 [warn]: Upload request rejected {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","error":"Unsupported file type"}
+2026-05-15 10:16:20 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.4"}
+2026-05-15 10:16:20 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:16:20 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:16:20 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:16:20 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:16:20 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:16:33 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:16:33 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:16:34 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:16:34 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:16:44 [info]: Incoming request {"method":"POST","url":"/api/uploads","ip":"192.168.1.4"}
+2026-05-15 10:16:44 [warn]: Upload request rejected {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","error":"Unsupported file type"}
+2026-05-15 10:17:41 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:17:41 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:17:41 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:17:41 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:20:27 [info]: Application starting 
+2026-05-15 10:20:40 [info]: Incoming request {"method":"POST","url":"/api/uploads","ip":"192.168.1.4"}
+2026-05-15 10:20:41 [warn]: Upload request rejected {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","error":"Unsupported file type"}
+2026-05-15 10:20:56 [info]: Application starting 
+2026-05-15 10:20:57 [info]: Incoming request {"method":"POST","url":"/api/uploads","ip":"192.168.1.4"}
+2026-05-15 10:20:57 [warn]: Upload request rejected {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","error":"Unsupported file type"}
+2026-05-15 10:25:19 [info]: Application starting 
+2026-05-15 10:25:43 [info]: Application starting 
+2026-05-15 10:26:13 [info]: Application starting 
+2026-05-15 10:32:01 [info]: Incoming request {"method":"POST","url":"/api/uploads","ip":"192.168.1.4"}
+2026-05-15 10:32:01 [error]: File upload failed {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","context":"profile","error":"Cloudinary environment variables are not configured"}
+2026-05-15 10:33:09 [info]: Incoming request {"method":"GET","url":"/api/auth/me","ip":"192.168.1.4"}
+2026-05-15 10:33:09 [debug]: Fetched current user profile {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:33:09 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:33:09 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:33:10 [info]: Incoming request {"method":"POST","url":"/api/notifications/save-device","ip":"192.168.1.4"}
+2026-05-15 10:33:10 [info]: Device saved/updated {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","subscription_id":"6febf420-ea10-4f9b-9d8e-38a2e3c9612c","role":"user"}
+2026-05-15 10:33:14 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:33:14 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:33:15 [info]: Incoming request {"method":"GET","url":"/api/profile","ip":"192.168.1.4"}
+2026-05-15 10:33:15 [info]: Profile fetched {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58"}
+2026-05-15 10:33:27 [info]: Incoming request {"method":"POST","url":"/api/uploads","ip":"192.168.1.4"}
+2026-05-15 10:33:27 [error]: File upload failed {"userId":"f7596158-0a99-41c3-8f91-565e4a841e58","context":"profile","error":"Cloudinary environment variables are not configured"}

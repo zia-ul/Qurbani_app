@@ -187,6 +187,67 @@ class OrderService {
     }
   }
 
+  static Future<Map<String, dynamic>> createRazorpayOrder(
+    String orderId,
+  ) async {
+    final token = await _requireToken();
+
+    final res = await ApiClient.post(
+      ApiClient.uri('orders/$orderId/create-razorpay-order'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to start payment right now.',
+        ),
+        statusCode: res.statusCode,
+      );
+    }
+
+    return ApiClient.decodeMap(
+      res,
+      fallbackMessage: 'Unable to start payment right now.',
+    );
+  }
+
+  static Future<void> verifyRazorpayPayment({
+    required String orderId,
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    final token = await _requireToken();
+
+    final res = await ApiClient.post(
+      ApiClient.uri('orders/$orderId/verify-payment'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'razorpay_order_id': razorpayOrderId,
+        'razorpay_payment_id': razorpayPaymentId,
+        'razorpay_signature': razorpaySignature,
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Unable to verify payment right now.',
+        ),
+        statusCode: res.statusCode,
+      );
+    }
+  }
+
   /// GET ALL ORDERS FOR CURRENT USER
   static Future<List<Map<String, dynamic>>> getUserOrders() async {
     final token = await _requireToken(message: 'User not authenticated');

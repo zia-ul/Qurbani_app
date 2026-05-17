@@ -1,10 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:Qurbani/services/api_client.dart';
+import 'package:Qurbani/services/upload_service.dart';
 
 class AdminApplicationService {
-  static final String? _baseUrl =  dotenv.env['BASE_URL'];
   static const _storage = FlutterSecureStorage();
 
   /**
@@ -37,35 +37,44 @@ class AdminApplicationService {
     final token = await _storage.read(key: 'token');
     if (token == null) throw Exception('Unauthorized');
 
-    final req = http.MultipartRequest(
-      'POST',
-      Uri.parse('$_baseUrl/admin/apply'),
-    );
+    final uploaded = await UploadService.uploadFiles([
+      govtId.path,
+      businessProof.path,
+      bankProof.path,
+      farmPhoto.path,
+    ], context: 'admin_verification');
 
-    req.headers['Authorization'] = 'Bearer $token';
+    if (uploaded.length != 4) {
+      throw const ApiException('Failed to upload all application documents');
+    }
 
-    req.fields.addAll({
-      'organizationName': organizationName,
-      'phone': phone,
-      'experience': experience,
-      'address': address,
-    });
-
-    req.files.add(await http.MultipartFile.fromPath('govtId', govtId.path));
-    req.files.add(
-      await http.MultipartFile.fromPath('businessProof', businessProof.path),
+    final res = await ApiClient.post(
+      ApiClient.uri('admin/verification'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'organizationName': organizationName,
+        'organization_name': organizationName,
+        'phone': phone,
+        'experience': experience,
+        'address': address,
+        'govt_id_url': uploaded[0].url,
+        'business_proof_url': uploaded[1].url,
+        'bank_proof_url': uploaded[2].url,
+        'farm_photo_url': uploaded[3].url,
+      }),
     );
-    req.files.add(
-      await http.MultipartFile.fromPath('bankProof', bankProof.path),
-    );
-    req.files.add(
-      await http.MultipartFile.fromPath('farmPhoto', farmPhoto.path),
-    );
-
-    final res = await req.send();
 
     if (res.statusCode != 201) {
-      throw Exception('Failed to submit application');
+      throw ApiException(
+        ApiClient.errorMessage(
+          res,
+          fallbackMessage: 'Failed to submit application',
+        ),
+        statusCode: res.statusCode,
+      );
     }
   }
 }

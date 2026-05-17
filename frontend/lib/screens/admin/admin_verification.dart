@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'package:Qurbani/services/service_profile.dart';
+import 'package:Qurbani/services/upload_service.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/drawer.dart';
 import 'package:Qurbani/screens/admin/pending_admin.dart';
@@ -88,36 +87,17 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<String?> upload(XFile? image) async {
     if (image == null) return null;
 
-    AppLogger.debug("Uploading image", {"file": image.path});
+    AppLogger.debug("Uploading verification document", {"file": image.path});
 
     try {
-      final req =
-          http.MultipartRequest(
-              'POST',
-              Uri.parse(
-                'https://api.cloudinary.com/v1_1/dfezveorl/image/upload',
-              ),
-            )
-            ..fields['upload_preset'] = 'qurbani'
-            ..files.add(await http.MultipartFile.fromPath('file', image.path));
-
-      final res = await req.send();
-      final body = await res.stream.bytesToString();
-
-      if (res.statusCode != 200) {
-        AppLogger.error("Image upload failed", {
-          "status": res.statusCode,
-          "body": body,
-        });
-        throw Exception("Image upload failed");
-      }
-
-      final url = jsonDecode(body)['secure_url'];
-      AppLogger.info("Image uploaded successfully");
-
+      final url = await UploadService.uploadFile(
+        image.path,
+        context: 'admin_verification',
+      );
+      AppLogger.info("Verification document uploaded successfully");
       return url;
     } catch (e, stack) {
-      AppLogger.error("Image upload error", e, stack);
+      AppLogger.error("Verification document upload error", e, stack);
       rethrow;
     }
   }
@@ -125,12 +105,10 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
   Future<void> submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (
-      govtId == null ||
-      businessProof == null ||
-      bankProof == null ||
-      farmPhoto == null
-    ) {
+    if (govtId == null ||
+        businessProof == null ||
+        bankProof == null ||
+        farmPhoto == null) {
       AppLogger.warning(
         "Verification submit blocked: missing required documents",
       );

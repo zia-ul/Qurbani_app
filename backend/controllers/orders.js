@@ -15,7 +15,7 @@
  * Dependencies:
  * - express: Web framework for routing
  * - uuid: For generating unique order IDs
- * - mysql2/promise: Database connection pool
+ * - Supabase: Database access
  * - authMiddleware: Authentication middleware
  * - logger: Logging utility for audit trails
  */
@@ -23,10 +23,25 @@
 const express = require("express");
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
-const pool = require("../config/db");
+const supabase = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
+const razorpayService = require("../services/razorpayService");
+
+const ok = (res, message, data = {}, status = 200) =>
+  res.status(status).json({ success: true, message, data });
+
+const fail = (res, message, status = 500, data = {}) =>
+  res.status(status).json({ success: false, message, data });
+
+const throwDb = (error, message = "Database operation failed") => {
+  if (error) {
+    const err = new Error(error.message || message);
+    err.statusCode = 500;
+    throw err;
+  }
+};
 
 /**
  * Sanitizes input text by converting it to a string and removing any leading/trailing whitespace
@@ -79,163 +94,51 @@ const normalizeIncomingAddress = (address) => {
   return normalized.address_line ? normalized : null;
 };
 
-const getTableIdConfig = async (connection, tableName) => {
-  const [columns] = await connection.query(
-    `
-    SELECT
-      COLUMN_NAME AS column_name,
-      DATA_TYPE AS data_type,
-      EXTRA AS extra
-    FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = ?
-      AND COLUMN_NAME = 'id'
-    `,
-    [tableName],
-  );
-
-  const idColumn = columns[0];
-  const idDataType = (idColumn?.data_type || "").toLowerCase();
-  const idExtra = (idColumn?.extra || "").toLowerCase();
-
-  return {
-    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
-    idIsNumeric: [
-      "tinyint",
-      "smallint",
-      "mediumint",
-      "int",
-      "bigint",
-      "decimal",
-      "numeric",
-    ].includes(idDataType),
-  };
-};
-
-const getShareholderTableConfig = async (connection) => {
-  const idConfig = await getTableIdConfig(connection, "shareholder_details");
-  const [columns] = await connection.query(
-    `
-    SELECT COLUMN_NAME AS column_name
-    FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'shareholder_details'
-      AND COLUMN_NAME = 'payment_status'
-    `,
-  );
-
-  return {
-    ...idConfig,
-    hasPaymentStatus: columns.length > 0,
-  };
-};
+const getShareholderTableConfig = async () => ({ hasPaymentStatus: true });
 
 const buildOrderInsertPayload = async (
-  connection,
   userId,
   adminId,
   normalizedPaymentMethod,
   shareholderCount,
   totalAmount,
 ) => {
-  const tableConfig = await getTableIdConfig(connection, "orders");
-  const columns = [];
-  const values = [];
+  const orderId = uuidv4();
 
-  let orderId = null;
-  if (tableConfig.requiresExplicitId) {
-    columns.push("id");
-
-    if (tableConfig.idIsNumeric) {
-      const [[row]] = await connection.query(
-        `SELECT COALESCE(MAX(id), 0) AS maxId FROM orders`,
-      );
-      orderId = Number(row?.maxId || 0) + 1;
-    } else {
-      orderId = uuidv4();
-    }
-
-    values.push(orderId);
-  }
-
-  columns.push("user_id", "admin_id", "payment_method", "total_shares", "total_amt");
-  values.push(
-    userId,
-    adminId,
-    normalizedPaymentMethod,
-    shareholderCount,
-    totalAmount,
-  );
-
-  return { columns, values, orderId };
+  return {
+    id: orderId,
+    user_id: userId,
+    admin_id: adminId,
+    payment_method: normalizedPaymentMethod,
+    total_shares: shareholderCount,
+    total_amt: totalAmount,
+  };
 };
 
 const buildShareholderInsertPayload = async (
-  connection,
   orderId,
   shareholders,
   normalizedPaymentStatus,
 ) => {
-  const tableConfig = await getShareholderTableConfig(connection);
-  const columns = [];
-
-  if (tableConfig.requiresExplicitId) {
-    columns.push("id");
-  }
-
-  columns.push(
-    "order_id",
-    "shareholder_name",
-    "guardian_name",
-    "qurbani_day",
-    "animal_type",
-    "price",
-    "address",
-  );
-
-  if (tableConfig.hasPaymentStatus) {
-    columns.push("payment_status");
-  }
-
-  let nextNumericId = null;
-  if (tableConfig.requiresExplicitId && tableConfig.idIsNumeric) {
-    const [[row]] = await connection.query(
-      `SELECT COALESCE(MAX(id), 0) AS maxId FROM shareholder_details`,
-    );
-    nextNumericId = Number(row?.maxId || 0) + 1;
-  }
-
-  const rows = shareholders.map((shareholder) => {
+  return shareholders.map((shareholder) => {
     const normalizedAddress = normalizeIncomingAddress(shareholder.address);
 
     if (!normalizedAddress?.address_line) {
       throw new Error("Address is required for each shareholder");
     }
 
-    const values = [];
-
-    if (tableConfig.requiresExplicitId) {
-      values.push(tableConfig.idIsNumeric ? nextNumericId++ : uuidv4());
-    }
-
-    values.push(
-      orderId,
-      sanitizeText(shareholder.name),
-      sanitizeText(shareholder.guardianName),
-      sanitizeText(shareholder.qurbaniDay),
-      sanitizeText(shareholder.animal_type || shareholder.animalType || shareholder.animal),
-      Number(shareholder.price || 0),
-      JSON.stringify(normalizedAddress),
-    );
-
-    if (tableConfig.hasPaymentStatus) {
-      values.push(normalizedPaymentStatus);
-    }
-
-    return values;
+    return {
+      id: uuidv4(),
+      order_id: orderId,
+      shareholder_name: sanitizeText(shareholder.name || shareholder.shareholder_name),
+      guardian_name: sanitizeText(shareholder.guardianName || shareholder.guardian_name),
+      qurbani_day: sanitizeText(shareholder.qurbaniDay || shareholder.qurbani_day),
+      animal_type: sanitizeText(shareholder.animal_type || shareholder.animalType || shareholder.animal),
+      price: Number(shareholder.price || 0),
+      address: JSON.stringify(normalizedAddress),
+      payment_status: normalizedPaymentStatus,
+    };
   });
-
-  return { columns, rows };
 };
 
 const parseNumber = (value, fallback = 0) => {
@@ -243,15 +146,220 @@ const parseNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const latestAdminPaymentSettingsSelect = `
-          (
-            SELECT aps.cod_deadline
-            FROM admin_payment_settings aps
-            WHERE aps.admin_id = o.admin_id
-            ORDER BY aps.updated_at DESC
-            LIMIT 1
-          ) AS cod_deadline
-`;
+const cancellationWindowHours = () =>
+  Number(process.env.CANCELLATION_WINDOW_HOURS || 24);
+
+const isOnlinePaymentAllowed = async (adminId) => {
+  const { data: settings, error } = await supabase
+    .from("admin_payment_settings")
+    .select("allow_online")
+    .eq("admin_id", adminId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  throwDb(error, "Failed to fetch payment settings");
+
+  return Number(settings?.allow_online ?? 1) === 1;
+};
+
+const isCodPaymentAllowed = async (adminId) => {
+  const { data: settings, error } = await supabase
+    .from("admin_payment_settings")
+    .select("allow_cod")
+    .eq("admin_id", adminId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  throwDb(error, "Failed to fetch payment settings");
+
+  return Number(settings?.allow_cod ?? 0) === 1;
+};
+
+const normalizeRazorpayVerificationBody = (body) => ({
+  razorpay_order_id: body.razorpay_order_id || body.razorpayOrderId,
+  razorpay_payment_id:
+    body.razorpay_payment_id || body.razorpayPaymentId || body.paymentId,
+  razorpay_signature: body.razorpay_signature || body.razorpaySignature,
+});
+
+const markPaymentVerified = async ({
+  orderId,
+  razorpayPaymentId,
+  razorpaySignature,
+  paymentStatus,
+}) => {
+  const now = new Date().toISOString();
+  const { error: orderError } = await supabase
+    .from("orders")
+    .update({
+      payment_id: razorpayPaymentId,
+      razorpay_payment_id: razorpayPaymentId,
+      razorpay_signature: razorpaySignature,
+      razorpay_payment_status: paymentStatus,
+      payment_verified_at: now,
+      payment_status: 0,
+    })
+    .eq("id", orderId);
+  throwDb(orderError, "Failed to mark order payment verified");
+
+  const { data: shareholders, error: fetchError } = await supabase
+    .from("shareholder_details")
+    .select("id,status")
+    .eq("order_id", orderId);
+  throwDb(fetchError, "Failed to fetch shareholders for payment update");
+
+  const ids = (shareholders || []).map((shareholder) => shareholder.id);
+  if (!ids.length) {
+    return;
+  }
+
+  const { error: shareholderError } = await supabase
+    .from("shareholder_details")
+    .update({ payment_status: 0 })
+    .in("id", ids);
+  throwDb(shareholderError, "Failed to update shareholder payment status");
+
+  const statusZeroIds = shareholders
+    .filter((shareholder) => Number(shareholder.status) === 0)
+    .map((shareholder) => shareholder.id);
+
+  if (statusZeroIds.length) {
+    const { error: statusError } = await supabase
+      .from("shareholder_details")
+      .update({ status: 1 })
+      .in("id", statusZeroIds);
+    throwDb(statusError, "Failed to update shareholder status");
+  }
+};
+
+const verifyPaymentForOrder = async ({ orderId, userId, body }) => {
+  const {
+    razorpay_order_id,
+    razorpay_payment_id,
+    razorpay_signature,
+  } = normalizeRazorpayVerificationBody(body);
+
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    const error = new Error(
+      "razorpay_order_id, razorpay_payment_id, and razorpay_signature are required",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  try {
+    const order = await razorpayService.loadOrderForPayment(orderId);
+
+    if (!order || String(order.user_id) !== String(userId)) {
+      const error = new Error("Order not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (String(order.razorpay_order_id || "") !== String(razorpay_order_id)) {
+      const error = new Error("Razorpay order does not match this booking");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (
+      order.razorpay_payment_id &&
+      String(order.razorpay_payment_id) === String(razorpay_payment_id) &&
+      Number(order.payment_status) === 0
+    ) {
+      return { alreadyVerified: true };
+    }
+
+    // Checkout success is not trusted until the HMAC signature and Razorpay
+    // payment/order records match the local booking amount.
+    if (
+      !razorpayService.verifyPaymentSignature({
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+      })
+    ) {
+      const error = new Error("Invalid Razorpay payment signature");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const [payment, razorpayOrder] = await Promise.all([
+      razorpayService.fetchPayment(razorpay_payment_id),
+      razorpayService.fetchOrder(razorpay_order_id),
+    ]);
+
+    const expectedAmount =
+      Number(order.razorpay_expected_amount || 0) ||
+      razorpayService.calculatePayableAmount(order);
+    const expectedCurrency =
+      order.razorpay_currency || razorpayService.getConfig().currency;
+
+    if (String(payment.order_id) !== String(razorpay_order_id)) {
+      const error = new Error("Payment does not belong to this Razorpay order");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (Number(payment.amount) !== Number(expectedAmount)) {
+      const error = new Error("Payment amount does not match booking amount");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (String(payment.currency) !== String(expectedCurrency)) {
+      const error = new Error("Payment currency does not match booking currency");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!["captured", "authorized"].includes(String(payment.status))) {
+      const error = new Error("Payment is not captured");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (Number(razorpayOrder.amount) !== Number(expectedAmount)) {
+      const error = new Error("Razorpay order amount does not match booking amount");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await markPaymentVerified({
+      orderId,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+      paymentStatus: payment.status,
+    });
+
+    return { alreadyVerified: false };
+  } catch (error) {
+    throw error;
+  }
+};
+
+const fetchLatestPaymentSettingsByAdminIds = async (adminIds) => {
+  const ids = [...new Set((adminIds || []).filter(Boolean))];
+  if (!ids.length) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase
+    .from("admin_payment_settings")
+    .select("*")
+    .in("admin_id", ids)
+    .order("updated_at", { ascending: false });
+  throwDb(error, "Failed to fetch admin payment settings");
+
+  const settingsByAdminId = new Map();
+  for (const setting of data || []) {
+    const key = String(setting.admin_id);
+    if (!settingsByAdminId.has(key)) {
+      settingsByAdminId.set(key, setting);
+    }
+  }
+  return settingsByAdminId;
+};
 
 const dedupeOrdersById = (orders) => {
   const seen = new Set();
@@ -339,23 +447,13 @@ const buildOrderAnimalsAndShareholders = async (orderId, shareholders) => {
     };
   }
 
-  const placeholders = animalIds.map(() => "?").join(", ");
-  const [animals] = await pool.query(
-    `
-    SELECT *
-    FROM animals
-    WHERE id IN (${placeholders})
-    `,
-    animalIds,
-  );
-  const [animalDetailsRows] = await pool.query(
-    `
-    SELECT *
-    FROM animal_details
-    WHERE animal_id IN (${placeholders})
-    `,
-    animalIds,
-  );
+  const [{ data: animals, error: animalsError }, { data: animalDetailsRows, error: detailsError }] =
+    await Promise.all([
+      supabase.from("animals").select("*").in("id", animalIds),
+      supabase.from("animal_details").select("*").in("animal_id", animalIds),
+    ]);
+  throwDb(animalsError, "Failed to fetch animals");
+  throwDb(detailsError, "Failed to fetch animal details");
 
   const animalsById = new Map(
     animals.map((animal) => [parseNumber(animal.id, 0), animal]),
@@ -486,55 +584,65 @@ router.get("/my", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const shareholderTableConfig = await getShareholderTableConfig(pool);
-    const [orders] = await pool.execute(
-      `SELECT 
-          o.id,
-          o.user_id,
-          o.admin_id,
-          o.payment_method,
-          o.total_shares,
-          o.status,
-          o.created_at,
-          u.name AS admin_name,
-          u.email AS admin_email,
-          ${latestAdminPaymentSettingsSelect}
-       FROM orders o
-       JOIN users u 
-         ON o.admin_id = u.id
-       WHERE o.user_id = ?
-       ORDER BY o.created_at DESC`,
-      [userId]
-    );
+    const shareholderTableConfig = await getShareholderTableConfig();
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select("id,user_id,admin_id,payment_method,total_shares,status,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    throwDb(ordersError, "Failed to fetch user orders");
 
-    const uniqueOrders = dedupeOrdersById(orders);
+    const uniqueOrders = dedupeOrdersById(orders || []);
+    const orderIds = uniqueOrders.map((order) => order.id);
+    const adminIds = uniqueOrders.map((order) => order.admin_id).filter(Boolean);
+    const [
+      { data: admins, error: adminsError },
+      { data: shareholders, error: shareholdersError },
+      settingsByAdminId,
+    ] = await Promise.all([
+      adminIds.length
+        ? supabase.from("users").select("id,name,email").in("id", adminIds)
+        : Promise.resolve({ data: [], error: null }),
+      orderIds.length
+        ? supabase.from("shareholder_details").select("*").in("order_id", orderIds)
+        : Promise.resolve({ data: [], error: null }),
+      fetchLatestPaymentSettingsByAdminIds(adminIds),
+    ]);
+    throwDb(adminsError, "Failed to fetch admins");
+    throwDb(shareholdersError, "Failed to fetch shareholders");
+
+    const adminsById = new Map((admins || []).map((admin) => [String(admin.id), admin]));
+    const shareholdersByOrderId = new Map();
+    for (const shareholder of shareholders || []) {
+      const key = String(shareholder.order_id);
+      const current = shareholdersByOrderId.get(key) || [];
+      current.push(shareholder);
+      shareholdersByOrderId.set(key, current);
+    }
 
     for (const order of uniqueOrders) {
-      const [shareholders] = await pool.execute(
-        `SELECT *
-         FROM shareholder_details
-         WHERE order_id = ?`,
-        [order.id]
-      );
-
-      order.shareholders = shareholders;
+      const admin = adminsById.get(String(order.admin_id));
+      const settings = settingsByAdminId.get(String(order.admin_id));
+      const orderShareholders = shareholdersByOrderId.get(String(order.id)) || [];
+      order.admin_name = admin?.name ?? null;
+      order.admin_email = admin?.email ?? null;
+      order.cod_deadline = settings?.cod_deadline ?? null;
+      order.shareholders = orderShareholders;
       applyComputedOrderStatuses(
         order,
-        shareholders,
+        orderShareholders,
         shareholderTableConfig.hasPaymentStatus,
       );
     }
 
-    res.json({ orders: uniqueOrders });
+    return ok(res, "Orders fetched successfully", { orders: uniqueOrders });
   } catch (err) {
     logger.error("Failed to fetch user orders", {
       userId,
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-    });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
@@ -545,73 +653,70 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
   const { animalId } = req.body;
 
-  const connection = await pool.getConnection();
-
   try {
-    await connection.beginTransaction();
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("user_id")
+      .eq("id", orderId)
+      .maybeSingle();
+    throwDb(orderError, "Failed to fetch order");
 
-    // Get order to fetch user_id
-    const [orderRows] = await connection.query(
-      `SELECT user_id FROM orders WHERE id = ?`,
-      [orderId],
-    );
-
-    if (orderRows.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return fail(res, "Order not found", 404);
     }
 
-    const userId = orderRows[0].user_id;
+    const userId = order.user_id;
 
-    // Assign share (animal_details)
-    await connection.query(
-      `UPDATE animal_details 
-       SET order_id = ?
-       WHERE animal_id = ? AND order_id IS NULL
-       LIMIT 1`,
-      [orderId, animalId],
-    );
+    const { data: availableDetail, error: detailFetchError } = await supabase
+      .from("animal_details")
+      .select("id")
+      .eq("animal_id", animalId)
+      .is("order_id", null)
+      .limit(1)
+      .maybeSingle();
+    throwDb(detailFetchError, "Failed to find available animal share");
 
-    // Count assigned shares
-    const [assignedRows] = await connection.query(
-      `SELECT COUNT(*) as totalAssigned
-       FROM animal_details
-       WHERE animal_id = ? AND order_id IS NOT NULL`,
-      [animalId],
-    );
+    if (!availableDetail) {
+      return fail(res, "No shares available", 400);
+    }
 
-    const totalAssigned = assignedRows[0].totalAssigned;
+    const { error: detailUpdateError } = await supabase
+      .from("animal_details")
+      .update({ order_id: orderId })
+      .eq("id", availableDetail.id);
+    throwDb(detailUpdateError, "Failed to assign animal share");
 
-    // Get total shares
-    const [animalRows] = await connection.query(
-      `SELECT shares FROM animals WHERE id = ?`,
-      [animalId],
-    );
+    const [{ count: totalAssigned, error: assignedError }, { data: animal, error: animalError }] =
+      await Promise.all([
+        supabase
+          .from("animal_details")
+          .select("id", { count: "exact", head: true })
+          .eq("animal_id", animalId)
+          .not("order_id", "is", null),
+        supabase.from("animals").select("shares").eq("id", animalId).maybeSingle(),
+      ]);
+    throwDb(assignedError, "Failed to count assigned shares");
+    throwDb(animalError, "Failed to fetch animal");
 
-    const totalShares = animalRows[0].shares;
+    const totalShares = Number(animal?.shares || 0);
 
     // If fully booked → mark sold
     if (totalAssigned >= totalShares) {
-      await connection.query(
-        `UPDATE animals 
-         SET status = 'sold'
-         WHERE id = ?`,
-        [animalId],
-      );
+      const { error: soldError } = await supabase
+        .from("animals")
+        .update({ status: "sold" })
+        .eq("id", animalId);
+      throwDb(soldError, "Failed to mark animal sold");
     }
 
-    await connection.commit();
-
-    // SEND PUSH TO USER (after commit)
     try {
-      const [devices] = await connection.query(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ?`,
-        [userId],
-      );
+      const { data: devices, error: devicesError } = await supabase
+        .from("user_devices")
+        .select("subscription_id")
+        .eq("user_id", userId);
+      throwDb(devicesError, "Failed to fetch devices");
 
-      const subscriptionIds = devices.map((d) => d.subscription_id);
+      const subscriptionIds = (devices || []).map((d) => d.subscription_id).filter(Boolean);
 
       if (subscriptionIds.length > 0) {
         await sendPushNotification(
@@ -631,10 +736,8 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
       });
     }
 
-    res.json({ message: "Animal assigned successfully" });
+    return ok(res, "Animal assigned successfully", { orderId, animalId });
   } catch (error) {
-    await connection.rollback();
-
     logger.error("Animal assignment failed", {
       orderId,
       animalId,
@@ -642,9 +745,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
       stack: error.stack,
     });
 
-    res.status(500).json({ message: "Failed to assign animal" });
-  } finally {
-    connection.release();
+    return fail(res, "Failed to assign animal");
   }
 });
 
@@ -653,8 +754,7 @@ router.post("/:orderId/assign-animal", authMiddleware, async (req, res) => {
 
 router.post("/", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { adminId, paymentMethod, shareholders, paymentStatus } =
-    req.body;
+  const { adminId, paymentMethod, shareholders } = req.body;
 
   console.log(req.body);
 
@@ -664,15 +764,10 @@ router.post("/", authMiddleware, async (req, res) => {
     !Array.isArray(shareholders) ||
     shareholders.length === 0
   ) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return fail(res, "Missing required fields", 400);
   }
 
-  const connection = await pool.getConnection();
-
   try {
-    await connection.beginTransaction();
-
-    // Normalize payment method
     let normalizedPaymentMethod;
     if (typeof paymentMethod === "string") {
       const method = paymentMethod.toLowerCase().trim();
@@ -690,27 +785,21 @@ router.post("/", authMiddleware, async (req, res) => {
       }
     }
 
-    // Normalize payment status
-    let normalizedPaymentStatus;
-    if (typeof paymentStatus === "string") {
-      const status = paymentStatus.toLowerCase().trim();
-      if (status === "paid") {
-        normalizedPaymentStatus = 0;
-      } else if (status === "unpaid") {
-        normalizedPaymentStatus = 1;
-      } else if (status === "pending") {
-        normalizedPaymentStatus = 2;
-      } else {
-        normalizedPaymentStatus = 2;
-      }
-    } else if (paymentStatus === undefined || paymentStatus === null) {
-      normalizedPaymentStatus = 2;
-    } else {
-      normalizedPaymentStatus = Number(paymentStatus);
-      if (![0, 1, 2].includes(normalizedPaymentStatus)) {
-        normalizedPaymentStatus = 2;
-      }
+    if (
+      normalizedPaymentMethod === 1 &&
+      !(await isOnlinePaymentAllowed(adminId))
+    ) {
+      return fail(res, "Online payment is not allowed", 400);
     }
+
+    if (
+      normalizedPaymentMethod === 0 &&
+      !(await isCodPaymentAllowed(adminId))
+    ) {
+      return fail(res, "Cash payment is not allowed", 400);
+    }
+
+    const normalizedPaymentStatus = normalizedPaymentMethod === 1 ? 2 : 1;
 
     const normalizedShareholders = shareholders.map((shareholder) => {
       const lateFee = parseNumber(shareholder.lateFee ?? shareholder.late_fee, 0);
@@ -727,17 +816,15 @@ router.post("/", authMiddleware, async (req, res) => {
       (sum, shareholder) => sum + Number(shareholder.price || 0),
       0,
     );
-    const [[shareSetup]] = await connection.query(
-      `
-      SELECT delivery_type, delivery_fee
-      FROM admin_share_setups
-      WHERE admin_id = ?
-        AND is_active = 1
-      ORDER BY updated_at DESC
-      LIMIT 1
-      `,
-      [adminId],
-    );
+    const { data: shareSetup, error: shareSetupError } = await supabase
+      .from("admin_share_setups")
+      .select("delivery_type,delivery_fee")
+      .eq("admin_id", adminId)
+      .eq("is_active", 1)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwDb(shareSetupError, "Failed to fetch share setup");
     const deliveryFee =
       shareSetup?.delivery_type === "paid"
         ? Number(shareSetup.delivery_fee || 0)
@@ -745,7 +832,6 @@ router.post("/", authMiddleware, async (req, res) => {
     const normalizedTotalAmount = shareSubtotal + deliveryFee;
 
     const orderInsert = await buildOrderInsertPayload(
-      connection,
       userId,
       adminId,
       normalizedPaymentMethod,
@@ -753,47 +839,38 @@ router.post("/", authMiddleware, async (req, res) => {
       normalizedTotalAmount,
     );
 
-    const [orderResult] = await connection.execute(
-      `
-      INSERT INTO orders
-        (${orderInsert.columns.join(", ")})
-      VALUES (${orderInsert.columns.map(() => "?").join(", ")})
-      `,
-      orderInsert.values,
-    );
+    const { data: orderRow, error: orderError } = await supabase
+      .from("orders")
+      .insert(orderInsert)
+      .select("id")
+      .single();
+    throwDb(orderError, "Failed to create order");
 
-    const orderId = orderInsert.orderId ?? orderResult.insertId;
+    const orderId = orderRow.id;
 
     const shareholderInsert = await buildShareholderInsertPayload(
-      connection,
       orderId,
       normalizedShareholders,
       normalizedPaymentStatus,
     );
 
-    await connection.query(
-      `
-      INSERT INTO shareholder_details
-        (${shareholderInsert.columns.join(", ")})
-      VALUES ?
-      `,
-      [shareholderInsert.rows],
-    );
+    const { error: shareholderError } = await supabase
+      .from("shareholder_details")
+      .insert(shareholderInsert);
 
-    await connection.commit();
+    if (shareholderError) {
+      await supabase.from("orders").delete().eq("id", orderId);
+      throwDb(shareholderError, "Failed to create shareholder details");
+    }
 
-    // Send push AFTER commit
     try {
-      const [devices] = await connection.query(
-        `
-        SELECT subscription_id
-        FROM user_devices
-        WHERE user_id = ?
-        `,
-        [adminId]
-      );
+      const { data: devices, error: devicesError } = await supabase
+        .from("user_devices")
+        .select("subscription_id")
+        .eq("user_id", adminId);
+      throwDb(devicesError, "Failed to fetch admin devices");
 
-      const subscriptionIds = devices
+      const subscriptionIds = (devices || [])
         .map((d) => d.subscription_id)
         .filter(Boolean);
 
@@ -814,13 +891,8 @@ router.post("/", authMiddleware, async (req, res) => {
       });
     }
 
-    res.status(201).json({
-      message: "Order placed successfully",
-      orderId,
-    });
+    return ok(res, "Order placed successfully", { orderId }, 201);
   } catch (err) {
-    await connection.rollback();
-
     logger.error("Order creation failed", {
       userId,
       adminId,
@@ -828,9 +900,7 @@ router.post("/", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: err.message || "Something went wrong" });
-  } finally {
-    connection.release();
+    return fail(res, err.message || "Something went wrong");
   }
 });
 
@@ -839,40 +909,39 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const shareholderTableConfig = await getShareholderTableConfig(pool);
-    const [orders] = await pool.execute(
-      `
-      SELECT 
-        o.*,
-        u.name AS admin_name,
-        u.address AS admin_address,
-        u.phone AS admin_phone
-      FROM orders o
-      JOIN users u ON o.admin_id = u.id
-      WHERE o.id = ? AND o.user_id = ?
-      `,
-      [orderId, userId]
-    );
+    const shareholderTableConfig = await getShareholderTableConfig();
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    throwDb(orderError, "Failed to fetch order");
 
-    if (!orders.length) {
-      return res.status(404).json({ message: "Order not found" });
+    if (!order) {
+      return fail(res, "Order not found", 404);
     }
 
-    const order = orders[0];
+    const [{ data: admin, error: adminError }, { data: shareholders, error: shareholdersError }] =
+      await Promise.all([
+        supabase
+          .from("users")
+          .select("name,address,phone")
+          .eq("id", order.admin_id)
+          .maybeSingle(),
+        supabase.from("shareholder_details").select("*").eq("order_id", orderId),
+      ]);
+    throwDb(adminError, "Failed to fetch admin");
+    throwDb(shareholdersError, "Failed to fetch shareholders");
 
-    const [shareholders] = await pool.execute(
-      `
-      SELECT *
-      FROM shareholder_details
-      WHERE order_id = ?
-      `,
-      [orderId]
-    );
     const orderDetails = await buildOrderAnimalsAndShareholders(
       orderId,
-      shareholders,
+      shareholders || [],
     );
 
+    order.admin_name = admin?.name ?? null;
+    order.admin_address = admin?.address ?? null;
+    order.admin_phone = admin?.phone ?? null;
     order.shareholders = orderDetails.shareholders;
     order.animals = orderDetails.animals;
 
@@ -883,9 +952,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
     );
 
 
-    res.json({
-      order,
-    });
+    return ok(res, "Order fetched successfully", { order });
   } catch (err) {
     logger.error("Failed to fetch order details", {
       orderId,
@@ -894,7 +961,7 @@ router.get("/:orderId", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong." });
+    return fail(res, "Something went wrong.");
   }
 });
 
@@ -905,38 +972,40 @@ router.put("/animal-details/:orderId", authMiddleware, async (req, res) => {
   const { meat_weight, body_parts_description } = req.body;
 
   try {
-    // Fetch all shareholders for this order
-    const [shareholders] = await pool.query(
-      `SELECT id FROM order_shareholders WHERE order_id = ?`,
-      [orderId],
-    );
+    const { data: shareholders, error: shareholdersError } = await supabase
+      .from("order_shareholders")
+      .select("id")
+      .eq("order_id", orderId);
+    throwDb(shareholdersError, "Failed to fetch order shareholders");
 
-    if (!shareholders.length) {
-      return res.status(404).json({
-        message: "No shareholders found for this order",
-      });
+    if (!shareholders?.length) {
+      return fail(res, "No shareholders found for this order", 404);
     }
 
-    // Update animal_details for EACH shareholder
-    for (const s of shareholders) {
-      await pool.execute(
-        `UPDATE animal_details
-         SET meat_weight = ?, body_parts_description = ?
-         WHERE order_id = ? AND shareholder_id = ?`,
-        [meat_weight, body_parts_description, orderId, s.id],
-      );
-    }
+    await Promise.all(
+      shareholders.map((s) =>
+        supabase
+          .from("animal_details")
+          .update({ meat_weight, body_parts_description })
+          .eq("order_id", orderId)
+          .eq("shareholder_id", s.id),
+      ),
+    ).then((results) => {
+      for (const result of results) {
+        throwDb(result.error, "Failed to update animal details");
+      }
+    });
 
-    // Mark order completed
-    await pool.execute(
-      `UPDATE orders SET processing_status = 'completed' WHERE id = ?`,
-      [orderId],
-    );
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({ processing_status: "completed" })
+      .eq("id", orderId);
+    throwDb(orderError, "Failed to update order processing status");
 
-    res.json({ message: "Meat details saved successfully" });
+    return ok(res, "Meat details saved successfully");
   } catch (err) {
     logger.error("Meat details update failed", err);
-    res.status(500).json({ message: "Failed to save meat details" });
+    return fail(res, "Failed to save meat details");
   }
 });
 
@@ -1006,46 +1075,38 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
   logger.info("Admin fetching own orders", { adminId });
 
   try {
-    const shareholderTableConfig = await getShareholderTableConfig(pool);
-    const [orders] = await pool.execute(
-      `
-      SELECT
-        o.id,
-        o.user_id,
-        o.admin_id,
-        o.payment_method,
-        o.total_shares,
-        o.total_amt,
-        o.status AS order_status,
-        o.created_at,
-        ${latestAdminPaymentSettingsSelect}
-      FROM orders o
-      WHERE o.admin_id = ?
-      ORDER BY o.created_at DESC
-      `,
-      [adminId]
-    );
+    const shareholderTableConfig = await getShareholderTableConfig();
+    const [{ data: orders, error: ordersError }, settingsByAdminId] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("id,user_id,admin_id,payment_method,total_shares,total_amt,status,created_at")
+        .eq("admin_id", adminId)
+        .order("created_at", { ascending: false }),
+      fetchLatestPaymentSettingsByAdminIds([adminId]),
+    ]);
+    throwDb(ordersError, "Failed to fetch admin orders");
 
-    const uniqueOrders = dedupeOrdersById(orders);
+    const uniqueOrders = dedupeOrdersById(orders || []).map((order) => ({
+      ...order,
+      order_status: order.status,
+      cod_deadline: settingsByAdminId.get(String(order.admin_id))?.cod_deadline ?? null,
+    }));
 
     if (!uniqueOrders.length) {
-      return res.json({ orders: [] });
+      return ok(res, "Orders fetched successfully", { orders: [] });
     }
 
     const orderIds = uniqueOrders.map((order) => order.id);
-    const placeholders = orderIds.map(() => "?").join(", ");
-    const [shareholders] = await pool.query(
-      `
-      SELECT *
-      FROM shareholder_details
-      WHERE order_id IN (${placeholders})
-      ORDER BY order_id DESC, id ASC
-      `,
-      orderIds,
-    );
+    const { data: shareholders, error: shareholdersError } = await supabase
+      .from("shareholder_details")
+      .select("*")
+      .in("order_id", orderIds)
+      .order("order_id", { ascending: false })
+      .order("id", { ascending: true });
+    throwDb(shareholdersError, "Failed to fetch shareholders");
 
     const shareholdersByOrderId = new Map();
-    for (const shareholder of shareholders) {
+    for (const shareholder of shareholders || []) {
       const key = String(shareholder.order_id);
       const existing = shareholdersByOrderId.get(key) || [];
       existing.push(shareholder);
@@ -1071,7 +1132,7 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       orderCount: formattedOrders.length,
     });
 
-    res.json({ orders: formattedOrders });
+    return ok(res, "Orders fetched successfully", { orders: formattedOrders });
   } catch (err) {
     logger.error("Failed to fetch admin orders", {
       adminId,
@@ -1079,9 +1140,7 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-    });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
@@ -1091,41 +1150,37 @@ router.post("/requests", authMiddleware, async (req, res) => {
   const authUserId = req.user.id;
 
   if (authUserId !== userId) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return fail(res, "Unauthorized", 403);
   }
 
   if (!orderId || !title || !description) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return fail(res, "Missing required fields", 400);
   }
 
   try {
-    // Insert request
-    await pool.execute(
-      `INSERT INTO requests (order_id, user_id, title, description, status)
-       VALUES (?, ?, ?, ?, 'Pending')`,
-      [orderId, userId, title, description],
-    );
+    const { error: requestError } = await supabase
+      .from("requests")
+      .insert({ order_id: orderId, user_id: userId, title, description, status: "Pending" });
+    throwDb(requestError, "Failed to submit request");
 
-    // ============================
-    // SEND PUSH TO ADMIN
-    // ============================
     try {
-      // Get admin_id from order
-      const [orderRows] = await pool.execute(
-        `SELECT admin_id FROM orders WHERE id = ?`,
-        [orderId],
-      );
+      const { data: order, error: orderError } = await supabase
+        .from("orders")
+        .select("admin_id")
+        .eq("id", orderId)
+        .maybeSingle();
+      throwDb(orderError, "Failed to fetch order admin");
 
-      if (orderRows.length) {
-        const adminId = orderRows[0].admin_id;
+      if (order) {
+        const adminId = order.admin_id;
 
-        // Get admin devices
-        const [devices] = await pool.execute(
-          `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
-          [adminId],
-        );
+        const { data: devices, error: devicesError } = await supabase
+          .from("user_devices")
+          .select("subscription_id")
+          .eq("user_id", adminId);
+        throwDb(devicesError, "Failed to fetch admin devices");
 
-        const subscriptionIds = devices.map((d) => d.subscription_id);
+        const subscriptionIds = (devices || []).map((d) => d.subscription_id).filter(Boolean);
         const shortOrderId = orderId.toString().substring(0, 6);
         if (subscriptionIds.length > 0) {
           await sendPushNotification(
@@ -1148,7 +1203,7 @@ router.post("/requests", authMiddleware, async (req, res) => {
       });
     }
 
-    res.status(201).json({ message: "Request submitted successfully" });
+    return ok(res, "Request submitted successfully", {}, 201);
   } catch (err) {
     logger.error("Failed to submit request", {
       orderId,
@@ -1157,9 +1212,7 @@ router.post("/requests", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
@@ -1168,18 +1221,18 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
   const authUserId = req.user.id;
 
   if (authUserId !== userId) {
-    return res.status(403).json({ message: "Unauthorized" });
+    return fail(res, "Unauthorized", 403);
   }
 
   try {
-    const [requests] = await pool.execute(
-      `SELECT id, title, description, status, created_at
-       FROM requests
-       WHERE order_id = ? AND user_id = ?`,
-      [orderId, userId],
-    );
+    const { data: requests, error } = await supabase
+      .from("requests")
+      .select("id,title,description,status,created_at")
+      .eq("order_id", orderId)
+      .eq("user_id", userId);
+    throwDb(error, "Failed to fetch user requests");
 
-    res.json({ requests });
+    return ok(res, "Requests fetched successfully", { requests: requests || [] });
   } catch (err) {
     logger.error("Failed to fetch user requests", {
       orderId,
@@ -1187,9 +1240,7 @@ router.get("/requests/:orderId/:userId", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
@@ -1244,52 +1295,46 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
   try {
-    const shareholderTableConfig = await getShareholderTableConfig(pool);
-    const [orders] = await pool.execute(
-      `
-      SELECT 
-        o.id,
-        o.user_id,
-        o.admin_id,
-        o.payment_method,
-        o.total_shares,
-        o.total_amt,
-        o.status AS order_status,
-        o.created_at,
-        u.name AS user_name,
-        u.email AS user_email,
-        u.phone AS contact_no,
-        u.address,
-        a.name AS admin_name,
-        ${latestAdminPaymentSettingsSelect}
-      FROM orders o
-      JOIN users u ON o.user_id = u.id
-      JOIN users a ON o.admin_id = a.id
-      WHERE o.id = ? AND o.admin_id = ?
-      LIMIT 1
-      `,
-      [orderId, adminId],
-    );
+    const shareholderTableConfig = await getShareholderTableConfig();
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id,user_id,admin_id,payment_method,total_shares,total_amt,status,created_at")
+      .eq("id", orderId)
+      .eq("admin_id", adminId)
+      .maybeSingle();
+    throwDb(orderError, "Failed to fetch admin order");
 
-    if (!orders.length) {
-      return res
-        .status(404)
-        .json({ message: "Order not found or not authorized" });
+    if (!order) {
+      return fail(res, "Order not found or not authorized", 404);
     }
 
-    const order = orders[0];
+    order.order_status = order.status;
 
-    const [shareholders] = await pool.execute(
-      `
-      SELECT *
-      FROM shareholder_details
-      WHERE order_id = ?
-      `,
-      [order.id],
-    );
+    const [
+      { data: users, error: usersError },
+      { data: shareholders, error: shareholdersError },
+      settingsByAdminId,
+    ] = await Promise.all([
+      supabase.from("users").select("id,name,email,phone,address").in("id", [order.user_id, order.admin_id]),
+      supabase.from("shareholder_details").select("*").eq("order_id", order.id),
+      fetchLatestPaymentSettingsByAdminIds([order.admin_id]),
+    ]);
+    throwDb(usersError, "Failed to fetch order users");
+    throwDb(shareholdersError, "Failed to fetch shareholders");
+
+    const usersById = new Map((users || []).map((user) => [String(user.id), user]));
+    const user = usersById.get(String(order.user_id));
+    const admin = usersById.get(String(order.admin_id));
+    order.user_name = user?.name ?? null;
+    order.user_email = user?.email ?? null;
+    order.contact_no = user?.phone ?? null;
+    order.address = user?.address ?? null;
+    order.admin_name = admin?.name ?? null;
+    order.cod_deadline = settingsByAdminId.get(String(order.admin_id))?.cod_deadline ?? null;
+
     const orderDetails = await buildOrderAnimalsAndShareholders(
       order.id,
-      shareholders,
+      shareholders || [],
     );
     const formattedShareholders = formatAdminShareholders(
       orderDetails.shareholders,
@@ -1310,7 +1355,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
       payment_status: orderWithDetails.payment_status,
     });
 
-    res.json({ order: orderWithDetails });
+    return ok(res, "Order fetched successfully", { order: orderWithDetails });
   } catch (err) {
     logger.error("Failed to fetch admin order details", {
       adminId,
@@ -1319,9 +1364,7 @@ router.get("/admin/:orderId", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-    });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
@@ -1332,28 +1375,33 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
   if (!processingStatus || !deliveryStatus) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return fail(res, "Missing required fields", 400);
   }
 
   try {
-    // Check if order belongs to admin
-    const [orders] = await pool.execute(
-      `SELECT id FROM orders WHERE id = ? AND admin_id = ?`,
-      [orderId, adminId],
-    );
-    if (orders.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Order not found or not authorized" });
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("id", orderId)
+      .eq("admin_id", adminId)
+      .maybeSingle();
+    throwDb(orderError, "Failed to fetch order");
+
+    if (!order) {
+      return fail(res, "Order not found or not authorized", 404);
     }
 
-    // Update order
-    await pool.execute(
-      `UPDATE orders SET status = ?, delivery_status = ?, delivery_person_id = ? WHERE id = ?`,
-      [processingStatus, deliveryStatus, deliveryPersonId || null, orderId],
-    );
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({
+        status: processingStatus,
+        delivery_status: deliveryStatus,
+        delivery_person_id: deliveryPersonId || null,
+      })
+      .eq("id", orderId);
+    throwDb(updateError, "Failed to update order");
 
-    res.json({ message: "Order updated successfully" });
+    return ok(res, "Order updated successfully", { orderId });
   } catch (err) {
     logger.error("Failed to update admin order", {
       adminId,
@@ -1361,56 +1409,154 @@ router.put("/admin/:orderId", authMiddleware, async (req, res) => {
       error: err.message,
       stack: err.stack,
     });
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    return fail(res, "Something went wrong. Please try again later.");
+  }
+});
+
+router.post("/:orderId/create-razorpay-order", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const order = await razorpayService.loadOrderForPayment(orderId);
+
+    if (!order || String(order.user_id) !== String(userId)) {
+      return fail(res, "Order not found", 404);
+    }
+
+    if (Number(order.payment_method) !== 1) {
+      return fail(res, "This order is not configured for online payment", 400);
+    }
+
+    if (Number(order.payment_status) === 0 || order.razorpay_payment_id) {
+      return fail(res, "Order is already paid", 400);
+    }
+
+    const statuses = (order.shareholders || []).map((s) => Number(s.status));
+    const isDeliveredOrCompleted =
+      Number(order.status) === 1 ||
+      statuses.some((status) => status === 5) ||
+      statuses.every((status) => status === 6);
+
+    if (Number(order.status) === 2 || isDeliveredOrCompleted) {
+      return fail(res, "Cannot create payment for this order", 400);
+    }
+
+    if (!(await isOnlinePaymentAllowed(order.admin_id))) {
+      return fail(res, "Online payment is not allowed", 400);
+    }
+
+    const razorpayOrder = await razorpayService.createRazorpayOrder({ orderId });
+
+    return ok(res, "Razorpay order created", razorpayOrder);
+  } catch (error) {
+    logger.error("Failed to create Razorpay order", {
+      orderId,
+      userId,
+      error: razorpayService.getRazorpayErrorMessage(error),
+      stack: error.stack,
+    });
+
+    return fail(
+      res,
+      error.statusCode && error.statusCode < 500
+        ? error.message
+        : "Unable to create payment order right now.",
+      error.statusCode || 500,
+    );
+  }
+});
+
+router.post("/:orderId/verify-payment", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const result = await verifyPaymentForOrder({
+      orderId,
+      userId,
+      body: req.body,
+    });
+
+    logger.info("Razorpay payment verified", {
+      orderId,
+      userId,
+      alreadyVerified: result.alreadyVerified,
+    });
+
+    return ok(
+      res,
+      result.alreadyVerified ? "Payment already verified" : "Payment verified successfully",
+      result,
+    );
+  } catch (error) {
+    logger.warn("Razorpay payment verification failed", {
+      orderId,
+      userId,
+      error: razorpayService.getRazorpayErrorMessage(error),
+    });
+
+    return fail(
+      res,
+      error.statusCode && error.statusCode < 500
+        ? error.message
+        : "Unable to verify payment right now.",
+      error.statusCode || 500,
+    );
   }
 });
 
 router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
+  const { cancellation_reason } = req.body || {};
   const userId = req.user.id;
 
   try {
-    // 1) Verify order exists and belongs to logged-in user
-    const [orders] = await pool.execute(
-      `SELECT id, user_id, created_at, status
-       FROM orders
-       WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
-    );
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    throwDb(orderError, "Failed to fetch order");
 
-    if (!orders.length) {
+    if (!order) {
       logger.warn("Order cancellation attempt on missing or unauthorized order", {
         userId,
         orderId,
         reason: "Order not found or does not belong to user",
       });
 
-      return res.status(404).json({ message: "Order not found" });
+      return fail(res, "Order not found", 404);
     }
 
-    const order = orders[0];
+    const { data: shareholders, error: shareholdersError } = await supabase
+      .from("shareholder_details")
+      .select("status")
+      .eq("order_id", orderId);
+    throwDb(shareholdersError, "Failed to fetch shareholders");
 
-    // 2) Get shareholder statuses for this order
-    const [shareholders] = await pool.execute(
-      `SELECT status
-       FROM shareholder_details
-       WHERE order_id = ?`,
-      [orderId]
-    );
-
-    const statuses = shareholders.map((s) => Number(s.status));
+    const statuses = (shareholders || []).map((s) => Number(s.status));
     const isDelivered = statuses.some((s) => s === 5); // 5 = Delivered
-    const isCancelled = statuses.some((s) => s === 6) || Number(order.status) === 2; // 6 = Cancelled, order.status 2 = cancelled
+    const isCompleted = Number(order.status) === 1;
+    const isCancelled = statuses.some((s) => s === 6) || Number(order.status) === 2;
 
-    // 3) Check 24-hour cancellation rule
+    if (isCancelled) {
+      return ok(res, "Order already cancelled", {
+        cancellation_status: order.cancellation_status || "cancelled",
+        refund_status: order.razorpay_refund_status || "none",
+        razorpay_refund_id: order.razorpay_refund_id || null,
+      });
+    }
+
     const timeSinceOrder = Date.now() - new Date(order.created_at).getTime();
-    const within24Hours = timeSinceOrder < 24 * 60 * 60 * 1000;
+    const windowMs = cancellationWindowHours() * 60 * 60 * 1000;
+    const withinCancellationWindow = timeSinceOrder < windowMs;
     const orderAgeHours = Math.floor(timeSinceOrder / (1000 * 60 * 60));
     const orderAgeMinutes = Math.floor(timeSinceOrder / (1000 * 60));
 
-    const canCancel = within24Hours && !isDelivered && !isCancelled;
+    const canCancel =
+      withinCancellationWindow && !isDelivered && !isCompleted && !isCancelled;
 
     if (!canCancel) {
       logger.warn("Invalid order cancellation attempt - business rules violation", {
@@ -1418,34 +1564,137 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
         orderId,
         orderStatus: order.status,
         shareholderStatuses: statuses,
-        within24Hours,
+        withinCancellationWindow,
         orderAgeHours,
         isDelivered,
+        isCompleted,
         isCancelled,
-        reason: !within24Hours
+        reason: !withinCancellationWindow
           ? "Outside 24-hour window"
           : isDelivered
             ? "Order already delivered"
-            : "Order already cancelled",
+            : isCompleted
+              ? "Order already completed"
+              : "Order already cancelled",
       });
 
-      return res.status(400).json({ message: "Cannot cancel this order" });
+      return fail(
+        res,
+        !withinCancellationWindow ? "Cancellation window expired." : "Cannot cancel this order",
+        400,
+      );
     }
 
-    // 4) Cancel order and all associated shareholders
-    await pool.execute(
-      `UPDATE orders
-       SET status = 2
-       WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
-    );
+    const isPaidOnline =
+      Number(order.payment_method) === 1 &&
+      (Number(order.payment_status) === 0 ||
+        order.razorpay_payment_id ||
+        order.payment_id);
+    const paymentId = order.razorpay_payment_id || order.payment_id;
 
-    await pool.execute(
-      `UPDATE shareholder_details
-       SET status = 6
-       WHERE order_id = ?`,
-      [orderId]
-    );
+    if (isPaidOnline && !paymentId) {
+      return fail(res, "Payment reference is missing. Please contact support.", 400);
+    }
+
+    const duplicateRefund =
+      order.razorpay_refund_id ||
+      ["initiated", "processed"].includes(
+        String(order.razorpay_refund_status || "").toLowerCase(),
+      );
+
+    if (isPaidOnline && duplicateRefund) {
+      return ok(res, "Order cancellation is already being refunded", {
+        cancellation_status: order.cancellation_status || "refund_pending",
+        refund_status: order.razorpay_refund_status,
+        razorpay_refund_id: order.razorpay_refund_id,
+      });
+    }
+
+    const cancellationStatus = isPaidOnline ? "refund_pending" : "cancelled";
+    const refundStatus = isPaidOnline ? "initiated" : "none";
+
+    const { error: cancelError } = await supabase
+      .from("orders")
+      .update({
+        status: 2,
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: sanitizeText(cancellation_reason || "buyer_cancelled_within_24_hours"),
+        cancellation_requested_by: userId,
+        cancellation_status: cancellationStatus,
+        razorpay_refund_status: isPaidOnline
+          ? refundStatus
+          : order.razorpay_refund_status || "none",
+      })
+      .eq("id", orderId)
+      .eq("user_id", userId);
+    throwDb(cancelError, "Failed to cancel order");
+
+    const { error: shareholderCancelError } = await supabase
+      .from("shareholder_details")
+      .update({ status: 6 })
+      .eq("order_id", orderId);
+    throwDb(shareholderCancelError, "Failed to cancel shareholders");
+
+    let refund = null;
+
+    if (isPaidOnline) {
+      const refundAmountPaise = razorpayService.calculateRefundAmount(order);
+      // Full buyer cancellation refunds can ask Razorpay Route to reverse all
+      // linked transfers while returning money to the original payment method.
+      const reverseAll = Boolean(
+        order.vendor_linked_account_id || order.razorpay_transfer_id,
+      );
+
+      try {
+        refund = await razorpayService.refundPayment({
+          razorpay_payment_id: paymentId,
+          amountPaise: refundAmountPaise,
+          reverseAll,
+          notes: {
+            orderId: String(orderId),
+            reason: "buyer_cancelled_within_24_hours",
+          },
+        });
+
+        const { error: refundUpdateError } = await supabase
+          .from("orders")
+          .update({
+            razorpay_refund_id: refund.id,
+            refund_amount: refundAmountPaise,
+            razorpay_refund_status: refund.status || "initiated",
+            refund_initiated_at: new Date().toISOString(),
+            refund_error: null,
+          })
+          .eq("id", orderId);
+        throwDb(refundUpdateError, "Failed to record refund");
+      } catch (refundError) {
+        await supabase
+          .from("orders")
+          .update({
+            razorpay_refund_status: "failed",
+            cancellation_status: "refund_failed",
+            refund_error: razorpayService.getRazorpayErrorMessage(refundError),
+          })
+          .eq("id", orderId);
+
+        logger.error("Razorpay refund failed after cancellation", {
+          orderId,
+          userId,
+          error: razorpayService.getRazorpayErrorMessage(refundError),
+          stack: refundError.stack,
+        });
+
+        return fail(
+          res,
+          "Order was cancelled, but refund could not be initiated. Please contact support.",
+          502,
+          {
+          cancellation_status: "refund_failed",
+          refund_status: "failed",
+          },
+        );
+      }
+    }
 
     logger.info("Order successfully cancelled by user", {
       userId,
@@ -1458,14 +1707,14 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
 
     // 5) Send push notification to user's registered devices
     try {
-      const [devices] = await pool.execute(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ? AND subscription_id IS NOT NULL`,
-        [userId]
-      );
+      const { data: devices, error: devicesError } = await supabase
+        .from("user_devices")
+        .select("subscription_id")
+        .eq("user_id", userId)
+        .not("subscription_id", "is", null);
+      throwDb(devicesError, "Failed to fetch devices");
 
-      const subscriptionIds = devices
+      const subscriptionIds = (devices || [])
         .map((d) => d.subscription_id)
         .filter(Boolean);
 
@@ -1499,7 +1748,13 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       });
     }
 
-    return res.json({ message: "Order cancelled successfully" });
+    return ok(res, isPaidOnline
+        ? "Order cancelled and refund initiated"
+        : "Order cancelled successfully", {
+      cancellation_status: cancellationStatus,
+      refund_status: refund?.status || (isPaidOnline ? "initiated" : "none"),
+      razorpay_refund_id: refund?.id || null,
+    });
   } catch (err) {
     logger.error("Error processing order cancellation", {
       userId,
@@ -1508,9 +1763,7 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
       stack: err.stack,
     });
 
-    return res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
@@ -1520,130 +1773,58 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
 // Critical for order fulfillment workflow and financial tracking
 router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
   const { orderId } = req.params;
-  const { paymentId } = req.body;
   const userId = req.user.id;
+  const verificationBody = normalizeRazorpayVerificationBody(req.body || {});
 
-  if (!paymentId) {
-    logger.warn("Payment success attempt missing paymentId", {
+  if (
+    !verificationBody.razorpay_order_id ||
+    !verificationBody.razorpay_payment_id ||
+    !verificationBody.razorpay_signature
+  ) {
+    logger.warn("Rejected legacy payment success request without signature", {
       userId,
       orderId,
     });
 
-    return res.status(400).json({ message: "paymentId is required" });
+    return fail(
+      res,
+      "Payment verification now requires razorpay_order_id, razorpay_payment_id, and razorpay_signature",
+      400,
+    );
   }
 
   try {
-    // 1) Verify order exists and belongs to logged-in user
-    const [orders] = await pool.execute(
-      `SELECT id, user_id, admin_id, status
-       FROM orders
-       WHERE id = ? AND user_id = ?`,
-      [orderId, userId]
-    );
-
-    if (!orders.length) {
-      logger.warn("Payment success update attempt on missing or unauthorized order", {
-        userId,
-        orderId,
-        reason: "Order not found or does not belong to user",
-      });
-
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    const order = orders[0];
-    const adminId = order.admin_id;
-
-    // 2) Update order payment reference
-    await pool.execute(
-      `UPDATE orders
-       SET payment_id = ?
-       WHERE id = ? AND user_id = ?`,
-      [paymentId, orderId, userId]
-    );
-
-    // 3) Mark all shareholders under this order as paid + processing
-    await pool.execute(
-      `UPDATE shareholder_details
-       SET payment_status = 0,
-           status = 1
-       WHERE order_id = ?`,
-      [orderId]
-    );
+    const result = await verifyPaymentForOrder({
+      orderId,
+      userId,
+      body: verificationBody,
+    });
 
     logger.info("Order payment recorded successfully", {
       userId,
       orderId,
-      adminId,
-      paymentId,
-      updateType: "payment_success_callback",
-      shareholderPaymentStatus: 0, // paid
-      shareholderStatus: 2, // processing
+      updateType: "legacy_payment_success_verified",
+      alreadyVerified: result.alreadyVerified,
     });
 
-    // 4) Send push notification to admin's registered devices
-    try {
-      const [devices] = await pool.execute(
-        `SELECT subscription_id
-         FROM user_devices
-         WHERE user_id = ? AND subscription_id IS NOT NULL`,
-        [adminId]
-      );
-
-      const subscriptionIds = devices
-        .map((d) => d.subscription_id)
-        .filter(Boolean);
-
-      if (subscriptionIds.length > 0) {
-        const title = `Payment Received for Order #${orderId}`;
-        const message = `User payment has been received successfully for order #${orderId}.`;
-
-        await sendPushNotification(subscriptionIds, title, message, {
-          type: "ORDER_PAYMENT_SUCCESS",
-          orderId: Number(orderId),
-          paymentId,
-          status: 2,
-        });
-
-        logger.info("Order payment notification sent to admin", {
-          userId,
-          adminId,
-          orderId,
-          devicesCount: subscriptionIds.length,
-        });
-      } else {
-        logger.warn("No device subscriptions found for payment notification", {
-          userId,
-          adminId,
-          orderId,
-        });
-      }
-    } catch (pushErr) {
-      logger.error("Failed to send order payment notification", {
-        userId,
-        adminId,
-        orderId,
-        paymentId,
-        error: pushErr.message,
-        stack: pushErr.stack,
-      });
-    }
-
-    return res.json({ message: "Payment status updated successfully" });
+    return ok(res, "Payment verified successfully", result);
   } catch (err) {
     logger.error("Error updating order payment status", {
       userId,
       orderId,
-      paymentId,
-      error: err.message,
+      error: razorpayService.getRazorpayErrorMessage(err),
       stack: err.stack,
       impact:
         "Payment may not be properly recorded - manual reconciliation required",
     });
 
-    return res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    return fail(
+      res,
+      err.statusCode && err.statusCode < 500
+        ? err.message
+        : "Something went wrong. Please try again later.",
+      err.statusCode || 500,
+    );
   }
 });
 

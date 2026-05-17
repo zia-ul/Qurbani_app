@@ -220,38 +220,93 @@ router.get("/:id", authMiddleware, isAdmin, getAnimalById);
 
 
 // GET /api/animals/:animalId/orders - Fetch orders for an animal (admin only)
-router.get("/:animalId/orders", authMiddleware, async (req, res) => {
-  const { animalId } = req.params;
-  const adminId = req.user.id;
+router.get(
+  "/:animalId/orders",
+  authMiddleware,
+  async (req, res) => {
 
-  try {
-    const [rows] = await pool.execute(
-      `
-      SELECT 
-        s.id AS shareholder_id,
-        s.shareholder_name,
-        s.qurbani_datetime
+    const { animalId } = req.params;
 
-      FROM shareholder_details s
-      JOIN animals a ON a.id = s.animal_id
+    const adminId = req.user.id;
 
-      WHERE s.animal_id = ?
-      AND a.admin_id = ?
+    try {
 
-      ORDER BY s.qurbani_datetime ASC
-      `,
-      [animalId, adminId]
-    );
+      // First verify animal belongs to admin
+      const {
+        data: animal,
+        error: animalError,
+      } = await supabase
+        .from("animals")
+        .select("id")
+        .eq("id", animalId)
+        .eq("admin_id", adminId)
+        .single();
 
-    res.json({ shareholders: rows });
+      if (
+        animalError &&
+        animalError.code !== "PGRST116"
+      ) {
+        throw new Error(
+          animalError.message
+        );
+      }
 
-  } catch (err) {
-    console.error("Error fetching shareholders:", err);
-    res.status(500).json({
-      message: "Something went wrong. Please try again later.",
-    });
+      if (!animal) {
+        return res.status(403).json({
+          message:
+            "You are not authorized to access this animal",
+        });
+      }
+
+      // Fetch shareholders
+      const {
+        data: shareholders,
+        error: shareholdersError,
+      } = await supabase
+        .from("shareholder_details")
+        .select(`
+          id,
+          shareholder_name,
+          qurbani_datetime
+        `)
+        .eq("animal_id", animalId)
+        .order("qurbani_datetime", {
+          ascending: true,
+        });
+
+      if (shareholdersError) {
+        throw new Error(
+          shareholdersError.message
+        );
+      }
+
+      // Format response
+      const formattedRows =
+        shareholders.map((s) => ({
+          shareholder_id: s.id,
+          shareholder_name:
+            s.shareholder_name,
+          qurbani_datetime:
+            s.qurbani_datetime,
+        }));
+
+      return res.json({
+        shareholders: formattedRows,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Error fetching shareholders:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
+    }
   }
-});
-
+);
 
 module.exports = router;

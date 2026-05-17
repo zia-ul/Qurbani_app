@@ -1,10 +1,27 @@
 const express = require("express");
+const { v4: uuidv4 } = require("uuid");
 const { fetchVerifiedAdmins } = require("../controllers/marketplaceAdmin");
 const authMiddleware = require("../middleware/authmiddleware");
-const pool = require("../config/db");
+const supabase = require("../config/supabase");
+const db = require("../config/db");
 const logger = require("../middleware/logger");
 const { saveVendorShareSetup, getVendorShareSetup } = require("../controllers/admin_share_setup");
+
 const router = express.Router();
+
+const ok = (res, message, data = {}, status = 200) =>
+  res.status(status).json({ success: true, message, data });
+
+const fail = (res, message, status = 500, data = {}) =>
+  res.status(status).json({ success: false, message, data });
+
+const throwDb = (error, message = "Database operation failed") => {
+  if (error) {
+    const err = new Error(error.message || message);
+    err.statusCode = 500;
+    throw err;
+  }
+};
 
 const buildEmptyShareUsage = () => ({
   used_shares: 0,
@@ -14,18 +31,13 @@ const buildEmptyShareUsage = () => ({
 });
 
 const fetchPreferredShareSetup = async (adminId) => {
-  const [rows] = await pool.query(
-    `
-    SELECT *
-    FROM admin_share_setups
-    WHERE admin_id = ?
-    `,
-    [adminId],
-  );
+  const { data: rows, error } = await supabase
+    .from("admin_share_setups")
+    .select("*")
+    .eq("admin_id", adminId);
+  throwDb(error, "Failed to fetch share setup");
 
-  if (!rows.length) {
-    return null;
-  }
+  if (!rows?.length) return null;
 
   const activeSetup = rows.find((row) => Number(row.is_active ?? 1) === 1);
   const setup = activeSetup || rows[0];
@@ -46,9 +58,7 @@ const fetchPreferredShareSetup = async (adminId) => {
     late_booking_fee: Number(setup.late_booking_fee || 0),
     delivery_fee: Number(setup.delivery_fee || 0),
     free_delivery_threshold:
-      setup.free_delivery_threshold == null
-        ? null
-        : Number(setup.free_delivery_threshold),
+      setup.free_delivery_threshold == null ? null : Number(setup.free_delivery_threshold),
     currency: setup.currency || "USD",
     is_active: Number(setup.is_active ?? 1),
     day1: Number.isFinite(day1) ? day1 : 0,
@@ -58,120 +68,94 @@ const fetchPreferredShareSetup = async (adminId) => {
 };
 
 const fetchAdminAnimalsWithAvailability = async (adminId) => {
-  const [animals] = await pool.query(
-    `
-    SELECT
-      a.id,
-      a.animal_type,
-      a.price_per_share,
-      a.shares,
-      a.qurbani_day,
-      a.qurbani_datetime,
-      COUNT(sd.id) AS assigned_shares,
-      GREATEST(a.shares - COUNT(sd.id), 0) AS remaining_shares
-    FROM animals a
-    LEFT JOIN shareholder_details sd ON sd.animal_id = a.id
-    WHERE a.admin_id = ?
-    GROUP BY a.id, a.animal_type, a.price_per_share, a.shares, a.qurbani_day, a.qurbani_datetime
-    ORDER BY a.created_at DESC
-    `,
-    [adminId],
-  );
+  const [{ data: animals, error: animalsError }, { data: shareholders, error: shareholdersError }] =
+    await Promise.all([
+      supabase
+        .from("animals")
+        .select("id,animal_type,price_per_share,shares,qurbani_day,qurbani_datetime,created_at")
+        .eq("admin_id", adminId)
+        .order("created_at", { ascending: false }),
+      supabase.from("shareholder_details").select("id,animal_id"),
+    ]);
+  throwDb(animalsError, "Failed to fetch animals");
+  throwDb(shareholdersError, "Failed to fetch assigned shares");
 
-  return animals.map((animal) => ({
-    ...animal,
-    price_per_share: Number(animal.price_per_share || 0),
-    shares: Number(animal.shares || 0),
-    assigned_shares: Number(animal.assigned_shares || 0),
-    remaining_shares: Number(animal.remaining_shares || 0),
-  }));
+  const assignedByAnimalId = new Map();
+  for (const shareholder of shareholders || []) {
+    if (!shareholder.animal_id) continue;
+    const key = String(shareholder.animal_id);
+    assignedByAnimalId.set(key, (assignedByAnimalId.get(key) || 0) + 1);
+  }
+
+  return (animals || []).map((animal) => {
+    const assignedShares = assignedByAnimalId.get(String(animal.id)) || 0;
+    const shares = Number(animal.shares || 0);
+
+    return {
+      ...animal,
+      price_per_share: Number(animal.price_per_share || 0),
+      shares,
+      assigned_shares: assignedShares,
+      remaining_shares: Math.max(shares - assignedShares, 0),
+    };
+  });
 };
 
 const fetchShareUsage = async (adminId) => {
-  const [orders] = await pool.query(
-    `
-    SELECT *
-    FROM orders
-    WHERE admin_id = ?
-    `,
-    [adminId],
-  );
+  const { data: orders, error: ordersError } = await supabase
+    .from("orders")
+    .select("id,status")
+    .eq("admin_id", adminId);
+  throwDb(ordersError, "Failed to fetch orders");
 
-  const activeOrderIds = orders
+  const activeOrderIds = (orders || [])
     .filter((order) => Number(order.status ?? 0) !== 2)
     .map((order) => order.id)
     .filter(Boolean);
 
-  if (!activeOrderIds.length) {
-    return buildEmptyShareUsage();
-  }
+  if (!activeOrderIds.length) return buildEmptyShareUsage();
 
-  const placeholders = activeOrderIds.map(() => "?").join(", ");
+  const { data: shareholders, error: shareholdersError } = await supabase
+    .from("shareholder_details")
+    .select("qurbani_day")
+    .in("order_id", activeOrderIds);
+  throwDb(shareholdersError, "Failed to fetch shareholders");
 
-  const [shareholders] = await pool.query(
-    `
-    SELECT *
-    FROM shareholder_details
-    WHERE order_id IN (${placeholders})
-    `,
-    activeOrderIds,
-  );
-
-  return shareholders.reduce((usage, shareholder) => {
+  return (shareholders || []).reduce((usage, shareholder) => {
     usage.used_shares += 1;
-
-    switch (shareholder.qurbani_day) {
-      case "Day 1":
-        usage.day1_booked += 1;
-        break;
-      case "Day 2":
-        usage.day2_booked += 1;
-        break;
-      case "Day 3":
-        usage.day3_booked += 1;
-        break;
-      default:
-        break;
-    }
-
+    if (shareholder.qurbani_day === "Day 1") usage.day1_booked += 1;
+    if (shareholder.qurbani_day === "Day 2") usage.day2_booked += 1;
+    if (shareholder.qurbani_day === "Day 3") usage.day3_booked += 1;
     return usage;
   }, buildEmptyShareUsage());
 };
 
 router.post("/share-setup", authMiddleware, saveVendorShareSetup);
-// GET existing share setup (for logged-in admin)
 router.get("/share-setup", authMiddleware, getVendorShareSetup);
-/**
- * GET admin share pricing & payment settings
- * GET /admins/:adminId/share-pricing
- */
+
 router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
   const { adminId } = req.params;
+
   try {
     const pricing = await fetchPreferredShareSetup(adminId);
-
     if (!pricing) {
-      return res.status(404).json({
-        message: "Order setup is not available for this admin yet.",
-      });
+      return fail(res, "Order setup is not available for this admin yet.", 404);
     }
 
     const animals = await fetchAdminAnimalsWithAvailability(adminId);
     const firstAvailableAnimal =
       animals.find((animal) => animal.remaining_shares > 0) || animals[0];
 
-    const [[paymentSettings]] = await pool.query(
-      `
-      SELECT allow_cod, allow_online, cod_deadline
-      FROM admin_payment_settings
-      WHERE admin_id = ?
-      ORDER BY updated_at DESC
-      LIMIT 1
-      `,
-      [adminId],
-    );
+    const { data: paymentSettings, error: paymentError } = await supabase
+      .from("admin_payment_settings")
+      .select("allow_cod,allow_online,cod_deadline")
+      .eq("admin_id", adminId)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwDb(paymentError, "Failed to fetch payment settings");
 
-    return res.json({
+    return ok(res, "Pricing fetched successfully", {
       ...pricing,
       price_per_share: firstAvailableAnimal?.price_per_share ?? 0,
       animals,
@@ -180,14 +164,8 @@ router.get("/:adminId/share-pricing", authMiddleware, async (req, res) => {
       cod_deadline: paymentSettings?.cod_deadline ?? null,
     });
   } catch (err) {
-    logger.error("Failed to fetch admin pricing", {
-      adminId,
-      error: err.message,
-      stack: err.stack,
-    });
-    return res.status(500).json({
-      message: "Failed to load pricing",
-    });
+    logger.error("Failed to fetch admin pricing", { adminId, error: err.message, stack: err.stack });
+    return fail(res, "Failed to load pricing");
   }
 });
 
@@ -196,20 +174,16 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
 
   try {
     const setup = await fetchPreferredShareSetup(adminId);
-
     if (!setup) {
-      return res.status(404).json({
-        message: "Order setup is not available for this admin yet.",
-      });
+      return fail(res, "Order setup is not available for this admin yet.", 404);
     }
 
-    const usage = await fetchShareUsage(adminId);
-    const animals = await fetchAdminAnimalsWithAvailability(adminId);
+    const [usage, animals] = await Promise.all([
+      fetchShareUsage(adminId),
+      fetchAdminAnimalsWithAvailability(adminId),
+    ]);
 
-    const totalShares = animals.reduce(
-      (sum, animal) => sum + Number(animal.shares || 0),
-      0,
-    );
+    const totalShares = animals.reduce((sum, animal) => sum + Number(animal.shares || 0), 0);
     const day1 = Number(setup.day1 || 0);
     const day2 = Number(setup.day2 || 0);
     const day3 = Number(setup.day3 || 0);
@@ -218,7 +192,7 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
     const day2Booked = Number(usage.day2_booked || 0);
     const day3Booked = Number(usage.day3_booked || 0);
 
-    const row = {
+    return ok(res, "Order config fetched successfully", {
       ...setup,
       total_shares: totalShares,
       day1,
@@ -233,314 +207,148 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
       day2_remaining: Math.max(0, day2 - day2Booked),
       day3_remaining: Math.max(0, day3 - day3Booked),
       animals,
-    };
-
-    res.json(row);
+    });
   } catch (err) {
     logger.error("Failed to fetch admin order config", {
       adminId,
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({
-      message: "Unable to load order setup right now. Please try again later.",
-    });
+    return fail(res, "Unable to load order setup right now. Please try again later.");
   }
 });
-
-
 
 router.post("/sync-delivery-requests", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
   try {
-    // Get admin location
-    const [[admin]] = await pool.query(
-      `
-      SELECT country, state, city
-      FROM users
-      WHERE id = ? AND role = 'admin'
-      `,
-      [adminId],
-    );
+    const { data: admin, error: adminError } = await supabase
+      .from("users")
+      .select("country,state,city")
+      .eq("id", adminId)
+      .eq("role", "admin")
+      .maybeSingle();
+    throwDb(adminError, "Failed to fetch admin location");
 
-    console.log("🧑 ADMIN FROM DB:", admin);
-    console.log("🧑 ADMIN ID:", adminId);
-
-    if (!admin || !admin.country) {
-      return res.status(200).json({ message: "Admin has no location" });
+    if (!admin?.country) {
+      return ok(res, "Admin has no location");
     }
 
-    const { country, state, city } = admin;
+    let deliveryQuery = supabase
+      .from("users")
+      .select("id,country,state,city")
+      .eq("role", "delivery")
+      .eq("country", admin.country);
 
-    console.log("📍 SYNC PARAMS:", {
-      country,
-      state,
-      city,
-      adminId,
-    });
+    deliveryQuery =
+      admin.state == null ? deliveryQuery.is("state", null) : deliveryQuery.eq("state", admin.state);
+    deliveryQuery =
+      admin.city == null ? deliveryQuery.is("city", null) : deliveryQuery.eq("city", admin.city);
 
-    const [matches] = await pool.query(
-      `
-  SELECT
-    d.id AS delivery_id,
-    d.country,
-    d.state,
-    d.city
-  FROM users d
-  WHERE d.role = 'delivery'
-    AND d.country = ?
-    AND d.state <=> ?
-    AND d.city <=> ?
-    AND NOT EXISTS (
-      SELECT 1
-      FROM delivery_requests dr
-      WHERE dr.delivery_user_id = d.id
-        AND dr.admin_user_id = ?
-    )
-  `,
-      [country, state, city, adminId],
-    );
+    const { data: deliveryUsers, error: deliveryError } = await deliveryQuery;
+    throwDb(deliveryError, "Failed to fetch delivery users");
 
-    console.log("🚚 MATCHING DELIVERY USERS:", matches);
+    const { data: existing, error: existingError } = await supabase
+      .from("delivery_requests")
+      .select("delivery_user_id")
+      .eq("admin_user_id", adminId);
+    throwDb(existingError, "Failed to fetch existing delivery requests");
 
-    // Insert missing delivery requests
-    await pool.query(
-      `
-      INSERT INTO delivery_requests (
-        id,
-        delivery_user_id,
-        admin_user_id,
-        country,
-        state,
-        city
-      )
-      SELECT
-        UUID(),
-        d.id,
-        ?,
-        d.country,
-        d.state,
-        d.city
-      FROM users d
-      WHERE d.role = 'delivery'
-        AND d.country = ?
-        AND d.state <=> ?
-        AND d.city <=> ?
-        AND NOT EXISTS (
-          SELECT 1
-          FROM delivery_requests dr
-          WHERE dr.delivery_user_id = d.id
-            AND dr.admin_user_id = ?
-        )
-      `,
-      [adminId, country, state, city, adminId],
-    );
+    const existingIds = new Set((existing || []).map((row) => String(row.delivery_user_id)));
+    const inserts = (deliveryUsers || [])
+      .filter((delivery) => !existingIds.has(String(delivery.id)))
+      .map((delivery) => ({
+        id: uuidv4(),
+        delivery_user_id: delivery.id,
+        admin_user_id: adminId,
+        country: delivery.country,
+        state: delivery.state,
+        city: delivery.city,
+      }));
 
-    return res.json({ message: "Delivery requests synced" });
+    if (inserts.length) {
+      const { error: insertError } = await supabase.from("delivery_requests").insert(inserts);
+      throwDb(insertError, "Failed to sync delivery requests");
+    }
+
+    return ok(res, "Delivery requests synced", { inserted: inserts.length });
   } catch (err) {
-    console.error("Sync failed", err);
-    return res.status(500).json({ message: "Sync failed" });
+    logger.error("Sync delivery requests failed", { adminId, error: err.message, stack: err.stack });
+    return fail(res, "Sync failed");
   }
 });
 
-/**
- * @swagger
- * /api/admin/verified:
- *   get:
- *     summary: Fetch verified admins for marketplace
- *     description: Public endpoint to list all verified admins available in marketplace.
- *     tags: [Marketplace]
- *     responses:
- *       200:
- *         description: List of verified admins
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                   name:
- *                     type: string
- *                   email:
- *                     type: string
- *                   phone:
- *                     type: string
- *                   city:
- *                     type: string
- *       500:
- *         description: Something went wrong. Please try again later.
- */
-
-/**
- * PUBLIC – Fetch verified admins
- */
 router.get("/verified", fetchVerifiedAdmins);
 
-/**
- * @swagger
- * /api/admin/dashboard-stats:
- *   get:
- *     summary: Get admin dashboard statistics
- *     description: Returns quick statistics for admin dashboard including animals, orders, and requests.
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Dashboard statistics fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 animals:
- *                   type: integer
- *                   example: 12
- *                 orders:
- *                   type: integer
- *                   example: 45
- *                 requests:
- *                   type: integer
- *                   example: 7
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Something went wrong. Please try again later.
- */
-
-// GET /api/admin/dashboard-stats - Fetch quick stats for admin dashboard
 router.get("/dashboard-stats", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
-
   logger.info("Fetching admin dashboard stats", { adminId });
 
   try {
-    const [animalResult] = await pool.execute(
-      "SELECT COUNT(*) AS count FROM animals WHERE admin_id = ?",
-      [adminId],
-    );
+    const [{ count: animals, error: animalError }, { count: orders, error: orderError }] =
+      await Promise.all([
+        supabase.from("animals").select("id", { count: "exact", head: true }).eq("admin_id", adminId),
+        supabase.from("orders").select("id", { count: "exact", head: true }).eq("admin_id", adminId),
+      ]);
+    throwDb(animalError, "Failed to count animals");
+    throwDb(orderError, "Failed to count orders");
 
-    const [orderResult] = await pool.execute(
-      "SELECT COUNT(*) AS count FROM orders WHERE admin_id = ?",
-      [adminId],
-    );
+    const { data: adminOrders, error: adminOrdersError } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("admin_id", adminId);
+    throwDb(adminOrdersError, "Failed to fetch admin orders");
 
-    const [requestResult] = await pool.execute(
-      `SELECT COUNT(*) AS count 
-       FROM requests r 
-       JOIN orders o ON r.order_id = o.id 
-       WHERE o.admin_id = ?`,
-      [adminId],
-    );
+    const orderIds = (adminOrders || []).map((order) => order.id);
+    const { count: requests, error: requestError } = orderIds.length
+      ? await supabase
+          .from("requests")
+          .select("id", { count: "exact", head: true })
+          .in("order_id", orderIds)
+      : { count: 0, error: null };
+    throwDb(requestError, "Failed to count requests");
 
-    const stats = {
-      animals: animalResult[0].count,
-      orders: orderResult[0].count,
-      requests: requestResult[0].count,
-    };
-
-    logger.info("Admin dashboard stats fetched", {
-      adminId,
-      ...stats,
-    });
-
-    res.json(stats);
+    const stats = { animals: animals || 0, orders: orders || 0, requests: requests || 0 };
+    logger.info("Admin dashboard stats fetched", { adminId, ...stats });
+    return ok(res, "Dashboard stats fetched successfully", stats);
   } catch (err) {
     logger.error("Error fetching admin dashboard stats", {
       adminId,
       error: err.message,
       stack: err.stack,
     });
-
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
+    return fail(res, "Something went wrong. Please try again later.");
   }
 });
 
-/**
- * @swagger
- * /api/admin/{adminId}/animals:
- *   get:
- *     summary: Get animals for a specific admin
- *     description: Fetch all animals listed by a specific admin.
- *     tags: [Marketplace]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: adminId
- *         required: true
- *         schema:
- *           type: string
- *         description: Admin ID
- *     responses:
- *       200:
- *         description: Animals fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 animals:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       animal_type:
- *                         type: string
- *                         example: Sheep
- *                       breed:
- *                         type: string
- *                         example: Kajli
- *                       price:
- *                         type: number
- *                         example: 35000
- *                       delivery_type:
- *                         type: string
- *                         enum: [Free, Paid]
- *                       delivery_fee:
- *                         type: number
- *                         example: 500
- *                       delivery_threshold:
- *                         type: number
- *                         example: 10000
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Something went wrong. Please try again later.
- */
-
-// GET /api/admins/:adminId/animals - Get Animals for Admin
 router.get("/:adminId/animals", authMiddleware, async (req, res) => {
   const { adminId } = req.params;
 
   try {
-    const [[admin]] = await pool.execute(
-      `SELECT currency FROM users WHERE id = ? AND role = 'admin'`,
-      [adminId],
-    );
+    const { data: admin, error: adminError } = await supabase
+      .from("users")
+      .select("currency")
+      .eq("id", adminId)
+      .eq("role", "admin")
+      .maybeSingle();
+    throwDb(adminError, "Failed to fetch admin");
 
     if (!admin) {
-      return res.status(404).json({ message: "Admin not found" });
+      return fail(res, "Admin not found", 404);
     }
 
     const animals = await fetchAdminAnimalsWithAvailability(adminId);
-
-    //find Cash last payment date
-
-    res.json({
+    return ok(res, "Animals fetched successfully", {
       admin_currency: admin.currency,
       animals,
     });
   } catch (err) {
-    res.status(500).json({ message: "Something went wrong" });
+    logger.error("Failed to fetch admin animals", {
+      adminId,
+      error: err.message,
+      stack: err.stack,
+    });
+    return fail(res, "Something went wrong");
   }
 });
 
@@ -548,111 +356,89 @@ router.get("/delivery-requests", authMiddleware, async (req, res) => {
   const adminId = req.user.id;
 
   try {
-    // 1Fetch admin location
-    const [[admin]] = await pool.execute(
-      `SELECT country, state, city FROM admins WHERE id = ?`,
-      [adminId],
-    );
+    const { data: admin, error: adminError } = await supabase
+      .from("admins")
+      .select("country,state,city")
+      .eq("id", adminId)
+      .maybeSingle();
+    throwDb(adminError, "Failed to fetch admin location");
 
-    if (!admin || !admin.city) {
-      return res.status(400).json({
-        message: "Admin location not set",
-      });
+    if (!admin?.city) {
+      return fail(res, "Admin location not set", 400);
     }
 
-    // Fetch matching delivery requests
-    const [requests] = await pool.execute(
-      `
-      SELECT
-        dr.id,
-        dr.user_id,
-        dr.country,
-        dr.state,
-        dr.city,
-        dr.status,
-        dr.created_at,
-        u.name,
-        u.phone
-      FROM delivery_requests dr
-      JOIN users u ON u.id = dr.user_id
-      WHERE dr.status = 'PENDING'
-        AND dr.country = ?
-        AND dr.state = ?
-        AND dr.city = ?
-      ORDER BY dr.created_at DESC
-      `,
-      [admin.country, admin.state, admin.city],
-    );
+    const { data: deliveryRequests, error: requestError } = await supabase
+      .from("delivery_requests")
+      .select("id,user_id,country,state,city,status,created_at")
+      .eq("status", "PENDING")
+      .eq("country", admin.country)
+      .eq("state", admin.state)
+      .eq("city", admin.city)
+      .order("created_at", { ascending: false });
+    throwDb(requestError, "Failed to fetch delivery requests");
 
-    res.json({ requests });
+    const userIds = [...new Set((deliveryRequests || []).map((request) => request.user_id).filter(Boolean))];
+    const { data: users, error: usersError } = userIds.length
+      ? await supabase.from("users").select("id,name,phone").in("id", userIds)
+      : { data: [], error: null };
+    throwDb(usersError, "Failed to fetch delivery users");
+
+    const usersById = new Map((users || []).map((user) => [String(user.id), user]));
+    const requests = (deliveryRequests || []).map((request) => ({
+      ...request,
+      name: usersById.get(String(request.user_id))?.name ?? null,
+      phone: usersById.get(String(request.user_id))?.phone ?? null,
+    }));
+
+    return ok(res, "Delivery requests fetched successfully", { requests });
   } catch (err) {
-    console.error("Fetch delivery requests error:", err);
-    res.status(500).json({ message: "Server error" });
+    logger.error("Fetch delivery requests error", { adminId, error: err.message, stack: err.stack });
+    return fail(res, "Server error");
   }
 });
 
-/**
- * ======================================================
- * APPROVE or REJECT delivery request
- * ======================================================
- * PUT /api/admin/delivery-requests/:id
- * body: { status: "APPROVED" | "REJECTED" }
- */
 router.put("/delivery-requests/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 
   if (!["APPROVED", "REJECTED"].includes(status)) {
-    return res.status(400).json({
-      message: "Invalid status value",
-    });
+    return fail(res, "Invalid status value", 400);
   }
 
   try {
-    // Update request status
-    const [result] = await pool.execute(
-      `UPDATE delivery_requests SET status = ? WHERE id = ?`,
-      [status, id],
-    );
+    const { data: request, error: fetchError } = await supabase
+      .from("delivery_requests")
+      .select("user_id,country,state,city")
+      .eq("id", id)
+      .maybeSingle();
+    throwDb(fetchError, "Failed to fetch delivery request");
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Request not found" });
+    if (!request) {
+      return fail(res, "Request not found", 404);
     }
 
-    // If approved → add to delivery_persons table
+    const { error: updateError } = await supabase
+      .from("delivery_requests")
+      .update({ status })
+      .eq("id", id);
+    throwDb(updateError, "Failed to update delivery request");
+
     if (status === "APPROVED") {
-      const [[request]] = await pool.execute(
-        `SELECT user_id, country, state, city FROM delivery_requests WHERE id = ?`,
-        [id],
-      );
-
-      await pool.execute(
-        `
-        INSERT INTO delivery_persons (
-          id,
-          user_id,
-          country,
-          state,
-          city,
-          created_at
-        ) VALUES (?, ?, ?, ?, ?, NOW())
-        `,
-        [
-          uuidv4(),
-          request.user_id,
-          request.country,
-          request.state,
-          request.city,
-        ],
-      );
+      const { error: insertError } = await supabase.from("delivery_persons").insert({
+        id: uuidv4(),
+        user_id: request.user_id,
+        country: request.country,
+        state: request.state,
+        city: request.city,
+        created_at: new Date().toISOString(),
+      });
+      throwDb(insertError, "Failed to create delivery person");
     }
 
-    res.json({
-      message: `Delivery request ${status.toLowerCase()} successfully`,
-    });
+    return ok(res, `Delivery request ${status.toLowerCase()} successfully`);
   } catch (err) {
-    console.error("Update delivery request error:", err);
-    res.status(500).json({ message: "Server error" });
+    logger.error("Update delivery request error", { id, status, error: err.message, stack: err.stack });
+    return fail(res, "Server error");
   }
 });
 

@@ -16,6 +16,7 @@
 const express = require("express");
 const router = express.Router();
 const pool = require("../config/db");
+const supabase = require("../config/supabase");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const bcrypt = require("bcryptjs");
@@ -43,6 +44,224 @@ const requireCurrentPassword = async (userId, currentPassword) => {
   const isValid = await bcrypt.compare(currentPassword, users[0].password_hash);
   return isValid ? null : "Current password is incorrect";
 };
+
+
+router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
+  const { id: userId } = req.params;
+
+  const {
+    action,
+    review_note,
+  } = req.body;
+
+  const superAdminId = req.user.id;
+
+  try {
+
+    /**
+     * =====================================
+     * VERIFY SUPER ADMIN
+     * =====================================
+     */
+    const {
+      data: superAdmin,
+      error: superAdminError,
+    } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", superAdminId)
+      .single();
+
+    if (superAdminError) {
+      throw new Error(superAdminError.message);
+    }
+
+    if (
+      !superAdmin ||
+      superAdmin.role !== "super_admin"
+    ) {
+      logger.warn(
+        "Unauthorized superadmin access attempt",
+        {
+          superAdminId,
+          targetUserId: userId,
+          action,
+        }
+      );
+
+      return res.status(403).json({
+        message: "Access denied",
+      });
+    }
+
+    /**
+     * =====================================
+     * VERIFY REQUEST EXISTS
+     * =====================================
+     */
+    const {
+      data: verificationRequest,
+      error: requestError,
+    } = await supabase
+      .from("admin_verification_requests")
+      .select("status")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (requestError) {
+      throw new Error(requestError.message);
+    }
+
+    if (!verificationRequest) {
+      logger.warn(
+        "Verification request not found",
+        {
+          superAdminId,
+          targetUserId: userId,
+        }
+      );
+
+      return res.status(404).json({
+        message: "Verification request not found",
+      });
+    }
+
+    /**
+     * =====================================
+     * APPROVE ADMIN
+     * =====================================
+     */
+    if (action === "approve") {
+
+      const {
+        error: verificationUpdateError,
+      } = await supabase
+        .from("admin_verification_requests")
+        .update({
+          status: "approved",
+          reviewed_by: superAdminId,
+          review_note: review_note || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (verificationUpdateError) {
+        throw new Error(
+          verificationUpdateError.message
+        );
+      }
+
+      const {
+        error: userUpdateError,
+      } = await supabase
+        .from("users")
+        .update({
+          role: "admin",
+          admin_status: "approved",
+        })
+        .eq("id", userId);
+
+      if (userUpdateError) {
+        throw new Error(
+          userUpdateError.message
+        );
+      }
+
+      logger.info(
+        "Admin verification approved",
+        {
+          superAdminId,
+          targetUserId: userId,
+        }
+      );
+
+      return res.json({
+        message: "Admin approved successfully",
+      });
+    }
+
+    /**
+     * =====================================
+     * REJECT ADMIN
+     * =====================================
+     */
+    if (action === "reject") {
+
+      const {
+        error: verificationUpdateError,
+      } = await supabase
+        .from("admin_verification_requests")
+        .update({
+          status: "rejected",
+          reviewed_by: superAdminId,
+          review_note: review_note || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
+
+      if (verificationUpdateError) {
+        throw new Error(
+          verificationUpdateError.message
+        );
+      }
+
+      const {
+        error: userUpdateError,
+      } = await supabase
+        .from("users")
+        .update({
+          admin_status: "rejected",
+          role: "pending_admin",
+        })
+        .eq("id", userId);
+
+      if (userUpdateError) {
+        throw new Error(
+          userUpdateError.message
+        );
+      }
+
+      logger.info(
+        "Admin verification rejected",
+        {
+          superAdminId,
+          targetUserId: userId,
+        }
+      );
+
+      return res.json({
+        message: "Admin rejected successfully",
+      });
+    }
+
+    /**
+     * =====================================
+     * INVALID ACTION
+     * =====================================
+     */
+    return res.status(400).json({
+      message: "Invalid action",
+    });
+
+  } catch (err) {
+
+    logger.error(
+      "Superadmin verification process failed",
+      {
+        superAdminId,
+        targetUserId: userId,
+        action,
+        error: err.message,
+        stack: err.stack,
+      }
+    );
+
+    return res.status(500).json({
+      message:
+        "Something went wrong. Please try again later.",
+    });
+  }
+});
 
 /**
  * ===========================================
@@ -88,26 +307,42 @@ router.get("/profile", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const [users] = await pool.execute(
-      "SELECT name, email, phone, country_code, address, description, role, order_deadline, photo_url, currency FROM users WHERE id = ?",
-      [userId],
-    );
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
 
-    if (!users.length) {
+    if (error) {
+      throw error;
+    }
+
+    if (!user) {
       logger.warn("Profile not found", { userId });
-      return res.status(404).json({ message: "User not found" });
+
+      return res.status(404).json({
+        message: "User not found",
+      });
     }
 
     logger.info("Profile fetched", { userId });
 
-    res.json({ profile: { ...users[0], isAdmin: users[0].role === "admin" } });
+    res.json({
+      profile: {
+        ...user,
+        isAdmin: user.role === "admin",
+      },
+    });
   } catch (err) {
     logger.error("Profile fetch failed", {
       userId,
       error: err.message,
       stack: err.stack,
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
 
@@ -323,16 +558,49 @@ router.put("/users/phone", authMiddleware, async (req, res) => {
 // GET /api/delivery-boys - Fetch all delivery boys (users with role 'delivery')
 router.get("/delivery-boys", authMiddleware, async (req, res) => {
   try {
-    const [deliveryBoys] = await pool.execute(
-      `SELECT id, name, phone, address FROM users WHERE role = 'delivery'`,
-      [],
-    );
-    res.json({ deliveryBoys });
+    logger.info("Fetching delivery boys", {
+      requestedBy: req.user?.id,
+    });
+
+    const { data: deliveryBoys, error } = await supabase
+      .from("users")
+      .select("id, name, phone, address")
+      .eq("role", "delivery")
+      .order("name", { ascending: true });
+
+    if (error) {
+      logger.error("Supabase fetch delivery boys error", {
+        error: error.message,
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to fetch delivery boys",
+      });
+    }
+
+    logger.info("Delivery boys fetched successfully", {
+      count: deliveryBoys?.length || 0,
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: deliveryBoys?.length || 0,
+      deliveryBoys: deliveryBoys || [],
+    });
   } catch (err) {
-    console.error("Error fetching delivery boys:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    logger.error("Unexpected error fetching delivery boys", {
+      error: err.message,
+      stack: err.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
+
 
 // ADMIN VERIFICATION ROUTES
 
@@ -459,273 +727,535 @@ router.get("/delivery-boys", authMiddleware, async (req, res) => {
 // Uses ON DUPLICATE KEY UPDATE to allow resubmissions of verification requests
 const { v4: uuidv4 } = require("uuid");
 
-router.post("/admin/verification", authMiddleware, async (req, res) => {
-  // Extract the authenticated user's ID from the JWT token
-  const userId = req.user.id;
+router.post(
+  "/admin/verification",
+  authMiddleware,
+  async (req, res) => {
 
-  // Generate a unique verification request ID using UUID v4
-  const verificationId = uuidv4();
+    const userId = req.user.id;
 
-  // Destructure verification details from request body
-  // These include organization info, contact details, and document URLs
-  const {
-    organization_name,
-    phone,
-    experience,
-    address,
-    govt_id_url,
-    business_proof_url,
-    bank_proof_url,
-    farm_photo_url,
-  } = req.body;
+    const verificationId =
+      uuidv4();
 
-  const trimmedOrganizationName = organization_name?.trim();
-  const trimmedPhone = phone?.trim();
-  const trimmedExperience = experience?.trim();
-  const trimmedAddress = address?.trim();
-  const trimmedGovtIdUrl = govt_id_url?.trim();
-  const trimmedBusinessProofUrl = business_proof_url?.trim();
-  const trimmedBankProofUrl = bank_proof_url?.trim();
-  const trimmedFarmPhotoUrl = farm_photo_url?.trim();
+    const {
+      organization_name,
+      phone,
+      experience,
+      address,
+      govt_id_url,
+      business_proof_url,
+      bank_proof_url,
+      farm_photo_url,
+    } = req.body;
 
-  if (
-    !trimmedOrganizationName ||
-    !trimmedPhone ||
-    !trimmedGovtIdUrl ||
-    !trimmedBusinessProofUrl ||
-    !trimmedBankProofUrl ||
-    !trimmedFarmPhotoUrl
-  ) {
-    logger.warn("Admin verification blocked: missing required fields", {
-      userId,
-      hasOrganizationName: Boolean(trimmedOrganizationName),
-      hasPhone: Boolean(trimmedPhone),
-      hasGovtIdUrl: Boolean(trimmedGovtIdUrl),
-      hasBusinessProofUrl: Boolean(trimmedBusinessProofUrl),
-      hasBankProofUrl: Boolean(trimmedBankProofUrl),
-      hasFarmPhotoUrl: Boolean(trimmedFarmPhotoUrl),
-    });
+    const trimmedOrganizationName =
+      organization_name?.trim();
 
-    return res.status(400).json({
-      message:
-        "Please provide organization details and upload all required documents.",
-    });
-  }
+    const trimmedPhone =
+      phone?.trim();
 
-  try {
-    // Insert or update admin verification request in database
-    // ON DUPLICATE KEY UPDATE allows users to resubmit their application
-    // This is useful if they need to correct information or reapply
-    await pool.execute(
-      `
-      INSERT INTO admin_verification_requests
-      (
-        id,
-        user_id,
-        organization_name,
-        phone,
-        experience,
-        address,
-        govt_id_url,
-        business_proof_url,
-        bank_proof_url,
-        farm_photo_url,
-        status
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-      ON DUPLICATE KEY UPDATE
-        organization_name = VALUES(organization_name),
-        phone = VALUES(phone),
-        experience = VALUES(experience),
-        address = VALUES(address),
-        govt_id_url = VALUES(govt_id_url),
-        business_proof_url = VALUES(business_proof_url),
-        bank_proof_url = VALUES(bank_proof_url),
-        farm_photo_url = VALUES(farm_photo_url),
-        status = 'pending',
-        updated_at = NOW()
-      `,
-      [
-        verificationId,
-        userId,
-        trimmedOrganizationName,
-        trimmedPhone,
-        trimmedExperience || null,
-        trimmedAddress || null,
-        trimmedGovtIdUrl,
-        trimmedBusinessProofUrl,
-        trimmedBankProofUrl,
-        trimmedFarmPhotoUrl,
-      ]
-    );
+    const trimmedExperience =
+      experience?.trim();
 
-    await pool.execute("UPDATE users SET admin_status = 'pending' WHERE id = ?", [
-      userId,
-    ]);
+    const trimmedAddress =
+      address?.trim();
 
-    logger.info("Admin verification submitted", {
-      userId,
-      verificationId,
-    });
+    const trimmedGovtIdUrl =
+      govt_id_url?.trim();
 
-    res.status(201).json({
-      message: "Verification submitted for review",
-      verification_id: verificationId,
-    });
-  } catch (err) {
-    logger.error("Admin verification failed", {
-      userId,
-      error: err.message,
-      stack: err.stack,
-    });
+    const trimmedBusinessProofUrl =
+      business_proof_url?.trim();
 
-    res
-      .status(500)
-      .json({ message: "Something went wrong. Please try again later." });
-  }
-});
+    const trimmedBankProofUrl =
+      bank_proof_url?.trim();
 
+    const trimmedFarmPhotoUrl =
+      farm_photo_url?.trim();
 
-/**
- * @swagger
- * /api/verification/status:
- *   get:
- *     summary: Get admin verification status
- *     tags: [Admin Verification]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Verification status
- */
+    if (
+      !trimmedOrganizationName ||
+      !trimmedPhone ||
+      !trimmedGovtIdUrl ||
+      !trimmedBusinessProofUrl ||
+      !trimmedBankProofUrl ||
+      !trimmedFarmPhotoUrl
+    ) {
 
-// GET /api/admin/verification/status - Check verification status
-router.get("/verification/status", authMiddleware, async (req, res) => {
-  const userId = req.user.id;
+      logger.warn(
+        "Admin verification blocked: missing required fields",
+        {
+          userId,
+          hasOrganizationName:
+            Boolean(
+              trimmedOrganizationName
+            ),
 
-  try {
-    const [verifications] = await pool.execute(
-      `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-      [userId],
-    );
-    if (verifications.length === 0) {
-      return res.json({ status: null });
-    }
-    res.json({ status: verifications[0].status });
-  } catch (err) {
-    console.error("Error fetching status:", err);
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
-  }
-});
+          hasPhone:
+            Boolean(trimmedPhone),
 
-// SUPERADMIN ROUTES
+          hasGovtIdUrl:
+            Boolean(
+              trimmedGovtIdUrl
+            ),
 
-/**
- * @swagger
- * /api/superadmin/users:
- *   get:
- *     summary: List users by role
- *     tags: [Super Admin]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: role
- *         schema:
- *           type: string
- *           enum: [all, user, admin, delivery]
- *     responses:
- *       200:
- *         description: Users list
- */
+          hasBusinessProofUrl:
+            Boolean(
+              trimmedBusinessProofUrl
+            ),
 
-// GET /api/superadmin/users - List users by role (for super admin)
-// This endpoint provides superadmins with a comprehensive view of all users in the system
-// Supports filtering by user roles and includes verification status information
-// Used for administrative oversight and user management purposes
-router.get("/superadmin/users", authMiddleware, async (req, res) => {
-  // Extract role filter from query parameters (optional)
-  // Valid values: 'all', 'user', 'admin', 'delivery'
-  const { role } = req.query;
-  // Get the authenticated superadmin's ID for authorization
-  const superAdminId = req.user.id;
+          hasBankProofUrl:
+            Boolean(
+              trimmedBankProofUrl
+            ),
 
-  try {
-    // Step 1: Verify superadmin privileges
-    // This is a critical security check to ensure only superadmins can access user lists
-    const [superAdmins] = await pool.execute(
-      `SELECT role FROM users WHERE id = ?`,
-      [superAdminId],
-    );
+          hasFarmPhotoUrl:
+            Boolean(
+              trimmedFarmPhotoUrl
+            ),
+        }
+      );
 
-    // Deny access if user doesn't exist or isn't a superadmin
-    if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
-      logger.warn("Unauthorized superadmin access attempt", {
-        userId: superAdminId,
-        route: req.originalUrl,
+      return res.status(400).json({
+        message:
+          "Please provide organization details and upload all required documents.",
       });
-      return res.status(403).json({ message: "Access denied" });
     }
 
-    // Step 2: Build dynamic query with optional role filtering
-    // Base query joins users table with admin_verification_requests to show verification status
-    // Uses LEFT JOIN to include users who haven't submitted verification requests
-    let query = `
-      SELECT
-        u.id,
-        u.name,
-        u.email,
-        u.phone,
-        u.role,
-        u.admin_status,
-        u.created_at,
-        COALESCE(avr.status, 'not_submitted') AS verification_status
-      FROM users u
-      LEFT JOIN admin_verification_requests avr
-        ON avr.user_id = u.id
-      WHERE 1 = 1
-    `;
+    try {
 
-    // Initialize parameters array for prepared statement
-    const params = [];
+      // Check if verification already exists
+      const {
+        data: existingVerification,
+        error: fetchError,
+      } = await supabase
+        .from(
+          "admin_verification_requests"
+        )
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    // Step 3: Apply role-based filtering if specified
-    // Only allow filtering by the three main user roles
-    if (role && role !== "all") {
-      const allowedRoles = ["user", "admin", "delivery"];
-      // Validate that the requested role is allowed
-      if (!allowedRoles.includes(role)) {
-        return res.status(400).json({ message: "Invalid role filter" });
+      if (fetchError) {
+        throw new Error(
+          fetchError.message
+        );
       }
 
-      if (role === "admin") {
-        query += ` AND (u.role = 'admin' OR u.role = 'pending_admin')`;
+      // UPDATE existing verification
+      if (existingVerification) {
+
+        const {
+          error: updateError,
+        } = await supabase
+          .from(
+            "admin_verification_requests"
+          )
+          .update({
+            organization_name:
+              trimmedOrganizationName,
+
+            phone:
+              trimmedPhone,
+
+            experience:
+              trimmedExperience ||
+              null,
+
+            address:
+              trimmedAddress ||
+              null,
+
+            govt_id_url:
+              trimmedGovtIdUrl,
+
+            business_proof_url:
+              trimmedBusinessProofUrl,
+
+            bank_proof_url:
+              trimmedBankProofUrl,
+
+            farm_photo_url:
+              trimmedFarmPhotoUrl,
+
+            status: "pending",
+
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+
+        if (updateError) {
+          throw new Error(
+            updateError.message
+          );
+        }
+
       } else {
-        query += ` AND u.role = ?`;
-        params.push(role);
+
+        // INSERT new verification
+        const {
+          error: insertError,
+        } = await supabase
+          .from(
+            "admin_verification_requests"
+          )
+          .insert([
+            {
+              id: verificationId,
+
+              user_id: userId,
+
+              organization_name:
+                trimmedOrganizationName,
+
+              phone:
+                trimmedPhone,
+
+              experience:
+                trimmedExperience ||
+                null,
+
+              address:
+                trimmedAddress ||
+                null,
+
+              govt_id_url:
+                trimmedGovtIdUrl,
+
+              business_proof_url:
+                trimmedBusinessProofUrl,
+
+              bank_proof_url:
+                trimmedBankProofUrl,
+
+              farm_photo_url:
+                trimmedFarmPhotoUrl,
+
+              status: "pending",
+            },
+          ]);
+
+        if (insertError) {
+          throw new Error(
+            insertError.message
+          );
+        }
       }
-    } else {
-      query += ` AND (
-        u.role IN ('user', 'admin', 'delivery')
-        OR u.role = 'pending_admin'
-      )`;
+
+      // Update user admin status
+      const {
+        error: userUpdateError,
+      } = await supabase
+        .from("users")
+        .update({
+          admin_status: "pending",
+        })
+        .eq("id", userId);
+
+      if (userUpdateError) {
+        throw new Error(
+          userUpdateError.message
+        );
+      }
+
+      logger.info(
+        "Admin verification submitted",
+        {
+          userId,
+          verificationId,
+        }
+      );
+
+      return res.status(201).json({
+        message:
+          "Verification submitted for review",
+
+        verification_id:
+          verificationId,
+      });
+
+    } catch (err) {
+
+      logger.error(
+        "Admin verification failed",
+        {
+          userId,
+          error: err.message,
+          stack: err.stack,
+        }
+      );
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
     }
-
-    // Order results by creation date (newest first) for better UX
-    query += ` ORDER BY u.created_at DESC`;
-
-    // Execute the query with prepared parameters for security
-    const [users] = await pool.execute(query, params);
-
-    // Return the filtered user list
-    res.json({ users });
-  } catch (err) {
-    // Log the error with context for debugging
-    console.error("Error fetching users for superadmin:", err);
-    // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
-});
+);
+
+// ======================================================
+// GET VERIFICATION STATUS
+// ======================================================
+
+router.get(
+  "/verification/status",
+  authMiddleware,
+  async (req, res) => {
+
+    const userId = req.user.id;
+
+    try {
+
+      const {
+        data: verification,
+        error,
+      } = await supabase
+        .from(
+          "admin_verification_requests"
+        )
+        .select("status")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      return res.json({
+        status:
+          verification?.status ||
+          null,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Error fetching status:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
+    }
+  }
+);
+
+// ======================================================
+// SUPERADMIN - GET USERS
+// ======================================================
+
+router.get(
+  "/superadmin/users",
+  authMiddleware,
+  async (req, res) => {
+
+    const { role } = req.query;
+
+    const superAdminId =
+      req.user.id;
+
+    try {
+
+      // Verify super admin
+      const {
+        data: superAdmin,
+        error: superAdminError,
+      } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", superAdminId)
+        .maybeSingle();
+
+      if (superAdminError) {
+        throw new Error(
+          superAdminError.message
+        );
+      }
+
+      if (
+        !superAdmin ||
+        superAdmin.role !==
+          "super_admin"
+      ) {
+
+        logger.warn(
+          "Unauthorized superadmin access attempt",
+          {
+            userId:
+              superAdminId,
+            route:
+              req.originalUrl,
+          }
+        );
+
+        return res.status(403).json({
+          message:
+            "Access denied",
+        });
+      }
+
+      // Allowed roles
+      const allowedRoles = [
+        "user",
+        "admin",
+        "delivery",
+      ];
+
+      // Fetch users
+      let usersQuery =
+        supabase
+          .from("users")
+          .select(`
+            id,
+            name,
+            email,
+            phone,
+            role,
+            admin_status,
+            created_at
+          `)
+          .order("created_at", {
+            ascending: false,
+          });
+
+      // Apply filtering
+      if (
+        role &&
+        role !== "all"
+      ) {
+
+        if (
+          !allowedRoles.includes(
+            role
+          )
+        ) {
+
+          return res.status(400).json({
+            message:
+              "Invalid role filter",
+          });
+        }
+
+        if (role === "admin") {
+
+          usersQuery =
+            usersQuery.in(
+              "role",
+              [
+                "admin",
+                "pending_admin",
+              ]
+            );
+
+        } else {
+
+          usersQuery =
+            usersQuery.eq(
+              "role",
+              role
+            );
+        }
+
+      } else {
+
+        usersQuery =
+          usersQuery.in(
+            "role",
+            [
+              "user",
+              "admin",
+              "delivery",
+              "pending_admin",
+            ]
+          );
+      }
+
+      const {
+        data: users,
+        error: usersError,
+      } = await usersQuery;
+
+      if (usersError) {
+        throw new Error(
+          usersError.message
+        );
+      }
+
+      // Fetch verification requests
+      const userIds =
+        users.map((u) => u.id);
+
+      let verificationRows = [];
+
+      if (userIds.length) {
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from(
+            "admin_verification_requests"
+          )
+          .select(`
+            user_id,
+            status
+          `)
+          .in("user_id", userIds);
+
+        if (error) {
+          throw new Error(
+            error.message
+          );
+        }
+
+        verificationRows =
+          data || [];
+      }
+
+      // Create lookup map
+      const verificationMap = {};
+
+      verificationRows.forEach(
+        (v) => {
+          verificationMap[
+            v.user_id
+          ] = v.status;
+        }
+      );
+
+      // Merge data
+      const formattedUsers =
+        users.map((user) => ({
+          ...user,
+
+          verification_status:
+            verificationMap[
+              user.id
+            ] ||
+            "not_submitted",
+        }));
+
+      return res.json({
+        users:
+          formattedUsers,
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Error fetching users for superadmin:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
+    }
+  }
+);
 
 /**
  * @swagger
@@ -761,118 +1291,242 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
 // This critical route allows superadmins to review and decide on admin verification applications
 // Actions: 'approve' grants admin privileges, 'reject' denies the application
 // Includes audit logging and status updates for both verification requests and user roles
-router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
-  // Extract target user ID from URL parameters and action details from request body
-  const { id: userId } = req.params;
-  const { action, review_note } = req.body; // action can be 'approve' or 'reject'
-  const superAdminId = req.user.id; // ID of the superadmin performing the action
+router.post(
+  "/admin/verification",
+  authMiddleware,
+  async (req, res) => {
 
-  try {
-    // Step 1: Verify that the requester is indeed a superadmin
-    // This is a critical security check to prevent unauthorized access
-    const [superAdmins] = await pool.execute(
-      `SELECT role FROM users WHERE id = ?`,
-      [superAdminId],
-    );
+    const userId = req.user.id;
 
-    // If user doesn't exist or doesn't have super_admin role, deny access
-    if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
-      logger.warn("Unauthorized superadmin access attempt", {
-        superAdminId,
-        targetUserId: userId,
-        action,
-      });
-      return res.status(403).json({ message: "Access denied" });
-    }
+    const verificationId = uuidv4();
 
-    // Step 2: Verify that a verification request exists for the target user
-    // This prevents processing actions on users who haven't applied for admin status
-    const [requests] = await pool.execute(
-      `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
-      [userId],
-    );
+    const {
+      organization_name,
+      phone,
+      experience,
+      address,
+      govt_id_url,
+      business_proof_url,
+      bank_proof_url,
+      farm_photo_url,
+    } = req.body;
 
-    // If no verification request found, return error
-    if (!requests.length) {
-      logger.warn("Verification request not found", {
-        superAdminId,
-        targetUserId: userId,
-      });
+    const trimmedOrganizationName =
+      organization_name?.trim();
 
-      return res
-        .status(404)
-        .json({ message: "Verification request not found" });
-    }
+    const trimmedPhone =
+      phone?.trim();
 
-    // APPROVE
-    if (action === "approve") {
-      await pool.execute(
-        `UPDATE admin_verification_requests
-         SET status = 'approved',
-             reviewed_by = ?,
-             review_note = ?,
-             updated_at = NOW()
-         WHERE user_id = ?`,
-        [superAdminId, review_note || null, userId],
+    const trimmedExperience =
+      experience?.trim();
+
+    const trimmedAddress =
+      address?.trim();
+
+    const trimmedGovtIdUrl =
+      govt_id_url?.trim();
+
+    const trimmedBusinessProofUrl =
+      business_proof_url?.trim();
+
+    const trimmedBankProofUrl =
+      bank_proof_url?.trim();
+
+    const trimmedFarmPhotoUrl =
+      farm_photo_url?.trim();
+
+    if (
+      !trimmedOrganizationName ||
+      !trimmedPhone ||
+      !trimmedGovtIdUrl ||
+      !trimmedBusinessProofUrl ||
+      !trimmedBankProofUrl ||
+      !trimmedFarmPhotoUrl
+    ) {
+
+      logger.warn(
+        "Admin verification blocked: missing required fields",
+        {
+          userId,
+          hasOrganizationName:
+            Boolean(trimmedOrganizationName),
+
+          hasPhone:
+            Boolean(trimmedPhone),
+
+          hasGovtIdUrl:
+            Boolean(trimmedGovtIdUrl),
+
+          hasBusinessProofUrl:
+            Boolean(trimmedBusinessProofUrl),
+
+          hasBankProofUrl:
+            Boolean(trimmedBankProofUrl),
+
+          hasFarmPhotoUrl:
+            Boolean(trimmedFarmPhotoUrl),
+        }
       );
 
-      await pool.execute(
-        `UPDATE users
-         SET role = 'admin',
-             admin_status = 'approved'
-         WHERE id = ?`,
-        [userId],
-      );
-
-      logger.info("Admin verification approved", {
-        superAdminId,
-        targetUserId: userId,
+      return res.status(400).json({
+        message:
+          "Please provide organization details and upload all required documents.",
       });
-
-      return res.json({ message: "Admin approved successfully" });
     }
 
-    // REJECT
-    if (action === "reject") {
-      console.log("rejecting process begins");
-      await pool.execute(
-        `UPDATE admin_verification_requests
-         SET status = 'rejected',
-             reviewed_by = ?,
-             review_note = ?,
-             updated_at = NOW()
-         WHERE user_id = ?`,
-        [superAdminId, review_note || null, userId],
+    try {
+
+      // Check if verification already exists
+      const {
+        data: existingVerification,
+        error: fetchError,
+      } = await supabase
+        .from("admin_verification_requests")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      // UPDATE existing verification
+      if (existingVerification) {
+
+        const {
+          error: updateError,
+        } = await supabase
+          .from("admin_verification_requests")
+          .update({
+            organization_name:
+              trimmedOrganizationName,
+
+            phone:
+              trimmedPhone,
+
+            experience:
+              trimmedExperience || null,
+
+            address:
+              trimmedAddress || null,
+
+            govt_id_url:
+              trimmedGovtIdUrl,
+
+            business_proof_url:
+              trimmedBusinessProofUrl,
+
+            bank_proof_url:
+              trimmedBankProofUrl,
+
+            farm_photo_url:
+              trimmedFarmPhotoUrl,
+
+            status: "pending",
+
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+      } else {
+
+        // INSERT new verification
+        const {
+          error: insertError,
+        } = await supabase
+          .from("admin_verification_requests")
+          .insert([
+            {
+              id: verificationId,
+
+              user_id: userId,
+
+              organization_name:
+                trimmedOrganizationName,
+
+              phone:
+                trimmedPhone,
+
+              experience:
+                trimmedExperience || null,
+
+              address:
+                trimmedAddress || null,
+
+              govt_id_url:
+                trimmedGovtIdUrl,
+
+              business_proof_url:
+                trimmedBusinessProofUrl,
+
+              bank_proof_url:
+                trimmedBankProofUrl,
+
+              farm_photo_url:
+                trimmedFarmPhotoUrl,
+
+              status: "pending",
+            },
+          ]);
+
+        if (insertError) {
+          throw new Error(insertError.message);
+        }
+      }
+
+      // Update user admin status
+      const {
+        error: userUpdateError,
+      } = await supabase
+        .from("users")
+        .update({
+          admin_status: "pending",
+        })
+        .eq("id", userId);
+
+      if (userUpdateError) {
+        throw new Error(userUpdateError.message);
+      }
+
+      logger.info(
+        "Admin verification submitted",
+        {
+          userId,
+          verificationId,
+        }
       );
 
-      await pool.execute(
-        `UPDATE users
-         SET admin_status = 'rejected',
-             role = 'pending_admin'
-         WHERE id = ?`,
-        [userId],
-      );
+      return res.status(201).json({
+        message:
+          "Verification submitted for review",
 
-      logger.info("Admin verification rejected", {
-        superAdminId,
-        targetUserId: userId,
+        verification_id:
+          verificationId,
       });
 
-      return res.json({ message: "Admin rejected successfully" });
-    }
+    } catch (err) {
 
-    return res.status(400).json({ message: "Invalid action" });
-  } catch (err) {
-    logger.error("Superadmin verification process failed", {
-      superAdminId,
-      targetUserId: userId,
-      action,
-      error: err.message,
-      stack: err.stack,
-    });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+      logger.error(
+        "Admin verification failed",
+        {
+          userId,
+          error: err.message,
+          stack: err.stack,
+        }
+      );
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
+      });
+    }
   }
-});
+);
 
 /**
  * @swagger
@@ -896,52 +1550,119 @@ router.get(
   "/superadmin/verifications/:adminId",
   authMiddleware,
   async (req, res) => {
+
     const { adminId } = req.params;
-    const superAdminId = req.user.id;
+
+    const superAdminId =
+      req.user.id;
 
     try {
-      const [superAdmins] = await pool.execute(
-        `SELECT role FROM users WHERE id = ?`,
-        [superAdminId],
-      );
 
-      if (!superAdmins.length || superAdmins[0].role !== "super_admin") {
-        logger.warn("Unauthorized superadmin verification access", {
-          superAdminId,
-          targetAdminId: adminId,
-        });
-        return res.status(403).json({ message: "Access denied" });
+      // Verify super admin
+      const {
+        data: superAdmin,
+        error: superAdminError,
+      } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", superAdminId)
+        .maybeSingle();
+
+      if (superAdminError) {
+        throw new Error(
+          superAdminError.message
+        );
       }
 
-      logger.info("Superadmin fetching verification", {
-        superAdminId,
-        targetAdminId: adminId,
+      if (
+        !superAdmin ||
+        superAdmin.role !==
+          "super_admin"
+      ) {
+
+        logger.warn(
+          "Unauthorized superadmin verification access",
+          {
+            superAdminId,
+            targetAdminId:
+              adminId,
+          }
+        );
+
+        return res.status(403).json({
+          message:
+            "Access denied",
+        });
+      }
+
+      logger.info(
+        "Superadmin fetching verification",
+        {
+          superAdminId,
+          targetAdminId:
+            adminId,
+        }
+      );
+
+      const {
+        data: verification,
+        error: verificationError,
+      } = await supabase
+        .from(
+          "admin_verification_requests"
+        )
+        .select("*")
+        .eq("user_id", adminId)
+        .maybeSingle();
+
+      if (verificationError) {
+        throw new Error(
+          verificationError.message
+        );
+      }
+
+      if (!verification) {
+
+        logger.warn(
+          "Verification not found",
+          {
+            superAdminId,
+            targetAdminId:
+              adminId,
+          }
+        );
+
+        return res.status(404).json({
+          message:
+            "No verification found",
+        });
+      }
+
+      return res.json({
+        verification,
       });
 
-      const [verifications] = await pool.execute(
-        `SELECT * FROM admin_verification_requests WHERE user_id = ?`,
-        [adminId],
-      );
-
-      if (!verifications.length) {
-        logger.warn("Verification not found", {
-          superAdminId,
-          targetAdminId: adminId,
-        });
-        return res.status(404).json({ message: "No verification found" });
-      }
-
-      res.json({ verification: verifications[0] });
     } catch (err) {
-      logger.error("Failed to fetch admin verification", {
-        superAdminId,
-        targetAdminId: adminId,
-        error: err.message,
-        stack: err.stack,
+
+      logger.error(
+        "Failed to fetch admin verification",
+        {
+          superAdminId,
+          targetAdminId:
+            adminId,
+          error:
+            err.message,
+          stack:
+            err.stack,
+        }
+      );
+
+      return res.status(500).json({
+        message:
+          "Something went wrong. Please try again later.",
       });
-      res.status(500).json({ message: "Something went wrong. Please try again later." });
     }
-  },
+  }
 );
 
 /**

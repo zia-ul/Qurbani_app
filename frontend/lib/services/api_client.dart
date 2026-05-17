@@ -117,12 +117,12 @@ class ApiClient {
     } on TimeoutException {
       throw const ApiException(timeoutMessage);
     } on http.ClientException catch (error) {
-      if (_isConnectivityIssue(error.message)) {
+      if (isConnectivityIssue(error.message)) {
         throw const ApiException(offlineMessage);
       }
       throw const ApiException(genericFailureMessage);
     } catch (error) {
-      if (_isConnectivityIssue(error.toString())) {
+      if (isConnectivityIssue(error.toString())) {
         throw const ApiException(offlineMessage);
       }
       rethrow;
@@ -206,7 +206,7 @@ class ApiClient {
     return trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html');
   }
 
-  static bool _isConnectivityIssue(String message) {
+  static bool isConnectivityIssue(String message) {
     final normalized = message.toLowerCase();
     const connectivityHints = [
       'failed host lookup',

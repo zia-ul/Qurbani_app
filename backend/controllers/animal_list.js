@@ -2,7 +2,7 @@ const db = require("../config/db");
 const logger = require("../middleware/logger");
 
 /**
- * GET /api, 
+ * GET /api
  * List all animals added by the logged-in admin
  */
 exports.getAnimals = async (req, res) => {
@@ -14,7 +14,7 @@ exports.getAnimals = async (req, res) => {
   }
 
   try {
-    const [animals] = await db.query(
+    const { rows: animals } = await db.query(
       `
       SELECT 
         a.id,
@@ -36,9 +36,16 @@ exports.getAnimals = async (req, res) => {
       LEFT JOIN shareholder_details sd
         ON sd.animal_id = a.id
 
-      WHERE a.admin_id = ?
+      WHERE a.admin_id = $1
 
-      GROUP BY a.id, a.animal_type, a.price_per_share, a.shares, a.created_at, ad.barcode, a.qurbani_datetime
+      GROUP BY 
+        a.id,
+        a.animal_type,
+        a.price_per_share,
+        a.shares,
+        a.created_at,
+        ad.barcode,
+        a.qurbani_datetime
 
       ORDER BY a.created_at DESC
       `,
@@ -58,8 +65,6 @@ exports.getAnimals = async (req, res) => {
   }
 };
 
-
-
 /**
  * DELETE /api/animals/:id
  * Delete an animal added by the logged-in admin
@@ -73,11 +78,14 @@ exports.deleteAnimal = async (req, res) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  logger.info("Admin attempting to delete animal", { adminId, animalId });
+  logger.info("Admin attempting to delete animal", {
+    adminId,
+    animalId,
+  });
 
   try {
-    const [rows] = await db.query(
-      "SELECT id FROM animals WHERE id = ? AND admin_id = ?",
+    const { rows } = await db.query(
+      "SELECT id FROM animals WHERE id = $1 AND admin_id = $2",
       [animalId, adminId]
     );
 
@@ -87,14 +95,20 @@ exports.deleteAnimal = async (req, res) => {
         animalId,
       });
 
-      return res
-        .status(404)
-        .json({ message: "Animal not found or not owned by you" });
+      return res.status(404).json({
+        message: "Animal not found or not owned by you",
+      });
     }
 
-    await db.query("DELETE FROM animals WHERE id = ?", [animalId]);
+    await db.query(
+      "DELETE FROM animals WHERE id = $1",
+      [animalId]
+    );
 
-    logger.info("Animal deleted successfully", { adminId, animalId });
+    logger.info("Animal deleted successfully", {
+      adminId,
+      animalId,
+    });
 
     res.json({ message: "Animal deleted successfully" });
   } catch (err) {
@@ -105,28 +119,39 @@ exports.deleteAnimal = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 };
 
-
-// fetch edit detils
+/**
+ * GET animal by ID
+ */
 exports.getAnimalById = async (req, res) => {
   const adminId = req.user?.id;
   const animalId = req.params.id;
-  const orderId = req.query.orderId;          // new
-  const shareholderId = req.query.shareholderId; // optional, if you track this
+  const orderId = req.query.orderId;
+  const shareholderId = req.query.shareholderId;
 
   if (!adminId) {
-    logger.warn("Unauthorized attempt to fetch animal", { animalId });
-    return res.status(401).json({ message: "Unauthorized" });
+    logger.warn("Unauthorized attempt to fetch animal", {
+      animalId,
+    });
+
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
   }
 
-  logger.info("Admin fetching animal by ID", { adminId, animalId, orderId });
+  logger.info("Admin fetching animal by ID", {
+    adminId,
+    animalId,
+    orderId,
+  });
 
   try {
-    const [rows] = await db.query(
-      `
+    let query = `
       SELECT 
         a.*,
         ad.id AS animal_details_id,
@@ -144,16 +169,37 @@ exports.getAnimalById = async (req, res) => {
       FROM animals a
       LEFT JOIN animal_details ad 
         ON ad.animal_id = a.id
-       AND ad.order_id = ? 
-       ${shareholderId ? 'AND ad.shareholder_id = ?' : ''}
-      WHERE a.id = ? AND a.admin_id = ?
-      `,
-      shareholderId ? [orderId, shareholderId, animalId, adminId] : [orderId, animalId, adminId]
-    );
+       AND ad.order_id = $1
+    `;
+
+    const values = [orderId];
+    let paramIndex = 2;
+
+    if (shareholderId) {
+      query += ` AND ad.shareholder_id = $${paramIndex}`;
+      values.push(shareholderId);
+      paramIndex++;
+    }
+
+    query += `
+      WHERE a.id = $${paramIndex}
+        AND a.admin_id = $${paramIndex + 1}
+    `;
+
+    values.push(animalId, adminId);
+
+    const { rows } = await db.query(query, values);
 
     if (!rows.length) {
-      logger.warn("Animal not found for admin/order", { adminId, animalId, orderId });
-      return res.status(404).json({ message: "Animal not found" });
+      logger.warn("Animal not found for admin/order", {
+        adminId,
+        animalId,
+        orderId,
+      });
+
+      return res.status(404).json({
+        message: "Animal not found",
+      });
     }
 
     res.json(rows[0]);
@@ -166,18 +212,27 @@ exports.getAnimalById = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 };
 
-
+/**
+ * UPDATE animal
+ */
 exports.updateAnimal = async (req, res) => {
   const adminId = req.user?.id;
   const animalId = req.params.id;
 
   if (!adminId) {
-    logger.warn("Unauthorized attempt to update animal", { animalId });
-    return res.status(401).json({ message: "Unauthorized" });
+    logger.warn("Unauthorized attempt to update animal", {
+      animalId,
+    });
+
+    return res.status(401).json({
+      message: "Unauthorized",
+    });
   }
 
   logger.info("Admin updating animal", {
@@ -203,22 +258,25 @@ exports.updateAnimal = async (req, res) => {
   } = req.body;
 
   try {
-    const [result] = await db.query(
-      `UPDATE animals SET
-        animal_type = ?,
-        price_per_share = COALESCE(?, price_per_share),
-        breed = ?,
-        description = ?,
-        price = ?,
-        age = ?,
-        height = ?,
-        weight = ?,
-        shares = ?,
-        photo_urls = ?,
-        delivery_type = ?,
-        delivery_fee = ?,
-        delivery_threshold = ?
-       WHERE id = ? AND admin_id = ?`,
+    const { rowCount } = await db.query(
+      `
+      UPDATE animals SET
+        animal_type = $1,
+        price_per_share = COALESCE($2, price_per_share),
+        breed = $3,
+        description = $4,
+        price = $5,
+        age = $6,
+        height = $7,
+        weight = $8,
+        shares = $9,
+        photo_urls = $10,
+        delivery_type = $11,
+        delivery_fee = $12,
+        delivery_threshold = $13
+      WHERE id = $14
+        AND admin_id = $15
+      `,
       [
         animalType,
         price_per_share ?? pricePerShare,
@@ -238,18 +296,25 @@ exports.updateAnimal = async (req, res) => {
       ]
     );
 
-    if (result.affectedRows === 0) {
+    if (rowCount === 0) {
       logger.warn("Animal update failed (not found or not owned)", {
         adminId,
         animalId,
       });
 
-      return res.status(404).json({ message: "Animal not found or not owned" });
+      return res.status(404).json({
+        message: "Animal not found or not owned",
+      });
     }
 
-    logger.info("Animal updated successfully", { adminId, animalId });
+    logger.info("Animal updated successfully", {
+      adminId,
+      animalId,
+    });
 
-    res.json({ message: "Animal updated successfully" });
+    res.json({
+      message: "Animal updated successfully",
+    });
   } catch (err) {
     logger.error("Error updating animal", {
       adminId,
@@ -258,16 +323,20 @@ exports.updateAnimal = async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 };
 
-
+/**
+ * GET delivery orders
+ */
 exports.getDeliveryOrders = async (req, res) => {
   try {
     const { deliveryPersonId } = req.params;
 
-    const [orders] = await db.query(
+    const { rows: orders } = await db.query(
       `
       SELECT 
         id,
@@ -284,7 +353,7 @@ exports.getDeliveryOrders = async (req, res) => {
         delivery_notified,
         created_at
       FROM orders
-      WHERE delivery_person_id = ?
+      WHERE delivery_person_id = $1
       ORDER BY created_at DESC
       `,
       [deliveryPersonId]
@@ -297,8 +366,7 @@ exports.getDeliveryOrders = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Failed to fetch delivery orders',
+      message: "Failed to fetch delivery orders",
     });
   }
 };
-

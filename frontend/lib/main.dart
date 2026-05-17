@@ -8,6 +8,7 @@ import 'package:phone_email_auth/phone_email_auth.dart';
 import 'wrapper_screen.dart';
 import 'theme/theme.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -83,7 +84,10 @@ void main() async {
   /// Local notifications initialization
   const AndroidInitializationSettings androidInit =
       AndroidInitializationSettings('@mipmap/ic_launcher');
-
+ await Supabase.initialize(
+    url: 'https://qauvcdaenictojcjvljt.supabase.co',
+    anonKey: 'sb_publishable_UDsRqJ-Jl8ptmerb_lIpwA_SD68VyG4',
+  );
   if (PhoneEmailConfig.isConfigured) {
     await PhoneEmail.initializeApp(clientId: PhoneEmailConfig.clientId);
     AppLogger.info('Phone.Email initialized successfully');
