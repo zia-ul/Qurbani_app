@@ -110,7 +110,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage>
 
     try {
       final orders = await AdminOrderService.getAdminOrders();
-
+      print("querying orders for admin ${widget.adminId}, got ${orders.length} orders");
       if (!mounted) return;
       setState(() {
         _allOrders = orders;

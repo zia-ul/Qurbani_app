@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:convert';
 import 'package:Qurbani/services/api_client.dart';
-import 'package:Qurbani/services/upload_service.dart';
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:Qurbani/theme/theme.dart';
 
@@ -137,18 +137,46 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     );
   }
 
-  Future<List<String>> uploadAnimalImages() async {
-    if (_images.isEmpty) return [];
+  Future<List<String>> uploadImagesToCloudinary() async {
+    const cloudName = 'dfezveorl';
+    const uploadPreset = 'qurbani';
+    List<String> uploadedUrls = [];
 
-    AppLogger.info("Uploading animal gallery images through backend");
+    AppLogger.info("Starting image upload to Cloudinary");
 
-    final files = await UploadService.uploadFiles(
-      _images.map((image) => image.path).toList(),
-      context: 'animal_gallery',
-    );
+    for (final image in _images) {
+      try {
+        final uri = Uri.parse(
+          'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+        );
 
-    AppLogger.info("Total uploaded images: ${files.length}");
-    return files.map((file) => file.url).toList();
+        final request = http.MultipartRequest('POST', uri)
+          ..fields['upload_preset'] = uploadPreset
+          ..files.add(await http.MultipartFile.fromPath('file', image.path));
+
+        final response = await request.send();
+
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(await response.stream.bytesToString());
+
+          uploadedUrls.add(decoded['secure_url']);
+
+          AppLogger.info(
+            "Image uploaded successfully: ${decoded['secure_url']}",
+          );
+        } else {
+          AppLogger.warning(
+            "Cloudinary upload failed | Status: ${response.statusCode}",
+          );
+        }
+      } catch (e, stack) {
+        AppLogger.error("Image upload error", e, stack);
+      }
+    }
+
+    AppLogger.info("Total uploaded images: ${uploadedUrls.length}");
+
+    return uploadedUrls;
   }
 
   Future<void> addAnimal() async {
@@ -197,7 +225,7 @@ class _AddAnimalPageState extends State<AddAnimalPage> {
     setState(() => isLoading = true);
 
     try {
-      final imageUrls = await uploadAnimalImages();
+      final imageUrls = await uploadImagesToCloudinary();
       final qurbaniDateTime = getCombinedQurbaniDateTime();
       final body = {
         "animalType": resolvedAnimalType,

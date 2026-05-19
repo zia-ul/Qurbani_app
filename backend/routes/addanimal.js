@@ -8,15 +8,12 @@ const pool = require("../config/db");
 const authMiddleware = require("../middleware/authmiddleware");
 const router = express.Router();
 
-
-
 router.get("/barcode/:barcode", authMiddleware, async (req, res) => {
   const { barcode } = req.params;
 
   try {
-    // 1) Find animal by barcode
-    const [animalRows] = await pool.execute(
-      `
+    // Find animal by barcode
+    const animalQuery = `
       SELECT
         a.id,
         a.animal_type,
@@ -24,23 +21,27 @@ router.get("/barcode/:barcode", authMiddleware, async (req, res) => {
         a.qurbani_datetime,
         ad.barcode
       FROM animal_details ad
-      INNER JOIN animals a ON a.id = ad.animal_id
-      WHERE ad.barcode = ?
+      INNER JOIN animals a
+        ON a.id = ad.animal_id
+      WHERE ad.barcode = $1
       LIMIT 1
-      `,
+    `;
+
+    const animalResult = await pool.query(
+      animalQuery,
       [barcode]
     );
 
-    if (!animalRows.length) {
-      return res.status(404).json({ message: "Animal not found" });
+    if (!animalResult.rows.length) {
+      return res.status(404).json({
+        message: "Animal not found",
+      });
     }
 
-    const animal = animalRows[0];
+    const animal = animalResult.rows[0];
 
-    // 2) Get all shareholders assigned to this animal
-    // contact comes from orders.user_id -> users.phone
-    const [shareholderRows] = await pool.execute(
-      `
+    // Get shareholders
+    const shareholderQuery = `
       SELECT
         sd.id,
         sd.shareholder_name,
@@ -53,11 +54,16 @@ router.get("/barcode/:barcode", authMiddleware, async (req, res) => {
         u.phone AS contact_no,
         u.name AS user_name
       FROM shareholder_details sd
-      LEFT JOIN orders o ON o.id = sd.order_id
-      LEFT JOIN users u ON u.id = o.user_id
-      WHERE sd.animal_id = ?
+      LEFT JOIN orders o
+        ON o.id = sd.order_id
+      LEFT JOIN users u
+        ON u.id = o.user_id
+      WHERE sd.animal_id = $1
       ORDER BY sd.share_number ASC, sd.id ASC
-      `,
+    `;
+
+    const shareholderResult = await pool.query(
+      shareholderQuery,
       [animal.id]
     );
 
@@ -69,7 +75,8 @@ router.get("/barcode/:barcode", authMiddleware, async (req, res) => {
         qurbani_day: animal.qurbani_day,
         qurbani_datetime: animal.qurbani_datetime,
       },
-      shareholders: shareholderRows.map((row) => ({
+
+      shareholders: shareholderResult.rows.map((row) => ({
         id: row.id,
         shareholder_name: row.shareholder_name,
         guardian_name: row.guardian_name,
@@ -81,6 +88,7 @@ router.get("/barcode/:barcode", authMiddleware, async (req, res) => {
         qurbani_datetime: row.qurbani_datetime,
       })),
     });
+
   } catch (err) {
     logger.error("Failed to fetch animal details by barcode", {
       barcode,
@@ -163,40 +171,39 @@ function generateBarcode() {
   return timestampPart + randomPart; // total 12 digits
 }
 
-async function getAnimalsIdConfig(connection) {
-  const [columns] = await connection.query(
-    `
+async function getAnimalsIdConfig() {
+  const query = `
     SELECT
-      COLUMN_NAME AS column_name,
-      DATA_TYPE AS data_type,
-      EXTRA AS extra
-    FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'animals'
-      AND COLUMN_NAME = 'id'
-    `,
-  );
+      column_name,
+      data_type,
+      is_identity
+    FROM information_schema.columns
+    WHERE table_name = 'animals'
+      AND column_name = 'id'
+  `;
+
+  const result = await pool.query(query);
+
+  const columns = result.rows;
 
   const idColumn = columns[0];
+
   const idDataType = (idColumn?.data_type || "").toLowerCase();
-  const idExtra = (idColumn?.extra || "").toLowerCase();
 
   return {
-    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
+    requiresExplicitId: Boolean(idColumn) && idColumn.is_identity !== "YES",
+
     idIsNumeric: [
-      "tinyint",
       "smallint",
-      "mediumint",
-      "int",
+      "integer",
       "bigint",
-      "decimal",
       "numeric",
+      "decimal",
     ].includes(idDataType),
   };
 }
 
 async function buildAnimalInsertPayload(
-  connection,
   adminId,
   animalType,
   pricePerShare,
@@ -204,19 +211,23 @@ async function buildAnimalInsertPayload(
   qurbaniDay,
   qurbaniDatetime,
 ) {
-  const tableConfig = await getAnimalsIdConfig(connection);
+  const tableConfig = await getAnimalsIdConfig();
+
   const columns = [];
   const values = [];
 
   let animalId = null;
+
   if (tableConfig.requiresExplicitId) {
     columns.push("id");
 
     if (tableConfig.idIsNumeric) {
-      const [[row]] = await connection.query(
-        `SELECT COALESCE(MAX(id), 0) AS maxId FROM animals`,
-      );
-      animalId = Number(row?.maxId || 0) + 1;
+      const result = await pool.query(`
+        SELECT COALESCE(MAX(id), 0) AS max_id
+        FROM animals
+      `);
+
+      animalId = Number(result.rows[0]?.max_id || 0) + 1;
     } else {
       animalId = `${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`;
     }
@@ -233,11 +244,23 @@ async function buildAnimalInsertPayload(
     "qurbani_day",
     "qurbani_datetime",
   );
-  values.push(adminId, animalType, pricePerShare, shares, null, qurbaniDay, qurbaniDatetime);
 
-  return { columns, values, animalId };
+  values.push(
+    adminId,
+    animalType,
+    pricePerShare,
+    shares,
+    null,
+    qurbaniDay,
+    qurbaniDatetime,
+  );
+
+  return {
+    columns,
+    values,
+    animalId,
+  };
 }
-
 
 router.post(
   "/",
@@ -300,13 +323,12 @@ router.post(
       });
     }
 
-    const connection = await pool.getConnection();
+    const client = await pool.connect();
 
     try {
-      await connection.beginTransaction();
+      await client.query("BEGIN");
 
       const animalInsert = await buildAnimalInsertPayload(
-        connection,
         adminId,
         resolvedAnimalType,
         normalizedPricePerShare,
@@ -316,38 +338,36 @@ router.post(
       );
 
       // Insert into animals
-      const [animalResult] = await connection.query(
-        `
-        INSERT INTO animals (
-          ${animalInsert.columns.join(", ")}
-        )
-        VALUES (${animalInsert.columns.map(() => "?").join(", ")})
-        `,
-        animalInsert.values
-      );
+      const placeholders = animalInsert.values
+        .map((_, index) => `$${index + 1}`)
+        .join(", ");
 
-      const animalId = animalInsert.animalId ?? animalResult.insertId;
+      const animalQuery = `
+  INSERT INTO animals (
+    ${animalInsert.columns.join(", ")}
+  )
+  VALUES (${placeholders})
+  RETURNING id
+`;
 
+      const animalResult = await client.query(animalQuery, animalInsert.values);
+
+      const animalId = animalInsert.animalId ?? animalResult.rows[0].id;
       // Insert into animal_details using same animalId
-      await connection.query(
+      await client.query(
         `
-        INSERT INTO animal_details (
-          animal_id,
-          barcode,
-          photo_urls,
-          qurbani_datetime
-        )
-        VALUES (?, ?, ?, ?)
-        `,
-        [
-          animalId,
-          barcode,
-          JSON.stringify(images || []),
-          qurbaniDatetime,
-        ]
+  INSERT INTO animal_details (
+    animal_id,
+    barcode,
+    photo_urls,
+    qurbani_datetime
+  )
+  VALUES ($1, $2, $3, $4)
+  `,
+        [animalId, barcode, JSON.stringify(images || []), qurbaniDatetime],
       );
 
-      await connection.commit();
+      await client.query("COMMIT");
 
       logger.info("Animal added successfully", {
         adminId,
@@ -363,7 +383,7 @@ router.post(
         animalId,
       });
     } catch (err) {
-      await connection.rollback();
+      await client.query("ROLLBACK");
       logger.error("Failed to add animal", {
         adminId,
         animalType,
@@ -377,13 +397,14 @@ router.post(
         message: "Unable to add the animal right now. Please try again later.",
       });
     } finally {
-      connection.release();
+      client.release();
     }
-  }
+  },
 );
 
 router.post("/:animalId", async (req, res) => {
   const { animalId } = req.params;
+
   const {
     orderId,
     barcode,
@@ -402,72 +423,95 @@ router.post("/:animalId", async (req, res) => {
   }
 
   try {
-    // Fetch a valid shareholder_id for this animal + order
-    const [shareholders] = await pool.query(
-      `SELECT id 
-       FROM order_shareholders 
-       WHERE animal_id = ? AND order_id = ?
-       LIMIT 1`,
+
+    // Fetch shareholder
+    const shareholderQuery = `
+      SELECT id
+      FROM order_shareholders
+      WHERE animal_id = $1
+        AND order_id = $2
+      LIMIT 1
+    `;
+
+    const shareholderResult = await pool.query(
+      shareholderQuery,
       [animalId, orderId]
     );
 
-    if (!shareholders.length) {
+    if (!shareholderResult.rows.length) {
       return res.status(400).json({
-        error: "No shareholder found for this animal and order",
+        error:
+          "No shareholder found for this animal and order",
       });
     }
 
-    const shareholderId = shareholders[0].id;
+    const shareholderId =
+      shareholderResult.rows[0].id;
+
     const id = crypto.randomUUID();
 
-    // Insert animal_details with shareholder_id
-    await pool.query(
-      `INSERT INTO animal_details
-       (
-         id,
-         animal_id,
-         order_id,
-         shareholder_id,
-         barcode,
-         breed,
-         description,
-         age,
-         height,
-         weight,
-         photo_urls
-       )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
+    // Insert animal details
+    const insertQuery = `
+      INSERT INTO animal_details (
         id,
-        animalId,
-        orderId,
-        shareholderId,
+        animal_id,
+        order_id,
+        shareholder_id,
         barcode,
         breed,
         description,
         age,
         height,
         weight,
-        JSON.stringify(photoUrls || []),
-      ]
-    );
+        photo_urls
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        $10,
+        $11
+      )
+    `;
+
+    await pool.query(insertQuery, [
+      id,
+      animalId,
+      orderId,
+      shareholderId,
+      barcode,
+      breed,
+      description,
+      age,
+      height,
+      weight,
+      JSON.stringify(photoUrls || []),
+    ]);
 
     return res.status(200).json({
       message: "Animal details saved",
       id,
     });
+
   } catch (err) {
+
     logger.error("Animal details insert failed", {
       animalId,
       orderId,
       error: err.message,
       stack: err.stack,
     });
+
     return res.status(500).json({
       error: "Internal server error",
     });
   }
 });
-
 
 module.exports = router;

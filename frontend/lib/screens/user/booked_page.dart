@@ -65,6 +65,8 @@ class _BookedPageState extends State<BookedPage> {
     try {
       orders = await OrderService.getUserOrders();
 
+      print("Fetched ${orders.length} orders for user ${widget.userId} ${orders}");
+
       //cancel order
       for (final order in orders) {
         final orderStatus = _parseInt(order['status']);

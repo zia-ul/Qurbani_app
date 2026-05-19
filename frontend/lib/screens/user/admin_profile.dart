@@ -46,6 +46,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         },
       );
 
+      print('Admin profile API response: ${res.statusCode} ${res.body}');
+
       AppLogger.debug(
         "Admin profile API response | statusCode=${res.statusCode}",
       );
@@ -176,7 +178,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
             );
           }
 
-          final data = snapshot.data!;
+          final response = snapshot.data!;
+final data = response['admin'] ?? {};
 
           final String name = data['name'] ?? 'Unknown Admin';
           final String description = data['description'] ?? 'Not Available';

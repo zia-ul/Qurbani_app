@@ -231,27 +231,21 @@ router.get(
 
     try {
 
-      // First verify animal belongs to admin
-      const {
-        data: animal,
-        error: animalError,
-      } = await supabase
-        .from("animals")
-        .select("id")
-        .eq("id", animalId)
-        .eq("admin_id", adminId)
-        .single();
+      // Verify animal belongs to admin
+      const animalQuery = `
+        SELECT id
+        FROM animals
+        WHERE id = $1
+          AND admin_id = $2
+        LIMIT 1
+      `;
 
-      if (
-        animalError &&
-        animalError.code !== "PGRST116"
-      ) {
-        throw new Error(
-          animalError.message
-        );
-      }
+      const animalResult = await pool.query(
+        animalQuery,
+        [animalId, adminId]
+      );
 
-      if (!animal) {
+      if (!animalResult.rows.length) {
         return res.status(403).json({
           message:
             "You are not authorized to access this animal",
@@ -259,30 +253,23 @@ router.get(
       }
 
       // Fetch shareholders
-      const {
-        data: shareholders,
-        error: shareholdersError,
-      } = await supabase
-        .from("shareholder_details")
-        .select(`
+      const shareholdersQuery = `
+        SELECT
           id,
           shareholder_name,
           qurbani_datetime
-        `)
-        .eq("animal_id", animalId)
-        .order("qurbani_datetime", {
-          ascending: true,
-        });
+        FROM shareholder_details
+        WHERE animal_id = $1
+        ORDER BY qurbani_datetime ASC
+      `;
 
-      if (shareholdersError) {
-        throw new Error(
-          shareholdersError.message
-        );
-      }
+      const shareholdersResult = await pool.query(
+        shareholdersQuery,
+        [animalId]
+      );
 
-      // Format response
       const formattedRows =
-        shareholders.map((s) => ({
+        shareholdersResult.rows.map((s) => ({
           shareholder_id: s.id,
           shareholder_name:
             s.shareholder_name,

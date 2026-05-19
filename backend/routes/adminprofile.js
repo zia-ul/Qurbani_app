@@ -99,6 +99,9 @@ router.get("/:id", authMiddleware, async (req, res) => {
   const adminId = req.params.id;
 
   try {
+
+    console.log("Fetching admin profile for ID:", adminId);
+
     logger.info("Fetching admin profile", {
       adminId,
       requestedBy: req.user?.id,
@@ -109,9 +112,9 @@ router.get("/:id", authMiddleware, async (req, res) => {
      * Fetch Admin User
      * ================================
      */
-    const { data: admin, error: adminError } = await supabase
-      .from("users")
-      .select(`
+
+    const adminQuery = `
+      SELECT
         id,
         name,
         email,
@@ -122,15 +125,24 @@ router.get("/:id", authMiddleware, async (req, res) => {
         order_deadline,
         photo_url,
         role
-      `)
-      .eq("id", adminId)
-      .eq("role", "admin")
-      .single();
+      FROM users
+      WHERE id = $1
+        AND role = $2
+      LIMIT 1
+    `;
 
-    if (adminError || !admin) {
+
+    const adminResult = await db.query(
+      adminQuery,
+      [adminId, "admin"]
+    );
+
+    const admin = adminResult.rows[0];
+
+    if (!admin) {
+
       logger.warn("Admin not found", {
         adminId,
-        error: adminError?.message,
       });
 
       return res.status(404).json({
@@ -144,65 +156,68 @@ router.get("/:id", authMiddleware, async (req, res) => {
      * Fetch Orders
      * ================================
      */
-    const { data: orders, error: orderError } = await supabase
-      .from("orders")
-      .select("id, status")
-      .eq("admin_id", adminId);
 
-    if (orderError) {
-      logger.error("Failed to fetch admin orders", {
-        adminId,
-        error: orderError.message,
-      });
+    const ordersQuery = `
+      SELECT
+        id,
+        status
+      FROM orders
+      WHERE admin_id = $1
+    `;
 
-      return res.status(500).json({
-        success: false,
-        message: "Failed to fetch admin orders",
-      });
-    }
+    const ordersResult = await db.query(
+      ordersQuery,
+      [adminId]
+    );
+
+    const orders = ordersResult.rows;
 
     /**
      * ================================
      * Fetch Ratings
      * ================================
      */
-    const { data: ratings, error: ratingError } = await supabase
-      .from("ratings")
-      .select("admin_rating")
-      .eq("admin_id", adminId);
 
-    if (ratingError) {
-      logger.error("Failed to fetch ratings", {
-        adminId,
-        error: ratingError.message,
-      });
+    const ratingsQuery = `
+      SELECT
+        admin_rating
+      FROM ratings
+      WHERE admin_id = $1
+    `;
 
-      return res.status(500).json({
-        success: false,
-        message: "Failed to fetch ratings",
-      });
-    }
+    
+
+    const ratingsResult = await db.query(
+      ratingsQuery,
+      [adminId]
+    );
+console.log("ratingsResult", ratingsResult);
+    const ratings = ratingsResult.rows;
 
     /**
      * ================================
      * Calculate Stats
      * ================================
      */
-    const totalOrders = orders?.length || 0;
+
+    const totalOrders = orders.length;
 
     const completedOrders =
-      orders?.filter((o) => {
+      orders.filter((o) => {
+
         const normalizedStatus = String(
           o.status ?? ""
-        ).trim().toLowerCase();
+        )
+          .trim()
+          .toLowerCase();
 
         return (
           normalizedStatus === "completed" ||
           normalizedStatus === "1"
         );
-      }).length || 0;
+      }).length;
 
-    const totalRatings = ratings?.length || 0;
+    const totalRatings = ratings.length;
 
     const averageRating =
       totalRatings > 0
@@ -222,13 +237,17 @@ router.get("/:id", authMiddleware, async (req, res) => {
      * Success Response
      * ================================
      */
-    logger.info("Admin profile fetched successfully", {
-      adminId,
-      totalOrders,
-      completedOrders,
-      totalRatings,
-      averageRating,
-    });
+
+    logger.info(
+      "Admin profile fetched successfully",
+      {
+        adminId,
+        totalOrders,
+        completedOrders,
+        totalRatings,
+        averageRating,
+      }
+    );
 
     return res.status(200).json({
       success: true,
@@ -240,21 +259,22 @@ router.get("/:id", authMiddleware, async (req, res) => {
         averageRating,
       },
     });
+
   } catch (err) {
-    /**
-     * ================================
-     * Unexpected Errors
-     * ================================
-     */
-    logger.error("Unexpected error fetching admin profile", {
-      adminId,
-      error: err.message,
-      stack: err.stack,
-    });
+
+    logger.error(
+      "Unexpected error fetching admin profile",
+      {
+        adminId,
+        error: err.message,
+        stack: err.stack,
+      }
+    );
 
     return res.status(500).json({
       success: false,
-      message: "Something went wrong. Please try again later.",
+      message:
+        "Something went wrong. Please try again later.",
     });
   }
 });

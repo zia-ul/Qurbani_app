@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const supabase = require("../config/db");
+const supabase = require("../config/supabase");
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");

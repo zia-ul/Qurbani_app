@@ -23,7 +23,8 @@
 const express = require("express");
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
-const supabase = require("../config/db");
+const db = require("../config/db");
+const supabase = require('../config/supabase');
 const authMiddleware = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
@@ -103,10 +104,7 @@ const buildOrderInsertPayload = async (
   shareholderCount,
   totalAmount,
 ) => {
-  const orderId = uuidv4();
-
   return {
-    id: orderId,
     user_id: userId,
     admin_id: adminId,
     payment_method: normalizedPaymentMethod,
@@ -114,7 +112,6 @@ const buildOrderInsertPayload = async (
     total_amt: totalAmount,
   };
 };
-
 const buildShareholderInsertPayload = async (
   orderId,
   shareholders,
@@ -128,14 +125,32 @@ const buildShareholderInsertPayload = async (
     }
 
     return {
-      id: uuidv4(),
+      // REMOVE id: orderId
+
       order_id: orderId,
-      shareholder_name: sanitizeText(shareholder.name || shareholder.shareholder_name),
-      guardian_name: sanitizeText(shareholder.guardianName || shareholder.guardian_name),
-      qurbani_day: sanitizeText(shareholder.qurbaniDay || shareholder.qurbani_day),
-      animal_type: sanitizeText(shareholder.animal_type || shareholder.animalType || shareholder.animal),
+
+      shareholder_name: sanitizeText(
+        shareholder.name || shareholder.shareholder_name
+      ),
+
+      guardian_name: sanitizeText(
+        shareholder.guardianName || shareholder.guardian_name
+      ),
+
+      qurbani_day: sanitizeText(
+        shareholder.qurbaniDay || shareholder.qurbani_day
+      ),
+
+      animal_type: sanitizeText(
+        shareholder.animal_type ||
+        shareholder.animalType ||
+        shareholder.animal
+      ),
+
       price: Number(shareholder.price || 0),
+
       address: JSON.stringify(normalizedAddress),
+
       payment_status: normalizedPaymentStatus,
     };
   });
@@ -582,6 +597,8 @@ const buildAdminOrderResponse = (
 
 router.get("/my", authMiddleware, async (req, res) => {
   const userId = req.user.id;
+
+  console.log("Fetching orders for user:", userId);
 
   try {
     const shareholderTableConfig = await getShareholderTableConfig();
@@ -1104,7 +1121,8 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       .order("order_id", { ascending: false })
       .order("id", { ascending: true });
     throwDb(shareholdersError, "Failed to fetch shareholders");
-
+    
+    console.log("Fetched shareholders count:", shareholders?.length ?? 0);
     const shareholdersByOrderId = new Map();
     for (const shareholder of shareholders || []) {
       const key = String(shareholder.order_id);
@@ -1131,6 +1149,8 @@ router.get("/admin/my", authMiddleware, async (req, res) => {
       adminId,
       orderCount: formattedOrders.length,
     });
+
+    console.log("Formatted orders count:", formattedOrders);
 
     return ok(res, "Orders fetched successfully", { orders: formattedOrders });
   } catch (err) {

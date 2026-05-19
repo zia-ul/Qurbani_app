@@ -64,34 +64,38 @@ const getRazorpayErrorMessage = (error) =>
   error.response?.data?.error?.reason ||
   error.response?.data?.message ||
   error.message;
-
 async function loadOrderForPayment(orderId, connection = pool) {
-  const [orders] = await connection.query(
+  const result = await connection.query(
     `
     SELECT
       o.*,
       u.razorpay_linked_account_id AS admin_razorpay_linked_account_id
     FROM orders o
     JOIN users u ON u.id = o.admin_id
-    WHERE o.id = ?
+    WHERE o.id = $1
     LIMIT 1
     `,
     [orderId],
   );
+
+  const orders = result.rows;
 
   if (!orders.length) {
     return null;
   }
 
   const order = orders[0];
-  const [shareholders] = await connection.query(
+
+  const shareholderResult = await connection.query(
     `
     SELECT id, price, payment_status, status
     FROM shareholder_details
-    WHERE order_id = ?
+    WHERE order_id = $1
     `,
     [orderId],
   );
+
+  const shareholders = shareholderResult.rows;
 
   return {
     ...order,
@@ -183,6 +187,7 @@ function buildRazorpayOrderPayload({
 async function createRazorpayOrder({ orderId }) {
   const config = requireRazorpayKeys();
   const order = await loadOrderForPayment(orderId);
+print("Creating Razorpay order for orderId = $orderId");
 
   if (!order) {
     const error = new Error("Order not found");
@@ -233,28 +238,28 @@ async function createRazorpayOrder({ orderId }) {
   const razorpayOrder = response.data;
 
   await pool.query(
-    `
-    UPDATE orders
-    SET razorpay_order_id = ?,
-        razorpay_expected_amount = ?,
-        razorpay_currency = ?,
-        razorpay_order_status = ?,
-        vendor_linked_account_id = ?,
-        platform_commission_amount = ?,
-        vendor_amount = ?,
-        payment_status = 2
-    WHERE id = ?
-    `,
-    [
-      razorpayOrder.id,
-      totalAmountPaise,
-      config.currency,
-      razorpayOrder.status || "created",
-      vendorLinkedAccountId || null,
-      platformCommissionPaise,
-      vendorAmountPaise,
-      orderId,
-    ],
+  `
+  UPDATE orders
+  SET razorpay_order_id = $1,
+      razorpay_expected_amount = $2,
+      razorpay_currency = $3,
+      razorpay_order_status = $4,
+      vendor_linked_account_id = $5,
+      platform_commission_amount = $6,
+      vendor_amount = $7,
+      payment_status = 2
+  WHERE id = $8
+  `,
+  [
+    razorpayOrder.id,
+    totalAmountPaise,
+    config.currency,
+    razorpayOrder.status || "created",
+    vendorLinkedAccountId || null,
+    platformCommissionPaise,
+    vendorAmountPaise,
+    orderId,
+  ],
   );
 
   return {

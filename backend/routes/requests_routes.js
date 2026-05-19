@@ -23,61 +23,54 @@ const auth = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
 
-async function getRequestsTableConfig(connection) {
-  const [columns] = await connection.query(
-    `
+async function getRequestsTableConfig() {
+  const query = `
     SELECT
-      COLUMN_NAME AS column_name,
-      DATA_TYPE AS data_type,
-      COLUMN_TYPE AS column_type,
-      EXTRA AS extra
-    FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'requests'
-      AND COLUMN_NAME IN ('id', 'status')
-    `,
-  );
+      column_name,
+      data_type,
+      is_identity
+    FROM information_schema.columns
+    WHERE table_name = 'requests'
+      AND column_name IN ('id', 'status')
+  `;
+
+  const result = await pool.query(query);
+
+  const columns = result.rows;
 
   const idColumn = columns.find((column) => column.column_name === "id");
+
   const statusColumn = columns.find(
     (column) => column.column_name === "status",
   );
 
   const idDataType = (idColumn?.data_type || "").toLowerCase();
-  const idExtra = (idColumn?.extra || "").toLowerCase();
   const statusDataType = (statusColumn?.data_type || "").toLowerCase();
 
   return {
-    requiresExplicitId: Boolean(idColumn) && !idExtra.includes("auto_increment"),
+    requiresExplicitId: Boolean(idColumn) && idColumn.is_identity !== "YES",
+
     idIsNumeric: [
-      "tinyint",
       "smallint",
-      "mediumint",
-      "int",
+      "integer",
       "bigint",
-      "decimal",
       "numeric",
+      "decimal",
     ].includes(idDataType),
+
     statusIsNumeric: [
-      "tinyint",
       "smallint",
-      "mediumint",
-      "int",
+      "integer",
       "bigint",
-      "decimal",
       "numeric",
+      "decimal",
     ].includes(statusDataType),
   };
 }
 
-async function buildRequestInsertPayload(
-  connection,
-  orderId,
-  userId,
-  title,
-  description,
-) {
-  const tableConfig = await getRequestsTableConfig(connection);
+async function buildRequestInsertPayload(orderId, userId, title, description) {
+  const tableConfig = await getRequestsTableConfig();
+
   const columns = [];
   const values = [];
 
@@ -85,16 +78,19 @@ async function buildRequestInsertPayload(
     columns.push("id");
 
     if (tableConfig.idIsNumeric) {
-      const [[row]] = await connection.query(
-        `SELECT COALESCE(MAX(id), 0) AS maxId FROM requests`,
-      );
-      values.push(Number(row?.maxId || 0) + 1);
+      const result = await pool.query(`
+        SELECT COALESCE(MAX(id), 0) AS max_id
+        FROM requests
+      `);
+
+      values.push(Number(result.rows[0]?.max_id || 0) + 1);
     } else {
       values.push(`${Date.now()}${Math.floor(1000 + Math.random() * 9000)}`);
     }
   }
 
   columns.push("order_id", "user_id", "title", "description", "status");
+
   values.push(
     orderId,
     userId,
@@ -103,7 +99,11 @@ async function buildRequestInsertPayload(
     tableConfig.statusIsNumeric ? 0 : "Pending",
   );
 
-  return { columns, values, tableConfig };
+  return {
+    columns,
+    values,
+    tableConfig,
+  };
 }
 
 /**
@@ -156,7 +156,6 @@ async function buildRequestInsertPayload(
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * ===========================================
  * USER REQUEST ROUTES
@@ -172,78 +171,100 @@ async function buildRequestInsertPayload(
  */
 router.post("/", auth, async (req, res) => {
   const { orderId, userId, title, description } = req.body;
+
   const authUserId = req.user.id?.toString().trim();
-  const normalizedUserId = (userId ?? authUserId).toString().trim();
+
+  const normalizedUserId = (userId ?? authUserId)
+    .toString()
+    .trim();
+
   const normalizedOrderId = orderId?.toString().trim();
   const normalizedTitle = title?.toString().trim();
   const normalizedDescription = description?.toString().trim();
 
-  // Security check: Ensure the authenticated user can only submit requests for themselves
   if (authUserId !== normalizedUserId) {
     logger.warn("Unauthorized request submission attempt", {
       authUserId,
       bodyUserId: normalizedUserId,
       orderId: normalizedOrderId,
     });
-    return res.status(403).json({ message: "Unauthorized" });
+
+    return res.status(403).json({
+      message: "Unauthorized",
+    });
   }
 
-  // Validation: Ensure all required fields are provided
-  if (!normalizedOrderId || !normalizedTitle || !normalizedDescription) {
+  if (
+    !normalizedOrderId ||
+    !normalizedTitle ||
+    !normalizedDescription
+  ) {
     logger.warn("Missing fields in request submission", {
       userId: normalizedUserId,
       orderId: normalizedOrderId,
       hasTitle: !!normalizedTitle,
       hasDescription: !!normalizedDescription,
     });
-    return res.status(400).json({ message: "Missing required fields" });
+
+    return res.status(400).json({
+      message: "Missing required fields",
+    });
   }
 
-  const connection = await pool.getConnection();
-
   try {
-    const [orderRows] = await connection.execute(
-      `
-      SELECT id, admin_id
+    const orderQuery = `
+      SELECT
+        id,
+        admin_id
       FROM orders
-      WHERE id = ? AND user_id = ?
+      WHERE id = $1
+        AND user_id = $2
       LIMIT 1
-      `,
-      [normalizedOrderId, normalizedUserId]
-    );
+    `;
 
-    if (!orderRows.length) {
-      logger.warn("Special request submission blocked for inaccessible order", {
-        userId: normalizedUserId,
-        orderId: normalizedOrderId,
-      });
+    const orderResult = await pool.query(orderQuery, [
+      normalizedOrderId,
+      normalizedUserId,
+    ]);
+
+    if (!orderResult.rows.length) {
+      logger.warn(
+        "Special request submission blocked for inaccessible order",
+        {
+          userId: normalizedUserId,
+          orderId: normalizedOrderId,
+        }
+      );
+
       return res.status(404).json({
         message: "Order not found for this user",
       });
     }
 
-    const adminId = orderRows[0].admin_id;
+    const adminId = orderResult.rows[0].admin_id;
+
     const requestInsert = await buildRequestInsertPayload(
-      connection,
       normalizedOrderId,
       normalizedUserId,
       normalizedTitle,
-      normalizedDescription,
+      normalizedDescription
     );
 
-    await connection.execute(
-      `
+    const placeholders = requestInsert.values
+      .map((_, index) => `$${index + 1}`)
+      .join(", ");
+
+    const insertQuery = `
       INSERT INTO requests (${requestInsert.columns.join(", ")})
-      VALUES (${requestInsert.columns.map(() => "?").join(", ")})
-      `,
-      requestInsert.values,
-    );
+      VALUES (${placeholders})
+    `;
+
+    await pool.query(insertQuery, requestInsert.values);
 
     // ================================
-    // 🔔 SEND NOTIFICATION TO ADMINS
+    // SEND NOTIFICATION TO ADMINS
     // ================================
 
-    // 1️⃣ Get all admin IDs
     const admins = adminId ? [{ id: adminId }] : [];
 
     const adminIds = admins.map((admin) => admin.id);
@@ -251,21 +272,22 @@ router.post("/", auth, async (req, res) => {
     let adminSubscriptionIds = [];
 
     if (adminIds.length > 0) {
-      // 2️⃣ Get all subscription IDs from user_devices
-      const [devices] = await connection.query(
-        `SELECT subscription_id 
-         FROM user_devices 
-         WHERE user_id IN (?) 
-         AND subscription_id IS NOT NULL`,
-        [adminIds]
-      );
+      const deviceQuery = `
+        SELECT subscription_id
+        FROM user_devices
+        WHERE user_id = ANY($1)
+          AND subscription_id IS NOT NULL
+      `;
 
-      adminSubscriptionIds = devices
+      const devicesResult = await pool.query(deviceQuery, [
+        adminIds,
+      ]);
+
+      adminSubscriptionIds = devicesResult.rows
         .map((device) => device.subscription_id)
         .filter(Boolean);
     }
 
-    // 3️⃣ Send push notification
     if (adminSubscriptionIds.length > 0) {
       await sendPushNotification(
         adminSubscriptionIds,
@@ -279,9 +301,6 @@ router.post("/", auth, async (req, res) => {
       );
     }
 
-    // ================================
-
-    // Log successful request submission for audit trail
     logger.info("Special request submitted successfully", {
       userId: normalizedUserId,
       orderId: normalizedOrderId,
@@ -290,11 +309,13 @@ router.post("/", auth, async (req, res) => {
       requestType: "special_request",
     });
 
-    // Return success response to the client
-    res.status(201).json({ message: "Request submitted successfully" });
+    res.status(201).json({
+      message: "Request submitted successfully",
+    });
 
   } catch (err) {
-    const statusCode = err.code === "ER_DUP_ENTRY" ? 409 : 500;
+    const statusCode =
+      err.code === "23505" ? 409 : 500;
 
     logger.error("Error submitting special request", {
       userId: normalizedUserId,
@@ -309,13 +330,10 @@ router.post("/", auth, async (req, res) => {
       message:
         statusCode === 409
           ? "This special request already exists."
-          : "Something went wrong. Please try again later."
+          : "Something went wrong. Please try again later.",
     });
-  } finally {
-    connection.release();
   }
 });
-
 
 /**
  * @swagger
@@ -368,7 +386,6 @@ router.post("/", auth, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * GET /api/requests/:orderId/:userId
  * Fetch all special requests for a specific user and order combination
@@ -376,45 +393,49 @@ router.post("/", auth, async (req, res) => {
  * Results are ordered by creation date (newest first) for better UX
  */
 router.get("/:orderId/:userId", auth, async (req, res) => {
-  // Extract order and user IDs from URL parameters
   const { orderId, userId } = req.params;
 
-  // Security check: Users can only view their own requests
-  // This prevents unauthorized access to other users' private requests
   if (req.user.id !== userId) {
     logger.warn("Unauthorized request fetch attempt", {
-      authUserId: req.user.id,      // Who is actually logged in
-      requestedUserId: userId,      // Whose requests are being requested
+      authUserId: req.user.id,
+      requestedUserId: userId,
       orderId,
     });
-    return res.status(403).json({ message: "Unauthorized" });
+
+    return res.status(403).json({
+      message: "Unauthorized",
+    });
   }
 
   try {
-    // Query the database for all requests matching the user and order
-    // Only return basic request information (excluding admin-only fields like replies)
-    const [requests] = await pool.execute(
-      `
-      SELECT id, title, description, status, created_at
+    const query = `
+      SELECT
+        id,
+        title,
+        description,
+        status,
+        created_at
       FROM requests
-      WHERE order_id = ? AND user_id = ?
+      WHERE order_id = $1
+        AND user_id = $2
       ORDER BY created_at DESC
-      `,
-      [orderId, userId]
-    );
+    `;
 
-    // Log successful request fetch for audit trail
+    const values = [orderId, userId];
+
+    const result = await pool.query(query, values);
+
     logger.info("User successfully fetched their special requests", {
       userId,
       orderId,
-      requestCount: requests.length,
-      requestStatuses: requests.map(r => r.status), // For monitoring request status distribution
+      requestCount: result.rows.length,
+      requestStatuses: result.rows.map((r) => r.status),
     });
 
-    // Return the requests array to the client
-    res.json({ requests });
+    res.json({
+      requests: result.rows,
+    });
   } catch (err) {
-    // Log error with full context for debugging
     logger.error("Error fetching user special requests", {
       userId,
       orderId,
@@ -422,12 +443,11 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    // Return generic error message to client
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
-
-
 
 /**
  * @swagger
@@ -486,7 +506,6 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * GET /api/requests/admin
  * Fetch all special requests for admin (with optional status filter)
@@ -505,16 +524,25 @@ router.get("/admin", auth, async (req, res) => {
   try {
     let query = `
       SELECT 
-        r.id, r.order_id, r.user_id, r.title, r.description, r.status, r.created_at,
-        r.reply_message, r.replied_at, r.closed_at,
-        u.name as user_name, u.email as user_email
+        r.id,
+        r.order_id,
+        r.user_id,
+        r.title,
+        r.description,
+        r.status,
+        r.created_at,
+        r.reply_message,
+        r.replied_at,
+        r.closed_at,
+        u.name AS user_name,
+        u.email AS user_email
       FROM requests r
       JOIN orders o ON r.order_id = o.id
       JOIN users u ON r.user_id = u.id
-      WHERE o.admin_id = ?
-      ORDER BY r.created_at DESC
+      WHERE o.admin_id = $1
     `;
-    let params = [adminId];
+
+    const params = [adminId];
 
     if (status && status !== "All") {
       const normalizedStatus = Number.isNaN(Number(status))
@@ -522,22 +550,28 @@ router.get("/admin", auth, async (req, res) => {
         : Number(status);
 
       if (!Number.isInteger(normalizedStatus)) {
-        return res.status(400).json({ message: "Invalid status filter" });
+        return res.status(400).json({
+          message: "Invalid status filter",
+        });
       }
 
-      query = query.replace("ORDER BY", "AND r.status = ? ORDER BY");
-      params = [adminId, normalizedStatus];
+      query += ` AND r.status = $2 `;
+      params.push(normalizedStatus);
     }
 
-    const [requests] = await pool.execute(query, params);
+    query += ` ORDER BY r.created_at DESC`;
+
+    const result = await pool.query(query, params);
 
     logger.info("Admin fetched special requests", {
       adminId,
       status: status || "All",
-      count: requests.length,
+      count: result.rows.length,
     });
 
-    res.json({ requests });
+    res.json({
+      requests: result.rows,
+    });
   } catch (err) {
     logger.error("Error fetching admin requests", {
       adminId,
@@ -546,11 +580,11 @@ router.get("/admin", auth, async (req, res) => {
       stack: err.stack,
     });
 
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
+    res.status(500).json({
+      message: "Something went wrong. Please try again later.",
+    });
   }
 });
-
-
 
 /**
  * @swagger
@@ -599,7 +633,6 @@ router.get("/admin", auth, async (req, res) => {
  *         description: Something went wrong. Please try again later.
  */
 
-
 /**
  * PUT /api/requests/admin/:requestId
  * Admin endpoint to update special requests by replying or closing them
@@ -610,16 +643,23 @@ router.get("/admin", auth, async (req, res) => {
 router.put("/admin/:requestId", auth, async (req, res) => {
   const { requestId } = req.params;
   const { replyMessage, action } = req.body;
+
   const adminId = req.user.id;
 
   if (!action || (action === "reply" && !replyMessage)) {
-    logger.warn("Invalid admin request update attempt - missing required fields", {
-      adminId,
-      requestId,
-      action,
-      hasReplyMessage: !!replyMessage,
+    logger.warn(
+      "Invalid admin request update attempt - missing required fields",
+      {
+        adminId,
+        requestId,
+        action,
+        hasReplyMessage: !!replyMessage,
+      }
+    );
+
+    return res.status(400).json({
+      message: "Missing required fields",
     });
-    return res.status(400).json({ message: "Missing required fields" });
   }
 
   try {
@@ -628,61 +668,100 @@ router.put("/admin/:requestId", auth, async (req, res) => {
     if (action === "reply") {
       updateFields = {
         reply_message: replyMessage,
-        status: 1, // Replied
+        status: 1,
         replied_at: new Date(),
       };
+
     } else if (action === "close") {
       updateFields = {
-        status: 2, // Closed
+        status: 2,
         closed_at: new Date(),
       };
+
     } else {
-      return res.status(400).json({ message: "Invalid action" });
+      return res.status(400).json({
+        message: "Invalid action",
+      });
     }
 
-    const setClause = Object.keys(updateFields)
-      .map((key) => `${key} = ?`)
-      .join(", ");
-
-    const [requestRows] = await pool.execute(
-      `
-      SELECT r.id, r.user_id, r.order_id, r.title
+    const requestQuery = `
+      SELECT
+        r.id,
+        r.user_id,
+        r.order_id,
+        r.title
       FROM requests r
-      JOIN orders o ON r.order_id = o.id
-      WHERE r.id = ?
-        AND o.admin_id = ?
+      JOIN orders o
+        ON r.order_id = o.id
+      WHERE r.id = $1
+        AND o.admin_id = $2
       LIMIT 1
-      `,
+    `;
+
+    const requestResult = await pool.query(
+      requestQuery,
       [requestId, adminId]
     );
 
-    if (!requestRows.length) {
-      logger.warn("Admin tried to update an inaccessible request", {
-        adminId,
-        requestId,
+    if (!requestResult.rows.length) {
+      logger.warn(
+        "Admin tried to update an inaccessible request",
+        {
+          adminId,
+          requestId,
+        }
+      );
+
+      return res.status(404).json({
+        message: "Request not found",
       });
-      return res.status(404).json({ message: "Request not found" });
     }
 
-    const values = [...Object.values(updateFields), requestId];
+    const setClause = Object.keys(updateFields)
+      .map((key, index) => `${key} = $${index + 1}`)
+      .join(", ");
 
-    await pool.execute(
-      `UPDATE requests SET ${setClause} WHERE id = ?`,
-      values
-    );
+    const values = [
+      ...Object.values(updateFields),
+      requestId,
+    ];
 
-    // 🔔 SEND PUSH TO USER
+    const updateQuery = `
+      UPDATE requests
+      SET ${setClause}
+      WHERE id = $${values.length}
+    `;
+
+    await pool.query(updateQuery, values);
+
+    // ================================
+    // SEND PUSH TO USER
+    // ================================
+
     try {
-      const { user_id, order_id, title } = requestRows[0];
+      const {
+        user_id,
+        order_id,
+        title,
+      } = requestResult.rows[0];
 
-      const [devices] = await pool.execute(
-        `SELECT subscription_id FROM user_devices WHERE user_id = ?`,
+      const devicesQuery = `
+        SELECT subscription_id
+        FROM user_devices
+        WHERE user_id = $1
+      `;
+
+      const devicesResult = await pool.query(
+        devicesQuery,
         [user_id]
       );
 
-      const subscriptionIds = devices.map((d) => d.subscription_id);
+      const subscriptionIds = devicesResult.rows
+        .map((d) => d.subscription_id)
+        .filter(Boolean);
 
       if (subscriptionIds.length > 0) {
+
         if (action === "reply") {
           await sendPushNotification(
             subscriptionIds,
@@ -690,7 +769,7 @@ router.put("/admin/:requestId", auth, async (req, res) => {
             `Your request #${requestId} "${title}" has been replied to.`,
             {
               type: "REQUEST_REPLIED",
-              requestId: Number(requestId),
+              requestId: requestId,
               requestTitle: title,
               orderId: order_id,
             }
@@ -704,13 +783,14 @@ router.put("/admin/:requestId", auth, async (req, res) => {
             `Your request #${requestId} "${title}" has been closed.`,
             {
               type: "REQUEST_CLOSED",
-              requestId: Number(requestId),
+              requestId: requestId,
               requestTitle: title,
               orderId: order_id,
             }
           );
         }
       }
+
     } catch (pushErr) {
       logger.error("Request notification failed", {
         requestId,
@@ -727,13 +807,17 @@ router.put("/admin/:requestId", auth, async (req, res) => {
       hasReplyMessage: action === "reply",
     });
 
-    res.json({ message: "Request updated successfully" });
+    res.json({
+      message: "Request updated successfully",
+    });
+
   } catch (err) {
     logger.error("Error updating special request by admin", {
       adminId,
       requestId,
       action,
-      attemptedReplyMessage: action === "reply" ? replyMessage : null,
+      attemptedReplyMessage:
+        action === "reply" ? replyMessage : null,
       error: err.message,
       stack: err.stack,
     });

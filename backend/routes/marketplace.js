@@ -23,6 +23,11 @@ const throwDb = (error, message = "Database operation failed") => {
   }
 };
 
+const toNumber = (value, fallback = 0) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
 const buildEmptyShareUsage = () => ({
   used_shares: 0,
   day1_booked: 0,
@@ -39,7 +44,7 @@ const fetchPreferredShareSetup = async (adminId) => {
 
   if (!rows?.length) return null;
 
-  const activeSetup = rows.find((row) => Number(row.is_active ?? 1) === 1);
+  const activeSetup = rows.find((row) => toNumber(row.is_active ?? 1, 1) === 1);
   const setup = activeSetup || rows[0];
 
   if (!activeSetup && rows.length > 1) {
@@ -49,21 +54,17 @@ const fetchPreferredShareSetup = async (adminId) => {
     });
   }
 
-  const day1 = Number(setup.day1);
-  const day2 = Number(setup.day2);
-  const day3 = Number(setup.day3);
-
   return {
     ...setup,
-    late_booking_fee: Number(setup.late_booking_fee || 0),
-    delivery_fee: Number(setup.delivery_fee || 0),
+    late_booking_fee: toNumber(setup.late_booking_fee),
+    delivery_fee: toNumber(setup.delivery_fee),
     free_delivery_threshold:
-      setup.free_delivery_threshold == null ? null : Number(setup.free_delivery_threshold),
+      setup.free_delivery_threshold == null ? null : toNumber(setup.free_delivery_threshold),
     currency: setup.currency || "USD",
-    is_active: Number(setup.is_active ?? 1),
-    day1: Number.isFinite(day1) ? day1 : 0,
-    day2: Number.isFinite(day2) ? day2 : 0,
-    day3: Number.isFinite(day3) ? day3 : 0,
+    is_active: toNumber(setup.is_active ?? 1, 1),
+    day1: toNumber(setup.day1),
+    day2: toNumber(setup.day2),
+    day3: toNumber(setup.day3),
   };
 };
 
@@ -89,11 +90,11 @@ const fetchAdminAnimalsWithAvailability = async (adminId) => {
 
   return (animals || []).map((animal) => {
     const assignedShares = assignedByAnimalId.get(String(animal.id)) || 0;
-    const shares = Number(animal.shares || 0);
+    const shares = toNumber(animal.shares);
 
     return {
       ...animal,
-      price_per_share: Number(animal.price_per_share || 0),
+      price_per_share: toNumber(animal.price_per_share),
       shares,
       assigned_shares: assignedShares,
       remaining_shares: Math.max(shares - assignedShares, 0),
@@ -183,14 +184,15 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
       fetchAdminAnimalsWithAvailability(adminId),
     ]);
 
-    const totalShares = animals.reduce((sum, animal) => sum + Number(animal.shares || 0), 0);
-    const day1 = Number(setup.day1 || 0);
-    const day2 = Number(setup.day2 || 0);
-    const day3 = Number(setup.day3 || 0);
-    const usedShares = Number(usage.used_shares || 0);
-    const day1Booked = Number(usage.day1_booked || 0);
-    const day2Booked = Number(usage.day2_booked || 0);
-    const day3Booked = Number(usage.day3_booked || 0);
+    const totalShares = animals.reduce((sum, animal) => sum + toNumber(animal.shares), 0);
+    const day1 = toNumber(setup.day1);
+    const day2 = toNumber(setup.day2);
+    const day3 = toNumber(setup.day3);
+    const usedShares = toNumber(usage.used_shares);
+    const day1Booked = toNumber(usage.day1_booked);
+    const day2Booked = toNumber(usage.day2_booked);
+    const day3Booked = toNumber(usage.day3_booked);
+    const remainingShares = Math.max(0, totalShares - usedShares);
 
     return ok(res, "Order config fetched successfully", {
       ...setup,
@@ -202,13 +204,14 @@ router.get("/:adminId/order-config", authMiddleware, async (req, res) => {
       day1_booked: day1Booked,
       day2_booked: day2Booked,
       day3_booked: day3Booked,
-      remaining_shares: Math.max(0, totalShares - usedShares),
+      remaining_shares: remainingShares,
       day1_remaining: Math.max(0, day1 - day1Booked),
       day2_remaining: Math.max(0, day2 - day2Booked),
       day3_remaining: Math.max(0, day3 - day3Booked),
       animals,
     });
   } catch (err) {
+    console.error("Error fetching admin order config", { adminId, error: err.message, stack: err.stack });
     logger.error("Failed to fetch admin order config", {
       adminId,
       error: err.message,

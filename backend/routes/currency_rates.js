@@ -1,12 +1,11 @@
-// const express = require("express");
-// const router = express.Router();
-// const pool = require("../config/db");
-// const authMiddleware = require("../middleware/authmiddleware");
-// const logger = require("../middleware/logger");
+const express = require("express");
+const router = express.Router();
+const pool = require("../config/db");
+const authMiddleware = require("../middleware/authmiddleware");
+const logger = require("../middleware/logger");
 // /**
 //  * GET /api/users/currencies
 //  */
-
 
 // /**
 //  * @swagger
@@ -196,57 +195,67 @@
 //   }
 // });
 
+router.get("/profile/address", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-// router.get('/profile/address', authMiddleware, async (req, res) => {
-//   try {
-//     const userId = req.user.id;
+    const result = await pool.query(
+  `
+  SELECT
+    country,
+    country_iso,
+    state,
+    city,
+    postal_code,
+    address,
+    order_deadline
+  FROM users
+  WHERE id = $1
+  LIMIT 1
+  `,
+  [userId]
+);
 
-//     const [rows] = await pool.query(
-//       `
-//       SELECT
-//         country,
-//         country_iso,
-//         state,
-//         city,
-//         postal_code,
-//         address,
-//         order_deadline
-//       FROM users
-//       WHERE id = ?
-//       LIMIT 1
-//       `,
-//       [userId]
-//     );
+const rows = result.rows;
 
-//     if (!rows || rows.length === 0) {
-//       return res.status(404).json({ message: 'User not found' });
-//     }
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-//     const user = rows[0];
+    const user = rows[0];
 
-//     // ✅ If no address saved at all
-//     if (
-//       !user.country &&
-//       !user.state &&
-//       !user.city &&
-//       !user.address
-//     ) {
-//       return res.json(null);
-//     }
+    // ✅ If no address saved at all
+    const isEmpty =
+      !user.country &&
+      !user.state &&
+      !user.city &&
+      !user.address &&
+      !user.postal_code;
 
-//     // ✅ Match Flutter expectations exactly
-//     return res.json({
-//       country: user.country,
-//       country_iso: user.country_iso,
-//       state: user.state,
-//       city: user.city,
-//       postal_code: user.postal_code,
-//       address: user.address,
-//     });
-//   } catch (err) {
-//     console.error('[PROFILE ADDRESS]', err);
-//     return res.status(500).json({ message: 'Server error' });
-//   }
-// });
+    if (isEmpty) {
+      return res.json({
+        country: "",
+        country_iso: "",
+        state: "",
+        city: "",
+        postal_code: "",
+        address: "",
+      });
+    }
 
-// module.exports = router;
+    // ✅ Match Flutter expectations exactly
+    return res.json({
+      country: user.country,
+      country_iso: user.country_iso,
+      state: user.state,
+      city: user.city,
+      postal_code: user.postal_code,
+      address: user.address,
+    });
+  } catch (err) {
+    console.error("[PROFILE ADDRESS]", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+module.exports = router;

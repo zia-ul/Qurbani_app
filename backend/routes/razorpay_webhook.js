@@ -117,7 +117,7 @@ const markWebhookPaymentFailed = async (connection, payment) => {
     `
     UPDATE orders
     SET razorpay_payment_status = ?,
-        payment_status = 1
+        payment_status = TRUE
     WHERE id = ?
     `,
     [payment.status || "failed", order.id],

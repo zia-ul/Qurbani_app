@@ -78,6 +78,8 @@ class ProfileService {
       body: jsonEncode(updates),
     );
 
+    print('Update profile response: ${res.statusCode} ${res.body} ${res}');
+
     if (res.statusCode != 200) {
       final msg = ApiClient.errorMessage(
         res,

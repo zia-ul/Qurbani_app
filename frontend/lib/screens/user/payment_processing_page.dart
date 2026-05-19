@@ -21,8 +21,6 @@ class PaymentProcessingPage extends StatefulWidget {
 
 class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
   late Razorpay _razorpay;
-  bool _isStartingPayment = false;
-  Map<String, dynamic>? _paymentOrder;
 
   @override
   void initState() {
@@ -33,63 +31,26 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
-  Future<void> _startPayment() async {
-    if (_isStartingPayment) return;
-
-    setState(() => _isStartingPayment = true);
-
-    try {
-      final paymentOrder = await OrderService.createRazorpayOrder(
-        widget.orderId,
-      );
-
-      _paymentOrder = paymentOrder;
-
-      final options = {
-        'key': paymentOrder['key_id'],
-        'amount': paymentOrder['amount'],
-        'currency': paymentOrder['currency'] ?? 'INR',
-        'name': 'Qurbani',
-        'description': 'Order #${widget.orderId}',
-        'order_id': paymentOrder['razorpay_order_id'],
-        'prefill': {'contact': '', 'email': ''},
-        'notes': {'orderId': widget.orderId},
-      };
-      _razorpay.open(options);
-    } catch (e) {
-      Fluttertoast.showToast(
-        msg: "Unable to start payment: $e",
-        backgroundColor: AppTheme.warningRed,
-        textColor: AppTheme.bgGradientEnd,
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isStartingPayment = false);
-      }
-    }
+  void _startPayment() {
+    var options = {
+      'key': 'rzp_test_RvnWCRmWH17BYb', // Replace with your key
+      'amount': (widget.totalAmount * 100).round(), // Paise
+      'currency': 'INR',
+      'name': 'Qurbani',
+      'description': 'Order Payment',
+      'prefill': {
+        'contact': '', // Add user contact if available
+        'email': '', // Add user email if available
+      },
+    };
+    _razorpay.open(options);
   }
 
   void _handleSuccess(PaymentSuccessResponse res) async {
     try {
-      final razorpayOrderId =
-          res.orderId ?? _paymentOrder?['razorpay_order_id']?.toString();
-      final razorpayPaymentId = res.paymentId;
-      final razorpaySignature = res.signature;
-
-      if (razorpayOrderId == null ||
-          razorpayPaymentId == null ||
-          razorpaySignature == null) {
-        throw Exception("Payment response is missing verification details");
-      }
-
-      await OrderService.verifyRazorpayPayment(
-        orderId: widget.orderId,
-        razorpayOrderId: razorpayOrderId,
-        razorpayPaymentId: razorpayPaymentId,
-        razorpaySignature: razorpaySignature,
-      );
+      await OrderService.updatePaymentSuccess(widget.orderId, res.paymentId!);
       Fluttertoast.showToast(
-        msg: "Payment verified successfully!",
+        msg: "Payment Successful!",
         backgroundColor: Colors.green,
         textColor: AppTheme.bgGradientEnd,
       );
@@ -100,7 +61,7 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       );
     } catch (e) {
       Fluttertoast.showToast(
-        msg: "Payment verification failed: $e",
+        msg: "Payment recorded, but error updating: $e",
         backgroundColor: Colors.orange,
         textColor: AppTheme.bgGradientEnd,
       );
@@ -132,14 +93,11 @@ class _PaymentProcessingPageState extends State<PaymentProcessingPage> {
       ),
       body: Center(
         child: ElevatedButton(
-          onPressed: _isStartingPayment ? null : _startPayment,
+          onPressed: _startPayment,
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
           ),
-          child: Text(
-            _isStartingPayment ? "Starting..." : "Pay Now",
-            style: const TextStyle(fontSize: 18),
-          ),
+          child: const Text("Pay Now", style: TextStyle(fontSize: 18)),
         ),
       ),
     );

@@ -271,7 +271,10 @@ class OrderService {
       res,
       fallbackMessage: 'Unable to load your bookings right now.',
     );
-    final List data = body['orders'] is List ? body['orders'] as List : [];
+    final List data =
+    body['data']?['orders'] is List
+        ? body['data']['orders'] as List
+        : [];
     return _dedupeOrders(data);
   }
 
@@ -298,7 +301,7 @@ class OrderService {
       res,
       fallbackMessage: 'Unable to load this order right now.',
     );
-    return Map<String, dynamic>.from(body['order']);
+    return Map<String, dynamic>.from(body['data']['order']);
   }
 
   static Future<Map<String, dynamic>> getOrderDetails(String orderId) async {
@@ -326,7 +329,7 @@ class OrderService {
       res,
       fallbackMessage: 'Unable to load this order right now.',
     );
-    return Map<String, dynamic>.from(data['order']);
+    return Map<String, dynamic>.from(data['data']['order']);
   }
 
   static Future<void> cancelOrder(String orderId) async {

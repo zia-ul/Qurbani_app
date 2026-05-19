@@ -4,6 +4,7 @@ const pool = require("../config/db");
 const auth = require("../middleware/authmiddleware");
 const logger = require("../middleware/logger");
 const { sendPushNotification } = require("../utils/notification_service");
+const supabase = require("../config/supabase");
 
 function badRequest(message) {
   const error = new Error(message);
@@ -107,64 +108,80 @@ router.get("/:orderId/:userId", auth, async (req, res) => {
       userId,
       orderId,
     });
-    return res.status(403).json({ message: "Unauthorized" });
+
+    return res.status(403).json({
+      message: "Unauthorized",
+    });
   }
 
   try {
-    const [orders] = await pool.execute(
-      `
-      SELECT 
-        o.id AS order_id,
-        o.admin_id,
-        a.name AS admin_name
-      FROM orders o
-      JOIN users a ON a.id = o.admin_id
-      WHERE o.id = ? AND o.user_id = ?
-      `,
-      [orderId, userId],
-    );
+    // Fetch order
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        admin_id,
+        users!orders_admin_id_fkey (
+          name
+        )
+      `)
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    if (!orders.length) {
+    if (orderError) {
+      throw orderError;
+    }
+
+    if (!order) {
       logger.warn("Order not found for ratings fetch", {
         orderId,
         userId,
       });
-      return res.status(404).json({ message: "Order not found" });
+
+      return res.status(404).json({
+        message: "Order not found",
+      });
     }
 
-    const [ratings] = await pool.execute(
-      `
-      SELECT admin_id, admin_rating, feedback
-      FROM ratings
-      WHERE order_id = ? AND user_id = ?
-      `,
-      [orderId, userId],
-    );
+    // Fetch ratings
+    const { data: ratings, error: ratingsError } = await supabase
+      .from("ratings")
+      .select("admin_id, admin_rating, feedback")
+      .eq("order_id", orderId)
+      .eq("user_id", userId);
+
+    if (ratingsError) {
+      throw ratingsError;
+    }
 
     const ratingsMap = {};
-    ratings.forEach((r) => {
+
+    for (const r of ratings || []) {
       ratingsMap[r.admin_id] = {
         adminRating: Number(r.admin_rating),
         feedback: r.feedback,
       };
-    });
+    }
 
     logger.info("Fetched ratings for order", {
       userId,
       orderId,
-      ratingsCount: ratings.length,
+      ratingsCount: ratings?.length || 0,
     });
 
-    const order = {
-      ...orders[0],
-      adminId: orders[0].admin_id,
-      adminName: orders[0].admin_name,
-    };
-
     return res.json({
-      order,
+      order: {
+        order_id: order.id,
+        admin_id: order.admin_id,
+        admin_name: order.users?.name ?? null,
+        adminId: order.admin_id,
+        adminName: order.users?.name ?? null,
+      },
+
       ratings: ratingsMap,
-      submitted: ratings.length > 0,
+
+      submitted: (ratings?.length || 0) > 0,
     });
   } catch (err) {
     logger.error("Error fetching ratings", {
@@ -246,55 +263,53 @@ router.post("/", auth, async (req, res) => {
       userId,
       orderId,
     });
-    return res.status(403).json({ message: "Unauthorized" });
+
+    return res.status(403).json({
+      message: "Unauthorized",
+    });
   }
 
   if (!orderId || !Array.isArray(ratings) || ratings.length === 0) {
     logger.warn("Invalid ratings payload", {
       userId,
       orderId,
-      ratingsType: typeof ratings,
-      ratingsLength: Array.isArray(ratings) ? ratings.length : null,
     });
-    return res.status(400).json({ message: "Invalid ratings data" });
+
+    return res.status(400).json({
+      message: "Invalid ratings data",
+    });
   }
 
-  const connection = await pool.getConnection();
-
   try {
-    await connection.beginTransaction();
+    // Verify order exists
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .select("id, admin_id")
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .maybeSingle();
 
-    const [orderRows] = await connection.execute(
-      `
-      SELECT id, admin_id
-      FROM orders
-      WHERE id = ? AND user_id = ?
-      `,
-      [orderId, userId],
-    );
-
-    if (!orderRows.length) {
-      logger.warn("Ratings submission failed - order not found", {
-        userId,
-        orderId,
-      });
-      await connection.rollback();
-      return res.status(404).json({ message: "Order not found" });
+    if (orderError) {
+      throw orderError;
     }
 
-    const orderAdminId = orderRows[0].admin_id;
-    const ratingsTableConfig = await getRatingsTableConfig(connection);
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found",
+      });
+    }
+
+    const orderAdminId = order.admin_id;
 
     for (const r of ratings) {
-      const { adminId, adminRating, feedback } = r;
+      const {
+        adminId,
+        adminRating,
+        deliveryRating,
+        feedback,
+      } = r;
 
       if (adminId && adminId !== orderAdminId) {
-        logger.warn("Admin ID mismatch in rating payload", {
-          userId,
-          orderId,
-          payloadAdminId: adminId,
-          actualAdminId: orderAdminId,
-        });
         throw badRequest("Invalid admin for this order");
       }
 
@@ -305,96 +320,69 @@ router.post("/", auth, async (req, res) => {
         normalizedAdminRating < 1 ||
         normalizedAdminRating > 5
       ) {
-        logger.warn("Invalid admin rating value detected", {
-          userId,
-          orderId,
-          adminId: orderAdminId,
-          adminRating,
-        });
         throw badRequest("Invalid admin rating value");
+      }
+
+      const normalizedDeliveryRating =
+        deliveryRating == null || deliveryRating === ""
+          ? normalizedAdminRating
+          : Number(deliveryRating);
+
+      if (
+        Number.isNaN(normalizedDeliveryRating) ||
+        normalizedDeliveryRating < 1 ||
+        normalizedDeliveryRating > 5
+      ) {
+        throw badRequest("Invalid delivery rating value");
       }
 
       const trimmedFeedback = feedback?.trim() || null;
 
-      let normalizedDeliveryRating = null;
-      if (ratingsTableConfig.hasDeliveryRatingColumn) {
-        const deliveryRatingInput = r.deliveryRating;
-        normalizedDeliveryRating =
-          deliveryRatingInput == null || deliveryRatingInput === ""
-            ? normalizedAdminRating
-            : Number(deliveryRatingInput);
+      // Check existing rating
+      const { data: existingRating, error: existingError } = await supabase
+        .from("ratings")
+        .select("id")
+        .eq("order_id", orderId)
+        .eq("user_id", userId)
+        .eq("admin_id", orderAdminId)
+        .maybeSingle();
 
-        if (
-          Number.isNaN(normalizedDeliveryRating) ||
-          normalizedDeliveryRating < 1 ||
-          normalizedDeliveryRating > 5
-        ) {
-          logger.warn("Invalid delivery rating value detected", {
-            userId,
-            orderId,
-            adminId: orderAdminId,
-            deliveryRating: deliveryRatingInput,
+      if (existingError) {
+        throw existingError;
+      }
+
+      if (existingRating) {
+        // UPDATE
+        const { error: updateError } = await supabase
+          .from("ratings")
+          .update({
+            admin_rating: normalizedAdminRating,
+            delivery_rating: normalizedDeliveryRating,
+            feedback: trimmedFeedback,
+          })
+          .eq("id", existingRating.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        // INSERT
+        const { error: insertError } = await supabase
+          .from("ratings")
+          .insert({
+            order_id: orderId,
+            user_id: userId,
+            admin_id: orderAdminId,
+            admin_rating: normalizedAdminRating,
+            delivery_rating: normalizedDeliveryRating,
+            feedback: trimmedFeedback,
           });
-          throw badRequest("Invalid delivery rating value");
+
+        if (insertError) {
+          throw insertError;
         }
       }
-
-      const [existingRows] = await connection.execute(
-        `
-        SELECT id
-        FROM ratings
-        WHERE order_id = ? AND user_id = ? AND admin_id = ?
-        LIMIT 1
-        `,
-        [orderId, userId, orderAdminId],
-      );
-
-      if (existingRows.length) {
-        const updateColumns = ["admin_rating = ?", "feedback = ?"];
-        const updateValues = [normalizedAdminRating, trimmedFeedback];
-
-        if (ratingsTableConfig.hasDeliveryRatingColumn) {
-          updateColumns.splice(1, 0, "delivery_rating = ?");
-          updateValues.splice(1, 0, normalizedDeliveryRating);
-        }
-
-        updateValues.push(existingRows[0].id);
-
-        await connection.execute(
-          `UPDATE ratings SET ${updateColumns.join(", ")} WHERE id = ?`,
-          updateValues,
-        );
-        continue;
-      }
-
-      const insertColumns = ["order_id", "user_id", "admin_id", "admin_rating"];
-      const insertValues = [orderId, userId, orderAdminId, normalizedAdminRating];
-
-      if (ratingsTableConfig.requiresExplicitId) {
-        insertColumns.unshift("id");
-        insertValues.unshift(
-          await getNextRatingsId(connection, ratingsTableConfig),
-        );
-      }
-
-      if (ratingsTableConfig.hasDeliveryRatingColumn) {
-        insertColumns.push("delivery_rating");
-        insertValues.push(normalizedDeliveryRating);
-      }
-
-      insertColumns.push("feedback");
-      insertValues.push(trimmedFeedback);
-
-      await connection.execute(
-        `
-        INSERT INTO ratings (${insertColumns.join(", ")})
-        VALUES (${insertColumns.map(() => "?").join(", ")})
-        `,
-        insertValues,
-      );
     }
-
-    await connection.commit();
 
     logger.info("Ratings submitted successfully", {
       userId,
@@ -403,17 +391,19 @@ router.post("/", auth, async (req, res) => {
       adminId: orderAdminId,
     });
 
+    // Push notifications
     try {
-      const [devices] = await pool.execute(
-        `
-        SELECT subscription_id
-        FROM user_devices
-        WHERE user_id = ? AND subscription_id IS NOT NULL
-        `,
-        [orderAdminId],
-      );
+      const { data: devices, error: devicesError } = await supabase
+        .from("user_devices")
+        .select("subscription_id")
+        .eq("user_id", orderAdminId)
+        .not("subscription_id", "is", null);
 
-      const subscriptionIds = devices
+      if (devicesError) {
+        throw devicesError;
+      }
+
+      const subscriptionIds = (devices || [])
         .map((d) => d.subscription_id)
         .filter(Boolean);
 
@@ -429,19 +419,6 @@ router.post("/", auth, async (req, res) => {
             adminId: orderAdminId,
           },
         );
-
-        logger.info("Admin notified about new order rating", {
-          userId,
-          orderId,
-          adminId: orderAdminId,
-          devicesCount: subscriptionIds.length,
-        });
-      } else {
-        logger.warn("No admin devices found for rating notification", {
-          userId,
-          orderId,
-          adminId: orderAdminId,
-        });
       }
     } catch (pushErr) {
       logger.error("Failed to send admin rating notification", {
@@ -449,13 +426,13 @@ router.post("/", auth, async (req, res) => {
         orderId,
         adminId: orderAdminId,
         error: pushErr.message,
-        stack: pushErr.stack,
       });
     }
 
-    return res.json({ message: "Ratings submitted successfully" });
+    return res.json({
+      message: "Ratings submitted successfully",
+    });
   } catch (err) {
-    await connection.rollback();
     const statusCode = err.statusCode || 500;
 
     logger.error("Error submitting ratings", {
@@ -471,8 +448,6 @@ router.post("/", auth, async (req, res) => {
           ? "Something went wrong. Please try again later."
           : err.message,
     });
-  } finally {
-    connection.release();
   }
 });
 

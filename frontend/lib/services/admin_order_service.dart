@@ -56,9 +56,12 @@ class AdminOrderService {
       res,
       fallbackMessage: 'Unable to load orders right now.',
     );
-    final List orders = body['orders'] is List
-        ? body['orders'] as List
-        : const [];
+    final data = body['data'];
+
+final List orders =
+    data != null && data['orders'] is List
+        ? List<Map<String, dynamic>>.from(data['orders'])
+        : [];
     return _dedupeOrders(orders);
   }
 
@@ -215,7 +218,15 @@ class AdminOrderService {
       res,
       fallbackMessage: 'Unable to load the order details right now.',
     );
-    return Map<String, dynamic>.from(data['order'] ?? {});
+    final order = data['data']?['order'];
+
+print("Fetched admin order details: $order");
+
+if (order == null || order is! Map) {
+  throw ApiException('Invalid order response');
+}
+
+return Map<String, dynamic>.from(order);
   }
 
   /// GET DELIVERY BOYS

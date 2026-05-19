@@ -67,7 +67,7 @@ app.use("/api/superadmin", require("../routes/superadmin"));
 // Orders
 // app.use("/api/orders", require("../routes/orders"));
 
-// app.use("/api/users", require("../routes/currency_rates"))
+app.use("/api/users", require("../routes/currency_rates"))
 app.use("/api/notifications", require("../routes/notifications"))
 
 // Rating Routes

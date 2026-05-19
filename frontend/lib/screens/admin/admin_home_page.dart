@@ -88,6 +88,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
       final stats =
           await AdminService.getDashboardStats(); // fetch from backend
+      
+      print("stats of admin: ${stats}");
 
       AppLogger.info("Dashboard stats loaded: $stats");
 
@@ -434,13 +436,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  Map<String, int> _normalizeStats(Map<String, dynamic> stats) {
-    return {
-      'animals': _parseCount(stats['animals']),
-      'orders': _parseCount(stats['orders']),
-      'requests': _parseCount(stats['requests']),
-    };
-  }
+  Map<String, dynamic> _normalizeStats(Map<String, dynamic> stats) {
+  final data = stats['data'] ?? {};
+
+  return {
+    'animals': data['animals'] ?? 0,
+    'orders': data['orders'] ?? 0,
+    'requests': data['requests'] ?? 0,
+  };
+}
 
   int _parseCount(dynamic value) {
     if (value is int) return value;

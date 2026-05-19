@@ -104,7 +104,7 @@ const saveVendorShareSetup = async (req, res) => {
       SELECT id
       FROM admin_share_setups
       WHERE admin_id = $1
-        AND is_active = 1
+        AND is_active = TRUE
       LIMIT 1
       `,
       [vendorId]
@@ -224,7 +224,7 @@ const getVendorShareSetup = async (
         day3
       FROM admin_share_setups
       WHERE admin_id = $1
-        AND is_active = 1
+        AND is_active = TRUE
       ORDER BY updated_at DESC
       LIMIT 1
       `,

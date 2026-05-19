@@ -182,6 +182,9 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
       final data = await AdminOrderService.getAdminOrderById(
         widget.orderId.toString(),
       );
+
+      print("Fetched order details for order ${widget.orderId}: $data");
+
       if (!mounted) return;
       setState(() {
         orderData = data;
@@ -232,6 +235,8 @@ class _ShareholderOrderDetailsState extends State<ShareholderOrderDetails> {
             animal,
           );
         }
+
+        print("Fetched ${uniqueAnimals.length} ${uniqueAnimals} unique animals for order details");
 
         setState(() {
           availableAnimals = uniqueAnimals.values.toList();

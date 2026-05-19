@@ -372,29 +372,60 @@ router.get("/profile", authMiddleware, async (req, res) => {
 
 // PUT /api/profile - Update authenticated user's profile
 router.put("/profile", authMiddleware, async (req, res) => {
+
   const userId = req.user.id;
 
+  console.log(
+    "Update profile request body:",
+    req.body
+  );
+
   try {
-    await pool.execute(
-      "UPDATE users SET name=?, phone=?, address=?, description=?, photo_url=? WHERE id=?",
-      [
-        req.body.name,
-        req.body.phone,
-        req.body.address,
-        req.body.description,
-        req.body.photoUrl,
+
+    const query = `
+      UPDATE users
+      SET
+        name = $1,
+        phone = $2,
+        address = $3,
+        description = $4,
+        photo_url = $5
+      WHERE id = $6
+    `;
+
+    await pool.query(query, [
+      req.body.name,
+      req.body.phone,
+      req.body.address,
+      req.body.description,
+      req.body.photoUrl,
+      userId,
+    ]);
+
+    logger.info("Profile updated", {
+      userId,
+    });
+
+    return res.json({
+      message:
+        "Profile updated successfully",
+    });
+
+  } catch (err) {
+
+    logger.error(
+      "Profile update failed",
+      {
         userId,
-      ],
+        error: err.message,
+        stack: err.stack,
+      }
     );
 
-    logger.info("Profile updated", { userId });
-    res.json({ message: "Profile updated successfully" });
-  } catch (err) {
-    logger.error("Profile update failed", {
-      userId,
-      error: err.message,
+    return res.status(500).json({
+      message:
+        "Something went wrong. Please try again later.",
     });
-    res.status(500).json({ message: "Something went wrong. Please try again later." });
   }
 });
 
@@ -1974,10 +2005,17 @@ router.get("/special-requests", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const [requests] = await pool.execute(
-      `SELECT id, title, description, status, created_at, reply_message, replied_at FROM requests WHERE user_id = ? ORDER BY created_at DESC`,
-      [userId],
-    );
+    const { data: requests, error } = await supabase
+  .from("requests")
+  .select(
+    "id,title,description,status,created_at,reply_message,replied_at"
+  )
+  .eq("user_id", userId)
+  .order("created_at", { ascending: false });
+
+if (error) {
+  throw error;
+}
 
     logger.info("Special requests fetched", {
       userId,
