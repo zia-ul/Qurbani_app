@@ -25,6 +25,18 @@ logger.info("Application starting");
 
 // Express app setup
 const app = express();
+const compression = require("compression");
+
+// Trust proxy for reverse proxies (Render, Cloudflare)
+app.set("trust proxy", 1);
+
+// Gzip compression for high-performance payload transfer
+app.use(compression());
+
+// Health check endpoint for uptime monitors
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
 
 // Global rate limiter (applies to all requests)
 const globalLimiter = rateLimit({
@@ -78,7 +90,7 @@ app.use('/api', userRoutes); // This mounts /api/profile, /api/ratings, /api/req
 // Swagger API docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
