@@ -160,8 +160,9 @@ class _SettingsPageState extends State<SettingsPage> {
     if (SettingsPage.mockOpenLink != null) {
       return SettingsPage.mockOpenLink!(url);
     }
-    if (await canLaunch(url)) {
-      await launch(url);
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ToastUtils.showError("Could not open link");
     }
@@ -190,7 +191,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Consumer<CurrencyNotifier>(
             builder: (_, notifier, __) {
               return DropdownButtonFormField<String>(
-                value: (_availableCurrencies.contains(_selectedCurrency))
+                initialValue: (_availableCurrencies.contains(_selectedCurrency))
                     ? _selectedCurrency
                     : null,
 
@@ -292,10 +293,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _showLanguageDialog() async {
     final languages = ["English", "हिन्दी", "اردو"];
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
 
     await showDialog(
       context: context,
-      builder: (_) => SimpleDialog(
+      builder: (dialogContext) => SimpleDialog(
         title: const Text("Choose Language"),
         children: languages.map((lang) {
           return RadioListTile<String>(
@@ -305,8 +307,12 @@ class _SettingsPageState extends State<SettingsPage> {
             onChanged: (val) async {
               if (val != null) {
                 await prefs.setString('language', val);
-                setState(() => _selectedLanguage = val);
-                Navigator.pop(context);
+                if (mounted) {
+                  setState(() => _selectedLanguage = val);
+                }
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
               }
             },
           );

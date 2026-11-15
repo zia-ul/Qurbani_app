@@ -1,6 +1,7 @@
 /// This file contains the Admin Verification Details page, which displays
 /// detailed information about an admin's verification status, including
 /// organization details, documents, and review history.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:Qurbani/screens/superadmin/services/super_admin_services.dart';
@@ -291,8 +292,9 @@ class _AdminVerificationDetailsPageState
   }
 
   Widget _buildReviewSection(Map<String, dynamic> data) {
-    if (data['reviewed_by'] == null && data['review_note'] == null)
+    if (data['reviewed_by'] == null && data['review_note'] == null) {
       return const SizedBox.shrink();
+    }
 
     return _buildSectionCard(
       title: 'Review Audit',

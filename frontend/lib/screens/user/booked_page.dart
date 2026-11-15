@@ -200,7 +200,7 @@ class _BookedPageState extends State<BookedPage> {
                   children: [
                     Flexible(
                       child: Text(
-                        "ID: QB-${displayId}",
+                        "ID: QB-$displayId",
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,

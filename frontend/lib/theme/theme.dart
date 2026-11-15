@@ -29,13 +29,11 @@ class AppTheme {
     colorScheme: ColorScheme.light(
       primary: primaryGreen,
       secondary: accentGreen,
-      error: warningRed,
-      background: bgGradientEnd, // Base for surfaces
+      error: warningRed, // Base for surfaces
       surface: AppTheme.bgGradientEnd.withOpacity(0.9), // Semi-transparent for depth
       onPrimary: AppTheme.bgGradientEnd, // Text on primary
       onSecondary: AppTheme.bgGradientEnd,
-      onSurface: Colors.black87, // Dark text on light BG
-      onBackground: Colors.black87,
+      onSurface: Colors.black87,
     ),
 
     appBarTheme: AppBarTheme(
@@ -117,13 +115,11 @@ class AppTheme {
     colorScheme: ColorScheme.dark(
       primary: accentGreen,
       secondary: primaryGreen,
-      error: warningRed,
-      background: darkBgGradientEnd, // Base for surfaces
+      error: warningRed, // Base for surfaces
       surface: darkBgGradientStart.withOpacity(0.9), // Semi-transparent
       onPrimary: Colors.black, // Text on primary
       onSecondary: Colors.black,
-      onSurface: Colors.white70, // Light text on dark BG
-      onBackground: Colors.white70,
+      onSurface: Colors.white70,
     ),
 
     appBarTheme: AppBarTheme(

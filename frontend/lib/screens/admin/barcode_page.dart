@@ -62,7 +62,7 @@ class _BarcodePageState extends State<BarcodePage> {
                 pw.Image(pwImage, width: 400),
                 pw.SizedBox(height: 10),
                 pw.Text(
-                  "ID: ${displayBarcode}", // Display last 12 digits
+                  "ID: $displayBarcode", // Display last 12 digits
                   style: pw.TextStyle(fontSize: 16),
                 ),
               ],

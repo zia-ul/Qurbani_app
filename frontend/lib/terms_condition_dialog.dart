@@ -6,9 +6,9 @@ class TermsConditionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
+    return PopScope(
       // Prevent accidental back navigation without choosing Accept/Decline
-      onWillPop: () async => false,
+      canPop: false,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Terms & Conditions"),

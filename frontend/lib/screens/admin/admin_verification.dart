@@ -223,8 +223,9 @@ class _AdminVerificationPageState extends State<AdminVerificationPage> {
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
                   final exp = int.tryParse(v);
-                  if (exp == null || exp < 1)
+                  if (exp == null || exp < 1) {
                     return 'Minimum 1 year experience required';
+                  }
                   return null;
                 },
               ),

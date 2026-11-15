@@ -300,7 +300,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 
     const emailNormalized = email.toLowerCase();
     logger.info("Login attempt", { email: emailNormalized });
-
+    
     const [users] = await db.query(
       `SELECT 
         id, name, email, password_hash, role, admin_status,

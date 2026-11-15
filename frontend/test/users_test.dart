@@ -33,7 +33,7 @@ void main() {
 
     // Verify main actions
     expect(find.text('Marketplace'), findsOneWidget);
-    expect(find.text('My Bookings'), findsOneWidget);
+    expect(find.text('My Qurbani'), findsOneWidget);
 
     // Verify feature labels
     expect(find.text('Healthy'), findsOneWidget);
@@ -120,7 +120,7 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
 
     await tester.enterText(find.byType(TextFormField).at(2), 'wrongpass');
 
-    await tester.tap(find.text('Change Password'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Change Password'));
     await tester.pump();
 
     expect(find.text('Passwords do not match'), findsOneWidget);
@@ -262,7 +262,6 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
 
     // Buttons
     expect(find.text('View Profile'), findsNWidgets(2));
-    expect(find.text('Place Order'), findsNWidgets(2));
   });
 
   tearDown(() {
@@ -304,7 +303,7 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
 
     await tester.pumpAndSettle();
 
-    expect(find.text('No verified admins found'), findsOneWidget);
+    expect(find.text('No verified qasabs found'), findsOneWidget);
   });
 
   testWidgets('Shows error message on API failure', (

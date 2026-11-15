@@ -97,6 +97,9 @@ class AuthService {
       body: jsonEncode(data),
     );
 
+    print("Login response status: ${res.statusCode}");
+    print("Login response body: ${res.body}");
+
     if (res.statusCode != 200) {
       final msg = jsonDecode(res.body)['message'] ?? 'Login failed';
       throw Exception(msg);

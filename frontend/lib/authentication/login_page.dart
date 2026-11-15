@@ -1,18 +1,17 @@
-/**
- * Login Page Widget
- *
- * This screen handles user authentication for the Qurbani application.
- * It provides a form-based login interface with email and password fields,
- * including validation, error handling, and navigation to the main app.
- *
- * Features:
- * - Email and password input validation
- * - Password visibility toggle
- * - Loading states during authentication
- * - Error handling with user-friendly dialogs
- * - Navigation to registration page
- * - Automatic redirect to wrapper screen on successful login
- */
+/// Login Page Widget
+///
+/// This screen handles user authentication for the Qurbani application.
+/// It provides a form-based login interface with email and password fields,
+/// including validation, error handling, and navigation to the main app.
+///
+/// Features:
+/// - Email and password input validation
+/// - Password visibility toggle
+/// - Loading states during authentication
+/// - Error handling with user-friendly dialogs
+/// - Navigation to registration page
+/// - Automatic redirect to wrapper screen on successful login
+library;
 
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
@@ -20,13 +19,13 @@ import 'package:Qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/primary_btn.dart';
+import 'package:Qurbani/widgets/common_input_decoration.dart';
 
-/**
- * LoginScreen Widget
- *
- * A stateful widget that displays the login form with email and password fields.
- * Handles user authentication flow and navigation upon successful login.
- */
+/// LoginScreen Widget
+///
+/// A stateful widget that displays the login form with email and password fields.
+/// Handles user authentication flow and navigation upon successful login.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -34,12 +33,10 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-/**
- * State class for LoginScreen
- *
- * Manages the login form state including form validation, loading states,
- * password visibility toggle, and authentication logic.
- */
+/// State class for LoginScreen
+///
+/// Manages the login form state including form validation, loading states,
+/// password visibility toggle, and authentication logic.
 class _LoginScreenState extends State<LoginScreen> {
   // Form controllers for managing input field values
   final _emailController = TextEditingController();
@@ -64,7 +61,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
-
+      print("Attempting login with email: $email"); // Debug log
+      
       // Login (JWT saved inside AuthService)
       await AuthService.login({'email': email, 'password': password});
 
@@ -160,16 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              filled: true,
-                              fillColor: AppTheme.bgGradientEnd,
-                              prefixIcon: Icon(Icons.email_outlined),
-                              labelText: 'Email',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(12),
-                                ),
-                              ),
+                            decoration: CommonInputDecoration.build(
+                              'Enter your email',
+                              label: 'Email',
+                              prefixIcon: const Icon(Icons.email_outlined),
                             ),
                             validator: (v) => v != null && v.contains('@')
                                 ? null
@@ -181,16 +173,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: AppTheme.bgGradientEnd,
+                            decoration: CommonInputDecoration.build(
+                              'Enter your password',
+                              label: 'Password',
                               prefixIcon: const Icon(Icons.lock_outline),
-                              labelText: 'Password',
-                              border: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(12),
-                                ),
-                              ),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
@@ -209,30 +195,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 20),
 
                           // Login button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _signIn,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryGreen,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 10,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color: AppTheme.bgGradientEnd,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Text("Log In"),
-                            ),
+                          PrimaryButton(
+                            text: "Log In",
+                            height: 48,
+                            isLoading: _isLoading,
+                            onPressed: _signIn,
                           ),
 
                           const SizedBox(height: 12),

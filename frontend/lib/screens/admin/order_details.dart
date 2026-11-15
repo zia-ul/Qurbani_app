@@ -55,6 +55,15 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
   int? selectedShareNumber;
   Map<String, dynamic>? selectedAnimal;
 
+  /// ID of the delivery person assigned to this order.
+  // String deliveryPersonId = '';
+
+  // /// Name of the delivery person assigned to this order.
+  // String deliveryPersonName = '';
+
+  // /// Phone number of the delivery person assigned to this order.
+  // String deliveryPersonPhone = '';
+
   /// Initializes the state of the widget by fetching order details and delivery boys list.
   @override
   void initState() {
@@ -122,7 +131,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       ToastUtils.showSuccess('Qurbani scheduled');
       _fetchOrderDetails();
     } catch (e) {
-
+      // print("issue occured $e");
       ToastUtils.showError(e.toString());
     }
   }
@@ -138,7 +147,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       ToastUtils.showSuccess('Meat details saved');
       _fetchOrderDetails();
     } catch (e) {
-
+      // print(e);
       ToastUtils.showError(e.toString());
     }
   }
@@ -217,6 +226,20 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
       );
     }
 
+    // print("========== DROPDOWN DEBUG ==========");
+    // print("SelectedAnimalId: $selectedAnimalId");
+    // print("AvailableAnimals count: ${availableAnimals.length}");
+
+    // for (var a in availableAnimals) {
+    //   print("Animal ID: ${a['id']}");
+    // }
+
+    // final matches = availableAnimals
+    //     .where((a) => a['id'].toString() == selectedAnimalId?.toString())
+    //     .length;
+
+    // print("Matching items count: $matches");
+    // print("=====================================");
 
     return _actionCard(
       title: 'Step 1: Select Animal Share',
@@ -225,7 +248,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         children: [
           /// Animal Dropdown
           DropdownButtonFormField<String>(
-            value:
+            initialValue:
                 availableAnimals
                         .where(
                           (a) =>
@@ -266,7 +289,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           /// 🧩 Share Dropdown (only if animal selected)
           if (selectedAnimal != null)
             DropdownButtonFormField<int>(
-              value: selectedShareNumber,
+              initialValue: selectedShareNumber,
               decoration: const InputDecoration(
                 labelText: 'Select Share',
                 border: OutlineInputBorder(),
@@ -356,6 +379,18 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
         selectedDeliveryBoyId!,
       );
 
+      // 🔥 fetch delivery boy details explicitly
+      // final deliveryBoy = await AdminOrderService.getDeliveryBoyDetails(
+      //   widget.orderId,
+      //   selectedDeliveryBoyId!,
+      // );
+      // // print(deliveryBoy);
+      // setState(() {
+      //   deliveryPersonId = deliveryBoy['id'] ?? '';
+      //   deliveryPersonName = deliveryBoy['name'] ?? '';
+      //   deliveryPersonPhone = deliveryBoy['phone'] ?? '';
+      // });
+
       ToastUtils.showSuccess('Delivery assigned');
     } catch (e) {
       ToastUtils.showError(e.toString());
@@ -383,7 +418,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     }
 
     final data = orderData!;
-
+    print("order details......$data");
     final List shareholders = data['shareholders'] ?? [];
 
     return Scaffold(
@@ -426,7 +461,81 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     );
   }
 
-  
+  Widget _scheduleStep() {
+    return _actionCard(
+      title: 'Step 2: Schedule Qurbani',
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () async {
+                final d = await showDatePicker(
+                  context: context,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 30)),
+                  initialDate: DateTime.now(),
+                );
+                if (d != null) setState(() => qurbaniDate = d);
+              },
+              child: Text(
+                qurbaniDate == null
+                    ? 'Select Date'
+                    : qurbaniDate!.toString().split(' ')[0],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: () async {
+                final t = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (t != null) setState(() => qurbaniTime = t);
+              },
+              child: Text(
+                qurbaniTime == null
+                    ? 'Select Time'
+                    : qurbaniTime!.format(context),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: _saveButton(_saveSchedule)),
+        ],
+      ),
+    );
+  }
+
+  Widget _deliveryStatusStep() {
+    return _actionCard(
+      title: 'Step 3: Delivery Status',
+      child: Column(
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: selectedDeliveryBoyId,
+            decoration: const InputDecoration(
+              labelText: 'Assign Delivery Boy',
+              border: OutlineInputBorder(),
+            ),
+            items: deliveryBoys
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e['id'].toString(),
+                    child: Text(e['name']),
+                  ),
+                )
+                .toList(),
+            onChanged: (v) => setState(() => selectedDeliveryBoyId = v),
+          ),
+          const SizedBox(height: 16),
+          _saveButton(_saveDelivery),
+        ],
+      ),
+    );
+  }
+
   // -------------------- CARDS --------------------
 
   /// Builds a card displaying the main order information, including user details, price, payment status, and a button to mark as paid if applicable.
@@ -441,7 +550,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
 
     final String currencyCode = currencyNotifier.currency;
 
-
+    // print("...pay....m...${data['paymentMethod']}");
     final bool showMarkAsPaidButton =
         (data['paymentMethod'] ?? '').toString().toLowerCase().trim() ==
             'cash' &&
@@ -584,14 +693,36 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
     );
   }
 
-  
+  /// Builds a timeline widget showing the current processing status of the order with visual indicators for pending, confirmed, and completed stages.
+  Widget _processingTimeline() {
+    final isPending = processing == 'pending';
+    final isConfirmed = processing == 'confirmed';
+    final isCompleted = processing == 'completed';
+
+    return Card(
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _stepDot('Pending', true),
+            _divider(),
+            _stepDot('Confirmed', isConfirmed || isCompleted),
+            _divider(),
+            _stepDot('Done', isCompleted),
+          ],
+        ),
+      ),
+    );
+  }
 
   /// Builds a card for the pending status, allowing the admin to schedule the Qurbani date and time.
   Widget _pendingCard() {
@@ -717,7 +848,7 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
           : Column(
               children: [
                 DropdownButtonFormField<String>(
-                  value: selectedDeliveryBoyId,
+                  initialValue: selectedDeliveryBoyId,
                   decoration: const InputDecoration(
                     labelText: 'Delivery Boy',
                     border: OutlineInputBorder(),
@@ -820,7 +951,20 @@ class _AdminOrderDetailPageState extends State<AdminOrderDetailPage> {
     ),
   );
 
-  
+  Widget _stepDot(String label, bool active) => Column(
+    children: [
+      CircleAvatar(
+        radius: 10,
+        backgroundColor: active ? AppTheme.primaryGreen : Colors.grey.shade300,
+      ),
+      const SizedBox(height: 6),
+      Text(label, style: const TextStyle(fontSize: 12)),
+    ],
+  );
+
+  Widget _divider() =>
+      Expanded(child: Container(height: 2, color: Colors.grey.shade300));
+
   Widget _saveButton(VoidCallback onTap) => SizedBox(
     width: double.infinity,
     child: ElevatedButton(onPressed: onTap, child: const Text('Save')),

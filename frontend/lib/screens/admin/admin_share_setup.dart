@@ -166,7 +166,7 @@ Future<void> pickLastBookingDate() async {
                         value: isDeliveryPaid,
                         onChanged: (v) => setState(() => isDeliveryPaid = v),
                         title: Text(isDeliveryPaid ? "Paid Delivery" : "Free Delivery"),
-                        activeColor: AppTheme.primaryGreen,
+                        activeThumbColor: AppTheme.primaryGreen,
                       ),
                       if (isDeliveryPaid) ...[
                         const SizedBox(height: 10),

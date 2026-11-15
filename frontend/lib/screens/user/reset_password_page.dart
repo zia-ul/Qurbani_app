@@ -1,8 +1,10 @@
 import 'package:Qurbani/utils/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/services/auth_service.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:Qurbani/theme/theme.dart';
+import 'package:Qurbani/widgets/custom_toast.dart';
+import 'package:Qurbani/widgets/common_input_decoration.dart';
+import 'package:Qurbani/widgets/primary_btn.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   const ResetPasswordPage({super.key});
@@ -34,13 +36,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
       await AuthService.changePassword(currentPassword, newPassword);
 
-      Fluttertoast.showToast(
-        msg: "Password changed successfully!",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: AppTheme.primaryGreen,
-        textColor: AppTheme.bgGradientEnd,
-      );
+      CustomToast.showSuccess("Password changed successfully!");
 
       // Clear the form fields
       _currentPasswordController.clear();
@@ -65,13 +61,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         errorMessage = e.toString();
       }
 
-      Fluttertoast.showToast(
-        msg: errorMessage,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: AppTheme.warningRed,
-        textColor: AppTheme.bgGradientEnd,
-      );
+      CustomToast.showError(errorMessage);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -258,33 +248,11 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               ),
               const SizedBox(height: 40),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _changePassword,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    backgroundColor: AppTheme.primaryGreen,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: AppTheme.bgGradientEnd,
-                          ),
-                        )
-                      : const Text(
-                          "Change Password",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppTheme.bgGradientEnd,
-                          ),
-                        ),
-                ),
+              PrimaryButton(
+                text: "Change Password",
+                height: 50,
+                isLoading: _isLoading,
+                onPressed: _changePassword,
               ),
               const SizedBox(height: 20),
 

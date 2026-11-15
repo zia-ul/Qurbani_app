@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'dart:async'; // For Timer
 import 'package:Qurbani/screens/admin/admin_share_setup.dart';
@@ -313,7 +312,20 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         ),
                       ],
                     ),
+                    // const SizedBox(width: 15),
 
+                    // _buildActionCard(
+                    //   title: "Delivery Team",
+                    //   subtitle: "Approve delivery persons",
+                    //   icon: Icons.delivery_dining,
+                    //   color: Colors.teal,
+                    //   onTap: () => Navigator.push(
+                    //     context,
+                    //     MaterialPageRoute(
+                    //       builder: (_) => AdminDeliveryRequestsPage(),
+                    //     ),
+                    //   ),
+                    // ),
 
                     const SizedBox(height: 40),
                     _buildSupportFooter(),

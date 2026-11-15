@@ -911,7 +911,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             const SizedBox(height: 10),
 
             DropdownButtonFormField<csc.State>(
-              value: shareholder.selectedState,
+              initialValue: shareholder.selectedState,
               isExpanded: true,
               items: shareholder.states
                   .map(
@@ -944,7 +944,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
             const SizedBox(height: 10),
 
             DropdownButtonFormField<csc.City>(
-              value: shareholder.selectedCity,
+              initialValue: shareholder.selectedCity,
               isExpanded: true,
               items: shareholder.cities
                   .map(
@@ -1219,7 +1219,7 @@ class _QurbaniOrderPageState extends State<QurbaniOrderPage> {
                   ),
               ],
             );
-          }).toList(),
+          }),
 
           const SizedBox(height: 10),
 

@@ -467,10 +467,12 @@ class _ProfilePageState extends State<ProfilePage> {
                   TextFormField(
                     controller: controller,
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty)
+                      if (v == null || v.trim().isEmpty) {
                         return "$title is required";
-                      if (isNameField && v.trim().length < 3)
+                      }
+                      if (isNameField && v.trim().length < 3) {
                         return "Minimum 3 characters required";
+                      }
                       return null;
                     },
                     decoration: const InputDecoration(
