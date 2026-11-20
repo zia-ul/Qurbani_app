@@ -22,7 +22,7 @@ exports.getAnimals = async (req, res) => {
         a.shares,
         a.price,
         a.created_at,
-        ad.barcode,
+        MAX(ad.barcode) AS barcode,
 
         -- 🔥 COUNT assigned shares
         COUNT(sd.id) AS assigned_shares,
@@ -41,7 +41,7 @@ exports.getAnimals = async (req, res) => {
 
       WHERE a.admin_id = ?
 
-      GROUP BY a.id
+      GROUP BY a.id, a.animal_type, a.shares, a.price, a.created_at
 
       ORDER BY a.created_at DESC
       `,

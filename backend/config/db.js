@@ -15,4 +15,9 @@ const db = mysql.createPool({
     : undefined
 });
 
+// Relax ONLY_FULL_GROUP_BY on acquired connections if enabled on server
+db.on('connection', (connection) => {
+  connection.query("SET SESSION sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))");
+});
+
 module.exports = db;
