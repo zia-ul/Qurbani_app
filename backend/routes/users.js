@@ -571,6 +571,14 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
+    // Action: DELETE user
+    if (action === "delete") {
+      await pool.execute(`DELETE FROM admin_verification_requests WHERE user_id = ?`, [userId]);
+      await pool.execute(`DELETE FROM users WHERE id = ?`, [userId]);
+      logger.info("User deleted by superadmin", { superAdminId, targetUserId: userId });
+      return res.json({ message: "User deleted successfully" });
+    }
+
     // Step 2: Check target user
     const [targetUsers] = await pool.execute(
       `SELECT id, name, role, email FROM users WHERE id = ?`,
