@@ -23,6 +23,13 @@ require('dotenv').config();
 const logger = require("../middleware/logger");
 logger.info("Application starting");
 
+// Express app setup
+const app = express();
+const compression = require("compression");
+
+// Trust proxy for reverse proxies (Render, Cloudflare)
+app.set("trust proxy", 1);
+
 // Public logs viewer for debugging
 app.get("/api/logs", (req, res) => {
   const fs = require("fs");
@@ -31,23 +38,21 @@ app.get("/api/logs", (req, res) => {
   const errFile = path.join(__dirname, "../logs/error.log");
 
   let logs = "";
+  if (fs.existsSync(errFile)) {
+    const lines = fs.readFileSync(errFile, "utf8").trim().split("\n");
+    logs += "=== ERROR LOGS ===\n" + lines.slice(-30).join("\n") + "\n\n";
+  }
   if (fs.existsSync(logFile)) {
     const lines = fs.readFileSync(logFile, "utf8").trim().split("\n");
-    logs = lines.slice(-50).join("\n");
-  } else {
-    logs = "No combined.log file found";
+    logs += "=== COMBINED LOGS ===\n" + lines.slice(-30).join("\n");
+  }
+  if (!logs) {
+    logs = "No log files found";
   }
 
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.send(logs);
 });
-
-// Express app setup
-const app = express();
-const compression = require("compression");
-
-// Trust proxy for reverse proxies (Render, Cloudflare)
-app.set("trust proxy", 1);
 
 // Gzip compression for high-performance payload transfer
 app.use(compression());
