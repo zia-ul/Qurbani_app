@@ -211,4 +211,31 @@ class AuthService {
     }
     return data['message'] ?? 'Password reset successfully';
   }
+
+  /**
+   * Deletes the authenticated user's account
+   * Available for all roles except super_admin
+   */
+  static Future<String> deleteAccount() async {
+    final token = await _storage.read(key: 'token');
+    if (token == null) throw Exception('Not authenticated');
+
+    final res = await http.delete(
+      Uri.parse('$_baseUrl/auth/delete-account'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final data = jsonDecode(res.body);
+    if (res.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to delete account');
+    }
+
+    // Clear local authentication tokens
+    await logout();
+
+    return data['message'] ?? 'Account deleted successfully';
+  }
 }

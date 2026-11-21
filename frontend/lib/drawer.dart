@@ -2,6 +2,7 @@ import 'package:Qurbani/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:Qurbani/authentication/login_page.dart';
 import 'package:Qurbani/services/auth_service.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 // Admin Pages
 import 'package:Qurbani/screens/admin/animal_listing.dart';
@@ -38,6 +39,59 @@ class MasterDrawer extends StatelessWidget {
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (_) => false,
       );
+    }
+  }
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppTheme.warningRed),
+            SizedBox(width: 8),
+            Text("Delete Account"),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to permanently delete your account? This action cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.warningRed),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      try {
+        final msg = await AuthService.deleteAccount();
+        Fluttertoast.showToast(
+          msg: msg,
+          backgroundColor: AppTheme.warningRed,
+          textColor: Colors.white,
+        );
+        if (context.mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (_) => false,
+          );
+        }
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg: e.toString().replaceAll("Exception: ", ""),
+          backgroundColor: AppTheme.warningRed,
+          textColor: Colors.white,
+        );
+      }
     }
   }
 
@@ -287,6 +341,24 @@ class MasterDrawer extends StatelessWidget {
           ],
 
           const Spacer(),
+
+          // Delete Account Option (for all roles EXCEPT super_admin)
+          if (role != 'super_admin') ...[
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: AppTheme.warningRed),
+              title: const Text(
+                "Delete Account",
+                style: TextStyle(
+                  color: AppTheme.warningRed,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onTap: () async {
+                Navigator.pop(context);
+                await _deleteAccount(context);
+              },
+            ),
+          ],
 
           // Logout
           const Divider(),

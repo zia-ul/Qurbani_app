@@ -607,4 +607,71 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+/**
+ * DELETE /api/auth/delete-account
+ * Allows any authenticated user (user, admin, delivery) to delete/deactivate their account.
+ * Super Admin cannot delete their account.
+ */
+router.delete("/delete-account", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const [users] = await pool.query(
+      "SELECT id, role, email FROM users WHERE id = ?",
+      [userId],
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = users[0];
+
+    // Explicit restriction: Super Admin account cannot be deleted
+    if (user.role === "super_admin") {
+      logger.warn("Deletion blocked: Super Admin account cannot be deleted", { userId });
+      return res.status(403).json({
+        message: "Super Admin account cannot be deleted.",
+      });
+    }
+
+    // Try hard delete first; if foreign key constraints exist (e.g. historical orders), perform safe deactivation
+    try {
+      // Clean up child tables without CASCADE if any
+      await pool.query("DELETE FROM admin_payment_settings WHERE admin_id = ?", [userId]);
+      await pool.query("DELETE FROM admin_share_setups WHERE admin_id = ?", [userId]);
+      await pool.query("DELETE FROM admin_verification_requests WHERE user_id = ?", [userId]);
+      await pool.query("DELETE FROM admin_verifications WHERE admin_id = ?", [userId]);
+      await pool.query("DELETE FROM delivery_requests WHERE delivery_user_id = ? OR admin_user_id = ?", [userId, userId]);
+      await pool.query("DELETE FROM eid_slots WHERE admin_id = ?", [userId]);
+
+      // Attempt deleting user
+      await pool.query("DELETE FROM users WHERE id = ?", [userId]);
+      logger.info("Account permanently deleted", { userId, role: user.role });
+    } catch (fkError) {
+      logger.warn("Foreign key constraint encountered during delete, performing soft-deactivate/anonymize", {
+        userId,
+        error: fkError.message,
+      });
+
+      // Anonymize and deactivate
+      const deletedEmail = `deleted_${Date.now()}_${user.email}`;
+      await pool.query(
+        "UPDATE users SET is_active = 0, name = 'Deleted Account', email = ?, password_hash = 'DELETED', phone = NULL WHERE id = ?",
+        [deletedEmail, userId],
+      );
+      logger.info("Account deactivated and anonymized", { userId, role: user.role });
+    }
+
+    return res.json({
+      message: "Account has been successfully deleted.",
+    });
+  } catch (err) {
+    logger.error("Delete account error:", { userId, error: err.message });
+    return res.status(500).json({
+      message: "Failed to delete account. Please try again later.",
+    });
+  }
+});
+
 module.exports = router;

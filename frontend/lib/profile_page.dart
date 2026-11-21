@@ -8,6 +8,9 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
 import 'package:intl/intl.dart';
+import 'package:Qurbani/services/auth_service.dart';
+import 'package:Qurbani/authentication/login_page.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -372,7 +375,27 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             const SizedBox(height: 30),
                             _buildActionButtons(),
-                            const SizedBox(height: 40),
+                            const SizedBox(height: 24),
+                            // Delete Account Option (for all except super_admin)
+                            Center(
+                              child: TextButton.icon(
+                                onPressed: _confirmDeleteAccount,
+                                icon: const Icon(
+                                  Icons.delete_forever,
+                                  color: AppTheme.warningRed,
+                                  size: 20,
+                                ),
+                                label: const Text(
+                                  "Delete Account",
+                                  style: TextStyle(
+                                    color: AppTheme.warningRed,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 30),
                           ],
                         ),
                       ),
@@ -552,6 +575,62 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppTheme.warningRed),
+            SizedBox(width: 8),
+            Text("Delete Account"),
+          ],
+        ),
+        content: const Text(
+          "Are you sure you want to permanently delete your account? This action cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.warningRed),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        final msg = await AuthService.deleteAccount();
+        Fluttertoast.showToast(
+          msg: msg,
+          backgroundColor: AppTheme.warningRed,
+          textColor: Colors.white,
+        );
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (_) => false,
+          );
+        }
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg: e.toString().replaceAll("Exception: ", ""),
+          backgroundColor: AppTheme.warningRed,
+          textColor: Colors.white,
+        );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildActionButtons() {
