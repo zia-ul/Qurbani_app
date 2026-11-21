@@ -1120,4 +1120,50 @@ router.put("/:orderId/cancel", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * PUT /api/orders/:orderId/payment-success
+ * Updates order payment status after online Razorpay payment completion
+ */
+router.put("/:orderId/payment-success", authMiddleware, async (req, res) => {
+  const { orderId } = req.params;
+  const { paymentId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const [orders] = await pool.execute(
+      "SELECT id, user_id FROM orders WHERE id = ?",
+      [orderId]
+    );
+
+    if (orders.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (orders[0].user_id !== userId) {
+      return res.status(403).json({ message: "Unauthorized to update this order" });
+    }
+
+    await pool.execute(
+      "UPDATE orders SET payment_status = 'paid', payment_id = ? WHERE id = ?",
+      [paymentId || null, orderId]
+    );
+
+    await pool.execute(
+      "UPDATE shareholder_details SET payment_status = 'paid' WHERE order_id = ?",
+      [orderId]
+    );
+
+    logger.info("Order payment marked as success", { orderId, paymentId, userId });
+
+    res.json({ message: "Payment updated successfully" });
+  } catch (err) {
+    logger.error("Failed to update payment success", {
+      orderId,
+      error: err.message,
+      stack: err.stack,
+    });
+    res.status(500).json({ message: "Something went wrong. Please try again later." });
+  }
+});
+
 module.exports = router;
