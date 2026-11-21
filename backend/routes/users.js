@@ -663,7 +663,7 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
       await pool.execute(
         `UPDATE users
          SET admin_status = 'rejected',
-             role = 'pending_admin'
+             role = 'admin'
          WHERE id = ?`,
         [userId],
       );
