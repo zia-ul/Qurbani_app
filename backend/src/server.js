@@ -23,6 +23,25 @@ require('dotenv').config();
 const logger = require("../middleware/logger");
 logger.info("Application starting");
 
+// Public logs viewer for debugging
+app.get("/api/logs", (req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+  const logFile = path.join(__dirname, "../logs/combined.log");
+  const errFile = path.join(__dirname, "../logs/error.log");
+
+  let logs = "";
+  if (fs.existsSync(logFile)) {
+    const lines = fs.readFileSync(logFile, "utf8").trim().split("\n");
+    logs = lines.slice(-50).join("\n");
+  } else {
+    logs = "No combined.log file found";
+  }
+
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.send(logs);
+});
+
 // Express app setup
 const app = express();
 const compression = require("compression");
