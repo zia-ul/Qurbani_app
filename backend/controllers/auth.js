@@ -8,7 +8,7 @@ const authMiddleware = require("../middleware/authmiddleware");
 const pool = require("../config/db");
 const logger = require("../middleware/logger"); // Winston logger
 const { loginLimiter, registerLimiter } = require("../middleware/rate_limiter");
-const { sendVerificationEmail } = require("../src/email_service");
+const { sendVerificationEmail, sendPasswordResetEmail } = require("../src/email_service");
 const router = express.Router();
 
 // POST /api/auth/register - User registration endpoint
@@ -493,6 +493,115 @@ router.put("/change-password", authMiddleware, async (req, res) => {
   } catch (err) {
     logger.error("Change password error", { userId, error: err.message });
     res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
+  }
+});
+
+/**
+ * POST /api/auth/forgot-password
+ * Generates a 6-digit OTP code, stores it with expiration, and sends via email
+ */
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const emailNormalized = email.toLowerCase().trim();
+    const [users] = await pool.query(
+      "SELECT id, email FROM users WHERE LOWER(email) = ?",
+      [emailNormalized],
+    );
+
+    if (users.length === 0) {
+      // Return 200/404 or message
+      return res.status(404).json({ message: "User not found with this email" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await pool.query(
+      "UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?",
+      [otp, expiresAt, users[0].id],
+    );
+
+    try {
+      await sendPasswordResetEmail(emailNormalized, otp);
+    } catch (emailErr) {
+      logger.error("Error sending reset email:", emailErr);
+    }
+
+    logger.info("Password reset OTP generated", { email: emailNormalized });
+    return res.json({
+      message: "Password reset OTP sent to your email",
+      // Include for developer/testing ease:
+      otp: process.env.NODE_ENV !== "production" ? otp : undefined,
+    });
+  } catch (err) {
+    logger.error("Forgot password error:", err);
+    return res
+      .status(500)
+      .json({ message: "Something went wrong. Please try again later." });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Verifies OTP and updates user password
+ */
+router.post("/reset-password", async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return res
+      .status(400)
+      .json({ message: "Email, OTP, and new password are required" });
+  }
+
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ message: "Password must be at least 6 characters" });
+  }
+
+  try {
+    const emailNormalized = email.toLowerCase().trim();
+    const [users] = await pool.query(
+      "SELECT id, reset_password_token, reset_password_expires FROM users WHERE LOWER(email) = ?",
+      [emailNormalized],
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = users[0];
+
+    // Check token and expiry
+    if (!user.reset_password_token || user.reset_password_token !== otp.trim()) {
+      return res.status(400).json({ message: "Invalid or incorrect OTP code" });
+    }
+
+    if (new Date() > new Date(user.reset_password_expires)) {
+      return res.status(400).json({ message: "OTP code has expired. Request a new one." });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      "UPDATE users SET password_hash = ?, reset_password_token = NULL, reset_password_expires = NULL WHERE id = ?",
+      [hashedPassword, user.id],
+    );
+
+    logger.info("Password reset successful", { email: emailNormalized });
+    return res.json({ message: "Password has been successfully reset. You can now log in." });
+  } catch (err) {
+    logger.error("Reset password error:", err);
+    return res
       .status(500)
       .json({ message: "Something went wrong. Please try again later." });
   }

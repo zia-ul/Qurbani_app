@@ -2,7 +2,7 @@ const rateLimit = require("express-rate-limit");
 
 exports.loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // max 5 requests per IP
+  max: 100, // relaxed limit for testing & active mobile users
   message: { message: "Too many login attempts. Try again after 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
@@ -10,7 +10,7 @@ exports.loginLimiter = rateLimit({
 
 exports.registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // max 10 registration attempts per IP
+  max: 50,
   message: { message: "Too many registration attempts. Try again later." },
   standardHeaders: true,
   legacyHeaders: false,
