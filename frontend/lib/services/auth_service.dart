@@ -169,4 +169,46 @@ class AuthService {
       throw Exception(msg);
     }
   }
+
+  /**
+   * Request password reset code
+   */
+  static Future<String> forgotPassword(String email) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email.trim()}),
+    );
+
+    final data = jsonDecode(res.body);
+    if (res.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to request password reset');
+    }
+    return data['message'] ?? 'Password reset code sent';
+  }
+
+  /**
+   * Reset password with OTP code
+   */
+  static Future<String> resetPassword({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email.trim(),
+        'otp': otp.trim(),
+        'newPassword': newPassword,
+      }),
+    );
+
+    final data = jsonDecode(res.body);
+    if (res.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to reset password');
+    }
+    return data['message'] ?? 'Password reset successfully';
+  }
 }

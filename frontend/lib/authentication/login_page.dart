@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:Qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
+import '../forgot_password.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/primary_btn.dart';
 import 'package:Qurbani/widgets/common_input_decoration.dart';
@@ -192,7 +193,34 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? null
                                 : 'Password must be at least 6 chars',
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 8),
+
+                          // Forgot Password link
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ForgotPasswordPage(
+                                      initialEmail: _emailController.text.trim(),
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                "Forgot Password?",
+                                style: TextStyle(
+                                  color: AppTheme.primaryGreen,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
 
                           // Login button
                           PrimaryButton(
