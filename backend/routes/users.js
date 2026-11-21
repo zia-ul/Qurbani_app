@@ -571,36 +571,43 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Step 2: Verify that a verification request exists for the target user
-    // This prevents processing actions on users who haven't applied for admin status
-    const [requests] = await pool.execute(
-      `SELECT status FROM admin_verification_requests WHERE user_id = ?`,
+    // Step 2: Check target user
+    const [targetUsers] = await pool.execute(
+      `SELECT id, name, role, email FROM users WHERE id = ?`,
       [userId],
     );
 
-    // If no verification request found, return error
-    if (!requests.length) {
-      logger.warn("Verification request not found", {
-        superAdminId,
-        targetUserId: userId,
-      });
-
-      return res
-        .status(404)
-        .json({ message: "Verification request not found" });
+    if (!targetUsers.length) {
+      return res.status(404).json({ message: "User not found" });
     }
+
+    const [requests] = await pool.execute(
+      `SELECT id, status FROM admin_verification_requests WHERE user_id = ?`,
+      [userId],
+    );
 
     // APPROVE
     if (action === "approve") {
-      await pool.execute(
-        `UPDATE admin_verification_requests
-         SET status = 'approved',
-             reviewed_by = ?,
-             review_note = ?,
-             updated_at = NOW()
-         WHERE user_id = ?`,
-        [superAdminId, review_note || null, userId],
-      );
+      if (requests.length > 0) {
+        await pool.execute(
+          `UPDATE admin_verification_requests
+           SET status = 'approved',
+               reviewed_by = ?,
+               review_note = ?,
+               updated_at = NOW()
+           WHERE user_id = ?`,
+          [superAdminId, review_note || null, userId],
+        );
+      } else {
+        // Create an approved record if not submitted yet
+        const reqId = require("crypto").randomUUID();
+        await pool.execute(
+          `INSERT INTO admin_verification_requests (
+            id, user_id, status, reviewed_by, review_note, created_at, updated_at
+          ) VALUES (?, ?, 'approved', ?, ?, NOW(), NOW())`,
+          [reqId, userId, superAdminId, review_note || "Direct approval by Super Admin"],
+        );
+      }
 
       await pool.execute(
         `UPDATE users
@@ -620,16 +627,25 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
 
     // REJECT
     if (action === "reject") {
-      console.log("rejecting process begins");
-      await pool.execute(
-        `UPDATE admin_verification_requests
-         SET status = 'rejected',
-             reviewed_by = ?,
-             review_note = ?,
-             updated_at = NOW()
-         WHERE user_id = ?`,
-        [superAdminId, review_note || null, userId],
-      );
+      if (requests.length > 0) {
+        await pool.execute(
+          `UPDATE admin_verification_requests
+           SET status = 'rejected',
+               reviewed_by = ?,
+               review_note = ?,
+               updated_at = NOW()
+           WHERE user_id = ?`,
+          [superAdminId, review_note || null, userId],
+        );
+      } else {
+        const reqId = require("crypto").randomUUID();
+        await pool.execute(
+          `INSERT INTO admin_verification_requests (
+            id, user_id, status, reviewed_by, review_note, created_at, updated_at
+          ) VALUES (?, ?, 'rejected', ?, ?, NOW(), NOW())`,
+          [reqId, userId, superAdminId, review_note || "Direct rejection by Super Admin"],
+        );
+      }
 
       await pool.execute(
         `UPDATE users
@@ -644,7 +660,7 @@ router.put("/superadmin/users/:id", authMiddleware, async (req, res) => {
         targetUserId: userId,
       });
 
-      return res.json({ message: "Admin rejected successfully" });
+      return res.json({ message: "Admin verification rejected" });
     }
 
     return res.status(400).json({ message: "Invalid action" });
