@@ -472,29 +472,34 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
         u.email,
         u.phone,
         u.role,
+        u.admin_status,
         u.created_at,
-        COALESCE(avr.status, 'not_submitted') AS verification_status
+        COALESCE(avr.status, u.admin_status, 'not_submitted') AS verification_status
       FROM users u
       LEFT JOIN admin_verification_requests avr
         ON avr.user_id = u.id
-      WHERE u.role IN ('user', 'admin', 'delivery')
+      WHERE u.role IN ('user', 'admin', 'delivery', 'pending_admin', 'pending')
     `;
 
     // Initialize parameters array for prepared statement
     const params = [];
 
     // Step 3: Apply role-based filtering if specified
-    // Only allow filtering by the three main user roles
+    // Only allow filtering by the main user roles
     if (role && role !== "all") {
-      const allowedRoles = ["user", "admin", "delivery"];
+      const allowedRoles = ["user", "admin", "delivery", "pending_admin"];
       // Validate that the requested role is allowed
       if (!allowedRoles.includes(role)) {
         return res.status(400).json({ message: "Invalid role filter" });
       }
 
-      // Add role condition to query
-      query += ` AND u.role = ?`;
-      params.push(role);
+      if (role === "admin") {
+        // Admins include both approved and pending/rejected admins so superadmin can manage them
+        query += ` AND u.role IN ('admin', 'pending_admin', 'pending')`;
+      } else {
+        query += ` AND u.role = ?`;
+        params.push(role);
+      }
     }
 
     // Order results by creation date (newest first) for better UX

@@ -391,7 +391,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 
     final bool canApprove =
         verificationStatus == 'pending' ||
-        verificationStatus == 'not_submitted';
+        verificationStatus == 'not_submitted' ||
+        verificationStatus == 'rejected';
 
     final bool canReject = verificationStatus != 'rejected';
 
