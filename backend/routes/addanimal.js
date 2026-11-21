@@ -89,9 +89,9 @@ router.post(
     // optional animal_details fields
     body("breed").optional({ nullable: true }).isString(),
     body("description").optional({ nullable: true }).isString(),
-    body("age").optional({ nullable: true }).isString(),
-    body("height").optional({ nullable: true }).isString(),
-    body("weight").optional({ nullable: true }).isString(),
+    body("age").optional({ nullable: true }),
+    body("height").optional({ nullable: true }),
+    body("weight").optional({ nullable: true }),
     body("images").optional({ nullable: true }).isArray(),
 
   ],
