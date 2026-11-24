@@ -238,4 +238,112 @@ class AuthService {
 
     return data['message'] ?? 'Account deleted successfully';
   }
+
+  /**
+   * Verify account using 6-digit OTP
+   */
+  static Future<String> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/verify-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email.trim(),
+        'otp': otp.trim(),
+      }),
+    );
+
+    try {
+      final data = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        throw Exception(data['message'] ?? 'Verification failed');
+      }
+      return data['message'] ?? 'Account verified successfully';
+    } on FormatException {
+      if (res.statusCode == 404) {
+        throw Exception('Server endpoint not ready yet. Please check email link or try in a minute.');
+      }
+      throw Exception('Server error (${res.statusCode})');
+    }
+  }
+
+  /**
+   * Resend verification OTP code
+   */
+  static Future<String> resendOtp(String email) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/resend-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email.trim()}),
+    );
+
+    try {
+      final data = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        throw Exception(data['message'] ?? 'Failed to resend code');
+      }
+      return data['message'] ?? 'Verification code sent to your email';
+    } on FormatException {
+      if (res.statusCode == 404) {
+        throw Exception('Server endpoint not ready yet. Please try again shortly.');
+      }
+      throw Exception('Server error (${res.statusCode})');
+    }
+  }
+
+  /**
+   * Send pre-registration OTP for email or mobile
+   */
+  static Future<Map<String, dynamic>> sendPreOtp({
+    required String identifier,
+    required String type, // 'email' or 'phone'
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/send-pre-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'identifier': identifier.trim(),
+        'type': type,
+      }),
+    );
+
+    try {
+      final data = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        throw Exception(data['message'] ?? 'Failed to send verification code');
+      }
+      return data;
+    } on FormatException {
+      throw Exception('Server error (${res.statusCode})');
+    }
+  }
+
+  /**
+   * Verify pre-registration OTP for email or mobile
+   */
+  static Future<String> verifyPreOtp({
+    required String identifier,
+    required String otp,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$_baseUrl/auth/verify-pre-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'identifier': identifier.trim(),
+        'otp': otp.trim(),
+      }),
+    );
+
+    try {
+      final data = jsonDecode(res.body);
+      if (res.statusCode != 200) {
+        throw Exception(data['message'] ?? 'Verification failed');
+      }
+      return data['message'] ?? 'Verified successfully!';
+    } on FormatException {
+      throw Exception('Server error (${res.statusCode})');
+    }
+  }
 }

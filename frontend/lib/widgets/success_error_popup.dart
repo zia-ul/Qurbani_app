@@ -15,7 +15,8 @@ class ToastUtils {
 
   // Show error toast (red)
   static void showError(String message) {
-    _showToast(message, ToastType.error);
+    final cleanMessage = message.replaceAll("Exception: ", "").replaceAll("Exception:", "").trim();
+    _showToast(cleanMessage, ToastType.error);
   }
 
   // Private method to handle toast display

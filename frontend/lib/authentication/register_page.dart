@@ -22,6 +22,7 @@ import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:Qurbani/authentication/login_page.dart';
+import 'package:Qurbani/authentication/otp_verification_page.dart';
 import 'package:Qurbani/services/auth_service.dart';
 import 'package:Qurbani/terms_condition_dialog.dart';
 import 'package:Qurbani/widgets/success_error_popup.dart';
@@ -81,11 +82,182 @@ class _RegisterPageState extends State<RegisterPage> {
   String? selectedCountryName;
   // String? selectedCity;
 
+  // Pre-verification states
+  bool emailVerified = false;
+  bool phoneVerified = false;
+  bool isSendingEmailOtp = false;
+  bool isSendingPhoneOtp = false;
+
   List<csc.State> states = [];
   List<csc.City> cities = [];
 
   csc.State? selectedState;
   csc.City? selectedCity;
+
+  // ---------------- PRE-VERIFICATION DIALOG ----------------
+  Future<void> _showPreOtpDialog({
+    required String title,
+    required String identifier,
+    required String type,
+    required VoidCallback onVerified,
+  }) async {
+    final otpTextController = TextEditingController();
+    bool isVerifying = false;
+    String? dialogError;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Icon(
+                  type == 'email' ? Icons.email_outlined : Icons.phone_android,
+                  color: AppTheme.primaryGreen,
+                ),
+                const SizedBox(width: 8),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Enter the 6-digit code sent to:\n$identifier",
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                ),
+                if (type != 'email')
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "💡 Simulation Mode: Use code 123456",
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: otpTextController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 6),
+                  decoration: InputDecoration(
+                    counterText: "",
+                    hintText: "• • • • • •",
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                if (dialogError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(dialogError!, style: const TextStyle(color: AppTheme.warningRed, fontSize: 12)),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: isVerifying
+                    ? null
+                    : () async {
+                        final code = otpTextController.text.trim();
+                        if (code.length != 6) {
+                          setDialogState(() => dialogError = "Please enter 6 digits");
+                          return;
+                        }
+                        setDialogState(() {
+                          isVerifying = true;
+                          dialogError = null;
+                        });
+                        try {
+                          await AuthService.verifyPreOtp(identifier: identifier, otp: code);
+                          if (!mounted) return;
+                          Navigator.pop(ctx);
+                          onVerified();
+                          ToastUtils.showSuccess("$title successful!");
+                        } catch (err) {
+                          setDialogState(() {
+                            isVerifying = false;
+                            dialogError = err.toString().replaceAll("Exception:", "").trim();
+                          });
+                        }
+                      },
+                child: isVerifying
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text("Verify", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _handleVerifyEmail() async {
+    final email = emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      ToastUtils.showError("Please enter a valid email address first");
+      return;
+    }
+
+    setState(() => isSendingEmailOtp = true);
+    try {
+      await AuthService.sendPreOtp(identifier: email, type: 'email');
+      ToastUtils.showSuccess("Verification code sent to $email");
+      if (!mounted) return;
+      _showPreOtpDialog(
+        title: "Verify Email",
+        identifier: email,
+        type: 'email',
+        onVerified: () => setState(() => emailVerified = true),
+      );
+    } catch (e) {
+      ToastUtils.showError(e.toString().replaceAll("Exception:", "").trim());
+    } finally {
+      if (mounted) setState(() => isSendingEmailOtp = false);
+    }
+  }
+
+  Future<void> _handleVerifyPhone() async {
+    if (phoneNumber == null || phoneNumber!.isEmpty) {
+      ToastUtils.showError("Please enter phone number first");
+      return;
+    }
+
+    final fullPhone = "$countryCode $phoneNumber";
+    setState(() => isSendingPhoneOtp = true);
+    try {
+      final res = await AuthService.sendPreOtp(identifier: fullPhone, type: 'phone');
+      ToastUtils.showSuccess(res['message'] ?? "Verification code generated");
+      if (!mounted) return;
+      _showPreOtpDialog(
+        title: "Verify Mobile",
+        identifier: fullPhone,
+        type: 'phone',
+        onVerified: () => setState(() => phoneVerified = true),
+      );
+    } catch (e) {
+      ToastUtils.showError(e.toString().replaceAll("Exception:", "").trim());
+    } finally {
+      if (mounted) setState(() => isSendingPhoneOtp = false);
+    }
+  }
 
   // ---------------- PASSWORD ----------------
   String _checkPasswordStrength(String password) {
@@ -163,14 +335,29 @@ class _RegisterPageState extends State<RegisterPage> {
 
       AppLogger.info('User registered successfully');
 
-      ToastUtils.showSuccess(
-        'Registration successful. Please verify your email.',
-      );
+      final registeredEmail = emailController.text.trim();
+      final registeredPhone = "$countryCode $phoneNumber";
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => LoginScreen()),
-      );
+      if (emailVerified) {
+        ToastUtils.showSuccess("Registration successful! You can now log in.");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        ToastUtils.showSuccess(
+          "Registration successful. Please verify your account with the code sent to your email.",
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerificationPage(
+              email: registeredEmail,
+              phone: registeredPhone,
+            ),
+          ),
+        );
+      };
     } catch (e, stack) {
       AppLogger.error('Register API failed', e, stack);
       ToastUtils.showError(
@@ -191,6 +378,7 @@ class _RegisterPageState extends State<RegisterPage> {
     String? helperText,
     Function(String)? onChanged,
     String? Function(String?)? validator,
+    Widget? suffixWidget,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 3),
@@ -214,7 +402,7 @@ class _RegisterPageState extends State<RegisterPage> {
             vertical: 10,
           ),
           prefixIcon: Icon(icon, color: Color(int.parse('0xff537D4F'))),
-          suffixIcon: toggleObscure != null
+          suffixIcon: suffixWidget ?? (toggleObscure != null
               ? IconButton(
                   icon: Icon(
                     (isObscured ?? true)
@@ -223,7 +411,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   onPressed: toggleObscure,
                 )
-              : null,
+              : null),
           border: const OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
@@ -452,7 +640,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                                           const SizedBox(height: 8),
 
-                                          // Email Field
+                                          // Email Field with Verify Button
                                           _field(
                                             emailController,
                                             "Email",
@@ -460,49 +648,131 @@ class _RegisterPageState extends State<RegisterPage> {
                                             validator: (v) => v!.contains("@")
                                                 ? null
                                                 : "Invalid email",
+                                            onChanged: (_) {
+                                              if (emailVerified) {
+                                                setState(() => emailVerified = false);
+                                              }
+                                            },
+                                            suffixWidget: Padding(
+                                              padding: const EdgeInsets.only(right: 6),
+                                              child: emailVerified
+                                                  ? const Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 20),
+                                                        SizedBox(width: 4),
+                                                        Text("Verified", style: TextStyle(color: AppTheme.primaryGreen, fontSize: 12, fontWeight: FontWeight.bold)),
+                                                      ],
+                                                    )
+                                                  : TextButton(
+                                                      onPressed: isSendingEmailOtp ? null : _handleVerifyEmail,
+                                                      style: TextButton.styleFrom(
+                                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                                        minimumSize: Size.zero,
+                                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                      ),
+                                                      child: isSendingEmailOtp
+                                                          ? const SizedBox(
+                                                              width: 14,
+                                                              height: 14,
+                                                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryGreen),
+                                                            )
+                                                          : const Text(
+                                                              "Verify",
+                                                              style: TextStyle(
+                                                                color: AppTheme.primaryGreen,
+                                                                fontWeight: FontWeight.bold,
+                                                                fontSize: 13,
+                                                              ),
+                                                            ),
+                                                    ),
+                                            ),
                                           ),
 
                                           const SizedBox(height: 5),
 
-                                          // Phone Field
+                                          // Phone Field with Verify Button
                                           Padding(
                                             padding: const EdgeInsets.only(
                                               bottom: 8,
                                             ),
-                                            child: IntlPhoneField(
-                                              controller: phoneController,
-                                              initialCountryCode: 'IN',
-                                              onSaved: (phone) {
-                                                phoneNumber = phone?.number;
-                                                countryCode =
-                                                    phone?.countryCode;
-                                                countryISO =
-                                                    phone?.countryISOCode;
-                                              },
-                                              onChanged: (phone) {
-                                                phoneNumber = phone.number;
-                                                countryCode = phone.countryCode;
-                                                countryISO =
-                                                    phone.countryISOCode;
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                IntlPhoneField(
+                                                  controller: phoneController,
+                                                  initialCountryCode: "IN",
+                                                  onSaved: (phone) {
+                                                    phoneNumber = phone?.number;
+                                                    countryCode =
+                                                        phone?.countryCode;
+                                                    countryISO =
+                                                        phone?.countryISOCode;
+                                                  },
+                                                  onChanged: (phone) {
+                                                    if (phoneVerified) {
+                                                      setState(() => phoneVerified = false);
+                                                    }
+                                                    phoneNumber = phone.number;
+                                                    countryCode = phone.countryCode;
+                                                    countryISO =
+                                                        phone.countryISOCode;
 
-                                                if (countryController
-                                                    .text
-                                                    .isEmpty) {
-                                                  countryController.text =
-                                                      phone.countryISOCode;
-                                                }
-                                              },
+                                                    if (countryController
+                                                        .text
+                                                        .isEmpty) {
+                                                      countryController.text =
+                                                          phone.countryISOCode;
+                                                    }
+                                                  },
 
-                                              validator: (phone) {
-                                                if (phone == null ||
-                                                    phone.number.isEmpty) {
-                                                  return 'Phone number is required';
-                                                }
-                                                if (!phone.isValidNumber()) {
-                                                  return 'Invalid phone number';
-                                                }
-                                                return null;
-                                              },
+                                                  validator: (phone) {
+                                                    if (phone == null ||
+                                                        phone.number.isEmpty) {
+                                                      return "Phone number is required";
+                                                    }
+                                                    if (!phone.isValidNumber()) {
+                                                      return "Invalid phone number";
+                                                    }
+                                                    return null;
+                                                  },
+                                                ),
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 2, right: 4),
+                                                  child: phoneVerified
+                                                      ? const Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Icon(Icons.check_circle, color: AppTheme.primaryGreen, size: 18),
+                                                            SizedBox(width: 4),
+                                                            Text("Mobile Verified", style: TextStyle(color: AppTheme.primaryGreen, fontSize: 12, fontWeight: FontWeight.bold)),
+                                                          ],
+                                                        )
+                                                      : TextButton.icon(
+                                                          onPressed: isSendingPhoneOtp ? null : _handleVerifyPhone,
+                                                          style: TextButton.styleFrom(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                            minimumSize: Size.zero,
+                                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                          ),
+                                                          icon: isSendingPhoneOtp
+                                                              ? const SizedBox(
+                                                                  width: 12,
+                                                                  height: 12,
+                                                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryGreen),
+                                                                )
+                                                              : const Icon(Icons.verified_outlined, size: 16, color: AppTheme.primaryGreen),
+                                                          label: const Text(
+                                                            "Verify Mobile",
+                                                            style: TextStyle(
+                                                              color: AppTheme.primaryGreen,
+                                                              fontWeight: FontWeight.bold,
+                                                              fontSize: 12,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                ),
+                                              ],
                                             ),
                                           ),
 
