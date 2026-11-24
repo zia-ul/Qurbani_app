@@ -296,18 +296,19 @@ router.post("/verify-pre-otp", async (req, res) => {
       [cleanId],
     );
 
+    // Free/simulation test mode: accept standard code 123456 for instant testing without delays
     const isTestOtp = cleanOtp === "123456";
 
     if (rows.length === 0 && !isTestOtp) {
       return res.status(400).json({ message: "Please request a verification code first." });
     }
 
-    if (rows.length > 0) {
+    if (rows.length > 0 && !isTestOtp) {
       const record = rows[0];
-      if (record.otp !== cleanOtp && !isTestOtp) {
+      if (record.otp !== cleanOtp) {
         return res.status(400).json({ message: "Invalid verification code." });
       }
-      if (new Date() > new Date(record.expires_at) && !isTestOtp) {
+      if (new Date() > new Date(record.expires_at)) {
         return res.status(400).json({ message: "Verification code has expired. Please resend." });
       }
     }

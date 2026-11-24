@@ -130,19 +130,20 @@ class _RegisterPageState extends State<RegisterPage> {
                   "Enter the 6-digit code sent to:\n$identifier",
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                 ),
-                if (type != 'email')
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryGreen.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      "💡 Simulation Mode: Use code 123456",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
-                    ),
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
                   ),
+                  child: Text(
+                    type == 'email'
+                        ? "💡 Testing: You can enter the email OTP or standard code 123456"
+                        : "💡 Simulation Mode: Use standard code 123456",
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryGreen),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: otpTextController,
