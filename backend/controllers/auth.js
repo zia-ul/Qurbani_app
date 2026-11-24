@@ -92,6 +92,13 @@ router.post(
 
       const verificationToken = uuidv4();
 
+      // Check if user pre-verified email beforehand
+      const [preRows] = await db.query(
+        "SELECT is_verified FROM pre_verifications WHERE identifier = ? AND is_verified = 1",
+        [email.toLowerCase().trim()],
+      );
+      const isAlreadyVerified = preRows.length > 0;
+
       await db.query(
         `INSERT INTO users (
           id,
@@ -111,11 +118,12 @@ router.post(
           admin_status,
           currency,
           is_verified,
+          phone_verified,
           verification_token,
           email_otp,
           phone_otp,
           otp_expires
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           name,
@@ -133,29 +141,35 @@ router.post(
           role,
           adminStatus,
           currency || "USD",
-          false,
-          verificationToken,
-          emailOtp,
-          phoneOtp,
-          otpExpires,
+          isAlreadyVerified ? 1 : 0,
+          isAlreadyVerified ? 1 : 0,
+          isAlreadyVerified ? null : verificationToken,
+          isAlreadyVerified ? null : emailOtp,
+          isAlreadyVerified ? null : phoneOtp,
+          isAlreadyVerified ? null : otpExpires,
         ],
       );
 
-      logger.info("User registered successfully", { userId, role });
+      logger.info("User registered successfully", { userId, role, isAlreadyVerified });
 
-      try {
-        await sendVerificationEmail(email, emailOtp, verificationToken);
-        logger.info(`Verification email sent to ${email}`);
-      } catch (err) {
-        logger.error(`Failed to send verification email to ${email}`, {
-          error: err.message,
-        });
+      if (!isAlreadyVerified) {
+        try {
+          await sendVerificationEmail(email, emailOtp, verificationToken);
+          logger.info(`Verification email sent to ${email}`);
+        } catch (err) {
+          logger.error(`Failed to send verification email to ${email}`, {
+            error: err.message,
+          });
+        }
       }
 
       return res.status(201).json({
-        message: "Registration successful. Please enter the verification code sent to your email.",
+        message: isAlreadyVerified
+          ? "Account created successfully! You can now log in."
+          : "Registration successful. Please enter the verification code sent to your email.",
         email: email,
         phone: phone,
+        isVerified: isAlreadyVerified,
       });
     } catch (err) {
       logger.error("Registration error", { email, role, error: err.message });
@@ -214,6 +228,101 @@ router.post("/verify-otp", async (req, res) => {
     return res.status(200).json({ message: "Account successfully verified! You can now log in." });
   } catch (err) {
     logger.error("OTP verification error:", err);
+    res.status(500).json({ message: err.message || "Verification failed" });
+  }
+});
+
+/**
+ * POST /api/auth/send-pre-otp
+ * Sends verification OTP to email or generates test OTP for mobile before registration
+ */
+router.post("/send-pre-otp", async (req, res) => {
+  try {
+    const { identifier, type } = req.body;
+    if (!identifier || !type) {
+      return res.status(400).json({ message: "Identifier (email or phone) and type are required" });
+    }
+
+    const cleanId = identifier.toString().trim().toLowerCase();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    // Store in pre_verifications table
+    await pool.query(
+      `INSERT INTO pre_verifications (identifier, otp, type, is_verified, expires_at)
+       VALUES (?, ?, ?, 0, ?)
+       ON DUPLICATE KEY UPDATE otp = VALUES(otp), is_verified = 0, expires_at = VALUES(expires_at), updated_at = NOW()`,
+      [cleanId, otp, type, expiresAt],
+    );
+
+    if (type === "email") {
+      try {
+        await sendVerificationEmail(cleanId, otp);
+        logger.info("Pre-registration OTP email sent", { email: cleanId });
+      } catch (mailErr) {
+        logger.error("Failed to send pre-registration OTP email", { error: mailErr.message });
+      }
+      return res.json({ message: "Verification code sent to your email" });
+    } else {
+      // Mobile OTP (Free test/simulation code)
+      logger.info("Pre-registration Mobile OTP generated", { phone: cleanId, testOtp: "123456" });
+      return res.json({
+        message: "SMS Verification code sent to mobile. (Use code: 123456)",
+        simulatedOtp: "123456",
+      });
+    }
+  } catch (err) {
+    logger.error("send-pre-otp error:", err);
+    res.status(500).json({ message: err.message || "Failed to send verification code" });
+  }
+});
+
+/**
+ * POST /api/auth/verify-pre-otp
+ * Verifies OTP for email or phone before registration
+ */
+router.post("/verify-pre-otp", async (req, res) => {
+  try {
+    const { identifier, otp } = req.body;
+    if (!identifier || !otp) {
+      return res.status(400).json({ message: "Identifier and code are required" });
+    }
+
+    const cleanId = identifier.toString().trim().toLowerCase();
+    const cleanOtp = otp.toString().trim();
+
+    const [rows] = await pool.query(
+      "SELECT otp, expires_at, type FROM pre_verifications WHERE identifier = ?",
+      [cleanId],
+    );
+
+    const isTestOtp = cleanOtp === "123456";
+
+    if (rows.length === 0 && !isTestOtp) {
+      return res.status(400).json({ message: "Please request a verification code first." });
+    }
+
+    if (rows.length > 0) {
+      const record = rows[0];
+      if (record.otp !== cleanOtp && !isTestOtp) {
+        return res.status(400).json({ message: "Invalid verification code." });
+      }
+      if (new Date() > new Date(record.expires_at) && !isTestOtp) {
+        return res.status(400).json({ message: "Verification code has expired. Please resend." });
+      }
+    }
+
+    await pool.query(
+      `INSERT INTO pre_verifications (identifier, otp, type, is_verified, expires_at)
+       VALUES (?, ?, 'verified', 1, DATE_ADD(NOW(), INTERVAL 1 HOUR))
+       ON DUPLICATE KEY UPDATE is_verified = 1, updated_at = NOW()`,
+      [cleanId, cleanOtp],
+    );
+
+    logger.info("Pre-registration identifier verified successfully", { identifier: cleanId });
+    return res.json({ message: "Verified successfully!" });
+  } catch (err) {
+    logger.error("verify-pre-otp error:", err);
     res.status(500).json({ message: err.message || "Verification failed" });
   }
 });

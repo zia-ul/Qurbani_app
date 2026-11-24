@@ -46,7 +46,8 @@ const sendVerificationEmail = async (toEmail, otp, token) => {
   const verifyLink = `${backendUrl}/auth/verify-email?token=${encodeURIComponent(verifyTokenOrOtp)}`;
 
   const info = await transporter.sendMail({
-    from: '"Qurbani App" <no-reply@qurbani.com>',
+    from: '"Qurbani Support" <Support@aiconfidencecure.com>',
+    replyTo: 'Support@aiconfidencecure.com',
     to: toEmail,
     subject: 'Verify Your Email - Qurbani App',
     html: `
@@ -101,7 +102,8 @@ const sendVerificationEmail = async (toEmail, otp, token) => {
 const sendPasswordResetEmail = async (toEmail, otpOrToken) => {
   try {
     const info = await transporter.sendMail({
-      from: '"Qurbani App" <no-reply@qurbani.com>',
+      from: '"Qurbani Support" <Support@aiconfidencecure.com>',
+      replyTo: 'Support@aiconfidencecure.com',
       to: toEmail,
       subject: 'Password Reset Code - Qurbani App',
       html: `
