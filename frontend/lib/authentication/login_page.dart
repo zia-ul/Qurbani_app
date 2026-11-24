@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:Qurbani/wrapper_screen.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
+import 'otp_verification_page.dart';
 import '../forgot_password.dart';
 import 'package:Qurbani/theme/theme.dart';
 import 'package:Qurbani/widgets/primary_btn.dart';
@@ -80,13 +81,31 @@ class _LoginScreenState extends State<LoginScreen> {
       //   (route) => false,
       // );
     } catch (e) {
-      if (!mounted) return;
+      final errorMessage = e.toString().replaceAll("Exception: ", "").trim();
+      final isUnverified = errorMessage.toLowerCase().contains("verify your email") ||
+          errorMessage.toLowerCase().contains("not verified");
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text("Login Error"),
-          content: Text(e.toString()),
+          title: Text(isUnverified ? "Account Not Verified" : "Login Error"),
+          content: Text(errorMessage),
           actions: [
+            if (isUnverified)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OtpVerificationPage(
+                        email: _emailController.text.trim(),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text("Verify Now"),
+              ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text("OK"),

@@ -578,59 +578,94 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _confirmDeleteAccount() async {
-    final confirmed = await showDialog<bool>(
+    showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: AppTheme.warningRed),
-            SizedBox(width: 8),
-            Text("Delete Account"),
-          ],
-        ),
-        content: const Text(
-          "Are you sure you want to permanently delete your account? This action cannot be undone.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.warningRed),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        bool isDeleting = false;
+        return StatefulBuilder(
+          builder: (sbContext, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: AppTheme.warningRed, size: 28),
+                  SizedBox(width: 8),
+                  Text("Delete Account"),
+                ],
+              ),
+              content: isDeleting
+                  ? const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(height: 16),
+                        CircularProgressIndicator(color: AppTheme.warningRed),
+                        SizedBox(height: 16),
+                        Text(
+                          "Deleting account...",
+                          style: TextStyle(fontSize: 14, color: Colors.black54),
+                        ),
+                      ],
+                    )
+                  : const Text(
+                      "Are you sure you want to permanently delete your account? This action cannot be undone.",
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+              actions: isDeleting
+                  ? []
+                  : [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        child: const Text("Cancel"),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.warningRed,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final navigator = Navigator.of(context);
+                          setDialogState(() => isDeleting = true);
+                          try {
+                            final msg = await AuthService.deleteAccount();
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext); // Close dialog
+                            }
+                            Fluttertoast.showToast(
+                              msg: msg,
+                              backgroundColor: AppTheme.warningRed,
+                              textColor: Colors.white,
+                              toastLength: Toast.LENGTH_LONG,
+                            );
+                            navigator.pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (_) => const LoginScreen(),
+                              ),
+                              (_) => false,
+                            );
+                          } catch (e) {
+                            setDialogState(() => isDeleting = false);
+                            Fluttertoast.showToast(
+                              msg: e.toString().replaceAll("Exception: ", ""),
+                              backgroundColor: AppTheme.warningRed,
+                              textColor: Colors.white,
+                              toastLength: Toast.LENGTH_LONG,
+                            );
+                          }
+                        },
+                        child: const Text(
+                          "Delete",
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+            );
+          },
+        );
+      },
     );
-
-    if (confirmed == true && mounted) {
-      setState(() => _isLoading = true);
-      try {
-        final msg = await AuthService.deleteAccount();
-        Fluttertoast.showToast(
-          msg: msg,
-          backgroundColor: AppTheme.warningRed,
-          textColor: Colors.white,
-        );
-        if (mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (_) => false,
-          );
-        }
-      } catch (e) {
-        Fluttertoast.showToast(
-          msg: e.toString().replaceAll("Exception: ", ""),
-          backgroundColor: AppTheme.warningRed,
-          textColor: Colors.white,
-        );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
-    }
   }
 
   Widget _buildActionButtons() {

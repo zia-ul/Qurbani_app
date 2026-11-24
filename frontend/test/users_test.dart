@@ -303,7 +303,7 @@ testWidgets('ResetPasswordPage validates and submits successfully', (WidgetTeste
 
     await tester.pumpAndSettle();
 
-    expect(find.text('No verified qasabs found'), findsOneWidget);
+    expect(find.text('No verified qassabs found'), findsOneWidget);
   });
 
   testWidgets('Shows error message on API failure', (
