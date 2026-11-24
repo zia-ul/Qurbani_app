@@ -35,23 +35,26 @@ transporter.verify((error, success) => {
  */
 
 
-const sendVerificationEmail = async (toEmail, token) => {
-  const verificationUrl = `${_baseUrl}/auth/verify-email?token=${token}`;
-
+const sendVerificationEmail = async (toEmail, otp) => {
   const info = await transporter.sendMail({
     from: '"Qurbani App" <no-reply@qurbani.com>',
     to: toEmail,
-    subject: 'Email Verification',
+    subject: 'Verification Code - Qurbani App',
     html: `
-      <h3>Welcome to Qurbani!</h3>
-      <p>Please verify your email by clicking the link below:</p>
-      <a href="${verificationUrl}">Verify Email</a>
-      <p>This link will expire in 24 hours.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #2F6F4E; text-align: center;">Welcome to Qurbani!</h2>
+        <p>Hello,</p>
+        <p>Thank you for registering with Qurbani. Please use the verification code below to verify your email address:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #2F6F4E; background: #eaf4ee; padding: 12px 24px; border-radius: 6px; display: inline-block;">
+            ${otp}
+          </span>
+        </div>
+        <p style="color: #666; font-size: 14px;">This code will expire in 15 minutes.</p>
+        <p style="color: #999; font-size: 12px;">If you did not create an account, please ignore this email.</p>
+      </div>
     `,
   });
-
-  console.log('Message ID:', info.messageId);
-  console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
 
   return info;
 };

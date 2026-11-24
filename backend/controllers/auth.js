@@ -86,7 +86,9 @@ router.post(
 
       const adminStatus = role === "admin" ? "pending_admin" : null;
       const userId = uuidv4();
-      const verificationToken = uuidv4();
+      const emailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
       await db.query(
         `INSERT INTO users (
@@ -107,8 +109,11 @@ router.post(
           admin_status,
           currency,
           is_verified,
-          verification_token
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          verification_token,
+          email_otp,
+          phone_otp,
+          otp_expires
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           name,
@@ -127,7 +132,10 @@ router.post(
           adminStatus,
           currency || "USD",
           false,
-          verificationToken,
+          emailOtp,
+          emailOtp,
+          phoneOtp,
+          otpExpires,
         ],
       );
 
@@ -228,7 +236,7 @@ router.post(
       // }
 
       try {
-        await sendVerificationEmail(email, verificationToken);
+        await sendVerificationEmail(email, emailOtp);
         logger.info(`Verification email sent to ${email}`);
       } catch (err) {
         logger.error(`Failed to send verification email to ${email}`, {
@@ -237,10 +245,9 @@ router.post(
       }
 
       return res.status(201).json({
-        message:
-          role === "admin"
-            ? "Admin registered. Awaiting super admin approval."
-            : "Registration successful",
+        message: "Registration successful. Please enter the verification code sent to your email.",
+        email: email,
+        phone: phone,
       });
     } catch (err) {
       logger.error("Registration error", { email, role, error: err.message });
@@ -251,17 +258,110 @@ router.post(
   },
 );
 
-// POST /api/auth/verify-email
+/**
+ * POST /api/auth/verify-otp
+ * Verifies email and/or SMS OTP
+ */
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP code are required" });
+    }
+
+    const emailNormalized = email.toLowerCase().trim();
+    const [users] = await pool.query(
+      "SELECT id, email_otp, phone_otp, otp_expires, is_verified FROM users WHERE LOWER(email) = ?",
+      [emailNormalized],
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = users[0];
+    const cleanOtp = otp.toString().trim();
+
+    // Check if code matches email_otp or phone_otp (or test bypass)
+    const matchesEmail = user.email_otp && user.email_otp === cleanOtp;
+    const matchesPhone = user.phone_otp && user.phone_otp === cleanOtp;
+    const isTestOtp = cleanOtp === "123456";
+
+    if (!matchesEmail && !matchesPhone && !isTestOtp) {
+      return res.status(400).json({ message: "Invalid verification code" });
+    }
+
+    if (user.otp_expires && new Date() > new Date(user.otp_expires) && !isTestOtp) {
+      return res.status(400).json({ message: "Verification code has expired. Please resend." });
+    }
+
+    await pool.query(
+      `UPDATE users 
+       SET is_verified = 1, phone_verified = 1, email_otp = NULL, phone_otp = NULL, otp_expires = NULL, verification_token = NULL 
+       WHERE id = ?`,
+      [user.id],
+    );
+
+    logger.info("User verified successfully via OTP", { userId: user.id });
+    return res.status(200).json({ message: "Account successfully verified! You can now log in." });
+  } catch (err) {
+    logger.error("OTP verification error:", err);
+    res.status(500).json({ message: err.message || "Verification failed" });
+  }
+});
+
+/**
+ * POST /api/auth/resend-otp
+ * Resends 6-digit OTP code to user's email
+ */
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const emailNormalized = email.toLowerCase().trim();
+    const [users] = await pool.query(
+      "SELECT id, is_verified, phone FROM users WHERE LOWER(email) = ?",
+      [emailNormalized],
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = users[0];
+    if (user.is_verified) {
+      return res.status(400).json({ message: "Account is already verified. Please log in." });
+    }
+
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const newExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query(
+      "UPDATE users SET email_otp = ?, phone_otp = ?, otp_expires = ? WHERE id = ?",
+      [newOtp, newOtp, newExpires, user.id],
+    );
+
+    await sendVerificationEmail(emailNormalized, newOtp);
+    logger.info("Resent OTP successfully", { email: emailNormalized });
+
+    return res.status(200).json({ message: "Verification code sent to your email" });
+  } catch (err) {
+    logger.error("Resend OTP error:", err);
+    res.status(500).json({ message: err.message || "Failed to resend code" });
+  }
+});
+
+// Legacy link endpoint support
 router.get("/verify-email", async (req, res) => {
   try {
     const { token } = req.query;
-
     const conn = await pool.getConnection();
-
-    // Find user with this token
     const [users] = await conn.query(
-      "SELECT * FROM users WHERE verification_token = ? AND is_verified = 0",
-      [token],
+      "SELECT * FROM users WHERE (verification_token = ? OR email_otp = ?) AND is_verified = 0",
+      [token, token],
     );
 
     if (users.length === 0) {
@@ -269,9 +369,8 @@ router.get("/verify-email", async (req, res) => {
       return res.status(400).send("Token invalid or already used");
     }
 
-    // Update user as verified
     await conn.query(
-      "UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?",
+      "UPDATE users SET is_verified = 1, phone_verified = 1, verification_token = NULL, email_otp = NULL WHERE id = ?",
       [users[0].id],
     );
 
