@@ -474,11 +474,15 @@ router.get("/superadmin/users", authMiddleware, async (req, res) => {
         u.role,
         u.admin_status,
         u.created_at,
-        COALESCE(avr.status, u.admin_status, 'not_submitted') AS verification_status
+        CASE
+          WHEN avr.status IS NOT NULL THEN avr.status
+          WHEN u.admin_status IN ('pending_admin', 'pending', NULL) OR u.admin_status IS NULL THEN 'not_submitted'
+          ELSE u.admin_status
+        END AS verification_status
       FROM users u
       LEFT JOIN admin_verification_requests avr
         ON avr.user_id = u.id
-      WHERE u.role IN ('user', 'admin', 'delivery', 'pending_admin', 'pending')
+      WHERE u.role IN ('admin', 'user', 'delivery', 'pending_admin', 'pending')
     `;
 
     // Initialize parameters array for prepared statement

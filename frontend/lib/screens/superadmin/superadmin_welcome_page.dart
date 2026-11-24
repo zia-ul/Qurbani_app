@@ -61,6 +61,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 
             case AdminVerificationFilter.notSubmitted:
               return status == 'not_submitted' ||
+                  status == 'pending_admin' ||
+                  status == 'pending' ||
                   status == null ||
                   status == '';
           }
@@ -455,11 +457,15 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                           color: Colors.grey,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          data['email'] ?? '',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 13,
+                        Expanded(
+                          child: Text(
+                            data['email'] ?? '',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
