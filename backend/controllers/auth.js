@@ -90,6 +90,8 @@ router.post(
       const phoneOtp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
+      const verificationToken = uuidv4();
+
       await db.query(
         `INSERT INTO users (
           id,
@@ -132,7 +134,7 @@ router.post(
           adminStatus,
           currency || "USD",
           false,
-          emailOtp,
+          verificationToken,
           emailOtp,
           phoneOtp,
           otpExpires,
@@ -141,102 +143,8 @@ router.post(
 
       logger.info("User registered successfully", { userId, role });
 
-      // --------------------------------------------------
-      // SYNC DELIVERY REQUESTS (BIDIRECTIONAL)
-      // --------------------------------------------------
-      // if (role === "delivery") {
-      //   // Delivery registered → notify matching admins
-      //   logger.info("Creating delivery requests for matching admins");
-
-      //   const [admins] = await db.query(
-      //     `
-      //     SELECT id
-      //     FROM users
-      //     WHERE role = 'admin'
-      //       AND admin_status = 'approved'
-      //       AND country = ?
-      //       AND state <=> ?
-      //       AND city <=> ?
-      //     `,
-      //     [country, state, city],
-      //   );
-
-      // console.log(admins);
-
-
-      //   if (admins.length > 0) {
-      //     const requests = admins.map((admin) => [
-      //       uuidv4(),
-      //       userId, // delivery_user_id
-      //       admin.id, // admin_user_id
-      //       country,
-      //       state,
-      //       city,
-      //     ]);
-
-      //     await db.query(
-      //       `
-      // INSERT IGNORE INTO delivery_requests
-      // (id, delivery_user_id, admin_user_id, country, state, city)
-      // VALUES ?
-      // `,
-      //       [requests],
-      //     );
-
-      //     logger.info("Delivery requests created for delivery user", {
-      //       deliveryUserId: userId,
-      //       adminCount: admins.length,
-      //     });
-      //   }
-      // }
-
-      // if (role === "admin" || role === "pending_admin") {
-      //   // Admin registered → notify matching delivery users
-      //   logger.info("Creating delivery requests for matching delivery users");
-
-      //   const [deliveries] = await db.query(
-      //     `
-      //     SELECT id
-      //     FROM users
-      //     WHERE role = 'delivery'
-      //       AND country = ?
-      //       AND state <=> ?
-      //       AND city <=> ?
-      //     `,
-      //     [country, state, city],
-      //   );
-
-      // console.log(deliveries);
-
-
-      //   if (deliveries.length > 0) {
-      //     const requests = deliveries.map((delivery) => [
-      //       uuidv4(),
-      //       delivery.id, // delivery_user_id
-      //       userId, // admin_user_id
-      //       country,
-      //       state,
-      //       city,
-      //     ]);
-
-      //     await db.query(
-      //       `
-      // INSERT IGNORE INTO delivery_requests
-      // (id, delivery_user_id, admin_user_id, country, state, city)
-      // VALUES ?
-      // `,
-      //       [requests],
-      //     );
-
-      //     logger.info("Delivery requests created for admin", {
-      //       adminUserId: userId,
-      //       deliveryCount: deliveries.length,
-      //     });
-      //   }
-      // }
-
       try {
-        await sendVerificationEmail(email, emailOtp);
+        await sendVerificationEmail(email, emailOtp, verificationToken);
         logger.info(`Verification email sent to ${email}`);
       } catch (err) {
         logger.error(`Failed to send verification email to ${email}`, {
@@ -338,13 +246,14 @@ router.post("/resend-otp", async (req, res) => {
 
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const newExpires = new Date(Date.now() + 15 * 60 * 1000);
+    const newToken = uuidv4();
 
     await pool.query(
-      "UPDATE users SET email_otp = ?, phone_otp = ?, otp_expires = ? WHERE id = ?",
-      [newOtp, newOtp, newExpires, user.id],
+      "UPDATE users SET email_otp = ?, phone_otp = ?, verification_token = ?, otp_expires = ? WHERE id = ?",
+      [newOtp, newOtp, newToken, newExpires, user.id],
     );
 
-    await sendVerificationEmail(emailNormalized, newOtp);
+    await sendVerificationEmail(emailNormalized, newOtp, newToken);
     logger.info("Resent OTP successfully", { email: emailNormalized });
 
     return res.status(200).json({ message: "Verification code sent to your email" });
@@ -354,30 +263,89 @@ router.post("/resend-otp", async (req, res) => {
   }
 });
 
-// Legacy link endpoint support
+// Email verification link endpoint
 router.get("/verify-email", async (req, res) => {
   try {
     const { token } = req.query;
+    if (!token) {
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Verification Error</title></head>
+        <body style="font-family: Arial, sans-serif; background-color: #f7f9f8; display: flex; align-items: center; justify-content: center; min-height: 80vh; margin: 0; padding: 20px;">
+          <div style="background: white; max-width: 450px; width: 100%; border-radius: 12px; padding: 36px 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <div style="font-size: 54px; margin-bottom: 12px;">⚠️</div>
+            <h2 style="color: #d32f2f; margin-bottom: 12px;">Missing Verification Token</h2>
+            <p style="color: #666; font-size: 15px; line-height: 1.5;">Please use the link sent to your email or enter your 6-digit verification code directly in the Qurbani App.</p>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    const cleanToken = token.toString().trim();
     const conn = await pool.getConnection();
     const [users] = await conn.query(
-      "SELECT * FROM users WHERE (verification_token = ? OR email_otp = ?) AND is_verified = 0",
-      [token, token],
+      "SELECT id, email, is_verified FROM users WHERE (verification_token = ? OR email_otp = ?)",
+      [cleanToken, cleanToken],
     );
 
     if (users.length === 0) {
       conn.release();
-      return res.status(400).send("Token invalid or already used");
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html>
+        <head><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Verification Failed</title></head>
+        <body style="font-family: Arial, sans-serif; background-color: #f7f9f8; display: flex; align-items: center; justify-content: center; min-height: 80vh; margin: 0; padding: 20px;">
+          <div style="background: white; max-width: 450px; width: 100%; border-radius: 12px; padding: 36px 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+            <div style="font-size: 54px; margin-bottom: 12px;">❌</div>
+            <h2 style="color: #d32f2f; margin-bottom: 12px;">Invalid or Expired Link</h2>
+            <p style="color: #666; font-size: 15px; line-height: 1.5;">This verification link is invalid or your email has already been verified.</p>
+            <p style="color: #2F6F4E; font-size: 14px; margin-top: 20px; font-weight: bold;">If already verified, you can open the Qurbani App and log in.</p>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
+    const user = users[0];
+
     await conn.query(
-      "UPDATE users SET is_verified = 1, phone_verified = 1, verification_token = NULL, email_otp = NULL WHERE id = ?",
-      [users[0].id],
+      "UPDATE users SET is_verified = 1, phone_verified = 1, verification_token = NULL, email_otp = NULL, phone_otp = NULL, otp_expires = NULL WHERE id = ?",
+      [user.id],
     );
 
     conn.release();
-    res.send("Email verified successfully! You can now login.");
+    logger.info("Email verified successfully via link", { userId: user.id, email: user.email });
+
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Account Verified - Qurbani App</title>
+      </head>
+      <body style="font-family: Arial, sans-serif; background-color: #f7f9f8; display: flex; align-items: center; justify-content: center; min-height: 80vh; margin: 0; padding: 20px;">
+        <div style="background: white; max-width: 480px; width: 100%; border-radius: 14px; padding: 40px 24px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border-top: 6px solid #2F6F4E;">
+          <div style="display: inline-block; background-color: #eaf4ee; border-radius: 50%; width: 80px; height: 80px; line-height: 80px; font-size: 44px; margin-bottom: 18px; color: #2F6F4E;">
+            ✓
+          </div>
+          <h2 style="color: #2F6F4E; margin: 0 0 12px; font-size: 24px;">Email Verified Successfully!</h2>
+          <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
+            Your account (<strong style="color: #222;">${user.email}</strong>) is now fully verified.
+          </p>
+          <div style="background: #f4f6f5; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <p style="color: #333; margin: 0; font-size: 14px;">
+              You can now return to the <strong>Qurbani App</strong> on your phone and log in.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
   } catch (err) {
-    res.status(500).send(err.message);
+    logger.error("Verify email error:", err);
+    res.status(500).send("Verification error occurred. Please try again.");
   }
 });
 

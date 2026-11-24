@@ -35,23 +35,57 @@ transporter.verify((error, success) => {
  */
 
 
-const sendVerificationEmail = async (toEmail, otp) => {
+const sendVerificationEmail = async (toEmail, otp, token) => {
+  // Use public Render backend URL for verification link
+  const backendUrl = process.env.BASE_URL && !process.env.BASE_URL.includes("localhost") && !process.env.BASE_URL.includes("192.168")
+    ? process.env.BASE_URL
+    : "https://qurbani-backend-nxny.onrender.com/api";
+  
+  // Link can use either verification token or otp
+  const verifyTokenOrOtp = token || otp;
+  const verifyLink = `${backendUrl}/auth/verify-email?token=${encodeURIComponent(verifyTokenOrOtp)}`;
+
   const info = await transporter.sendMail({
     from: '"Qurbani App" <no-reply@qurbani.com>',
     to: toEmail,
-    subject: 'Verification Code - Qurbani App',
+    subject: 'Verify Your Email - Qurbani App',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #2F6F4E; text-align: center;">Welcome to Qurbani!</h2>
-        <p>Hello,</p>
-        <p>Thank you for registering with Qurbani. Please use the verification code below to verify your email address:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #2F6F4E; background: #eaf4ee; padding: 12px 24px; border-radius: 6px; display: inline-block;">
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e0e0e0; border-radius: 10px; background-color: #ffffff;">
+        <h2 style="color: #2F6F4E; text-align: center; margin-top: 0;">Welcome to Qurbani!</h2>
+        <p style="font-size: 15px; color: #333;">Hello,</p>
+        <p style="font-size: 15px; color: #555; line-height: 1.5;">
+          Thank you for registering with Qurbani. You can verify your email and account using either of the two ways below:
+        </p>
+
+        <!-- Method 1: In-App 6-Digit OTP -->
+        <div style="background-color: #f7faf8; border: 1px solid #d4e8dd; border-radius: 8px; padding: 18px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold; color: #2F6F4E; text-transform: uppercase; letter-spacing: 1px;">
+            1. Enter 6-Digit Code in App
+          </p>
+          <span style="font-size: 34px; font-weight: bold; letter-spacing: 8px; color: #2F6F4E; background: #ffffff; padding: 10px 20px; border-radius: 6px; display: inline-block; border: 2px dashed #2F6F4E;">
             ${otp}
           </span>
         </div>
-        <p style="color: #666; font-size: 14px;">This code will expire in 15 minutes.</p>
-        <p style="color: #999; font-size: 12px;">If you did not create an account, please ignore this email.</p>
+
+        <!-- Method 2: One-Click Link -->
+        <div style="text-align: center; margin: 30px 0 20px 0;">
+          <p style="margin: 0 0 14px 0; font-size: 14px; color: #666;">
+            Or click the button below to verify instantly in your browser:
+          </p>
+          <a href="${verifyLink}" target="_blank" style="background-color: #2F6F4E; color: #ffffff; padding: 14px 28px; text-decoration: none; font-size: 16px; font-weight: bold; border-radius: 6px; display: inline-block;">
+            Verify Email Now
+          </a>
+        </div>
+
+        <p style="color: #888; font-size: 12px; text-align: center; margin-top: 25px; word-break: break-all;">
+          If the button above does not work, copy and paste this link into your browser:<br/>
+          <a href="${verifyLink}" style="color: #2F6F4E;">${verifyLink}</a>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+        <p style="color: #999; font-size: 12px; margin: 0; text-align: center;">
+          This code and link will expire in 15 minutes. If you did not create an account, please ignore this email.
+        </p>
       </div>
     `,
   });
