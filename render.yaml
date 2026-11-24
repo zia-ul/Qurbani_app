@@ -4,6 +4,8 @@ services:
     runtime: node
     plan: free
     region: oregon
+    branch: backend
+    autoDeploy: true
     rootDir: backend
     buildCommand: npm install
     startCommand: node src/server.js
