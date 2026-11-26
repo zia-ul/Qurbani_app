@@ -118,23 +118,25 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
-                        shape: BoxShape.circle,
+                    if (MediaQuery.of(context).orientation == Orientation.portrait) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryGreen.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.mark_email_read_outlined,
+                          size: 48,
+                          color: AppTheme.primaryGreen,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.mark_email_read_outlined,
-                        size: 48,
-                        color: AppTheme.primaryGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
+                      const SizedBox(height: 16),
+                    ],
+                    Text(
                       "Enter Verification Code",
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: MediaQuery.of(context).orientation == Orientation.landscape ? 18 : 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),

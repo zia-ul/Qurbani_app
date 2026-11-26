@@ -124,89 +124,97 @@ class _RegisterPageState extends State<RegisterPage> {
                 Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Enter the 6-digit code sent to:\n$identifier",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: otpTextController,
-                  keyboardType: TextInputType.number,
-                  maxLength: 6,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 6),
-                  decoration: InputDecoration(
-                    counterText: "",
-                    hintText: "• • • • • •",
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.75,
+                maxWidth: 400,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Didn't get code?",
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      "Enter the 6-digit code sent to:\n$identifier",
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
                     ),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: otpTextController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 6,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 6),
+                      decoration: InputDecoration(
+                        counterText: "",
+                        hintText: "• • • • • •",
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                      onPressed: isResending || isVerifying
-                          ? null
-                          : () async {
-                              setDialogState(() {
-                                isResending = true;
-                                dialogError = null;
-                                dialogSuccess = null;
-                              });
-                              try {
-                                await AuthService.sendPreOtp(identifier: identifier, type: type);
-                                setDialogState(() {
-                                  isResending = false;
-                                  dialogSuccess = "Code resent successfully!";
-                                });
-                              } catch (err) {
-                                setDialogState(() {
-                                  isResending = false;
-                                  dialogError = err.toString().replaceAll("Exception:", "").trim();
-                                });
-                              }
-                            },
-                      child: isResending
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryGreen),
-                            )
-                          : const Text(
-                              "Resend Code",
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryGreen,
-                              ),
-                            ),
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Didn't get code?",
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: isResending || isVerifying
+                              ? null
+                              : () async {
+                                  setDialogState(() {
+                                    isResending = true;
+                                    dialogError = null;
+                                    dialogSuccess = null;
+                                  });
+                                  try {
+                                    await AuthService.sendPreOtp(identifier: identifier, type: type);
+                                    setDialogState(() {
+                                      isResending = false;
+                                      dialogSuccess = "Code resent successfully!";
+                                    });
+                                  } catch (err) {
+                                    setDialogState(() {
+                                      isResending = false;
+                                      dialogError = err.toString().replaceAll("Exception:", "").trim();
+                                    });
+                                  }
+                                },
+                          child: isResending
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryGreen),
+                                )
+                              : const Text(
+                                  "Resend Code",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.primaryGreen,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
+                    if (dialogSuccess != null) ...[
+                      const SizedBox(height: 6),
+                      Text(dialogSuccess!, style: const TextStyle(color: AppTheme.primaryGreen, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ],
+                    if (dialogError != null) ...[
+                      const SizedBox(height: 6),
+                      Text(dialogError!, style: const TextStyle(color: AppTheme.warningRed, fontSize: 12)),
+                    ],
                   ],
                 ),
-                if (dialogSuccess != null) ...[
-                  const SizedBox(height: 6),
-                  Text(dialogSuccess!, style: const TextStyle(color: AppTheme.primaryGreen, fontSize: 12, fontWeight: FontWeight.w600)),
-                ],
-                if (dialogError != null) ...[
-                  const SizedBox(height: 6),
-                  Text(dialogError!, style: const TextStyle(color: AppTheme.warningRed, fontSize: 12)),
-                ],
-              ],
+              ),
             ),
             actions: [
               TextButton(
