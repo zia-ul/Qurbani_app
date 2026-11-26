@@ -47,7 +47,8 @@ const sendVerificationEmail = async (toEmail, otp, token) => {
   const verifyTokenOrOtp = token || otp;
   const verifyLink = `${backendUrl}/auth/verify-email?token=${encodeURIComponent(verifyTokenOrOtp)}`;
 
-  const info = await transporter.sendMail({
+  // Wrap transporter.sendMail in Promise.race with 4-second timeout to prevent API request hanging
+  const sendMailPromise = transporter.sendMail({
     from: '"Qurbani Support" <Support@aiconfidencecure.com>',
     replyTo: 'Support@aiconfidencecure.com',
     to: toEmail,
@@ -93,7 +94,11 @@ const sendVerificationEmail = async (toEmail, otp, token) => {
     `,
   });
 
-  return info;
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("SMTP timeout (Render blocked port 465/587)")), 3500)
+  );
+
+  return await Promise.race([sendMailPromise, timeoutPromise]);
 };
 
 /**

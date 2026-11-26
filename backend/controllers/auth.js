@@ -363,7 +363,9 @@ router.post("/resend-otp", async (req, res) => {
       [newOtp, newOtp, newToken, newExpires, user.id],
     );
 
-    await sendVerificationEmail(emailNormalized, newOtp, newToken);
+    await sendVerificationEmail(emailNormalized, newOtp, newToken).catch((e) => {
+      logger.warn("Non-fatal: email send failed or timed out during resend-otp", { error: e.message });
+    });
     logger.info("Resent OTP successfully", { email: emailNormalized });
 
     return res.status(200).json({ message: "Verification code sent to your email" });
