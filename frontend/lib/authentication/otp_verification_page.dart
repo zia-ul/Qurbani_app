@@ -148,23 +148,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                         color: Colors.grey.shade700,
                       ),
                     ),
-                    Container(
-                      margin: const EdgeInsets.only(top: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        "💡 Testing code: You can use 123456 or check your email",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryGreen,
-                        ),
-                      ),
-                    ),
                     if (widget.phone != null && widget.phone!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(

@@ -5,18 +5,19 @@ dotenv.config();
 
 const _baseUrl = process.env.BASE_URL;
 
-// Create transporter with Gmail SMTP (SSL on port 465)
+// Create transporter with GoDaddy / Custom SMTP (SSL on port 465)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com', 
-  port: 465,
-  secure: true, // SSL
+  host: process.env.EMAIL_HOST || 'smtpout.secureserver.net', 
+  port: process.env.EMAIL_PORT ? Number(process.env.EMAIL_PORT) : 465,
+  secure: process.env.EMAIL_SECURE !== 'false', // SSL
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER || 'support@aiconfidencecure.com',
+    pass: process.env.EMAIL_PASS || 'Daniya@aiconfidencecure.com',
   },
   connectionTimeout: 10000,
   greetingTimeout: 10000,
   socketTimeout: 15000,
+  tls: { rejectUnauthorized: false }
 });
 
 

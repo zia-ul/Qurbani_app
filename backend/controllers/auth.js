@@ -204,10 +204,10 @@ router.post("/verify-otp", async (req, res) => {
     const user = users[0];
     const cleanOtp = otp.toString().trim();
 
-    // Check if code matches email_otp or phone_otp (or test bypass)
+    // Check if code matches email_otp or phone_otp (or local development bypass)
     const matchesEmail = user.email_otp && user.email_otp === cleanOtp;
     const matchesPhone = user.phone_otp && user.phone_otp === cleanOtp;
-    const isTestOtp = cleanOtp === "123456";
+    const isTestOtp = process.env.NODE_ENV !== "production" && cleanOtp === "123456";
 
     if (!matchesEmail && !matchesPhone && !isTestOtp) {
       return res.status(400).json({ message: "Invalid verification code" });
@@ -296,8 +296,8 @@ router.post("/verify-pre-otp", async (req, res) => {
       [cleanId],
     );
 
-    // Free/simulation test mode: accept standard code 123456 for instant testing without delays
-    const isTestOtp = cleanOtp === "123456";
+    // Local development simulation bypass (only active in non-production)
+    const isTestOtp = process.env.NODE_ENV !== "production" && cleanOtp === "123456";
 
     if (rows.length === 0 && !isTestOtp) {
       return res.status(400).json({ message: "Please request a verification code first." });
