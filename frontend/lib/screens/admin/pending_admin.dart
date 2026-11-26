@@ -22,20 +22,20 @@ class PendingAdminScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Admin Verification")),
       drawer: MasterDrawer(id: id, name: name, role: role),
       body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.hourglass_top, size: 80, color: Colors.orange),
-              SizedBox(height: 20),
-              Text(
+              const Icon(Icons.hourglass_top, size: 80, color: Colors.orange),
+              const SizedBox(height: 20),
+              const Text(
                 "Your admin verification is pending",
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 12),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
                 "Please wait while we review your documents.",
                 textAlign: TextAlign.center,
               ),

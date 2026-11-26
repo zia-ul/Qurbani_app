@@ -20,7 +20,7 @@ class InviteFriendPage extends StatelessWidget {
         title: const Text("Invite Friends"),
         backgroundColor: AppTheme.primaryGreen,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -58,7 +58,7 @@ class InviteFriendPage extends StatelessWidget {
             _benefitTile("✔ Order tracking"),
             _benefitTile("✔ Share-based Qurbani"),
 
-            const Spacer(),
+            const SizedBox(height: 30),
 
             /// INVITE BUTTON
             SizedBox(

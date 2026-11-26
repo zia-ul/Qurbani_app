@@ -89,7 +89,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
